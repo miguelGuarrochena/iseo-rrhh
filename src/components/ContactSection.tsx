@@ -79,12 +79,17 @@ export const ContactSection: React.FC = () => {
           transition={{ duration: 0.6 }}
           viewport={{ once: true }}
         >
-          <Stack gap="xl" align="center" className="text-center">
-            <Title order={2} size="2.5rem" fw={700} className="text-gray-900">
+          <Stack gap="xl" align="center" className="text-center px-4">
+            <Title
+              order={2}
+              size="2.5rem"
+              fw={700}
+              className="text-gray-900 text-3xl sm:text-4xl leading-tight"
+            >
               ¿Listo para organizar tu empresa?
             </Title>
 
-            <div className="flex flex-col sm:flex-row gap-8 justify-center items-center mt-4 text-gray-700">
+            <div className="flex flex-col sm:flex-row gap-8 justify-start sm:justify-center items-start sm:items-center mt-4 text-gray-700 w-full max-w-2xl mx-auto px-4 sm:px-0">
               <a
                 href="https://wa.me/5491154018969?text=Hola%20ISEO%20RH%2C%20me%20interesar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20sus%20servicios%20de%20Recursos%20Humanos.%20%C2%A1Gracias!"
                 target="_blank"
@@ -97,7 +102,7 @@ export const ContactSection: React.FC = () => {
                 }}
               >
                 <IconBrandWhatsapp size={28} className="text-green-500" />
-                <span className="hidden sm:inline text-current group-hover:underline">
+                <span className="text-current group-hover:underline">
                   WhatsApp
                 </span>
                 <span className="sr-only">

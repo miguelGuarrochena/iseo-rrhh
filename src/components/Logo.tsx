@@ -2,23 +2,23 @@ import React from 'react';
 import Image from 'next/image';
 
 interface LogoProps {
-  width?: number;
-  height?: number;
   className?: string;
 }
 
-export const Logo: React.FC<LogoProps> = ({
-  width = 400,
-  height = 120,
-  className,
-}) => {
+export const Logo: React.FC<LogoProps> = ({ className }) => {
   return (
-    <div style={{ width, height, position: 'relative' }} className={className}>
+    <div
+      style={{ position: 'relative' }}
+      className={`w-[180px] h-[54px] sm:w-[240px] sm:h-[72px] ${className || ''}`}
+    >
       <Image
         src="/logo.svg"
         alt="ISEO RH"
         fill
-        style={{ objectFit: 'contain' }}
+        style={{
+          objectFit: 'contain',
+          objectPosition: 'left center',
+        }}
         priority
       />
     </div>

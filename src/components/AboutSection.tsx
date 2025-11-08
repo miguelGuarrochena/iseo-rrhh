@@ -14,8 +14,13 @@ export const AboutSection: React.FC = () => {
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
             >
-              <Stack gap="lg">
-                <Title order={2} size="2.5rem" fw={700}>
+              <Stack gap="lg" className="px-4 sm:px-0">
+                <Title
+                  order={2}
+                  size="2.5rem"
+                  fw={700}
+                  className="text-center sm:text-left text-3xl sm:text-4xl"
+                >
                   ¿Por qué <span className="text-blue-600">elegirnos</span>?
                 </Title>
                 <Text size="lg" c="dimmed">
@@ -49,9 +54,9 @@ export const AboutSection: React.FC = () => {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.6 }}
-              className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl p-12 h-96 flex items-center justify-center"
+              className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl p-8 sm:p-12 w-full md:min-h-[400px] lg:min-h-[450px] flex items-center"
             >
-              <Stack gap="md" className="text-center">
+              <Stack gap="md" className="text-center w-full">
                 <Text size="xl" fw={700} c="blue">
                   Tu empresa, con orden y claridad
                 </Text>
