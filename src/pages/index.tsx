@@ -3,6 +3,7 @@ import {
   Header,
   HeroSection,
   FeaturesSection,
+  HowWeDoItSection,
   AboutSection,
   ContactSection,
   Footer,
@@ -14,6 +15,7 @@ export default function Home() {
       <Header />
       <HeroSection />
       <FeaturesSection />
+      <HowWeDoItSection />
       <AboutSection />
       <ContactSection />
       <Footer />

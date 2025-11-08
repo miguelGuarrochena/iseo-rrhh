@@ -11,7 +11,7 @@ export const HeroSection: React.FC = () => {
   };
 
   return (
-    <section className="bg-gradient-to-br from-blue-50 to-white py-24">
+    <section className="bg-gradient-to-br from-blue-50 to-white pt-36 pb-24">
       <Container size="xl">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -25,13 +25,18 @@ export const HeroSection: React.FC = () => {
               fw={700}
               className="text-gray-900 max-w-4xl"
             >
-              Gestión de Recursos Humanos{' '}
-              <span className="text-blue-600">Simplificada</span>
+              Organizá tu empresa y tu equipo con nuestro servicio de{' '}
+              <span className="text-blue-600">Recursos Humanos</span>
             </Title>
-            <Text size="xl" c="dimmed" className="max-w-2xl">
-              Talento+ es la solución integral diseñada para pequeñas y medianas
-              empresas que buscan profesionalizar su gestión de talento humano
-              sin complicaciones.
+            <Text size="xl" c="dimmed" className="max-w-3xl">
+              Muchas pequeñas y medianas empresas no cuentan con un área de Recursos Humanos, 
+              pero igualmente necesitan orden, procesos claros y una mirada profesional que les 
+              permita crecer sin perder el control de su equipo.
+            </Text>
+            <Text size="lg" c="dimmed" className="max-w-3xl">
+              Nuestro servicio está pensado justamente para eso: ser tu aliado en la gestión y 
+              organización del personal, creando herramientas y procesos a medida para que tu 
+              empresa gane en claridad, previsibilidad y cultura organizacional.
             </Text>
             <Button
               size="xl"
@@ -39,7 +44,7 @@ export const HeroSection: React.FC = () => {
               onClick={scrollToContact}
               className="mt-4"
             >
-              Solicitar Demo Gratuita
+              Contactanos
             </Button>
           </Stack>
         </motion.div>

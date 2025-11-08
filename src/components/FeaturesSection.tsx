@@ -17,29 +17,29 @@ interface Feature {
 const features: Feature[] = [
   {
     icon: <IconRobot size={40} stroke={1.5} className="text-blue-600" />,
-    title: 'Automatiza Procesos',
+    title: 'Diagnóstico inicial',
     description:
-      'Elimina tareas repetitivas y ahorra tiempo con flujos de trabajo automatizados para onboarding, evaluaciones y más.',
+      'Entendemos cómo funciona tu empresa hoy, qué problemas existen y dónde están las oportunidades de mejora.',
   },
   {
     icon: (
       <IconCurrencyDollar size={40} stroke={1.5} className="text-blue-600" />
     ),
-    title: 'Reduce Costos',
+    title: 'Implementación de nuestra herramienta online',
     description:
-      'Optimiza recursos y reduce gastos operativos con una plataforma todo-en-uno que reemplaza múltiples herramientas.',
+      'Centralizamos licencias, ausencias, horas trabajadas, recibos de sueldo, datos del personal, uniformes y mucho más.',
   },
   {
     icon: <IconMessages size={40} stroke={1.5} className="text-blue-600" />,
-    title: 'Mejora la Comunicación',
+    title: 'Visitas mensuales (opcionales)',
     description:
-      'Centraliza la información y facilita la comunicación entre equipos con notificaciones y mensajería integrada.',
+      'Acompañamos a tu equipo en persona, resolvemos dudas, revisamos avances y proponemos mejoras continuas.',
   },
   {
     icon: <IconChartBar size={40} stroke={1.5} className="text-blue-600" />,
-    title: 'Analítica en Tiempo Real',
+    title: 'Procesos claros y a medida',
     description:
-      'Toma decisiones informadas con reportes y dashboards que muestran métricas clave de tu equipo.',
+      'Diseñamos políticas, reportes, encuestas y evaluaciones de desempeño que se ajustan a la realidad de tu empresa.',
   },
 ];
 
@@ -49,11 +49,11 @@ export const FeaturesSection: React.FC = () => {
       <Container size="xl">
         <Stack align="center" gap="xl" mb={60}>
           <Title order={2} size="2.5rem" fw={700} className="text-center">
-            ¿Por qué elegir <span className="text-blue-600">Talento+</span>?
+            ¿Qué ofrecemos?
           </Title>
-          <Text size="lg" c="dimmed" className="text-center max-w-2xl">
-            Descubre cómo nuestra plataforma puede transformar la gestión de
-            recursos humanos en tu empresa.
+          <Text size="lg" c="dimmed" className="text-center max-w-3xl">
+            Herramientas y procesos a medida para que tu empresa gane en claridad, 
+            previsibilidad y cultura organizacional.
           </Text>
         </Stack>
 
@@ -70,16 +70,17 @@ export const FeaturesSection: React.FC = () => {
                   shadow="md"
                   radius="lg"
                   p="xl"
-                  className="h-full hover:shadow-xl transition-shadow"
+                  className="h-full flex flex-col hover:shadow-xl transition-shadow"
+                  style={{ minHeight: '300px' }}
                 >
-                  <Stack gap="md">
-                    <div className="bg-blue-50 w-16 h-16 rounded-lg flex items-center justify-center">
+                  <Stack gap="md" className="h-full">
+                    <div className="bg-blue-50 w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0">
                       {feature.icon}
                     </div>
-                    <Title order={3} size="h4" fw={600}>
+                    <Title order={3} size="h4" fw={600} className="flex-shrink-0">
                       {feature.title}
                     </Title>
-                    <Text size="sm" c="dimmed">
+                    <Text size="sm" c="dimmed" className="flex-grow">
                       {feature.description}
                     </Text>
                   </Stack>

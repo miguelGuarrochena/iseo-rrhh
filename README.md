@@ -1,8 +1,8 @@
-# Talento+ 🚀
+# ISEO RH 🚀
 
-**Gestión de Recursos Humanos Simplificada**
+**Organizá tu empresa y tu equipo con nuestro servicio de Recursos Humanos**
 
-Talento+ es una landing page moderna y profesional para una plataforma SaaS de gestión de recursos humanos, diseñada específicamente para pequeñas y medianas empresas sin departamento formal de RRHH.
+ISEO RH es una landing page moderna y profesional para un servicio de gestión de recursos humanos, diseñada específicamente para pequeñas y medianas empresas sin departamento formal de RRHH.
 
 ## 🎯 Características
 
@@ -14,7 +14,7 @@ Talento+ es una landing page moderna y profesional para una plataforma SaaS de g
 - ✅ **ESLint + Prettier** configurados para calidad de código
 - ✅ **Diseño responsive** mobile-first
 - ✅ **SEO optimizado** con meta tags
-- ✅ **Logo SVG personalizado** con símbolo "+" integrado
+- ✅ **Logo SVG personalizado** con diseño moderno
 
 ## 📋 Requisitos Previos
 
@@ -79,7 +79,7 @@ Los tests cubren:
 ```
 rrhh/
 ├── public/
-│   └── logo.svg              # Logo de Talento+
+│   └── logo.svg              # Logo de ISEO RH
 ├── src/
 │   ├── components/           # Componentes React reutilizables
 │   │   ├── Header.tsx
@@ -119,7 +119,7 @@ rrhh/
 ## 🎨 Secciones de la Landing Page
 
 ### 1. **Header**
-- Logo de Talento+
+- Logo de ISEO RH
 - Navegación sticky con scroll suave
 - Botón CTA destacado
 
@@ -138,9 +138,9 @@ rrhh/
 - Animaciones al hacer scroll
 
 ### 4. **About Section**
-- Información sobre Talento+
+- Información sobre ISEO RH
 - Diseño en dos columnas
-- Estadística destacada
+- Beneficios destacados
 
 ### 5. **Contact Section**
 - Formulario de contacto con validación
@@ -236,7 +236,7 @@ Este proyecto es privado y confidencial.
 
 ## 👨‍💻 Autor
 
-Desarrollado para Talento+ - Gestión de RRHH Simplificada
+Desarrollado para ISEO RH - Organizá tu empresa y tu equipo
 
 ---
 

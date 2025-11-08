@@ -7,10 +7,12 @@ import {
   TextInput,
   Textarea,
   Button,
-  Grid,
+  Group,
+  Box
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { motion } from 'framer-motion';
+import { IconBrandWhatsapp, IconPhone } from '@tabler/icons-react';
 
 interface ContactFormValues {
   name: string;
@@ -44,50 +46,78 @@ export const ContactSection: React.FC = () => {
     },
   });
 
-  const handleSubmit = (values: ContactFormValues) => {
-    console.log('Form submitted:', values);
-    setSubmitted(true);
-    form.reset();
+  const handleSubmit = async (values: ContactFormValues) => {
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (response.ok) {
+        setSubmitted(true);
+        form.reset();
+      } else {
+        throw new Error('Error al enviar el mensaje');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Ocurrió un error al enviar el mensaje. Por favor, intente nuevamente.');
+    }
     setTimeout(() => setSubmitted(false), 5000);
   };
 
   return (
-    <section id="contact" className="py-24 bg-white">
-      <Container size="xl">
-        <Grid gutter="xl">
-          <Grid.Col span={{ base: 12, md: 5 }}>
+    <section id="contact" className="py-16 bg-white">
+      <Container size="md" className="py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          viewport={{ once: true }}
+        >
+          <Stack gap="xl" align="center" className="text-center">
+            <Title order={2} size="2.5rem" fw={700} className="text-gray-900">
+              ¿Listo para organizar tu empresa?
+            </Title>
+            
+            <div className="flex flex-col sm:flex-row gap-8 justify-center items-center mt-4 text-gray-700">
+              <a 
+                href="https://wa.me/5491154018969" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 hover:text-green-600 transition-colors no-underline"
+                title="Escribinos por WhatsApp"
+              >
+                <IconBrandWhatsapp size={28} className="text-green-500" />
+                <span className="hidden sm:inline text-current">WhatsApp</span>
+              </a>
+              
+              <div className="hidden sm:block text-gray-400">|</div>
+              
+              <a 
+                href="tel:+5491154018969"
+                className="flex items-center gap-2 hover:text-blue-600 transition-colors no-underline"
+                title="Llamanos"
+              >
+                <IconPhone size={28} className="text-blue-500" />
+                <span className="text-current">+54 9 11 5401-8969</span>
+              </a>
+            </div>
+            
+            <Text size="xl" c="dimmed" className="max-w-2xl mt-8">
+              O completá el formulario y nos pondremos en contacto a la brevedad:
+            </Text>
+          </Stack>
+
+          <Box className="mt-8 max-w-2xl mx-auto">
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileInView={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
-            >
-              <Stack gap="lg">
-                <Title order={2} size="2.5rem" fw={700}>
-                  Solicita una{' '}
-                  <span className="text-blue-600">Demo Gratuita</span>
-                </Title>
-                <Text size="lg" c="dimmed">
-                  ¿Listo para transformar la gestión de recursos humanos en tu
-                  empresa? Completa el formulario y uno de nuestros expertos se
-                  pondrá en contacto contigo.
-                </Text>
-                <Text size="md" c="dimmed">
-                  📧 contacto@talentoplus.com
-                  <br />
-                  📞 +54 11 1234-5678
-                  <br />
-                  📍 Buenos Aires, Argentina
-                </Text>
-              </Stack>
-            </motion.div>
-          </Grid.Col>
-          <Grid.Col span={{ base: 12, md: 7 }}>
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.6 }}
             >
               <form onSubmit={form.onSubmit(handleSubmit)}>
                 <Stack gap="md">
@@ -112,24 +142,29 @@ export const ContactSection: React.FC = () => {
                   />
                   <Textarea
                     label="Mensaje"
-                    placeholder="Cuéntanos sobre tu empresa y tus necesidades..."
+                    placeholder="Contanos sobre tu empresa y tus necesidades..."
                     required
                     minRows={4}
                     {...form.getInputProps('message')}
                   />
-                  <Button type="submit" size="lg" fullWidth>
-                    Enviar Solicitud
+                  <Button
+                    type="submit"
+                    size="lg"
+                    className="mt-4 w-full bg-blue-600 hover:bg-blue-700"
+                  >
+                    Enviar mensaje
                   </Button>
+                  
                   {submitted && (
-                    <Text c="green" size="sm" ta="center">
+                    <Text c="green" size="sm" ta="center" mt="md">
                       ¡Gracias! Nos pondremos en contacto pronto.
                     </Text>
                   )}
                 </Stack>
               </form>
             </motion.div>
-          </Grid.Col>
-        </Grid>
+          </Box>
+        </motion.div>
       </Container>
     </section>
   );

@@ -16,23 +16,25 @@ export const AboutSection: React.FC = () => {
             >
               <Stack gap="lg">
                 <Title order={2} size="2.5rem" fw={700}>
-                  Sobre <span className="text-blue-600">Talento+</span>
+                  ¿Por qué <span className="text-blue-600">elegirnos</span>?
                 </Title>
                 <Text size="lg" c="dimmed">
-                  Entendemos los desafíos que enfrentan las pequeñas y medianas
-                  empresas al gestionar su talento humano. Por eso creamos
-                  Talento+, una plataforma intuitiva y completa que centraliza
-                  todos los procesos de RRHH en un solo lugar.
+                  Porque transformamos el desorden en claridad.
                 </Text>
                 <Text size="lg" c="dimmed">
-                  Desde el reclutamiento hasta la evaluación de desempeño,
-                  pasando por la gestión de nóminas y beneficios, Talento+ te
-                  acompaña en cada etapa del ciclo de vida del empleado.
+                  ✓ Tenés un área de RRHH profesional sin sumarlo a tu estructura.
                 </Text>
                 <Text size="lg" c="dimmed">
-                  Nuestra misión es democratizar el acceso a herramientas
-                  profesionales de RRHH, permitiendo que empresas de todos los
-                  tamaños puedan atraer, desarrollar y retener el mejor talento.
+                  ✓ Ahorrás tiempo y evitás errores administrativos.
+                </Text>
+                <Text size="lg" c="dimmed">
+                  ✓ Lográs procesos claros y previsibles que mejoran la comunicación interna.
+                </Text>
+                <Text size="lg" c="dimmed">
+                  ✓ Contás con diagnóstico, visitas mensuales y un servicio adaptado a tu empresa.
+                </Text>
+                <Text size="lg" c="dimmed">
+                  ✓ Usás una herramienta práctica y online, respaldada por nuestro acompañamiento humano.
                 </Text>
               </Stack>
             </motion.div>
@@ -45,10 +47,20 @@ export const AboutSection: React.FC = () => {
               transition={{ duration: 0.6 }}
               className="bg-gradient-to-br from-blue-100 to-blue-50 rounded-2xl p-12 h-96 flex items-center justify-center"
             >
-              <Text size="xl" fw={600} c="blue" className="text-center">
-                Más de 500 empresas confían en Talento+ para gestionar su
-                talento humano
-              </Text>
+              <Stack gap="md" className="text-center">
+                <Text size="xl" fw={700} c="blue">
+                  Tu empresa, con orden y claridad
+                </Text>
+                <Text size="md" c="dimmed">
+                  Nuestro objetivo es que sientas que tenés un área de Recursos Humanos propio, 
+                  sin necesidad de sumarlo a tu estructura.
+                </Text>
+                <Text size="md" c="dimmed">
+                  Cada empresa es distinta, y por eso trabajamos con un diagnóstico personalizado 
+                  y soluciones concretas, para que tu equipo trabaje mejor, se comunique mejor y 
+                  vos tengas siempre información confiable para decidir.
+                </Text>
+              </Stack>
             </motion.div>
           </Grid.Col>
         </Grid>
