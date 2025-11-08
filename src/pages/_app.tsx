@@ -27,7 +27,7 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <>
       <Head>
-        <title>ISEO RH | Organizá tu empresa y tu equipo</title>
+        <title>ISEO RH</title>
         <meta
           name="description"
           content="ISEO RH es tu aliado en la gestión y organización del personal. Creamos herramientas y procesos a medida para que tu empresa gane en claridad, previsibilidad y cultura organizacional."

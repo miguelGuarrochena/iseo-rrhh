@@ -85,14 +85,19 @@ export const ContactSection: React.FC = () => {
             
             <div className="flex flex-col sm:flex-row gap-8 justify-center items-center mt-4 text-gray-700">
               <a 
-                href="https://wa.me/5491154018969" 
+                href="https://wa.me/5491154018969?text=Hola%20ISEO%20RH%2C%20me%20interesar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20sus%20servicios%20de%20Recursos%20Humanos.%20%C2%A1Gracias!" 
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 hover:text-green-600 transition-colors no-underline"
+                className="flex items-center gap-2 hover:text-green-600 transition-colors no-underline group"
                 title="Escribinos por WhatsApp"
+                onClick={(e) => {
+                  // Opcional: Puedes agregar seguimiento de eventos aquí
+                  // Ejemplo: trackEvent('WhatsApp Click', 'Contact Section');
+                }}
               >
                 <IconBrandWhatsapp size={28} className="text-green-500" />
-                <span className="hidden sm:inline text-current">WhatsApp</span>
+                <span className="hidden sm:inline text-current group-hover:underline">WhatsApp</span>
+                <span className="sr-only">(Se abrirá en una nueva pestaña)</span>
               </a>
               
               <div className="hidden sm:block text-gray-400">|</div>
