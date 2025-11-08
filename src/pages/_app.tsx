@@ -13,7 +13,9 @@ export default function App({ Component, pageProps }: AppProps) {
   useEffect(() => {
     // Prevenir scroll automático al cargar la página
     if (window.location.hash) {
-      const element = document.getElementById(window.location.hash.substring(1));
+      const element = document.getElementById(
+        window.location.hash.substring(1)
+      );
       if (element) {
         // Usar setTimeout para asegurar que se ejecute después de la renderización
         const timer = setTimeout(() => {

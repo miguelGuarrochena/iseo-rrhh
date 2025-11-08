@@ -22,19 +22,23 @@ export const AboutSection: React.FC = () => {
                   Porque transformamos el desorden en claridad.
                 </Text>
                 <Text size="lg" c="dimmed">
-                  ✓ Tenés un área de RRHH profesional sin sumarlo a tu estructura.
+                  ✓ Tenés un área de RRHH profesional sin sumarlo a tu
+                  estructura.
                 </Text>
                 <Text size="lg" c="dimmed">
                   ✓ Ahorrás tiempo y evitás errores administrativos.
                 </Text>
                 <Text size="lg" c="dimmed">
-                  ✓ Lográs procesos claros y previsibles que mejoran la comunicación interna.
+                  ✓ Lográs procesos claros y previsibles que mejoran la
+                  comunicación interna.
                 </Text>
                 <Text size="lg" c="dimmed">
-                  ✓ Contás con diagnóstico, visitas mensuales y un servicio adaptado a tu empresa.
+                  ✓ Contás con diagnóstico, visitas mensuales y un servicio
+                  adaptado a tu empresa.
                 </Text>
                 <Text size="lg" c="dimmed">
-                  ✓ Usás una herramienta práctica y online, respaldada por nuestro acompañamiento humano.
+                  ✓ Usás una herramienta práctica y online, respaldada por
+                  nuestro acompañamiento humano.
                 </Text>
               </Stack>
             </motion.div>
@@ -52,13 +56,14 @@ export const AboutSection: React.FC = () => {
                   Tu empresa, con orden y claridad
                 </Text>
                 <Text size="md" c="dimmed">
-                  Nuestro objetivo es que sientas que tenés un área de Recursos Humanos propio, 
-                  sin necesidad de sumarlo a tu estructura.
+                  Nuestro objetivo es que sientas que tenés un área de Recursos
+                  Humanos propio, sin necesidad de sumarlo a tu estructura.
                 </Text>
                 <Text size="md" c="dimmed">
-                  Cada empresa es distinta, y por eso trabajamos con un diagnóstico personalizado 
-                  y soluciones concretas, para que tu equipo trabaje mejor, se comunique mejor y 
-                  vos tengas siempre información confiable para decidir.
+                  Cada empresa es distinta, y por eso trabajamos con un
+                  diagnóstico personalizado y soluciones concretas, para que tu
+                  equipo trabaje mejor, se comunique mejor y vos tengas siempre
+                  información confiable para decidir.
                 </Text>
               </Stack>
             </motion.div>

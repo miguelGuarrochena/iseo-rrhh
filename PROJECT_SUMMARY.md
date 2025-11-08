@@ -8,15 +8,15 @@
 
 ### Stack Tecnológico
 
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| Next.js | 14.0.4 | Framework React con SSR |
-| TypeScript | 5.3.3 | Tipado estático |
-| Mantine UI | 7.3.2 | Biblioteca de componentes |
-| TailwindCSS | 3.4.0 | Estilos utilitarios |
-| Framer Motion | 10.16.16 | Animaciones |
-| Jest | 29.7.0 | Testing framework |
-| React Testing Library | 14.1.2 | Testing de componentes |
+| Tecnología            | Versión  | Propósito                 |
+| --------------------- | -------- | ------------------------- |
+| Next.js               | 14.0.4   | Framework React con SSR   |
+| TypeScript            | 5.3.3    | Tipado estático           |
+| Mantine UI            | 7.3.2    | Biblioteca de componentes |
+| TailwindCSS           | 3.4.0    | Estilos utilitarios       |
+| Framer Motion         | 10.16.16 | Animaciones               |
+| Jest                  | 29.7.0   | Testing framework         |
+| React Testing Library | 14.1.2   | Testing de componentes    |
 
 ### Estructura de Carpetas
 
@@ -179,6 +179,7 @@ rrhh/
 ## 📝 Contenido en Español
 
 Todo el contenido está en español:
+
 - Títulos y subtítulos
 - Descripciones de características
 - Formulario de contacto
@@ -190,6 +191,7 @@ Todo el contenido está en español:
 ### Variables de Entorno
 
 Ver `.env.example` para configuración opcional:
+
 - URL del sitio
 - Email de contacto
 - Analytics (opcional)
@@ -211,6 +213,7 @@ Ver `.env.example` para configuración opcional:
 ## 📦 Dependencias Principales
 
 ### Producción
+
 - next: Framework
 - react & react-dom: Biblioteca UI
 - @mantine/core, @mantine/hooks, @mantine/form: Componentes UI
@@ -218,6 +221,7 @@ Ver `.env.example` para configuración opcional:
 - framer-motion: Animaciones
 
 ### Desarrollo
+
 - typescript: Tipado
 - eslint & prettier: Calidad de código
 - jest & @testing-library/react: Testing
@@ -227,6 +231,7 @@ Ver `.env.example` para configuración opcional:
 ## 🎯 Próximos Pasos Sugeridos
 
 1. **Instalación**
+
    ```bash
    npm install
    npm run dev
@@ -266,21 +271,21 @@ Ver `.env.example` para configuración opcional:
 
 ## 🏆 Cumplimiento de Requisitos
 
-| Requisito | Estado | Notas |
-|-----------|--------|-------|
-| Next.js + TypeScript | ✅ | Versión 14.0.4 |
-| Mantine UI | ✅ | Versión 7.3.2 |
-| TailwindCSS | ✅ | Configurado con Mantine |
-| Jest + RTL | ✅ | 34 tests |
-| ESLint + Prettier | ✅ | Configurados |
-| Estructura escalable | ✅ | /components, /pages, /tests |
-| Logo SVG | ✅ | Con símbolo "+" integrado |
-| Diseño moderno | ✅ | Minimalista, responsive |
-| Contenido en español | ✅ | 100% español |
-| Secciones requeridas | ✅ | Hero, Features, About, Contact, Footer |
-| Framer Motion | ✅ | Animaciones suaves |
-| SEO | ✅ | Meta tags optimizados |
-| Tests componentes | ✅ | Hero y Contact + otros |
+| Requisito            | Estado | Notas                                  |
+| -------------------- | ------ | -------------------------------------- |
+| Next.js + TypeScript | ✅     | Versión 14.0.4                         |
+| Mantine UI           | ✅     | Versión 7.3.2                          |
+| TailwindCSS          | ✅     | Configurado con Mantine                |
+| Jest + RTL           | ✅     | 34 tests                               |
+| ESLint + Prettier    | ✅     | Configurados                           |
+| Estructura escalable | ✅     | /components, /pages, /tests            |
+| Logo SVG             | ✅     | Con símbolo "+" integrado              |
+| Diseño moderno       | ✅     | Minimalista, responsive                |
+| Contenido en español | ✅     | 100% español                           |
+| Secciones requeridas | ✅     | Hero, Features, About, Contact, Footer |
+| Framer Motion        | ✅     | Animaciones suaves                     |
+| SEO                  | ✅     | Meta tags optimizados                  |
+| Tests componentes    | ✅     | Hero y Contact + otros                 |
 
 ---
 

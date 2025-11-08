@@ -126,6 +126,7 @@ rrhh/
 ## Tecnologías y Responsabilidades
 
 ### Frontend Framework
+
 ```
 Next.js 14
 ├── Server-Side Rendering (SSR)
@@ -136,6 +137,7 @@ Next.js 14
 ```
 
 ### UI Libraries
+
 ```
 Mantine UI 7.3.2
 ├── Container, Grid, Stack
@@ -153,6 +155,7 @@ TailwindCSS 3.4.0
 ```
 
 ### Animaciones
+
 ```
 Framer Motion 10.16.16
 ├── Scroll animations
@@ -162,6 +165,7 @@ Framer Motion 10.16.16
 ```
 
 ### Testing
+
 ```
 Jest 29.7.0
 ├── Test runner
@@ -177,6 +181,7 @@ React Testing Library 14.1.2
 ```
 
 ### Code Quality
+
 ```
 TypeScript 5.3.3
 ├── Type safety
@@ -200,6 +205,7 @@ Prettier 3.1.1
 ## Patrones de Diseño Utilizados
 
 ### 1. Component Composition
+
 ```typescript
 // Componentes pequeños y enfocados
 <Header />
@@ -211,6 +217,7 @@ Prettier 3.1.1
 ```
 
 ### 2. Props Interface Pattern
+
 ```typescript
 interface LogoProps {
   width?: number;
@@ -220,10 +227,11 @@ interface LogoProps {
 
 export const Logo: React.FC<LogoProps> = ({ width, height, className }) => {
   // ...
-}
+};
 ```
 
 ### 3. Barrel Exports
+
 ```typescript
 // src/components/index.ts
 export { Header } from './Header';
@@ -232,6 +240,7 @@ export { HeroSection } from './HeroSection';
 ```
 
 ### 4. Custom Hooks (Mantine)
+
 ```typescript
 import { useForm } from '@mantine/form';
 
@@ -242,6 +251,7 @@ const form = useForm({
 ```
 
 ### 5. Theme Provider Pattern
+
 ```typescript
 <MantineProvider theme={theme}>
   <Component {...pageProps} />
@@ -333,17 +343,20 @@ Mobile First Approach
 ## Performance Optimizations
 
 ### 1. Next.js Optimizations
+
 - ✅ Automatic code splitting
 - ✅ Image optimization (preparado)
 - ✅ Font optimization
 - ✅ Static generation donde posible
 
 ### 2. Bundle Size
+
 - ✅ Tree shaking automático
 - ✅ Mantine optimizePackageImports
 - ✅ Dynamic imports (preparado)
 
 ### 3. Rendering
+
 - ✅ Server-side rendering
 - ✅ Static generation
 - ✅ Incremental static regeneration (preparado)
@@ -351,41 +364,46 @@ Mobile First Approach
 ## Security Considerations
 
 ### 1. Form Validation
+
 - ✅ Client-side validation con Mantine Form
 - ⏳ Server-side validation (cuando se implemente backend)
 - ✅ XSS protection (React automático)
 
 ### 2. Dependencies
+
 - ✅ No vulnerabilities encontradas
 - ✅ Dependencias actualizadas
 - ✅ Package lock file
 
 ### 3. Environment Variables
+
 - ✅ .env.example proporcionado
 - ✅ .gitignore configurado
-- ✅ NEXT_PUBLIC_ prefix para variables públicas
+- ✅ NEXT*PUBLIC* prefix para variables públicas
 
 ## Extensibilidad
 
 ### Agregar Nueva Sección
+
 ```typescript
 // 1. Crear componente
-src/components/NewSection.tsx
+src / components / NewSection.tsx;
 
 // 2. Exportar en barrel
-src/components/index.ts
+src / components / index.ts;
 
 // 3. Agregar a página
-src/pages/index.tsx
+src / pages / index.tsx;
 
 // 4. Crear tests
-src/tests/NewSection.test.tsx
+src / tests / NewSection.test.tsx;
 ```
 
 ### Agregar Nueva Página
+
 ```typescript
 // 1. Crear archivo en pages
-src/pages/nueva-pagina.tsx
+src / pages / nueva - pagina.tsx;
 
 // 2. Usar layout existente
 import { Header, Footer } from '@/components';
@@ -395,9 +413,10 @@ import { Header, Footer } from '@/components';
 ```
 
 ### Integrar API
+
 ```typescript
 // 1. Crear API route
-src/pages/api/contact.ts
+src / pages / api / contact.ts;
 
 // 2. Actualizar formulario
 // ContactSection.tsx - cambiar console.log por fetch
@@ -406,6 +425,7 @@ src/pages/api/contact.ts
 ## Conclusión
 
 Esta arquitectura proporciona:
+
 - ✅ **Escalabilidad**: Fácil agregar nuevos componentes
 - ✅ **Mantenibilidad**: Código limpio y organizado
 - ✅ **Testabilidad**: Tests comprehensivos

@@ -11,22 +11,26 @@
 ## Estándares de Código
 
 ### TypeScript
+
 - Usa tipos explícitos siempre que sea posible
 - Evita `any` - usa `unknown` si es necesario
 - Interfaces para props de componentes
 
 ### Componentes React
+
 - Componentes funcionales con TypeScript
 - Props tipadas con interfaces
 - Usa hooks de React cuando sea apropiado
 - Mantén componentes pequeños y enfocados
 
 ### Estilos
+
 - Usa Mantine components como primera opción
 - TailwindCSS para utilidades adicionales
 - Mantén consistencia con el theme
 
 ### Testing
+
 - Escribe tests para nuevos componentes
 - Mantén cobertura > 80%
 - Tests deben ser descriptivos y claros
@@ -34,6 +38,7 @@
 ## Commits
 
 Usa conventional commits:
+
 - `feat:` nueva característica
 - `fix:` corrección de bug
 - `docs:` cambios en documentación

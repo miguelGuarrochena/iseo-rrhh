@@ -19,7 +19,7 @@ body {
   html {
     scroll-behavior: smooth;
   }
-  
+
   /* Deshabilitar la animación de scroll para desplazamiento con rueda del mouse */
   html:focus-within {
     scroll-behavior: auto;

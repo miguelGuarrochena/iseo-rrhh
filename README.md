@@ -68,6 +68,7 @@ yarn test:ci
 ```
 
 Los tests cubren:
+
 - ✅ Renderizado de componentes
 - ✅ Comportamiento de props
 - ✅ Validación de formularios
@@ -119,16 +120,19 @@ rrhh/
 ## 🎨 Secciones de la Landing Page
 
 ### 1. **Header**
+
 - Logo de ISEO RH
 - Navegación sticky con scroll suave
 - Botón CTA destacado
 
 ### 2. **Hero Section**
+
 - Título principal con gradiente
 - Subtítulo descriptivo
 - Call-to-action prominente
 
 ### 3. **Features Section**
+
 - 4 tarjetas con características principales:
   - Automatiza Procesos
   - Reduce Costos
@@ -138,17 +142,20 @@ rrhh/
 - Animaciones al hacer scroll
 
 ### 4. **About Section**
+
 - Información sobre ISEO RH
 - Diseño en dos columnas
 - Beneficios destacados
 
 ### 5. **Contact Section**
+
 - Formulario de contacto con validación
 - Campos: Nombre, Email, Empresa, Mensaje
 - Validación en tiempo real con Mantine Form
 - Mensaje de confirmación
 
 ### 6. **Footer**
+
 - Logo y descripción
 - Enlaces de navegación
 - Enlaces legales
@@ -164,6 +171,7 @@ rrhh/
 ## 📱 Responsive Design
 
 El diseño es completamente responsive con breakpoints:
+
 - **xs**: 36em (576px)
 - **sm**: 48em (768px)
 - **md**: 62em (992px)
@@ -192,6 +200,7 @@ npm run test:ci      # Ejecuta tests en modo CI
 ## 🌐 SEO
 
 La aplicación incluye:
+
 - Meta tags optimizados
 - Título y descripción personalizados
 - Open Graph tags (preparado para redes sociales)

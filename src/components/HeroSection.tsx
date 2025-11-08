@@ -29,14 +29,16 @@ export const HeroSection: React.FC = () => {
               <span className="text-blue-600">Recursos Humanos</span>
             </Title>
             <Text size="xl" c="dimmed" className="max-w-3xl">
-              Muchas pequeñas y medianas empresas no cuentan con un área de Recursos Humanos, 
-              pero igualmente necesitan orden, procesos claros y una mirada profesional que les 
-              permita crecer sin perder el control de su equipo.
+              Muchas pequeñas y medianas empresas no cuentan con un área de
+              Recursos Humanos, pero igualmente necesitan orden, procesos claros
+              y una mirada profesional que les permita crecer sin perder el
+              control de su equipo.
             </Text>
             <Text size="lg" c="dimmed" className="max-w-3xl">
-              Nuestro servicio está pensado justamente para eso: ser tu aliado en la gestión y 
-              organización del personal, creando herramientas y procesos a medida para que tu 
-              empresa gane en claridad, previsibilidad y cultura organizacional.
+              Nuestro servicio está pensado justamente para eso: ser tu aliado
+              en la gestión y organización del personal, creando herramientas y
+              procesos a medida para que tu empresa gane en claridad,
+              previsibilidad y cultura organizacional.
             </Text>
             <Button
               size="xl"

@@ -28,7 +28,9 @@ const methods: Method[] = [
       'Acompañándote para que vos y tu equipo se adapten fácilmente.',
   },
   {
-    icon: <IconHeartHandshake size={40} stroke={1.5} className="text-blue-600" />,
+    icon: (
+      <IconHeartHandshake size={40} stroke={1.5} className="text-blue-600" />
+    ),
     title: 'Seguimiento cercano',
     description:
       'A través de visitas y contacto directo, para que nunca sientas que estás solo.',
@@ -36,8 +38,7 @@ const methods: Method[] = [
   {
     icon: <IconTrendingUp size={40} stroke={1.5} className="text-blue-600" />,
     title: 'Enfoque flexible',
-    description:
-      'Que crece y se adapta junto a tu empresa.',
+    description: 'Que crece y se adapta junto a tu empresa.',
   },
 ];
 
@@ -50,7 +51,8 @@ export const HowWeDoItSection: React.FC = () => {
             ¿Cómo lo <span className="text-blue-600">hacemos</span>?
           </Title>
           <Text size="lg" c="dimmed" className="text-center max-w-3xl">
-            Con un enfoque integral que combina tecnología, acompañamiento y flexibilidad.
+            Con un enfoque integral que combina tecnología, acompañamiento y
+            flexibilidad.
           </Text>
         </Stack>
 
@@ -74,7 +76,12 @@ export const HowWeDoItSection: React.FC = () => {
                     <div className="bg-blue-50 w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0">
                       {method.icon}
                     </div>
-                    <Title order={3} size="h4" fw={600} className="flex-shrink-0">
+                    <Title
+                      order={3}
+                      size="h4"
+                      fw={600}
+                      className="flex-shrink-0"
+                    >
                       {method.title}
                     </Title>
                     <Text size="sm" c="dimmed" className="flex-grow">

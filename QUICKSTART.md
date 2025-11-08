@@ -53,6 +53,7 @@ primaryColor: 'blue', // Cambia a 'green', 'red', etc.
 ### Modificar Contenido
 
 Los textos están en español en cada componente:
+
 - `src/components/HeroSection.tsx` - Título y subtítulo principal
 - `src/components/FeaturesSection.tsx` - Características
 - `src/components/AboutSection.tsx` - Información de la empresa

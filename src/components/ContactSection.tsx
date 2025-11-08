@@ -7,8 +7,7 @@ import {
   TextInput,
   Textarea,
   Button,
-  Group,
-  Box
+  Box,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { motion } from 'framer-motion';
@@ -64,7 +63,9 @@ export const ContactSection: React.FC = () => {
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Ocurrió un error al enviar el mensaje. Por favor, intente nuevamente.');
+      alert(
+        'Ocurrió un error al enviar el mensaje. Por favor, intente nuevamente.'
+      );
     }
     setTimeout(() => setSubmitted(false), 5000);
   };
@@ -82,27 +83,31 @@ export const ContactSection: React.FC = () => {
             <Title order={2} size="2.5rem" fw={700} className="text-gray-900">
               ¿Listo para organizar tu empresa?
             </Title>
-            
+
             <div className="flex flex-col sm:flex-row gap-8 justify-center items-center mt-4 text-gray-700">
-              <a 
-                href="https://wa.me/5491154018969?text=Hola%20ISEO%20RH%2C%20me%20interesar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20sus%20servicios%20de%20Recursos%20Humanos.%20%C2%A1Gracias!" 
-                target="_blank" 
+              <a
+                href="https://wa.me/5491154018969?text=Hola%20ISEO%20RH%2C%20me%20interesar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20sus%20servicios%20de%20Recursos%20Humanos.%20%C2%A1Gracias!"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 hover:text-green-600 transition-colors no-underline group"
                 title="Escribinos por WhatsApp"
-                onClick={(e) => {
+                onClick={() => {
                   // Opcional: Puedes agregar seguimiento de eventos aquí
                   // Ejemplo: trackEvent('WhatsApp Click', 'Contact Section');
                 }}
               >
                 <IconBrandWhatsapp size={28} className="text-green-500" />
-                <span className="hidden sm:inline text-current group-hover:underline">WhatsApp</span>
-                <span className="sr-only">(Se abrirá en una nueva pestaña)</span>
+                <span className="hidden sm:inline text-current group-hover:underline">
+                  WhatsApp
+                </span>
+                <span className="sr-only">
+                  (Se abrirá en una nueva pestaña)
+                </span>
               </a>
-              
+
               <div className="hidden sm:block text-gray-400">|</div>
-              
-              <a 
+
+              <a
                 href="tel:+5491154018969"
                 className="flex items-center gap-2 hover:text-blue-600 transition-colors no-underline"
                 title="Llamanos"
@@ -111,9 +116,10 @@ export const ContactSection: React.FC = () => {
                 <span className="text-current">+54 9 11 5401-8969</span>
               </a>
             </div>
-            
+
             <Text size="xl" c="dimmed" className="max-w-2xl mt-8">
-              O completá el formulario y nos pondremos en contacto a la brevedad:
+              O completá el formulario y nos pondremos en contacto a la
+              brevedad:
             </Text>
           </Stack>
 
@@ -159,7 +165,7 @@ export const ContactSection: React.FC = () => {
                   >
                     Enviar mensaje
                   </Button>
-                  
+
                   {submitted && (
                     <Text c="green" size="sm" ta="center" mt="md">
                       ¡Gracias! Nos pondremos en contacto pronto.

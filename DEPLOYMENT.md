@@ -47,6 +47,7 @@ vercel --prod
 ### Configuración de Vercel
 
 No se requiere configuración adicional. Vercel detectará automáticamente:
+
 - Framework: Next.js
 - Build Command: `npm run build`
 - Output Directory: `.next`
@@ -141,14 +142,17 @@ docker run -p 3000:3000 talento-plus
 Si necesitas configurar variables de entorno en producción:
 
 ### Vercel
+
 1. Ve a Project Settings → Environment Variables
 2. Agrega las variables necesarias
 
 ### Netlify
+
 1. Ve a Site Settings → Build & Deploy → Environment
 2. Agrega las variables necesarias
 
 ### Servidor Propio
+
 Crea un archivo `.env.production`:
 
 ```bash
@@ -181,7 +185,7 @@ Si usas un CDN, configura en `next.config.js`:
 ```javascript
 module.exports = {
   assetPrefix: 'https://cdn.tudominio.com',
-}
+};
 ```
 
 ### 3. Habilitar Compresión
@@ -215,6 +219,7 @@ curl -o /dev/null -s -w 'Total: %{time_total}s\n' https://tudominio.com
 ## Rollback
 
 ### Vercel
+
 ```bash
 # Ver deployments
 vercel ls
@@ -224,6 +229,7 @@ vercel promote [deployment-url]
 ```
 
 ### Netlify
+
 ```bash
 # Ver deployments
 netlify deploy:list
@@ -250,6 +256,7 @@ Antes de considerar el deployment completo:
 ## Soporte
 
 Para problemas de deployment:
+
 - Vercel: https://vercel.com/support
 - Netlify: https://www.netlify.com/support/
 - Next.js: https://nextjs.org/docs

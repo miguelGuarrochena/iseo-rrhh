@@ -52,8 +52,8 @@ export const FeaturesSection: React.FC = () => {
             ¿Qué ofrecemos?
           </Title>
           <Text size="lg" c="dimmed" className="text-center max-w-3xl">
-            Herramientas y procesos a medida para que tu empresa gane en claridad, 
-            previsibilidad y cultura organizacional.
+            Herramientas y procesos a medida para que tu empresa gane en
+            claridad, previsibilidad y cultura organizacional.
           </Text>
         </Stack>
 
@@ -77,7 +77,12 @@ export const FeaturesSection: React.FC = () => {
                     <div className="bg-blue-50 w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0">
                       {feature.icon}
                     </div>
-                    <Title order={3} size="h4" fw={600} className="flex-shrink-0">
+                    <Title
+                      order={3}
+                      size="h4"
+                      fw={600}
+                      className="flex-shrink-0"
+                    >
                       {feature.title}
                     </Title>
                     <Text size="sm" c="dimmed" className="flex-grow">

@@ -14,8 +14,8 @@ export const Header: React.FC = () => {
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm w-full">
       <Container size="xl" className="w-full h-full">
         <Group justify="space-between" align="center" className="h-20">
-          <a 
-            href="#" 
+          <a
+            href="#"
             onClick={(e) => {
               e.preventDefault();
               window.scrollTo({ top: 0, behavior: 'smooth' });
