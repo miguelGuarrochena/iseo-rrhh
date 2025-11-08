@@ -1,74 +1,16 @@
 import React, { useState } from 'react';
-import {
-  Container,
-  Title,
-  Text,
-  Stack,
-  TextInput,
-  Textarea,
-  Button,
-  Box,
-} from '@mantine/core';
-import { useForm } from '@mantine/form';
+import { Container, Title, Text, Stack } from '@mantine/core';
 import { motion } from 'framer-motion';
-import { IconBrandWhatsapp, IconPhone } from '@tabler/icons-react';
-
-interface ContactFormValues {
-  name: string;
-  email: string;
-  company: string;
-  message: string;
-}
+import {
+  IconBrandWhatsapp,
+  IconPhone,
+  IconMail,
+  IconCopy,
+  IconCheck,
+} from '@tabler/icons-react';
 
 export const ContactSection: React.FC = () => {
-  const [submitted, setSubmitted] = useState(false);
-
-  const form = useForm<ContactFormValues>({
-    initialValues: {
-      name: '',
-      email: '',
-      company: '',
-      message: '',
-    },
-    validate: {
-      name: (value) =>
-        value.length < 2 ? 'El nombre debe tener al menos 2 caracteres' : null,
-      email: (value) => (/^\S+@\S+$/.test(value) ? null : 'Email inválido'),
-      company: (value) =>
-        value.length < 2
-          ? 'El nombre de la empresa debe tener al menos 2 caracteres'
-          : null,
-      message: (value) =>
-        value.length < 10
-          ? 'El mensaje debe tener al menos 10 caracteres'
-          : null,
-    },
-  });
-
-  const handleSubmit = async (values: ContactFormValues) => {
-    try {
-      const response = await fetch('/api/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(values),
-      });
-
-      if (response.ok) {
-        setSubmitted(true);
-        form.reset();
-      } else {
-        throw new Error('Error al enviar el mensaje');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert(
-        'Ocurrió un error al enviar el mensaje. Por favor, intente nuevamente.'
-      );
-    }
-    setTimeout(() => setSubmitted(false), 5000);
-  };
+  const [emailCopied, setEmailCopied] = useState(false);
 
   return (
     <section id="contact" className="py-16 bg-white">
@@ -89,45 +31,91 @@ export const ContactSection: React.FC = () => {
               ¿Listo para organizar tu empresa?
             </Title>
 
-            <div className="flex flex-col sm:flex-row gap-8 justify-start sm:justify-center items-start sm:items-center mt-4 text-gray-700 w-full max-w-2xl mx-auto px-4 sm:px-0">
-              <a
-                href="https://wa.me/5491154018969?text=Hola%20ISEO%20RH%2C%20me%20interesar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20sus%20servicios%20de%20Recursos%20Humanos.%20%C2%A1Gracias!"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 hover:text-green-600 transition-colors no-underline group"
-                title="Escribinos por WhatsApp"
-                onClick={() => {
-                  // Opcional: Puedes agregar seguimiento de eventos aquí
-                  // Ejemplo: trackEvent('WhatsApp Click', 'Contact Section');
-                }}
-              >
-                <IconBrandWhatsapp size={28} className="text-green-500" />
-                <span className="text-current group-hover:underline">
-                  WhatsApp
-                </span>
-                <span className="sr-only">
-                  (Se abrirá en una nueva pestaña)
-                </span>
-              </a>
+            <div className="flex flex-col sm:flex-row flex-wrap justify-start sm:justify-center items-start sm:items-center gap-4 sm:gap-8 mt-4 text-gray-700 w-full max-w-4xl mx-auto px-4 sm:px-0">
+              {/* WhatsApp */}
+              <div className="w-full sm:w-auto flex items-center">
+                <IconBrandWhatsapp
+                  size={28}
+                  className="text-green-500 flex-shrink-0 mr-2"
+                />
+                <a
+                  href="https://wa.me/5491154018969?text=Hola%20ISEO%20RH%2C%20me%20interesar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20sus%20servicios%20de%20Recursos%20Humanos.%20%C2%A1Gracias!"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-green-600 transition-colors no-underline group"
+                  title="Escribinos por WhatsApp"
+                >
+                  <span className="text-current group-hover:underline">
+                    WhatsApp
+                  </span>
+                </a>
+              </div>
 
-              <div className="hidden sm:block text-gray-400">|</div>
+              {/* Divider - Solo visible en pantallas grandes */}
+              <div className="hidden sm:block h-6 w-px bg-gray-300"></div>
 
-              <a
-                href="tel:+5491154018969"
-                className="flex items-center gap-2 hover:text-blue-600 transition-colors no-underline"
-                title="Llamanos"
-              >
-                <IconPhone size={28} className="text-blue-500" />
-                <span className="text-current">+54 9 11 5401-8969</span>
-              </a>
+              {/* Teléfono */}
+              <div className="w-full sm:w-auto flex items-center">
+                <IconPhone
+                  size={28}
+                  className="text-blue-500 flex-shrink-0 mr-2"
+                />
+                <a
+                  href="tel:+5491154018969"
+                  className="hover:text-blue-600 transition-colors no-underline"
+                  title="Llamanos"
+                >
+                  <span className="text-current">+54 9 11 5401-8969</span>
+                </a>
+              </div>
+
+              {/* Divider - Solo visible en pantallas grandes */}
+              <div className="hidden sm:block h-6 w-px bg-gray-300"></div>
+
+              {/* Email */}
+              <div className="w-full sm:w-auto flex items-center">
+                <IconMail
+                  size={28}
+                  className="text-red-500 flex-shrink-0 mr-2"
+                />
+                <div className="flex items-center">
+                  <span className="text-current">pguarrochena@gmail.com</span>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      navigator.clipboard.writeText('pguarrochena@gmail.com');
+                      setEmailCopied(true);
+                      setTimeout(() => setEmailCopied(false), 2000);
+                    }}
+                    className="text-gray-400 hover:text-gray-600 transition-colors p-0.5 -mr-1.5 border-0 bg-transparent focus:outline-none focus:ring-0 focus:shadow-none relative cursor-pointer"
+                    style={{
+                      WebkitAppearance: 'none',
+                      MozAppearance: 'none',
+                      appearance: 'none',
+                    }}
+                    aria-label="Copiar correo electrónico"
+                    title="Copiar al portapapeles"
+                  >
+                    <IconCopy size={16} className="mt-0.5" />
+                    {emailCopied && (
+                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap flex items-center gap-1">
+                        <IconCheck size={14} />
+                        ¡Copiado!
+                        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-gray-800 rotate-45"></div>
+                      </div>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
 
             <Text size="xl" c="dimmed" className="max-w-2xl mt-8">
-              O completá el formulario y nos pondremos en contacto a la
-              brevedad:
+              responderemos a la brevedad.
             </Text>
           </Stack>
 
+          {/* Formulario deshabilitado por ahora
           <Box className="mt-8 max-w-2xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -180,6 +168,7 @@ export const ContactSection: React.FC = () => {
               </form>
             </motion.div>
           </Box>
+          */}
         </motion.div>
       </Container>
     </section>
