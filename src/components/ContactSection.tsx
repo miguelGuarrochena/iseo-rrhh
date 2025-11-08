@@ -111,6 +111,7 @@ export const ContactSection: React.FC = () => {
             </div>
 
             <Text size="xl" c="dimmed" className="max-w-2xl mt-8">
+              Contáctanos a través de cualquiera de estos medios y te
               responderemos a la brevedad.
             </Text>
           </Stack>
