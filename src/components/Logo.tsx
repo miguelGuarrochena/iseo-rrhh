@@ -9,7 +9,7 @@ export const Logo: React.FC<LogoProps> = ({ className }) => {
   return (
     <div
       style={{ position: 'relative' }}
-      className={`w-[180px] h-[54px] sm:w-[240px] sm:h-[72px] ${className || ''}`}
+      className={`w-[240px] h-[72px] sm:w-[320px] sm:h-[96px] ${className || ''}`}
     >
       <Image
         src="/logo.svg"

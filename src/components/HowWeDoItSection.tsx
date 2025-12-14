@@ -2,10 +2,10 @@ import React from 'react';
 import { Container, Title, Text, Stack, Grid, Card } from '@mantine/core';
 import { motion } from 'framer-motion';
 import {
-  IconDeviceLaptop,
+  IconDeviceAnalytics,
   IconSchool,
   IconHeartHandshake,
-  IconTrendingUp,
+  IconArrowsShuffle,
 } from '@tabler/icons-react';
 
 interface Method {
@@ -16,7 +16,9 @@ interface Method {
 
 const methods: Method[] = [
   {
-    icon: <IconDeviceLaptop size={40} stroke={1.5} className="text-blue-600" />,
+    icon: (
+      <IconDeviceAnalytics size={40} stroke={1.5} className="text-blue-600" />
+    ),
     title: 'Herramienta online simple y práctica',
     description:
       'Accesible desde cualquier dispositivo, para que puedas gestionar tu equipo donde estés.',
@@ -36,7 +38,9 @@ const methods: Method[] = [
       'A través de visitas y contacto directo, para que nunca sientas que estás solo.',
   },
   {
-    icon: <IconTrendingUp size={40} stroke={1.5} className="text-blue-600" />,
+    icon: (
+      <IconArrowsShuffle size={40} stroke={1.5} className="text-blue-600" />
+    ),
     title: 'Enfoque flexible',
     description: 'Que crece y se adapta junto a tu empresa.',
   },

@@ -3,7 +3,6 @@ import { Container, Title, Text, Stack } from '@mantine/core';
 import { motion } from 'framer-motion';
 import {
   IconBrandWhatsapp,
-  IconPhone,
   IconMail,
   IconCopy,
   IconCheck,
@@ -54,24 +53,6 @@ export const ContactSection: React.FC = () => {
               {/* Divider - Solo visible en pantallas grandes */}
               <div className="hidden sm:block h-6 w-px bg-gray-300"></div>
 
-              {/* Teléfono */}
-              <div className="w-full sm:w-auto flex items-center">
-                <IconPhone
-                  size={28}
-                  className="text-blue-500 flex-shrink-0 mr-2"
-                />
-                <a
-                  href="tel:+5491154018969"
-                  className="hover:text-blue-600 transition-colors no-underline"
-                  title="Llamanos"
-                >
-                  <span className="text-current">+54 9 11 5401-8969</span>
-                </a>
-              </div>
-
-              {/* Divider - Solo visible en pantallas grandes */}
-              <div className="hidden sm:block h-6 w-px bg-gray-300"></div>
-
               {/* Email */}
               <div className="w-full sm:w-auto flex items-center">
                 <IconMail
@@ -79,12 +60,12 @@ export const ContactSection: React.FC = () => {
                   className="text-red-500 flex-shrink-0 mr-2"
                 />
                 <div className="flex items-center">
-                  <span className="text-current">pguarrochena@gmail.com</span>
+                  <span className="text-current">pablo@iseorh.com</span>
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      navigator.clipboard.writeText('pguarrochena@gmail.com');
+                      navigator.clipboard.writeText('pablo@iseorh.com');
                       setEmailCopied(true);
                       setTimeout(() => setEmailCopied(false), 2000);
                     }}
