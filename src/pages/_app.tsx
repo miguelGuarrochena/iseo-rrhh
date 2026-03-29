@@ -3,6 +3,7 @@ import { AppProps } from 'next/app';
 import Head from 'next/head';
 import { useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { Analytics } from '@vercel/analytics/next';
 import { theme } from '@/theme/theme';
 import '@mantine/core/styles.css';
 import '@/styles/globals.css';
@@ -40,6 +41,7 @@ export default function App({ Component, pageProps }: AppProps) {
       </Head>
       <MantineProvider theme={theme}>
         <Component {...pageProps} />
+        <Analytics />
       </MantineProvider>
     </>
   );
