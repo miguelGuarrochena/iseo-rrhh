@@ -3,7 +3,6 @@ import {
   Header,
   HeroSection,
   FeaturesSection,
-  HowWeDoItSection,
   AboutSection,
   ContactSection,
   Footer,

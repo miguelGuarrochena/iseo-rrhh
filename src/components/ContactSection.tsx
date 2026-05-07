@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, Title, Text, Stack } from '@mantine/core';
+import { Container, Title, Stack } from '@mantine/core';
 import { motion } from 'framer-motion';
 import {
   IconBrandWhatsapp,
