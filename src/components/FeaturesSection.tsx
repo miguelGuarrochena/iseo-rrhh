@@ -29,7 +29,7 @@ const features: Feature[] = [
   },
   {
     icon: <IconUserCheck size={40} stroke={1.5} className="text-blue-600" />,
-    title: 'Visitas mensuales (opcionales)',
+    title: 'Visitas programadas',
     description:
       'Acompañamos a tu equipo en persona, resolvemos dudas, revisamos avances y proponemos mejoras continuas.',
   },
