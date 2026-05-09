@@ -14,14 +14,14 @@ body {
   overflow-x: hidden;
 }
 
-/* Scroll suave solo cuando se usan enlaces con hash */
+/* Scroll suave solo cuando el sistema lo permite. */
 @media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
   }
+}
 
-  /* Deshabilitar la animación de scroll para desplazamiento con rueda del mouse */
-  html:focus-within {
-    scroll-behavior: auto;
-  }
+/* Offset para que el header fijo no tape la sección a la que se scrollea. */
+section[id] {
+  scroll-margin-top: 6rem;
 }

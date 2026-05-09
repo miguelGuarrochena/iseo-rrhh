@@ -4,93 +4,66 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Header } from '@/components/Header';
 
-const renderWithMantine = (component: React.ReactElement) => {
-  return render(<MantineProvider>{component}</MantineProvider>);
-};
+const renderWithMantine = (component: React.ReactElement) =>
+  render(<MantineProvider>{component}</MantineProvider>);
 
 describe('Header', () => {
   beforeEach(() => {
-    // Mock scrollIntoView
     Element.prototype.scrollIntoView = jest.fn();
+    window.scrollTo = jest.fn();
   });
 
-  it('renders the logo', () => {
+  it('renderiza el logo', () => {
     renderWithMantine(<Header />);
-    const logo = screen.getByRole('img', { hidden: true });
-    expect(logo).toBeInTheDocument();
+    expect(screen.getByAltText('ISEO RH')).toBeInTheDocument();
   });
 
-  it('renders navigation buttons', () => {
+  it('renderiza los tres enlaces de navegación', () => {
     renderWithMantine(<Header />);
-
     expect(
-      screen.getByRole('button', { name: /características/i })
-    ).toBeInTheDocument();
+      screen.getAllByRole('button', { name: /¿qué ofrecemos\?/i }).length
+    ).toBeGreaterThan(0);
     expect(
-      screen.getByRole('button', { name: /nosotros/i })
-    ).toBeInTheDocument();
+      screen.getAllByRole('button', { name: /¿por qué elegirnos\?/i }).length
+    ).toBeGreaterThan(0);
     expect(
-      screen.getByRole('button', { name: /solicitar demo/i })
-    ).toBeInTheDocument();
+      screen.getAllByRole('button', { name: /^contacto$/i }).length
+    ).toBeGreaterThan(0);
   });
 
-  it('has sticky positioning', () => {
+  it('está fijo en la parte superior', () => {
     const { container } = renderWithMantine(<Header />);
     const header = container.querySelector('header');
-    expect(header).toHaveClass('sticky', 'top-0');
+    expect(header).toHaveClass('fixed', 'top-0');
   });
 
-  it('scrolls to features section when clicking Características', async () => {
+  it('hace scroll a #features al clickear "¿Qué ofrecemos?"', async () => {
     const user = userEvent.setup();
-    const mockElement = document.createElement('div');
-    mockElement.id = 'features';
-    document.body.appendChild(mockElement);
+    const target = document.createElement('div');
+    target.id = 'features';
+    document.body.appendChild(target);
 
     renderWithMantine(<Header />);
-
-    const button = screen.getByRole('button', { name: /características/i });
+    const button = screen.getAllByRole('button', {
+      name: /¿qué ofrecemos\?/i,
+    })[0];
     await user.click(button);
 
-    expect(mockElement.scrollIntoView).toHaveBeenCalledWith({
-      behavior: 'smooth',
-    });
-
-    document.body.removeChild(mockElement);
+    expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
+    document.body.removeChild(target);
   });
 
-  it('scrolls to about section when clicking Nosotros', async () => {
+  it('hace scroll a #contact al clickear "Contacto"', async () => {
     const user = userEvent.setup();
-    const mockElement = document.createElement('div');
-    mockElement.id = 'about';
-    document.body.appendChild(mockElement);
+    const target = document.createElement('div');
+    target.id = 'contact';
+    document.body.appendChild(target);
 
     renderWithMantine(<Header />);
-
-    const button = screen.getByRole('button', { name: /nosotros/i });
+    const button = screen.getAllByRole('button', { name: /^contacto$/i })[0];
     await user.click(button);
 
-    expect(mockElement.scrollIntoView).toHaveBeenCalledWith({
-      behavior: 'smooth',
-    });
-
-    document.body.removeChild(mockElement);
-  });
-
-  it('scrolls to contact section when clicking Solicitar Demo', async () => {
-    const user = userEvent.setup();
-    const mockElement = document.createElement('div');
-    mockElement.id = 'contact';
-    document.body.appendChild(mockElement);
-
-    renderWithMantine(<Header />);
-
-    const button = screen.getByRole('button', { name: /solicitar demo/i });
-    await user.click(button);
-
-    expect(mockElement.scrollIntoView).toHaveBeenCalledWith({
-      behavior: 'smooth',
-    });
-
-    document.body.removeChild(mockElement);
+    expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
+    document.body.removeChild(target);
   });
 });

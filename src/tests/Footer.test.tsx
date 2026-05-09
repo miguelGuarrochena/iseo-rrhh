@@ -3,56 +3,19 @@ import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { Footer } from '@/components/Footer';
 
-const renderWithMantine = (component: React.ReactElement) => {
-  return render(<MantineProvider>{component}</MantineProvider>);
-};
+const renderWithMantine = (component: React.ReactElement) =>
+  render(<MantineProvider>{component}</MantineProvider>);
 
 describe('Footer', () => {
-  it('renders the logo', () => {
+  it('renderiza el copyright con el año actual y la marca', () => {
     renderWithMantine(<Footer />);
-    const logo = screen.getByRole('img', { hidden: true });
-    expect(logo).toBeInTheDocument();
-  });
-
-  it('renders the company description', () => {
-    renderWithMantine(<Footer />);
+    const year = new Date().getFullYear();
     expect(
-      screen.getByText(
-        /simplificando la gestión de recursos humanos para empresas/i
-      )
+      screen.getByText(new RegExp(`© ${year} ISEO RH`, 'i'))
     ).toBeInTheDocument();
   });
 
-  it('renders product links', () => {
-    renderWithMantine(<Footer />);
-
-    expect(screen.getByText('Producto')).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: /características/i })
-    ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /nosotros/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /contacto/i })).toBeInTheDocument();
-  });
-
-  it('renders legal links', () => {
-    renderWithMantine(<Footer />);
-
-    expect(screen.getByText('Legal')).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: /privacidad/i })
-    ).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /términos/i })).toBeInTheDocument();
-  });
-
-  it('renders copyright text with current year', () => {
-    renderWithMantine(<Footer />);
-    const currentYear = new Date().getFullYear();
-    expect(
-      screen.getByText(new RegExp(`© ${currentYear} Talento\\+`, 'i'))
-    ).toBeInTheDocument();
-  });
-
-  it('has correct background styling', () => {
+  it('usa fondo oscuro', () => {
     const { container } = renderWithMantine(<Footer />);
     const footer = container.querySelector('footer');
     expect(footer).toHaveClass('bg-gray-900', 'text-white');

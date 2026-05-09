@@ -15,6 +15,7 @@ export const Logo: React.FC<LogoProps> = ({ className }) => {
         src="/logo.svg"
         alt="ISEO RH"
         fill
+        sizes="(max-width: 640px) 240px, 320px"
         style={{
           objectFit: 'contain',
           objectPosition: 'left center',

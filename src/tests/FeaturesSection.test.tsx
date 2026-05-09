@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { FeaturesSection } from '@/components/FeaturesSection';
 
-// Mock framer-motion
 jest.mock('framer-motion', () => ({
   motion: {
     div: ({ children, ...props }: React.PropsWithChildren<object>) => (
@@ -12,56 +11,40 @@ jest.mock('framer-motion', () => ({
   },
 }));
 
-const renderWithMantine = (component: React.ReactElement) => {
-  return render(<MantineProvider>{component}</MantineProvider>);
-};
+const renderWithMantine = (component: React.ReactElement) =>
+  render(<MantineProvider>{component}</MantineProvider>);
 
 describe('FeaturesSection', () => {
-  it('renders the section heading', () => {
+  it('renderiza el titular de la sección', () => {
     renderWithMantine(<FeaturesSection />);
-    const heading = screen.getByRole('heading', {
-      name: /¿por qué elegir talento\+\?/i,
-    });
-    expect(heading).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 2 });
+    expect(heading).toHaveTextContent(/¿qué\s+ofrecemos\?/i);
   });
 
-  it('renders all four feature cards', () => {
+  it('renderiza las cuatro tarjetas', () => {
     renderWithMantine(<FeaturesSection />);
 
     expect(
-      screen.getByRole('heading', { name: /automatiza procesos/i })
+      screen.getByRole('heading', { name: /diagnóstico inicial/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /reduce costos/i })
+      screen.getByRole('heading', {
+        name: /implementación de nuestra herramienta online/i,
+      })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /mejora la comunicación/i })
+      screen.getByRole('heading', { name: /visitas programadas/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /analítica en tiempo real/i })
+      screen.getByRole('heading', { name: /procesos claros y a medida/i })
     ).toBeInTheDocument();
   });
 
-  it('renders feature descriptions', () => {
-    renderWithMantine(<FeaturesSection />);
-
-    expect(
-      screen.getByText(/elimina tareas repetitivas y ahorra tiempo/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/optimiza recursos y reduce gastos operativos/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/centraliza la información y facilita la comunicación/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/toma decisiones informadas con reportes/i)
-    ).toBeInTheDocument();
-  });
-
-  it('has the correct section id for navigation', () => {
+  it('expone el id "features" para la navegación', () => {
     const { container } = renderWithMantine(<FeaturesSection />);
-    const section = container.querySelector('section');
-    expect(section).toHaveAttribute('id', 'features');
+    expect(container.querySelector('section')).toHaveAttribute(
+      'id',
+      'features'
+    );
   });
 });

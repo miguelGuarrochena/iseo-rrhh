@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e7f5ff"/>
+      <stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.85" cy="0.15" r="0.6">
+      <stop offset="0" stop-color="#74c0fc" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#74c0fc" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+
+  <!-- Eyebrow rule + label -->
+  <g transform="translate(80, 178)">
+    <rect width="48" height="2" y="14" rx="1" fill="#1c7ed6"/>
+    <text x="64" y="22" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="600" fill="#1c7ed6" letter-spacing="2">RECURSOS HUMANOS · PYMES</text>
+  </g>
+
+  <!-- Brand -->
+  <text x="80" y="296" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="92" font-weight="800" fill="#0a0a0a" letter-spacing="-2">ISEO RH</text>
+
+  <!-- Tagline -->
+  <text x="80" y="386" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="40" font-weight="500" fill="#0a0a0a" letter-spacing="-1">Organizá tu empresa con</text>
+  <text x="80" y="438" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="40" font-weight="500" fill="#0a0a0a" letter-spacing="-1">una mirada <tspan fill="#1c7ed6" font-weight="700">profesional</tspan>.</text>
+
+  <!-- Footer line -->
+  <text x="80" y="552" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="500" fill="#57534e">Diagnóstico · Herramienta online · Visitas · Procesos a medida</text>
+
+  <!-- Decorative dot -->
+  <circle cx="1080" cy="540" r="60" fill="#228be6" opacity="0.08"/>
+  <circle cx="1080" cy="540" r="36" fill="#228be6" opacity="0.18"/>
+  <circle cx="1080" cy="540" r="14" fill="#228be6"/>
+</svg>
