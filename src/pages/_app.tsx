@@ -8,8 +8,7 @@ import { theme } from '@/theme/theme';
 import '@mantine/core/styles.css';
 import '@/styles/globals.css';
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL || 'https://iseo-rh.com';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://iseo-rh.com';
 const SITE_TITLE = 'ISEO RH — Recursos Humanos para PyMEs';
 const SITE_DESCRIPTION =
   'ISEO RH es tu aliado en la gestión y organización del personal. Diagnóstico, herramienta online, visitas programadas y procesos a medida para que tu empresa gane en claridad, previsibilidad y cultura organizacional.';
