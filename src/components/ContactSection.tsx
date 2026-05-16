@@ -30,9 +30,9 @@ export const ContactSection: React.FC = () => {
               ¿Listo para organizar tu empresa?
             </Title>
 
-            <div className="flex flex-col sm:flex-row flex-wrap justify-start sm:justify-center items-start sm:items-center gap-4 sm:gap-8 mt-4 text-gray-700 w-full max-w-4xl mx-auto px-4 sm:px-0">
+            <div className="flex flex-col sm:flex-row flex-wrap justify-center sm:justify-center items-center sm:items-center gap-4 sm:gap-8 mt-4 text-gray-700 w-full max-w-4xl mx-auto px-4 sm:px-0">
               {/* WhatsApp */}
-              <div className="w-full sm:w-auto flex items-center">
+              <div className="w-full sm:w-auto flex items-center justify-center">
                 <IconBrandWhatsapp
                   size={28}
                   className="text-green-500 flex-shrink-0 mr-2"
@@ -54,7 +54,7 @@ export const ContactSection: React.FC = () => {
               <div className="hidden sm:block h-6 w-px bg-gray-300"></div>
 
               {/* Email */}
-              <div className="w-full sm:w-auto flex items-center">
+              <div className="w-full sm:w-auto flex items-center justify-center">
                 <IconMail
                   size={28}
                   className="text-red-500 flex-shrink-0 mr-2"
