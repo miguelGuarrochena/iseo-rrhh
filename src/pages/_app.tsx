@@ -25,7 +25,7 @@ const jsonLd = {
   url: SITE_URL,
   logo: `${SITE_URL}/logo.svg`,
   image: OG_IMAGE,
-  email: 'pguarrochena@gmail.com',
+  email: 'info@iseo-rh.com',
   telephone: '+54-9-11-5401-8969',
   areaServed: { '@type': 'Country', name: 'Argentina' },
   serviceType: [

@@ -60,12 +60,12 @@ export const ContactSection: React.FC = () => {
                   className="text-red-500 flex-shrink-0 mr-2"
                 />
                 <div className="flex items-center">
-                  <span className="text-current">pguarrochena@gmail.com</span>
+                  <span className="text-current">info@iseo-rh.com</span>
                   <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      navigator.clipboard.writeText('pguarrochena@gmail.com');
+                      navigator.clipboard.writeText('info@iseo-rh.com');
                       setEmailCopied(true);
                       setTimeout(() => setEmailCopied(false), 2000);
                     }}

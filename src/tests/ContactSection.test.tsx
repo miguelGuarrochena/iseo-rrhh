@@ -35,7 +35,7 @@ describe('ContactSection', () => {
 
   it('muestra el email de contacto', () => {
     renderWithMantine(<ContactSection />);
-    expect(screen.getByText('pguarrochena@gmail.com')).toBeInTheDocument();
+    expect(screen.getByText('info@iseo-rh.com')).toBeInTheDocument();
   });
 
   it('copia el email al portapapeles al tocar el botón', async () => {
@@ -51,7 +51,7 @@ describe('ContactSection', () => {
       screen.getByRole('button', { name: /copiar correo electrónico/i })
     );
 
-    expect(writeText).toHaveBeenCalledWith('pguarrochena@gmail.com');
+    expect(writeText).toHaveBeenCalledWith('info@iseo-rh.com');
     await waitFor(() => {
       expect(screen.getByText(/¡copiado!/i)).toBeInTheDocument();
     });
