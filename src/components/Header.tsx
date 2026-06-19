@@ -1,20 +1,29 @@
-import React, { useState } from 'react';
-import {
-  Container,
-  Group,
-  Button,
-  Burger,
-  Drawer,
-  Stack,
-  Box,
-  CloseButton,
-} from '@mantine/core';
+import React, { useState, useEffect } from 'react';
+import { Burger, Drawer, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Logo } from './Logo';
 
+interface NavLink {
+  label: string;
+  id: string;
+}
+
+const links: NavLink[] = [
+  { label: '¿Qué ofrecemos?', id: 'features' },
+  { label: '¿Por qué elegirnos?', id: 'about' },
+];
+
 export const Header: React.FC = () => {
   const [opened, { toggle, close }] = useDisclosure(false);
-  const [active, setActive] = useState('home');
+  const [active, setActive] = useState('');
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
@@ -25,94 +34,99 @@ export const Header: React.FC = () => {
     }
   };
 
-  const links = [
-    { label: '¿Qué ofrecemos?', id: 'features' },
-    { label: '¿Por qué elegirnos?', id: 'about' },
-    { label: 'Contacto', id: 'contact', variant: 'filled' as const },
-  ];
-
-  const menuItems = links.map((link) => (
-    <Button
-      key={link.id}
-      variant={link.variant || 'subtle'}
-      onClick={() => scrollToSection(link.id)}
-      className={`${active === link.id ? 'text-blue-600' : ''} w-full sm:w-auto text-center sm:text-left`}
-      fullWidth
-    >
-      {link.label}
-    </Button>
-  ));
+  const goTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setActive('');
+    close();
+  };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm w-full">
-      <Container size="xl" className="w-full h-full px-0">
-        <Group
-          justify="space-between"
-          align="center"
-          className="h-20 px-4 sm:px-6"
+    <header className="fixed top-0 left-0 right-0 z-50 flex justify-center px-3 pt-3 sm:pt-4">
+      <nav
+        className={`flex w-full max-w-7xl items-center justify-between rounded-2xl border py-2 pl-4 pr-2 sm:pl-5 transition-all duration-300 ${
+          scrolled
+            ? 'border-line bg-white/85 shadow-soft backdrop-blur-md'
+            : 'border-transparent bg-white/55 backdrop-blur-sm'
+        }`}
+      >
+        <button
+          onClick={goTop}
+          aria-label="Ir al inicio"
+          className="cursor-pointer border-0 bg-transparent transition-opacity hover:opacity-80"
         >
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault();
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="hover:opacity-80 transition-opacity"
+          <Logo size="sm" />
+        </button>
+
+        {/* Navegación desktop */}
+        <div className="hidden items-center gap-1 lg:flex">
+          {links.map((link) => (
+            <button
+              key={link.id}
+              onClick={() => scrollToSection(link.id)}
+              className={`cursor-pointer rounded-lg border-0 bg-transparent px-4 py-2 text-[0.95rem] font-medium transition-colors ${
+                active === link.id
+                  ? 'text-ink'
+                  : 'text-ink-soft hover:bg-paper hover:text-ink'
+              }`}
+            >
+              {link.label}
+            </button>
+          ))}
+        </div>
+
+        {/* CTA + burger */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => scrollToSection('contact')}
+            className="hidden cursor-pointer rounded-xl border-0 bg-ink px-5 py-2.5 text-[0.95rem] font-semibold text-white transition-colors hover:bg-brand-600 sm:inline-block"
           >
-            <Logo className="ml-0" />
-          </a>
-
-          {/* Desktop Navigation */}
-          <Group gap="md" className="hidden sm:flex">
-            {menuItems}
-          </Group>
-
-          {/* Mobile Burger Button */}
+            Contactanos
+          </button>
           <Burger
             opened={opened}
             onClick={toggle}
-            className="block sm:hidden absolute right-4"
-            size="md"
-            aria-label="Toggle navigation"
+            className="mr-1 block lg:hidden"
+            size="sm"
+            aria-label="Abrir menú"
           />
-        </Group>
-      </Container>
+        </div>
+      </nav>
 
-      {/* Mobile Drawer */}
+      {/* Drawer mobile */}
       <Drawer
         opened={opened}
         onClose={close}
         position="top"
         size="auto"
         padding={0}
-        className="block sm:hidden"
         withCloseButton={false}
+        className="block lg:hidden"
+        overlayProps={{ backgroundOpacity: 0.35, blur: 2 }}
         styles={{
           content: {
             backgroundColor: 'var(--mantine-color-white)',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-            borderRadius: '0 0 12px 12px',
-            marginTop: 'var(--mantine-header-height, 0)',
-          },
-          body: {
-            padding: '1.5rem 0 2rem 0',
+            borderRadius: '0 0 24px 24px',
           },
         }}
       >
-        <div className="relative w-full">
-          <div className="flex justify-end w-full px-6 pt-2">
-            <CloseButton
-              onClick={close}
-              size="lg"
-              className="text-gray-500 hover:bg-gray-100"
-              aria-label="Cerrar menú"
-            />
-          </div>
-          <Box className="w-full px-6 pb-2">
-            <Stack gap="lg" align="stretch">
-              {menuItems}
-            </Stack>
-          </Box>
+        <div className="px-6 pb-8 pt-24">
+          <Stack gap="xs">
+            {links.map((link) => (
+              <button
+                key={link.id}
+                onClick={() => scrollToSection(link.id)}
+                className="w-full cursor-pointer rounded-2xl border-0 bg-paper px-5 py-4 text-left text-lg font-semibold text-ink transition-colors hover:bg-line"
+              >
+                {link.label}
+              </button>
+            ))}
+            <button
+              onClick={() => scrollToSection('contact')}
+              className="mt-2 w-full cursor-pointer rounded-2xl border-0 bg-ink px-5 py-4 text-center text-lg font-semibold text-white transition-colors hover:bg-brand-600"
+            >
+              Contactanos
+            </button>
+          </Stack>
         </div>
       </Drawer>
     </header>

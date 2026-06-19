@@ -59,7 +59,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <title>{SITE_TITLE}</title>
         <meta name="description" content={SITE_DESCRIPTION} />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#228be6" />
+        <meta name="theme-color" content="#ECEAE4" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="canonical" href={canonical} />
 

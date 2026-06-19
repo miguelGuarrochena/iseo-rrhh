@@ -1,5 +1,4 @@
 import React from 'react';
-import { Container, Title, Text, Grid, Card, Stack } from '@mantine/core';
 import {
   IconZoomQuestion,
   IconTool,
@@ -16,25 +15,25 @@ interface Feature {
 
 const features: Feature[] = [
   {
-    icon: <IconZoomQuestion size={40} stroke={1.5} className="text-blue-600" />,
+    icon: <IconZoomQuestion size={24} stroke={1.7} />,
     title: 'Diagnóstico inicial',
     description:
       'Entendemos cómo funciona tu empresa hoy, qué problemas existen y dónde están las oportunidades de mejora.',
   },
   {
-    icon: <IconTool size={40} stroke={1.5} className="text-blue-600" />,
+    icon: <IconTool size={24} stroke={1.7} />,
     title: 'Implementación de nuestra herramienta online',
     description:
       'Centralizamos licencias, ausencias, horas trabajadas, recibos de sueldo, datos del personal, uniformes y mucho más.',
   },
   {
-    icon: <IconUserCheck size={40} stroke={1.5} className="text-blue-600" />,
+    icon: <IconUserCheck size={24} stroke={1.7} />,
     title: 'Visitas programadas',
     description:
       'Acompañamos a tu equipo en persona, resolvemos dudas, revisamos avances y proponemos mejoras continuas.',
   },
   {
-    icon: <IconChartPie size={40} stroke={1.5} className="text-blue-600" />,
+    icon: <IconChartPie size={24} stroke={1.7} />,
     title: 'Procesos claros y a medida',
     description:
       'Diseñamos políticas, reportes, encuestas y evaluaciones de desempeño que se ajustan a la realidad de tu empresa.',
@@ -43,56 +42,45 @@ const features: Feature[] = [
 
 export const FeaturesSection: React.FC = () => {
   return (
-    <section id="features" className="py-24 bg-white">
-      <Container size="xl">
-        <Stack align="center" gap="xl" mb={60}>
-          <Title order={2} size="2.5rem" fw={700} className="text-center">
-            ¿Qué ofrecemos?
-          </Title>
-          <Text size="lg" c="dimmed" className="text-center max-w-3xl">
-            Herramientas y procesos a medida para que tu empresa gane en
-            claridad, previsibilidad y cultura organizacional.
-          </Text>
-        </Stack>
+    <section id="features" className="bg-paper px-2 py-2 sm:px-3">
+      <div className="mx-auto max-w-7xl">
+        {/* Bloque */}
+        <div className="rounded-2xl border border-line bg-white px-6 py-12 sm:px-12 sm:py-16">
+          <div className="max-w-2xl">
+            <span className="text-sm font-bold uppercase tracking-widest text-brand-600">
+              ¿Qué ofrecemos?
+            </span>
+            <p className="mt-4 text-2xl font-bold leading-snug text-ink sm:text-3xl">
+              Herramientas y procesos a medida para que tu empresa gane en
+              claridad, previsibilidad y cultura organizacional.
+            </p>
+          </div>
 
-        <Grid gutter="xl">
-          {features.map((feature, index) => (
-            <Grid.Col key={index} span={{ base: 12, sm: 6, md: 3 }}>
+          {/* Tarjetas anidadas */}
+          <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature, index) => (
               <motion.div
+                key={feature.title}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: index * 0.1 }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.5, delay: index * 0.08 }}
+                className="group flex h-full flex-col rounded-xl border border-line bg-paper/60 p-6 transition-colors hover:bg-paper"
               >
-                <Card
-                  shadow="md"
-                  radius="lg"
-                  p="xl"
-                  className="h-full flex flex-col hover:shadow-xl transition-shadow"
-                  style={{ minHeight: '300px' }}
-                >
-                  <Stack gap="md" className="h-full">
-                    <div className="bg-blue-50 w-16 h-16 rounded-lg flex items-center justify-center flex-shrink-0">
-                      {feature.icon}
-                    </div>
-                    <Title
-                      order={3}
-                      size="h4"
-                      fw={600}
-                      className="flex-shrink-0"
-                    >
-                      {feature.title}
-                    </Title>
-                    <Text size="sm" c="dimmed" className="flex-grow">
-                      {feature.description}
-                    </Text>
-                  </Stack>
-                </Card>
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600 transition-colors group-hover:bg-brand-600 group-hover:text-white">
+                  {feature.icon}
+                </div>
+                <h3 className="mt-5 text-base font-bold leading-snug text-ink">
+                  {feature.title}
+                </h3>
+                <p className="mt-2.5 text-[0.9rem] leading-relaxed text-ink-soft">
+                  {feature.description}
+                </p>
               </motion.div>
-            </Grid.Col>
-          ))}
-        </Grid>
-      </Container>
+            ))}
+          </div>
+        </div>
+      </div>
     </section>
   );
 };
