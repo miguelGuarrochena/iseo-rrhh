@@ -57,7 +57,7 @@ export const FeaturesSection: React.FC = () => {
           </div>
 
           {/* Tarjetas anidadas */}
-          <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-12 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {features.map((feature, index) => (
               <motion.div
                 key={feature.title}
@@ -65,15 +65,20 @@ export const FeaturesSection: React.FC = () => {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: '-60px' }}
                 transition={{ duration: 0.5, delay: index * 0.08 }}
-                className="group flex h-full flex-col rounded-xl border border-line bg-paper/60 p-6 transition-colors hover:bg-paper"
+                className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-line bg-white p-6 shadow-soft transition-all duration-300 hover:-translate-y-1.5 hover:border-brand-200 hover:shadow-lift"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-50 text-brand-600 transition-colors group-hover:bg-brand-600 group-hover:text-white">
+                {/* Glow sutil en hover */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-brand-100/0 blur-2xl transition-colors duration-300 group-hover:bg-brand-100/70"
+                />
+                <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm ring-1 ring-inset ring-white/15 transition-transform duration-300 group-hover:scale-105">
                   {feature.icon}
                 </div>
-                <h3 className="mt-5 text-base font-bold leading-snug text-ink">
+                <h3 className="relative mt-5 text-base font-bold leading-snug text-ink">
                   {feature.title}
                 </h3>
-                <p className="mt-2.5 text-[0.9rem] leading-relaxed text-ink-soft">
+                <p className="relative mt-2.5 text-[0.9rem] leading-relaxed text-ink-soft">
                   {feature.description}
                 </p>
               </motion.div>

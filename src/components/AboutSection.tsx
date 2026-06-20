@@ -37,10 +37,10 @@ export const AboutSection: React.FC = () => {
               {reasons.map((reason) => (
                 <li
                   key={reason}
-                  className="flex items-center gap-4 rounded-xl border border-line bg-paper/60 px-5 py-4"
+                  className="group flex items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift"
                 >
-                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-600">
-                    <IconCheck size={18} stroke={2.4} />
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm ring-1 ring-inset ring-white/15 transition-transform duration-300 group-hover:scale-105">
+                    <IconCheck size={18} stroke={2.6} />
                   </span>
                   <span className="text-base font-medium text-ink">
                     {reason}
@@ -57,13 +57,21 @@ export const AboutSection: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="lg:col-span-5"
             >
-              <div className="relative flex h-full flex-col justify-center overflow-hidden rounded-2xl bg-ink p-8 text-white sm:p-9">
+              <div className="relative flex h-full flex-col justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#1c1b22] via-ink to-[#14131a] p-8 text-white shadow-lift ring-1 ring-white/10 sm:p-9">
                 <div
                   aria-hidden
-                  className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-600/40 blur-3xl"
+                  className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-600/45 blur-3xl"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -bottom-20 -left-16 h-52 w-52 rounded-full bg-brand-500/15 blur-3xl"
                 />
                 <div className="relative">
-                  <h3 className="text-balance text-2xl font-extrabold leading-tight">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-brand-300">
+                    <span className="h-1.5 w-1.5 rounded-full bg-brand-400" />
+                    El resultado
+                  </span>
+                  <h3 className="text-balance mt-5 text-2xl font-extrabold leading-tight">
                     Tu empresa, con orden y claridad
                   </h3>
                   <p className="mt-5 text-[0.95rem] leading-relaxed text-white/70">
