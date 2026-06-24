@@ -14,7 +14,6 @@ export const AboutSection: React.FC = () => {
   return (
     <section id="about" className="bg-paper px-2 py-2 sm:px-3">
       <div className="mx-auto max-w-7xl">
-        {/* Bloque */}
         <div className="rounded-2xl border border-line bg-white px-6 py-12 sm:px-12 sm:py-16">
           <div className="max-w-2xl">
             <span className="text-sm font-bold uppercase tracking-widest text-brand-600">
@@ -25,8 +24,8 @@ export const AboutSection: React.FC = () => {
             </p>
           </div>
 
-          <div className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-stretch">
-            {/* Razones anidadas */}
+          <div className="mt-10 grid grid-cols-1 gap-5 lg:grid-cols-12">
+            {/* Lista de razones */}
             <motion.ul
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -37,7 +36,7 @@ export const AboutSection: React.FC = () => {
               {reasons.map((reason) => (
                 <li
                   key={reason}
-                  className="group flex items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift"
+                  className="group flex items-center gap-4 rounded-2xl border border-line bg-paper px-5 py-4 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift"
                 >
                   <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm ring-1 ring-inset ring-white/15 transition-transform duration-300 group-hover:scale-105">
                     <IconCheck size={18} stroke={2.6} />
@@ -49,7 +48,7 @@ export const AboutSection: React.FC = () => {
               ))}
             </motion.ul>
 
-            {/* Panel destacado anidado */}
+            {/* Panel oscuro */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -57,7 +56,7 @@ export const AboutSection: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="lg:col-span-5"
             >
-              <div className="relative flex h-full flex-col justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-[#1c1b22] via-ink to-[#14131a] p-8 text-white shadow-lift ring-1 ring-white/10 sm:p-9">
+              <div className="relative flex h-full flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#1c1b22] via-ink to-[#14131a] p-8 text-white shadow-lift ring-1 ring-white/10 sm:p-9">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-600/45 blur-3xl"
@@ -80,10 +79,14 @@ export const AboutSection: React.FC = () => {
                     estructura.
                   </p>
                   <p className="mt-4 text-[0.95rem] leading-relaxed text-white/70">
-                    Cada empresa es distinta, y por eso trabajamos con un
-                    diagnóstico personalizado y soluciones concretas, para que
-                    tu equipo trabaje mejor, se comunique mejor y vos tengas
-                    siempre información confiable para decidir.
+                    Trabajamos junto a cada empresa con soluciones prácticas y
+                    adaptadas a su realidad: administración de personal,
+                    selección, control horario, gestión de ausencias, procesos,
+                    indicadores y acompañamiento a líderes.
+                  </p>
+                  <p className="mt-4 text-[0.95rem] leading-relaxed text-white/70">
+                    Para que tu equipo funcione mejor y vos cuentes con
+                    información confiable para tomar decisiones.
                   </p>
                 </div>
               </div>

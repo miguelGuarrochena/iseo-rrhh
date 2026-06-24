@@ -10,7 +10,6 @@ export const HeroSection: React.FC = () => {
   return (
     <section className="bg-paper px-2 pb-2 pt-24 sm:px-3 sm:pt-28">
       <div className="mx-auto max-w-7xl">
-        {/* Bloque hero */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -37,14 +36,35 @@ export const HeroSection: React.FC = () => {
               <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-soft sm:text-lg">
                 Muchas pequeñas y medianas empresas no cuentan con un área de
                 Recursos Humanos, pero igualmente necesitan orden, procesos
-                claros y una mirada profesional que les permita crecer sin
+                claros y una gestión profesional que les permita crecer sin
                 perder el control de su equipo.
               </p>
               <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft">
-                Nuestro servicio está pensado justamente para eso: ser tu aliado
-                en la gestión y organización del personal, creando herramientas
-                y procesos a medida para que tu empresa gane en claridad,
-                previsibilidad y cultura organizacional.
+                En ISEO RH acompañamos a las empresas en la gestión integral de
+                Recursos Humanos, adaptándonos a cada necesidad. Nos convertimos
+                en el área de RRHH de tu empresa de forma flexible, sin
+                necesidad de incorporar una estructura interna.
+              </p>
+
+              <ul className="mt-4 max-w-xl space-y-2 text-base leading-relaxed text-ink-soft">
+                {[
+                  'Administración de personal y control horario.',
+                  'Gestión de ausencias, vacaciones y legajos.',
+                  'Búsqueda y selección de personal.',
+                  'Relaciones laborales y gestión de conflictos.',
+                  'Capacitación y desarrollo.',
+                  'Implementación de procesos e indicadores de RRHH.',
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-3">
+                    <span className="h-2 w-2 shrink-0 rounded-full bg-brand-600" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft">
+                Te ayudamos a ordenar la gestión de personas para que puedas
+                enfocarte en hacer crecer tu negocio.
               </p>
 
               <div className="mt-9">
