@@ -31,12 +31,12 @@ export const AboutSection: React.FC = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ duration: 0.5 }}
-              className="flex flex-col gap-3 lg:col-span-7"
+              className="flex h-full flex-col justify-between gap-3 lg:col-span-7"
             >
               {reasons.map((reason) => (
                 <li
                   key={reason}
-                  className="group flex items-center gap-4 rounded-2xl border border-line bg-paper px-5 py-4 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift"
+                  className="group flex items-center gap-4 rounded-2xl border border-line bg-white px-5 py-4 shadow-soft transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-lift"
                 >
                   <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm ring-1 ring-inset ring-white/15 transition-transform duration-300 group-hover:scale-105">
                     <IconCheck size={18} stroke={2.6} />
