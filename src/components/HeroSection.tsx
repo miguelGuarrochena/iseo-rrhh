@@ -33,7 +33,7 @@ export const HeroSection: React.FC = () => {
                 <span className="text-brand-600">Recursos Humanos</span>
               </h1>
 
-              <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-soft sm:text-lg">
+              <p className="mt-6 max-w-xl text-base leading-relaxed text-ink-soft">
                 Muchas pequeñas y medianas empresas no cuentan con un área de
                 Recursos Humanos, pero igualmente necesitan orden, procesos
                 claros y una gestión profesional que les permita crecer sin
