@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { plataformaLanzada } from '@/lib/lanzamiento';
 import {
   IconBeach,
   IconChartBar,
@@ -45,8 +46,15 @@ export const ProductoSection: React.FC = () => (
     <div className="mx-auto max-w-7xl">
       <div className="overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-white via-brand-50/50 to-white px-6 py-12 sm:px-12 sm:py-16">
         <div className="max-w-2xl">
-          <span className="text-sm font-bold uppercase tracking-widest text-brand-600">
-            La plataforma
+          <span className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-bold uppercase tracking-widest text-brand-600">
+              La plataforma
+            </span>
+            {!plataformaLanzada && (
+              <span className="rounded-full border border-peach/60 bg-peach/15 px-3 py-1 text-xs font-bold text-ink">
+                Próximamente
+              </span>
+            )}
           </span>
           <p className="mt-4 text-2xl font-bold leading-snug text-ink sm:text-3xl">
             Tan simple que tu equipo la usa desde el primer día.

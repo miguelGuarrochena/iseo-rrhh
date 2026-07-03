@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Burger, Drawer, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Logo } from './Logo';
+import { plataformaLanzada } from '@/lib/lanzamiento';
 
 interface NavLink {
   label: string;
@@ -17,12 +18,7 @@ const links: NavLink[] = [
   { label: '¿Por qué elegirnos?', id: 'about' },
 ];
 
-/**
- * Mientras la herramienta no esté lanzada, el botón "Ingresar" se puede
- * ocultar poniendo NEXT_PUBLIC_MOSTRAR_INGRESO=0 (ej. en Vercel).
- * El login sigue accesible escribiendo /login en la URL.
- */
-const mostrarIngreso = process.env.NEXT_PUBLIC_MOSTRAR_INGRESO !== '0';
+const mostrarIngreso = plataformaLanzada;
 
 export const Header: React.FC = () => {
   const [opened, { toggle, close }] = useDisclosure(false);
