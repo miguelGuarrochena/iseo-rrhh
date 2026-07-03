@@ -13,7 +13,7 @@ interface NavLink {
 
 const links: NavLink[] = [
   { label: '¿Qué ofrecemos?', id: 'features' },
-  { label: 'La herramienta', id: 'producto' },
+  { label: 'La plataforma', id: 'producto' },
   { label: '¿Por qué elegirnos?', id: 'about' },
 ];
 

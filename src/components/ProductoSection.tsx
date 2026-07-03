@@ -37,7 +37,7 @@ const features = [
 ];
 
 /**
- * Sección "La herramienta": mockup del dashboard dibujado con el
+ * Sección "La plataforma": mockup del dashboard dibujado con el
  * mismo lenguaje visual de la app + features clave.
  */
 export const ProductoSection: React.FC = () => (
@@ -46,10 +46,10 @@ export const ProductoSection: React.FC = () => (
       <div className="overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-white via-brand-50/50 to-white px-6 py-12 sm:px-12 sm:py-16">
         <div className="max-w-2xl">
           <span className="text-sm font-bold uppercase tracking-widest text-brand-600">
-            La herramienta
+            La plataforma
           </span>
           <p className="mt-4 text-2xl font-bold leading-snug text-ink sm:text-3xl">
-            Una plataforma simple que tu equipo usa desde el primer día.
+            Tan simple que tu equipo la usa desde el primer día.
           </p>
           <p className="mt-3 text-base leading-relaxed text-ink-soft">
             Sin capacitaciones eternas ni planillas: cada persona ve lo suyo y
