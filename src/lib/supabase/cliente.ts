@@ -6,6 +6,13 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
  */
 let instancia: SupabaseClient | null = null;
 
+/** true si el proyecto tiene las claves cargadas (si no, la app corre en modo demo). */
+export const supabaseConfigurado = (): boolean =>
+  Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  );
+
 export const supabase = (): SupabaseClient => {
   if (instancia) return instancia;
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;

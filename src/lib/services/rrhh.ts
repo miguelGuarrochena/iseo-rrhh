@@ -24,6 +24,7 @@ import {
 } from '@/types/rrhh';
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { diasEntre, hoyISO } from '@/lib/fechas';
+import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
 import { dotacionMock, empresaMock, empresasMock } from '@/lib/mocks/empresa';
 import { usuariosMock } from '@/lib/mocks/usuarios';
 import { empleadosMock } from '@/lib/mocks/empleados';
@@ -297,9 +298,39 @@ export interface NuevoUsuario {
   rol: Exclude<Usuario['rol'], 'superadmin'>;
   nombreCompleto: string;
   empleadoId?: string;
+  /** empresa destino cuando invita el superadmin */
+  empresaId?: string;
 }
 
 export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
+  // Con sesión real, la invitación viaja por email (Supabase).
+  if (supabaseConfigurado()) {
+    const { data } = await supabase().auth.getSession();
+    const token = data.session?.access_token;
+    if (token) {
+      const res = await fetch('/api/invitaciones', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(datos),
+      });
+      if (!res.ok) {
+        const { error } = (await res.json()) as { error?: string };
+        throw new Error(error ?? 'No pudimos enviar la invitación.');
+      }
+      return {
+        id: 'pendiente',
+        email: datos.email,
+        rol: datos.rol,
+        empresaId: datos.empresaId ?? null,
+        empleadoId: datos.empleadoId ?? null,
+        nombreCompleto: datos.nombreCompleto,
+      };
+    }
+  }
+  // Modo demo: alta local.
   const nuevo: Usuario = {
     id: `usr-${Date.now()}`,
     email: datos.email,

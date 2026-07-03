@@ -11,6 +11,8 @@ const customJestConfig = {
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    // Dependencia opcional de supabase-js (buckets analíticos): no la usamos.
+    '^iceberg-js$': '<rootDir>/src/tests/mocks/moduloVacio.js',
   },
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',

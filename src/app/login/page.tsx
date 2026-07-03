@@ -17,13 +17,17 @@ const LoginPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  const ingresar = async (emailElegido: string) => {
+  const ingresar = async (emailElegido: string, passwordElegida?: string) => {
     setError(null);
     setEnviando(true);
-    const usuario = await login(emailElegido);
+    const usuario = await login(emailElegido, passwordElegida);
     setEnviando(false);
     if (!usuario) {
-      setError('No encontramos una cuenta con ese email.');
+      setError(
+        passwordElegida
+          ? 'Email o contraseña incorrectos.'
+          : 'No encontramos una cuenta con ese email.'
+      );
       return;
     }
     router.push('/app');
@@ -35,7 +39,7 @@ const LoginPage = () => {
       setError('Ingresá tu email.');
       return;
     }
-    void ingresar(email);
+    void ingresar(email, password || undefined);
   };
 
   return (
@@ -73,7 +77,17 @@ const LoginPage = () => {
             </label>
 
             <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold text-ink">Contraseña</span>
+              <div className="flex items-baseline justify-between">
+                <span className="text-sm font-semibold text-ink">
+                  Contraseña
+                </span>
+                <Link
+                  href="/recuperar-contrasena"
+                  className="text-xs font-semibold text-brand-700 no-underline hover:text-brand-600 hover:underline"
+                >
+                  ¿La olvidaste?
+                </Link>
+              </div>
               <input
                 type="password"
                 value={password}

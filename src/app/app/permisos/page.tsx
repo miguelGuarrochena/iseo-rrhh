@@ -29,7 +29,7 @@ const rolesAsignables: Record<Exclude<Rol, 'superadmin'>, string> = {
 };
 
 const PermisosPage = () => {
-  const { usuario, rolEfectivo } = useAuth();
+  const { usuario, rolEfectivo, empresaVista } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [modalAbierto, { open, close }] = useDisclosure(false);
@@ -72,12 +72,21 @@ const PermisosPage = () => {
     setErrores(nuevos);
     if (Object.keys(nuevos).length > 0) return;
     setEnviando(true);
-    await invitarUsuario({
-      nombreCompleto: nombre.trim(),
-      email: email.trim(),
-      rol,
-      empleadoId: empleadoId || undefined,
-    });
+    try {
+      await invitarUsuario({
+        nombreCompleto: nombre.trim(),
+        email: email.trim(),
+        rol,
+        empleadoId: empleadoId || undefined,
+        empresaId: empresaVista?.id ?? usuario?.empresaId ?? undefined,
+      });
+    } catch (err) {
+      setErrores({
+        email: err instanceof Error ? err.message : 'No pudimos invitar.',
+      });
+      setEnviando(false);
+      return;
+    }
     setEnviando(false);
     setNombre('');
     setEmail('');
