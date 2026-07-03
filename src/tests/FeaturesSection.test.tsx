@@ -17,8 +17,10 @@ const renderWithMantine = (component: React.ReactElement) =>
 describe('FeaturesSection', () => {
   it('renderiza el titular de la sección', () => {
     renderWithMantine(<FeaturesSection />);
-    const heading = screen.getByRole('heading', { level: 2 });
-    expect(heading).toHaveTextContent(/¿qué\s+ofrecemos\?/i);
+    expect(screen.getByText(/¿qué\s+ofrecemos\?/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/claridad, previsibilidad y cultura organizacional/i)
+    ).toBeInTheDocument();
   });
 
   it('renderiza las cuatro tarjetas', () => {

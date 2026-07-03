@@ -15,9 +15,10 @@ describe('Footer', () => {
     ).toBeInTheDocument();
   });
 
-  it('usa fondo oscuro', () => {
+  it('renderiza el panel oscuro interior sobre fondo paper', () => {
     const { container } = renderWithMantine(<Footer />);
     const footer = container.querySelector('footer');
-    expect(footer).toHaveClass('bg-gray-900', 'text-white');
+    expect(footer).toHaveClass('bg-paper');
+    expect(footer?.querySelector('.text-white')).toBeInTheDocument();
   });
 });

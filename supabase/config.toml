@@ -1,0 +1,4 @@
+# Configuración del CLI de Supabase para ISEO RH.
+# La integración de GitHub usa esta carpeta: al mergear a main,
+# aplica las migraciones de supabase/migrations a la base productiva.
+project_id = "iseo-rrhh"

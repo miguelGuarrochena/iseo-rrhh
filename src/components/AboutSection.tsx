@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { IconCheck } from '@tabler/icons-react';
@@ -56,7 +58,7 @@ export const AboutSection: React.FC = () => {
               transition={{ duration: 0.5, delay: 0.1 }}
               className="lg:col-span-5"
             >
-              <div className="relative flex h-full flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#1c1b22] via-ink to-[#14131a] p-8 text-white shadow-lift ring-1 ring-white/10 sm:p-9">
+              <div className="relative flex h-full flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-[#111a3a] via-[#0b1126] to-[#0e1530] p-8 text-white shadow-lift ring-1 ring-white/10 sm:p-9">
                 <div
                   aria-hidden
                   className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-brand-600/45 blur-3xl"

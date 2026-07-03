@@ -1,0 +1,90 @@
+import {
+  Icon,
+  IconBuildingFactory2,
+  IconCalendarEvent,
+  IconChartBar,
+  IconClockCheck,
+  IconFileCertificate,
+  IconHome,
+  IconPlaneDeparture,
+  IconSettings,
+  IconShieldCheck,
+  IconUsers,
+} from '@tabler/icons-react';
+import { Rol } from '@/types/rrhh';
+
+export interface NavItem {
+  etiqueta: string;
+  href: string;
+  icono: Icon;
+  roles: Rol[];
+}
+
+const OPERATIVOS: Rol[] = ['admin_rrhh', 'supervisor', 'empleado'];
+const GESTION: Rol[] = ['admin_rrhh', 'supervisor'];
+
+export const navItems: NavItem[] = [
+  {
+    etiqueta: 'Inicio',
+    href: '/app',
+    icono: IconHome,
+    roles: ['superadmin', ...OPERATIVOS],
+  },
+  {
+    etiqueta: 'Empresas',
+    href: '/app/empresas',
+    icono: IconBuildingFactory2,
+    roles: ['superadmin'],
+  },
+  {
+    etiqueta: 'Colaboradores',
+    href: '/app/colaboradores',
+    icono: IconUsers,
+    roles: GESTION,
+  },
+  {
+    etiqueta: 'Ausencias',
+    href: '/app/ausencias',
+    icono: IconPlaneDeparture,
+    roles: OPERATIVOS,
+  },
+  {
+    etiqueta: 'Fichaje',
+    href: '/app/fichaje',
+    icono: IconClockCheck,
+    roles: OPERATIVOS,
+  },
+  {
+    etiqueta: 'Recibos',
+    href: '/app/recibos',
+    icono: IconFileCertificate,
+    roles: OPERATIVOS,
+  },
+  {
+    etiqueta: 'Agenda',
+    href: '/app/agenda',
+    icono: IconCalendarEvent,
+    roles: OPERATIVOS,
+  },
+  {
+    etiqueta: 'Reportes',
+    href: '/app/reportes',
+    icono: IconChartBar,
+    roles: ['superadmin', ...GESTION],
+  },
+  {
+    etiqueta: 'Permisos',
+    href: '/app/permisos',
+    icono: IconShieldCheck,
+    roles: ['superadmin', 'admin_rrhh'],
+  },
+  {
+    etiqueta: 'Configuración',
+    href: '/app/configuracion',
+    icono: IconSettings,
+    roles: ['superadmin', 'admin_rrhh'],
+  },
+];
+
+export const navItemsPorRol = (rol: Rol): NavItem[] =>
+  navItems.filter((item) => item.roles.includes(rol));

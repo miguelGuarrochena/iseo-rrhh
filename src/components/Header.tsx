@@ -1,4 +1,7 @@
+'use client';
+
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { Burger, Drawer, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { Logo } from './Logo';
@@ -10,8 +13,16 @@ interface NavLink {
 
 const links: NavLink[] = [
   { label: '¿Qué ofrecemos?', id: 'features' },
+  { label: 'La herramienta', id: 'producto' },
   { label: '¿Por qué elegirnos?', id: 'about' },
 ];
+
+/**
+ * Mientras la herramienta no esté lanzada, el botón "Ingresar" se puede
+ * ocultar poniendo NEXT_PUBLIC_MOSTRAR_INGRESO=0 (ej. en Vercel).
+ * El login sigue accesible escribiendo /login en la URL.
+ */
+const mostrarIngreso = process.env.NEXT_PUBLIC_MOSTRAR_INGRESO !== '0';
 
 export const Header: React.FC = () => {
   const [opened, { toggle, close }] = useDisclosure(false);
@@ -76,6 +87,14 @@ export const Header: React.FC = () => {
 
         {/* CTA + burger */}
         <div className="flex items-center gap-2">
+          {mostrarIngreso && (
+            <Link
+              href="/login"
+              className="hidden rounded-xl border border-line bg-white px-5 py-2.5 text-[0.95rem] font-semibold text-ink no-underline transition-colors hover:border-brand-600 hover:text-brand-600 sm:inline-block"
+            >
+              Ingresar
+            </Link>
+          )}
           <button
             onClick={() => scrollToSection('contact')}
             className="hidden cursor-pointer rounded-xl border-0 bg-ink px-5 py-2.5 text-[0.95rem] font-semibold text-white transition-colors hover:bg-brand-600 sm:inline-block"
@@ -126,6 +145,15 @@ export const Header: React.FC = () => {
             >
               Contactanos
             </button>
+            {mostrarIngreso && (
+              <Link
+                href="/login"
+                onClick={close}
+                className="w-full rounded-2xl border border-line bg-white px-5 py-4 text-center text-lg font-semibold text-ink no-underline transition-colors hover:border-brand-600 hover:text-brand-600"
+              >
+                Ingresar
+              </Link>
+            )}
           </Stack>
         </div>
       </Drawer>

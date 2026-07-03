@@ -18,7 +18,7 @@ describe('Header', () => {
     expect(screen.getByAltText('ISEO RH')).toBeInTheDocument();
   });
 
-  it('renderiza los tres enlaces de navegación', () => {
+  it('renderiza los enlaces de navegación y el CTA', () => {
     renderWithMantine(<Header />);
     expect(
       screen.getAllByRole('button', { name: /¿qué ofrecemos\?/i }).length
@@ -27,7 +27,7 @@ describe('Header', () => {
       screen.getAllByRole('button', { name: /¿por qué elegirnos\?/i }).length
     ).toBeGreaterThan(0);
     expect(
-      screen.getAllByRole('button', { name: /^contacto$/i }).length
+      screen.getAllByRole('button', { name: /^contactanos$/i }).length
     ).toBeGreaterThan(0);
   });
 
@@ -53,14 +53,16 @@ describe('Header', () => {
     document.body.removeChild(target);
   });
 
-  it('hace scroll a #contact al clickear "Contacto"', async () => {
+  it('hace scroll a #contact al clickear "Contactanos"', async () => {
     const user = userEvent.setup();
     const target = document.createElement('div');
     target.id = 'contact';
     document.body.appendChild(target);
 
     renderWithMantine(<Header />);
-    const button = screen.getAllByRole('button', { name: /^contacto$/i })[0];
+    const button = screen.getAllByRole('button', {
+      name: /^contactanos$/i,
+    })[0];
     await user.click(button);
 
     expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });

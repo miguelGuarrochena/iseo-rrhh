@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
@@ -14,13 +16,17 @@ export const HeroSection: React.FC = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="grid grid-cols-1 overflow-hidden rounded-2xl border border-line bg-white lg:grid-cols-2"
+          className="grid grid-cols-1 overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-brand-50/80 via-white to-white lg:grid-cols-2"
         >
           {/* Texto */}
           <div className="relative flex flex-col justify-center px-7 py-12 sm:px-12 sm:py-16 lg:py-20">
             <div
               aria-hidden
-              className="pointer-events-none absolute -top-24 -left-10 h-72 w-72 rounded-full bg-brand-200/40 blur-[100px]"
+              className="pointer-events-none absolute -top-24 -left-10 h-72 w-72 rounded-full bg-brand-200/50 blur-[100px]"
+            />
+            <div
+              aria-hidden
+              className="pointer-events-none absolute -bottom-24 right-0 h-64 w-64 rounded-full bg-peach/20 blur-[90px]"
             />
             <div className="relative">
               <span className="inline-flex items-center gap-2 rounded-full border border-line bg-paper px-4 py-1.5 text-sm font-semibold text-ink-soft">

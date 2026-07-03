@@ -6,14 +6,76 @@
   --font-jakarta:
     'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     'Helvetica Neue', Arial, sans-serif;
-  --paper: #eceae4;
-  --ink: #17161a;
+  --paper: #f1f4fa;
+  --ink: #2f2e3a;
+
+  /* Tokens en RGB para Tailwind (permiten opacidad y tema oscuro).
+     Paleta suave: fondo celeste claro, tinta gris-azulada, bordes tenues. */
+  --paper-rgb: 241 244 250;
+  --surface-rgb: 255 255 255;
+  --ink-rgb: 47 46 58;
+  --ink-soft-rgb: 126 124 140;
+  --line-rgb: 228 232 241;
+}
+
+/* Tema oscuro: solo dentro de la app (.app-scope), la landing queda clara.
+   Azul grisáceo medio, no negro cerrado. */
+[data-mantine-color-scheme='dark'] .app-scope {
+  --paper-rgb: 34 38 52;
+  --surface-rgb: 46 50 66;
+  --ink-rgb: 238 240 246;
+  --ink-soft-rgb: 162 166 182;
+  --line-rgb: 70 75 94;
 }
 
 * {
   box-sizing: border-box;
   padding: 0;
   margin: 0;
+}
+
+/* Reset de controles de formulario: sin bordes inset ni sombras nativas
+   (el preflight de Tailwind está desactivado por Mantine). */
+input,
+select,
+textarea,
+button {
+  border-style: solid;
+  border-width: 0;
+  box-shadow: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* Checkboxes y radios conservan su dibujo nativo (con el color de marca) */
+input[type='checkbox'],
+input[type='radio'] {
+  appearance: auto;
+  -webkit-appearance: auto;
+}
+
+select {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2385817a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  padding-right: 2.25rem !important;
+}
+
+/* Aro de foco solo al navegar con teclado, nunca al clickear */
+button:focus:not(:focus-visible),
+a:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible) {
+  outline: none;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid rgba(74, 122, 245, 0.5);
+  outline-offset: 2px;
 }
 
 html,
@@ -61,6 +123,170 @@ section[id] {
     transparent 1px
   );
   background-size: 22px 22px;
+}
+
+/* Fondo de la app: celeste claro con degradé azul y ondas fluidas. */
+.bg-app {
+  background-color: rgb(var(--paper-rgb));
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(221, 230, 255, 0.5) 0%,
+      rgba(241, 244, 250, 0) 34rem
+    ),
+    url('/trama-ondas.svg'),
+    radial-gradient(
+      60rem 40rem at 85% -15%,
+      rgba(74, 122, 245, 0.1),
+      transparent 60%
+    );
+  background-size: auto, cover, auto;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* Fondo de la app en modo oscuro: mismas ondas sobre azul grisáceo */
+[data-mantine-color-scheme='dark'] .bg-app {
+  background-color: rgb(34 38 52);
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(120, 156, 250, 0.14) 0%,
+      rgba(34, 38, 52, 0) 34rem
+    ),
+    url('/trama-ondas.svg'),
+    radial-gradient(
+      55rem 38rem at 112% -12%,
+      rgba(120, 156, 250, 0.12),
+      transparent 62%
+    );
+  background-size: auto, cover, auto;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+/* ---------- Sistema de botones (pastel + borde, tematizable) ----------
+   En :root porque los modales de Mantine se montan fuera de .app-scope. */
+
+:root {
+  --btn-primario-bg: #dde6ff;
+  --btn-primario-border: #8facff;
+  --btn-primario-text: #1a45ab;
+  --btn-primario-hover: #b8caff;
+  --btn-aprobar-bg: #ecfdf5;
+  --btn-aprobar-border: #a7f3d0;
+  --btn-aprobar-text: #065f46;
+  --btn-aprobar-hover: #d1fae5;
+  --btn-rechazar-bg: #fef2f2;
+  --btn-rechazar-border: #fecaca;
+  --btn-rechazar-text: #b91c1c;
+  --btn-rechazar-hover: #fee2e2;
+  /* Botón sólido oscuro, como el CTA "Contactanos" de la landing */
+  --btn-negro-bg: #2f2e3a;
+  --btn-negro-border: #2f2e3a;
+  --btn-negro-text: #ffffff;
+  --btn-negro-hover: #4a7af5;
+  --btn-negro-border-hover: #4a7af5;
+}
+
+[data-mantine-color-scheme='dark'] {
+  --btn-primario-bg: rgba(74, 122, 245, 0.2);
+  --btn-primario-border: rgba(120, 156, 250, 0.55);
+  --btn-primario-text: #bcccfd;
+  --btn-primario-hover: rgba(74, 122, 245, 0.32);
+  --btn-aprobar-bg: rgba(16, 185, 129, 0.15);
+  --btn-aprobar-border: rgba(16, 185, 129, 0.45);
+  --btn-aprobar-text: #6ee7b7;
+  --btn-aprobar-hover: rgba(16, 185, 129, 0.26);
+  --btn-rechazar-bg: rgba(239, 68, 68, 0.14);
+  --btn-rechazar-border: rgba(239, 68, 68, 0.45);
+  --btn-rechazar-text: #fca5a5;
+  --btn-rechazar-hover: rgba(239, 68, 68, 0.25);
+  /* En oscuro el "negro" pasa a azul sólido de marca */
+  --btn-negro-bg: #4a7af5;
+  --btn-negro-border: #4a7af5;
+  --btn-negro-text: #ffffff;
+  --btn-negro-hover: #6b93f7;
+  --btn-negro-border-hover: #6b93f7;
+}
+
+.btn-primario {
+  background-color: var(--btn-primario-bg);
+  border: 1px solid var(--btn-primario-border);
+  color: var(--btn-primario-text);
+}
+.btn-primario:hover:not(:disabled) {
+  background-color: var(--btn-primario-hover);
+}
+.btn-aprobar {
+  background-color: var(--btn-aprobar-bg);
+  border: 1px solid var(--btn-aprobar-border);
+  color: var(--btn-aprobar-text);
+}
+.btn-aprobar:hover:not(:disabled) {
+  background-color: var(--btn-aprobar-hover);
+}
+.btn-rechazar {
+  background-color: var(--btn-rechazar-bg);
+  border: 1px solid var(--btn-rechazar-border);
+  color: var(--btn-rechazar-text);
+}
+.btn-rechazar:hover:not(:disabled) {
+  background-color: var(--btn-rechazar-hover);
+}
+.btn-negro {
+  background-color: var(--btn-negro-bg);
+  border: 1px solid var(--btn-negro-border);
+  color: var(--btn-negro-text);
+}
+.btn-negro:hover:not(:disabled) {
+  background-color: var(--btn-negro-hover);
+  border-color: var(--btn-negro-border-hover);
+}
+
+/* Logo: variante clara/oscura según el tema (solo dentro de la app) */
+.logo-oscuro {
+  display: none;
+}
+[data-mantine-color-scheme='dark'] .app-scope .logo-claro {
+  display: none;
+}
+[data-mantine-color-scheme='dark'] .app-scope .logo-oscuro {
+  display: block;
+}
+
+/* Badges pastel en modo oscuro */
+[data-mantine-color-scheme='dark'] .app-scope .bg-emerald-100,
+[data-mantine-color-scheme='dark'] .app-scope .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .text-emerald-800,
+[data-mantine-color-scheme='dark'] .app-scope .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.16) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .text-amber-800 {
+  color: #fcd34d !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .bg-red-100,
+[data-mantine-color-scheme='dark'] .app-scope .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.15) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .text-red-700,
+[data-mantine-color-scheme='dark'] .app-scope .text-red-600 {
+  color: #fca5a5 !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .bg-brand-100 {
+  background-color: rgba(74, 122, 245, 0.2) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .border-brand-300 {
+  border-color: rgba(120, 156, 250, 0.55) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .text-brand-800,
+[data-mantine-color-scheme='dark'] .app-scope .text-brand-700 {
+  color: #bcccfd !important;
 }
 
 /* Línea/decoración de subrayado del acento. */

@@ -1,19 +1,31 @@
 {
   "name": "ISEO RH",
   "short_name": "ISEO RH",
+  "description": "Gestión de RRHH para PyMEs: colaboradores, ausencias, fichaje, recibos y agenda.",
+  "id": "/app",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "lang": "es-AR",
+  "background_color": "#f1f4fa",
+  "theme_color": "#f1f4fa",
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/android-chrome-512x512.png",
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
-  ],
-  "theme_color": "#2563EB",
-  "background_color": "#ffffff",
-  "display": "standalone"
+  ]
 }

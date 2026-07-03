@@ -33,7 +33,7 @@ describe('HeroSection', () => {
       screen.getByText(/no cuentan con un área de recursos humanos/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/aliado en la gestión y organización del personal/i)
+      screen.getByText(/acompañamos a las empresas en la gestión integral/i)
     ).toBeInTheDocument();
   });
 

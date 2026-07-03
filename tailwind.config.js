@@ -8,13 +8,12 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Fondo cálido tipo "paper" (estilo Pipely)
-        paper: '#ECEAE4',
-        surface: '#FFFFFF',
-        // Tinta casi negra y texto suave
-        ink: '#17161A',
-        'ink-soft': '#5C5A63',
-        line: '#E8E6E0',
+        // Tokens tematizables vía variables CSS (light/dark)
+        paper: 'rgb(var(--paper-rgb) / <alpha-value>)',
+        surface: 'rgb(var(--surface-rgb) / <alpha-value>)',
+        ink: 'rgb(var(--ink-rgb) / <alpha-value>)',
+        'ink-soft': 'rgb(var(--ink-soft-rgb) / <alpha-value>)',
+        line: 'rgb(var(--line-rgb) / <alpha-value>)',
         // Azul de marca modernizado
         brand: {
           50: '#eef3ff',

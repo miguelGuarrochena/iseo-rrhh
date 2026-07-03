@@ -13,6 +13,15 @@ const sizeMap: Record<NonNullable<LogoProps['size']>, string> = {
   lg: 'w-[240px] h-[72px] sm:w-[288px] sm:h-[86px]',
 };
 
+const estiloImg: React.CSSProperties = {
+  objectFit: 'contain',
+  objectPosition: 'left center',
+};
+
+/**
+ * Logo original. En modo oscuro (dentro de la app) se muestra la
+ * variante con letras claras, generada a partir del mismo archivo.
+ */
 export const Logo: React.FC<LogoProps> = ({ className, size = 'sm' }) => {
   return (
     <div
@@ -24,10 +33,18 @@ export const Logo: React.FC<LogoProps> = ({ className, size = 'sm' }) => {
         alt="ISEO RH"
         fill
         sizes="(max-width: 640px) 170px, 288px"
-        style={{
-          objectFit: 'contain',
-          objectPosition: 'left center',
-        }}
+        style={estiloImg}
+        className="logo-claro"
+        priority
+      />
+      <Image
+        src="/logo-dark.svg"
+        alt=""
+        aria-hidden
+        fill
+        sizes="(max-width: 640px) 170px, 288px"
+        style={estiloImg}
+        className="logo-oscuro"
         priority
       />
     </div>
