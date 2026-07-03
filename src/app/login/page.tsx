@@ -7,6 +7,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
 import { DemoUserPicker } from '@/components/login/DemoUserPicker';
 import { Boton } from '@/components/app/ui/Boton';
+import { CampoPassword } from '@/components/app/ui/CampoPassword';
 import { useAuth } from '@/lib/auth/AuthProvider';
 
 const LoginPage = () => {
@@ -88,13 +89,11 @@ const LoginPage = () => {
                   ¿La olvidaste?
                 </Link>
               </div>
-              <input
-                type="password"
+              <CampoPassword
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
                 autoComplete="current-password"
-                className="rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
               />
             </label>
 

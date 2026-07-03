@@ -6,10 +6,8 @@ import { useRouter } from 'next/navigation';
 import { IconLockCheck } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
 import { Boton } from '@/components/app/ui/Boton';
+import { CampoPassword } from '@/components/app/ui/CampoPassword';
 import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
-
-const campoClase =
-  'rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600';
 
 /**
  * Acá cae el link del email (invitación o recuperación): la sesión
@@ -114,25 +112,21 @@ const CrearContrasenaPage = () => {
                 <span className="text-sm font-semibold text-ink">
                   Nueva contraseña
                 </span>
-                <input
-                  type="password"
+                <CampoPassword
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Mínimo 8 caracteres"
                   autoComplete="new-password"
-                  className={campoClase}
                 />
               </label>
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-semibold text-ink">
                   Repetila para confirmar
                 </span>
-                <input
-                  type="password"
+                <CampoPassword
                   value={repetir}
                   onChange={(e) => setRepetir(e.target.value)}
                   autoComplete="new-password"
-                  className={campoClase}
                 />
               </label>
 
