@@ -4,11 +4,37 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { plataformaLanzada } from '@/lib/lanzamiento';
 import {
+  IconAlertTriangle,
   IconBeach,
+  IconCalendarEvent,
   IconChartBar,
   IconClockCheck,
+  IconFileCertificate,
+  IconHome,
+  IconInbox,
+  IconPlaneDeparture,
   IconSignature,
+  IconUsers,
 } from '@tabler/icons-react';
+
+/** Ítems del menú lateral, igual que en la app real (rol gestión). */
+const navMock = [
+  { icono: IconHome, etiqueta: 'Inicio', activo: true },
+  { icono: IconUsers, etiqueta: 'Colaboradores', activo: false },
+  { icono: IconPlaneDeparture, etiqueta: 'Ausencias', activo: false },
+  { icono: IconClockCheck, etiqueta: 'Fichaje', activo: false },
+  { icono: IconFileCertificate, etiqueta: 'Recibos', activo: false },
+  { icono: IconCalendarEvent, etiqueta: 'Agenda', activo: false },
+  { icono: IconChartBar, etiqueta: 'Reportes', activo: false },
+];
+
+/** Indicadores del dashboard, con los mismos textos que la app. */
+const statsMock = [
+  { icono: IconInbox, etiqueta: 'Por aprobar', valor: '2' },
+  { icono: IconClockCheck, etiqueta: 'Presentes hoy', valor: '11/12' },
+  { icono: IconAlertTriangle, etiqueta: 'Vencimientos', valor: '1' },
+  { icono: IconUsers, etiqueta: 'Colaboradores', valor: '12' },
+];
 
 const features = [
   {
@@ -85,48 +111,81 @@ export const ProductoSection: React.FC = () => (
                   app.iseo-rh.com
                 </span>
               </div>
-              <div className="p-5">
-                <p className="text-sm font-bold text-ink">Hola, Carolina</p>
-                <p className="text-[0.65rem] text-ink-soft">
-                  El resumen de tu equipo hoy.
-                </p>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {[
-                    ['Presentes', '11/12'],
-                    ['Por aprobar', '2'],
-                    ['Vencimientos', '1'],
-                  ].map(([k, v]) => (
-                    <div
-                      key={k}
-                      className="rounded-xl border border-line bg-white p-2.5"
+
+              {/* App: menú lateral + panel, tal cual la plataforma */}
+              <div className="flex">
+                {/* Sidebar */}
+                <div className="hidden w-36 shrink-0 flex-col gap-0.5 border-r border-line bg-paper/60 p-2.5 sm:flex">
+                  <p className="px-1.5 pb-2 text-[0.72rem] font-extrabold tracking-tight text-ink">
+                    ISEO <span className="text-brand-600">RH</span>
+                  </p>
+                  {navMock.map(({ icono: Icono, etiqueta, activo }) => (
+                    <span
+                      key={etiqueta}
+                      className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-[0.62rem] font-semibold ${
+                        activo
+                          ? 'border border-brand-300 bg-brand-100 text-brand-800'
+                          : 'text-ink-soft'
+                      }`}
                     >
-                      <p className="text-[0.55rem] font-bold uppercase tracking-wider text-ink-soft">
-                        {k}
-                      </p>
-                      <p className="text-lg font-bold text-ink">{v}</p>
-                    </div>
+                      <Icono size={13} stroke={1.9} />
+                      {etiqueta}
+                    </span>
                   ))}
                 </div>
-                <div className="mt-3 flex flex-col gap-2">
-                  {[
-                    ['Lucas P.', 'Vacaciones · 20 al 24 jul', 'Pendiente'],
-                    ['Sofía A.', 'Estudio · 6 al 7 jul', 'Pendiente'],
-                  ].map(([n, d, e]) => (
-                    <div
-                      key={n}
-                      className="flex items-center justify-between rounded-xl border border-line bg-white px-3 py-2"
-                    >
-                      <div>
-                        <p className="text-[0.7rem] font-semibold text-ink">
-                          {n}
+
+                {/* Panel principal */}
+                <div className="min-w-0 flex-1 p-4">
+                  <p className="text-sm font-bold text-ink">Hola, Carolina</p>
+                  <p className="text-[0.65rem] text-ink-soft">
+                    El resumen de tu equipo hoy.
+                  </p>
+
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    {statsMock.map(({ icono: Icono, etiqueta, valor }) => (
+                      <div
+                        key={etiqueta}
+                        className="rounded-xl border border-line bg-white p-2.5"
+                      >
+                        <span className="mb-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                          <Icono size={13} stroke={2.2} />
+                        </span>
+                        <p className="text-[0.5rem] font-bold uppercase tracking-wider text-ink-soft">
+                          {etiqueta}
                         </p>
-                        <p className="text-[0.6rem] text-ink-soft">{d}</p>
+                        <p className="text-base font-bold text-ink">{valor}</p>
                       </div>
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.55rem] font-bold text-amber-800">
-                        {e}
-                      </span>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 rounded-xl border border-line bg-white p-2.5">
+                    <p className="mb-1.5 text-[0.6rem] font-bold text-ink">
+                      Solicitudes por aprobar
+                    </p>
+                    <div className="flex flex-col gap-1.5">
+                      {[
+                        ['Lucas P.', 'Vacaciones · 20 al 24 jul'],
+                        ['Sofía A.', 'Estudio · 6 al 7 jul'],
+                      ].map(([n, d]) => (
+                        <div
+                          key={n}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-[0.68rem] font-semibold text-ink">
+                              {n}
+                            </p>
+                            <p className="truncate text-[0.58rem] text-ink-soft">
+                              {d}
+                            </p>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[0.55rem] font-bold text-amber-800">
+                            Pendiente
+                          </span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
               </div>
             </div>
