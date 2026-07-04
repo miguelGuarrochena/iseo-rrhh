@@ -641,6 +641,7 @@ export const actualizarConfigEmpresa = async (
 export const cargarRecibo = async (
   empleadoId: string,
   periodo: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _archivo: File
 ): Promise<ReciboSueldo> => {
   const nuevo: ReciboSueldo = {

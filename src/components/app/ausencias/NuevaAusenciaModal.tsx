@@ -90,6 +90,7 @@ export const NuevaAusenciaModal = ({
             <input
               type="date"
               value={fechaHasta}
+              min={fechaDesde}
               onChange={(e) => setFechaHasta(e.target.value)}
               className={campoClase}
             />
