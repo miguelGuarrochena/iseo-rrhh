@@ -1,9 +1,12 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { Modal } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { Ausencia } from '@/types/rrhh';
+
+const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 const MESES = [
   'Enero',
@@ -107,20 +110,18 @@ export const CalendarioAusencias = ({
           const fecha = iso(anio, mes, dia);
           const cantidad = ausentesEn(fecha).length;
           const esHoy = fecha === hoyStr;
-          const activa = diaSel === fecha;
           return (
             <button
               key={fecha}
               type="button"
-              onClick={() => setDiaSel(activa ? null : fecha)}
-              className={`flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border text-sm transition-colors ${
-                activa
-                  ? 'border-brand-300 bg-brand-100 font-bold text-brand-800'
-                  : cantidad > 0
-                    ? 'border-line bg-brand-50/60 text-ink hover:bg-brand-100/70'
-                    : esHoy
-                      ? 'border-line bg-paper font-bold text-ink'
-                      : 'border-transparent text-ink hover:bg-paper'
+              disabled={cantidad === 0}
+              onClick={() => setDiaSel(fecha)}
+              className={`flex aspect-square flex-col items-center justify-center rounded-xl border text-sm transition-colors ${
+                cantidad > 0
+                  ? 'cursor-pointer border-line bg-brand-50/60 text-ink hover:border-brand-300 hover:bg-brand-100/70'
+                  : esHoy
+                    ? 'cursor-default border-line bg-paper font-bold text-ink'
+                    : 'cursor-default border-transparent text-ink-soft'
               }`}
             >
               {dia}
@@ -134,43 +135,58 @@ export const CalendarioAusencias = ({
         })}
       </div>
 
-      {diaSel && (
-        <div className="mt-4 rounded-2xl border border-line bg-paper/50 p-4">
-          <p className="mb-2 text-sm font-bold text-ink">
-            {new Date(`${diaSel}T00:00:00`).toLocaleDateString('es-AR', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-            })}
-          </p>
-          {seleccionados.length === 0 ? (
-            <p className="text-sm text-ink-soft">Nadie ausente este día.</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {seleccionados.map((a) => (
-                <div
-                  key={a.id}
-                  className="flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2"
-                >
-                  <span className="text-sm font-semibold text-ink">
-                    {nombreEmpleado(a.empleadoId)}
+      <Modal
+        opened={Boolean(diaSel)}
+        onClose={() => setDiaSel(null)}
+        radius="lg"
+        centered
+        title={
+          diaSel
+            ? capitalizar(
+                new Date(`${diaSel}T00:00:00`).toLocaleDateString('es-AR', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                })
+              )
+            : ''
+        }
+        styles={{ title: { fontWeight: 800 } }}
+      >
+        {seleccionados.length === 0 ? (
+          <p className="text-sm text-ink-soft">Nadie ausente este día.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-ink-soft">
+              {seleccionados.length}{' '}
+              {seleccionados.length === 1
+                ? 'persona ausente'
+                : 'personas ausentes'}
+              :
+            </p>
+            {seleccionados.map((a) => (
+              <div
+                key={a.id}
+                className="flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2.5"
+              >
+                <span className="text-sm font-semibold text-ink">
+                  {nombreEmpleado(a.empleadoId)}
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-xs text-ink-soft">
+                    {tipoAusenciaLabels[a.tipo]}
                   </span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-xs text-ink-soft">
-                      {tipoAusenciaLabels[a.tipo]}
+                  {a.estado === 'pendiente' && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.6rem] font-bold text-amber-800">
+                      Pendiente
                     </span>
-                    {a.estado === 'pendiente' && (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.6rem] font-bold text-amber-800">
-                        Pendiente
-                      </span>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };
