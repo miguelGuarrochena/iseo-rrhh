@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import {
   IconBrandAndroid,
   IconBrandApple,
-  IconDeviceMobileDown,
+  IconDeviceDesktop,
   IconDotsVertical,
-  IconPlus,
+  IconDownload,
   IconShare2,
   IconSquareRoundedPlus,
 } from '@tabler/icons-react';
@@ -28,24 +28,117 @@ if (typeof window !== 'undefined') {
   });
 }
 
+type Dispositivo = 'ios' | 'android' | 'escritorio';
+
+const detectarDispositivo = (): Dispositivo => {
+  if (typeof navigator === 'undefined') return 'escritorio';
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  return 'escritorio';
+};
+
 const Paso = ({
   numero,
-  icono,
   children,
 }: {
   numero: number;
-  icono?: React.ReactNode;
-  children: React.ReactNode;
+  children: ReactNode;
 }) => (
-  <li className="flex items-center gap-3">
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
+  <li className="flex items-start gap-3">
+    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">
       {numero}
     </span>
-    <span className="flex items-center gap-1.5 text-sm text-ink">
-      {children}
-      {icono}
-    </span>
+    <span className="text-sm leading-relaxed text-ink">{children}</span>
   </li>
+);
+
+/** Ícono en línea con el texto de un paso. */
+const IconoEnLinea = ({ children }: { children: ReactNode }) => (
+  <span className="mx-0.5 inline-flex -translate-y-px items-center align-middle text-ink-soft">
+    {children}
+  </span>
+);
+
+const Tarjeta = ({
+  titulo,
+  icono,
+  children,
+}: {
+  titulo: string;
+  icono: ReactNode;
+  children: ReactNode;
+}) => (
+  <div className="rounded-2xl border border-line bg-paper/60 p-4">
+    <p className="mb-3 flex items-center gap-2 text-sm font-bold text-ink">
+      {icono} {titulo}
+    </p>
+    <ol className="flex list-none flex-col gap-2.5">{children}</ol>
+  </div>
+);
+
+const InstruccionesIOS = () => (
+  <Tarjeta titulo="iPhone / iPad (Safari)" icono={<IconBrandApple size={18} />}>
+    <Paso numero={1}>
+      Tocá el botón <strong>Compartir</strong>
+      <IconoEnLinea>
+        <IconShare2 size={15} />
+      </IconoEnLinea>
+    </Paso>
+    <Paso numero={2}>
+      Elegí <strong>Agregar a pantalla de inicio</strong>
+      <IconoEnLinea>
+        <IconSquareRoundedPlus size={15} />
+      </IconoEnLinea>
+    </Paso>
+    <Paso numero={3}>
+      Confirmá con <strong>Agregar</strong>
+    </Paso>
+  </Tarjeta>
+);
+
+const InstruccionesAndroid = () => (
+  <Tarjeta titulo="Android (Chrome)" icono={<IconBrandAndroid size={18} />}>
+    <Paso numero={1}>
+      Abrí el menú
+      <IconoEnLinea>
+        <IconDotsVertical size={15} />
+      </IconoEnLinea>
+      del navegador
+    </Paso>
+    <Paso numero={2}>
+      Tocá <strong>Instalar app</strong>{' '}
+      <span className="text-ink-soft">(o “Agregar a pantalla principal”)</span>
+    </Paso>
+    <Paso numero={3}>
+      Confirmá con <strong>Instalar</strong>
+    </Paso>
+  </Tarjeta>
+);
+
+const InstruccionesEscritorio = () => (
+  <Tarjeta
+    titulo="Escritorio (Chrome / Edge)"
+    icono={<IconDeviceDesktop size={18} />}
+  >
+    <Paso numero={1}>
+      En la barra de direcciones, hacé clic en el ícono
+      <IconoEnLinea>
+        <IconDownload size={15} />
+      </IconoEnLinea>
+      de instalar
+    </Paso>
+    <Paso numero={2}>
+      O abrí el menú
+      <IconoEnLinea>
+        <IconDotsVertical size={15} />
+      </IconoEnLinea>
+      y elegí <strong>Instalar ISEO RH</strong>
+    </Paso>
+    <Paso numero={3}>
+      Confirmá con <strong>Instalar</strong>
+    </Paso>
+  </Tarjeta>
 );
 
 interface InstalarAppModalProps {
@@ -54,8 +147,9 @@ interface InstalarAppModalProps {
 }
 
 /**
- * Instructivo para instalar ISEO RH como app en el celular.
- * En Android/Chrome ofrece instalación directa si el navegador lo permite.
+ * Instructivo para instalar ISEO RH como app. Detecta el dispositivo y
+ * muestra solo lo que corresponde (escritorio, iPhone o Android). En los
+ * navegadores que lo permiten, ofrece instalación directa con un botón.
  */
 export const InstalarAppModal = ({
   abierto,
@@ -63,11 +157,13 @@ export const InstalarAppModal = ({
 }: InstalarAppModalProps) => {
   const [instalable, setInstalable] = useState(false);
   const [instalada, setInstalada] = useState(false);
+  const [dispositivo, setDispositivo] = useState<Dispositivo>('escritorio');
 
   useEffect(() => {
     if (!abierto) return;
     setInstalable(Boolean(promptDiferido));
     setInstalada(window.matchMedia('(display-mode: standalone)').matches);
+    setDispositivo(detectarDispositivo());
   }, [abierto]);
 
   const instalar = async () => {
@@ -80,11 +176,14 @@ export const InstalarAppModal = ({
     }
   };
 
+  const esEscritorio = dispositivo === 'escritorio';
+  const donde = esEscritorio ? 'tu escritorio' : 'tu celular';
+
   return (
     <Modal
       opened={abierto}
       onClose={onCerrar}
-      title="Instalar ISEO RH en tu celular"
+      title={`Instalar ISEO RH en ${donde}`}
       radius="lg"
       centered
       styles={{ title: { fontWeight: 800 } }}
@@ -103,45 +202,18 @@ export const InstalarAppModal = ({
 
         {instalable && !instalada && (
           <Boton variante="negro" onClick={() => void instalar()}>
-            <IconDeviceMobileDown size={18} />
+            <IconDownload size={18} />
             Instalar ahora
           </Boton>
         )}
 
-        <div className="rounded-2xl border border-line bg-paper/60 p-4">
-          <p className="mb-3 flex items-center gap-2 text-sm font-bold text-ink">
-            <IconBrandApple size={18} /> iPhone / iPad (Safari)
-          </p>
-          <ol className="flex list-none flex-col gap-2.5">
-            <Paso numero={1} icono={<IconShare2 size={16} />}>
-              Tocá el botón <strong>Compartir</strong>
-            </Paso>
-            <Paso numero={2} icono={<IconSquareRoundedPlus size={16} />}>
-              Elegí <strong>Agregar a pantalla de inicio</strong>
-            </Paso>
-            <Paso numero={3}>
-              Confirmá con <strong>Agregar</strong>
-            </Paso>
-          </ol>
-        </div>
-
-        <div className="rounded-2xl border border-line bg-paper/60 p-4">
-          <p className="mb-3 flex items-center gap-2 text-sm font-bold text-ink">
-            <IconBrandAndroid size={18} /> Android (Chrome)
-          </p>
-          <ol className="flex list-none flex-col gap-2.5">
-            <Paso numero={1} icono={<IconDotsVertical size={16} />}>
-              Abrí el menú <strong>⋮</strong> del navegador
-            </Paso>
-            <Paso numero={2} icono={<IconPlus size={16} />}>
-              Tocá <strong>Instalar app</strong> (o &quot;Agregar a pantalla
-              principal&quot;)
-            </Paso>
-            <Paso numero={3}>
-              Confirmá con <strong>Instalar</strong>
-            </Paso>
-          </ol>
-        </div>
+        {!instalada && (
+          <>
+            {dispositivo === 'ios' && <InstruccionesIOS />}
+            {dispositivo === 'android' && <InstruccionesAndroid />}
+            {esEscritorio && <InstruccionesEscritorio />}
+          </>
+        )}
 
         <p className="text-xs text-ink-soft">
           El ícono de ISEO RH queda junto a tus otras apps. Se actualiza sola:

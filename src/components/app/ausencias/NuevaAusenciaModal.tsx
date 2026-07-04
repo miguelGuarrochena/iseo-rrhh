@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
+import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { diasEntre, hoyISO } from '@/lib/fechas';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
@@ -76,25 +77,17 @@ export const NuevaAusenciaModal = ({
         />
 
         <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">Desde</span>
-            <input
-              type="date"
-              value={fechaDesde}
-              onChange={(e) => setFechaDesde(e.target.value)}
-              className={campoClase}
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">Hasta</span>
-            <input
-              type="date"
-              value={fechaHasta}
-              min={fechaDesde}
-              onChange={(e) => setFechaHasta(e.target.value)}
-              className={campoClase}
-            />
-          </label>
+          <CampoFecha
+            etiqueta="Desde"
+            value={fechaDesde}
+            onChange={setFechaDesde}
+          />
+          <CampoFecha
+            etiqueta="Hasta"
+            value={fechaHasta}
+            min={fechaDesde || undefined}
+            onChange={setFechaHasta}
+          />
         </div>
 
         {dias > 0 && (

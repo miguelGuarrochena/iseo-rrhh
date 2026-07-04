@@ -100,7 +100,7 @@ export const AppHeader = () => {
                 leftSection={<IconDeviceMobileDown size={16} />}
                 onClick={abrirInstalar}
               >
-                Instalar en tu celular
+                Instalar app
               </Menu.Item>
               <Menu.Item
                 leftSection={<IconLogout size={16} />}

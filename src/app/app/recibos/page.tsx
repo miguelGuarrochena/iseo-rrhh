@@ -13,8 +13,9 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo, CampoSelect } from '@/components/app/ui/Campo';
+import { CampoSelect } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
+import { CampoMes } from '@/components/app/ui/CampoMes';
 import { formatearFecha, formatearPeriodo } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
@@ -240,11 +241,10 @@ const RecibosPage = () => {
               })),
             ]}
           />
-          <Campo
+          <CampoMes
             etiqueta="Período *"
-            type="month"
             value={cargaPeriodo}
-            onChange={(e) => setCargaPeriodo(e.target.value)}
+            onChange={setCargaPeriodo}
           />
           <CampoArchivo
             etiqueta="PDF *"

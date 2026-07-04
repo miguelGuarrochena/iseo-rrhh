@@ -5,6 +5,7 @@ import { IconCamera, IconX } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
+import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { hoyISO } from '@/lib/fechas';
 import {
@@ -245,11 +246,10 @@ export const FormEmpleado = ({
             placeholder="20-30123456-5"
             error={errores.cuil}
           />
-          <Campo
+          <CampoFecha
             etiqueta="Fecha de nacimiento"
-            type="date"
             value={datos.fechaNacimiento ?? ''}
-            onChange={(e) => set('fechaNacimiento')(e.target.value)}
+            onChange={set('fechaNacimiento')}
           />
           <CampoSelect
             etiqueta="Estado civil"
@@ -303,11 +303,10 @@ export const FormEmpleado = ({
             placeholder="Producción, Administración…"
             error={errores.sector}
           />
-          <Campo
+          <CampoFecha
             etiqueta="Fecha de ingreso *"
-            type="date"
             value={datos.fechaIngreso}
-            onChange={(e) => set('fechaIngreso')(e.target.value)}
+            onChange={set('fechaIngreso')}
             error={errores.fechaIngreso}
           />
           <CampoSelect
@@ -329,11 +328,10 @@ export const FormEmpleado = ({
             opciones={aOpciones(modalidades)}
           />
           {datos.modalidadContratacion === 'plazo_fijo' && (
-            <Campo
+            <CampoFecha
               etiqueta="Fin de contrato *"
-              type="date"
               value={datos.fechaFinContrato ?? ''}
-              onChange={(e) => set('fechaFinContrato')(e.target.value)}
+              onChange={set('fechaFinContrato')}
               error={errores.fechaFinContrato}
               ayuda="Genera una alerta automática antes del vencimiento."
             />

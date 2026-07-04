@@ -17,6 +17,7 @@ import { Panel } from '@/components/app/Panel';
 import { MiniCalendario } from '@/components/app/agenda/MiniCalendario';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
+import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones, Selector } from '@/components/app/ui/Selector';
 import { formatearFecha, hoyISO } from '@/lib/fechas';
 import { crearEvento, getEventosProximos } from '@/lib/services/rrhh';
@@ -183,15 +184,7 @@ const AgendaPage = () => {
               onChange={(v) => setTipo(v as TipoEvento)}
               opciones={aOpciones(tipoEventoLabels)}
             />
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold text-ink">Fecha</span>
-              <input
-                type="date"
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-                className={campoClase}
-              />
-            </label>
+            <CampoFecha etiqueta="Fecha" value={fecha} onChange={setFecha} />
           </div>
 
           <label className="flex flex-col gap-1.5">

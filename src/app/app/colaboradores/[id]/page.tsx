@@ -25,6 +25,7 @@ import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
+import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
 import { hoyISO } from '@/lib/fechas';
 import { CampoSelect } from '@/components/app/ui/Campo';
@@ -457,11 +458,10 @@ const FichaColaboradorPage = () => {
             onChange={(v) => setDocCategoria(v as CategoriaDocumento)}
             opciones={aOpciones(categoriaDocumentoLabels)}
           />
-          <Campo
+          <CampoFecha
             etiqueta="Vencimiento (opcional)"
-            type="date"
             value={docVencimiento}
-            onChange={(e) => setDocVencimiento(e.target.value)}
+            onChange={setDocVencimiento}
             ayuda="Si tiene vencimiento, genera una alerta automática."
           />
           <CampoArchivo
@@ -502,11 +502,10 @@ const FichaColaboradorPage = () => {
             placeholder="Renuncia, fin de contrato, despido…"
             error={errorBaja ?? undefined}
           />
-          <Campo
+          <CampoFecha
             etiqueta="Fecha de baja"
-            type="date"
             value={fechaBaja}
-            onChange={(e) => setFechaBaja(e.target.value)}
+            onChange={setFechaBaja}
           />
           <div className="flex gap-2">
             <Boton
