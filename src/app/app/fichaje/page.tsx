@@ -259,7 +259,11 @@ const FichajePage = () => {
                         : IconDeviceMobile
                     }
                     principal={nombreEmpleado(f.empleadoId)}
-                    secundario={`${f.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} · ${metodoLabel[f.metodo]}`}
+                    secundario={`${f.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} · ${metodoLabel[f.metodo]}${
+                      f.confianza != null
+                        ? ` · ${Math.round(f.confianza * 100)}% de confianza`
+                        : ''
+                    }`}
                     extremo={
                       <span className="shrink-0 text-sm font-bold text-ink">
                         {formatearHora(f.timestamp)}
