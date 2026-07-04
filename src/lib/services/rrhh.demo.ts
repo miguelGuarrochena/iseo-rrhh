@@ -7,6 +7,7 @@ import {
   Alerta,
   Ausencia,
   ConfigPlataforma,
+  Convenio,
   DescriptorFacial,
   DocumentoLegajo,
   Empleado,
@@ -16,6 +17,7 @@ import {
   Fichaje,
   MetricasGlobales,
   NotaInterna,
+  NuevoConvenio,
   NuevoTurno,
   OpcionesFichaje,
   Notificacion,
@@ -645,6 +647,43 @@ export const getFichajesDeEmpleado = async (
   empleadoId: string
 ): Promise<Fichaje[]> =>
   simular(fichajesMock.filter((f) => f.empleadoId === empleadoId));
+
+// ---------- Convenio colectivo ----------
+
+let convenioDemo: Convenio | null = {
+  empresaId: 'emp-1',
+  nombre: 'CCT 130/75 — Empleados de Comercio (ejemplo)',
+  contenido: `Artículo 10 - Jornada de trabajo.
+La jornada máxima de trabajo será de 8 horas diarias o 48 horas semanales.
+
+Artículo 11 - Horas extras.
+Las horas extraordinarias se abonan con un recargo del 50% en días hábiles y del 100% en días sábado después de las 13, domingos y feriados.
+
+Artículo 20 - Vacaciones.
+El trabajador gozará de vacaciones anuales según su antigüedad: 14 días corridos hasta 5 años, 21 días de 5 a 10 años, 28 días de 10 a 20 años y 35 días con más de 20 años.
+
+Artículo 25 - Licencias especiales.
+Por nacimiento de hijo: 2 días corridos. Por matrimonio: 10 días corridos. Por fallecimiento de cónyuge, hijos o padres: 3 días corridos. Por fallecimiento de hermano: 1 día. Por examen: 2 días corridos por examen, con máximo de 10 al año.
+
+Artículo 30 - Categorías.
+Las categorías del personal son: Maestranza, Administrativo, Cajero, Vendedor y Auxiliar especializado, según las tareas efectivamente desempeñadas.`,
+  actualizadoEn: hoyISO(),
+};
+
+export const getConvenio = async (): Promise<Convenio | null> =>
+  simular(convenioDemo);
+
+export const guardarConvenio = async (
+  datos: NuevoConvenio
+): Promise<Convenio> => {
+  convenioDemo = {
+    empresaId: 'emp-1',
+    nombre: datos.nombre,
+    contenido: datos.contenido,
+    actualizadoEn: hoyISO(),
+  };
+  return simular(convenioDemo);
+};
 
 // ---------- Alertas, agenda y notificaciones ----------
 

@@ -161,6 +161,13 @@ export const getFichajesDeEmpleado = elegir(
   demo.getFichajesDeEmpleado
 );
 
+// ---------- Convenio colectivo ----------
+export const getConvenio = elegir(real.getConvenio, demo.getConvenio);
+export const guardarConvenio = elegir(
+  real.guardarConvenio,
+  demo.guardarConvenio
+);
+
 // ---------- Notas internas (solo admins) ----------
 export const getNotasInternas = elegir(
   real.getNotasInternas,

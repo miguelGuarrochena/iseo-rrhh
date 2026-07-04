@@ -7,6 +7,7 @@ import {
   Alerta,
   Ausencia,
   ConfigPlataforma,
+  Convenio,
   DescriptorFacial,
   DocumentoLegajo,
   Empleado,
@@ -18,6 +19,7 @@ import {
   NotaInterna,
   Notificacion,
   NuevaEmpresa,
+  NuevoConvenio,
   OpcionesFichaje,
   ReciboSueldo,
   Remuneracion,
@@ -42,6 +44,7 @@ import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import {
   aAusencia,
+  aConvenio,
   aDocumento,
   aEmpleado,
   aEmpresa,
@@ -851,6 +854,37 @@ export const getFichajesDeEmpleado = async (
     .order('ts');
   if (error) throw new Error(error.message);
   return (data ?? []).map(aFichaje);
+};
+
+// ---------- Convenio colectivo ----------
+
+export const getConvenio = async (): Promise<Convenio | null> => {
+  const { data, error } = await sb()
+    .from('convenios')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? aConvenio(data) : null;
+};
+
+export const guardarConvenio = async (
+  datos: NuevoConvenio
+): Promise<Convenio> => {
+  const { data, error } = await sb()
+    .from('convenios')
+    .upsert(
+      {
+        empresa_id: empresaId(),
+        nombre: datos.nombre,
+        contenido: datos.contenido,
+        actualizado_en: new Date().toISOString(),
+      },
+      { onConflict: 'empresa_id' }
+    )
+    .select()
+    .single();
+  return aConvenio(oFalla(data, error));
 };
 
 // ---------- Jornadas calculadas (para reportes y "mi mes") ----------

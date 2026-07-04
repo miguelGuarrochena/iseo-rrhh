@@ -286,6 +286,21 @@ export interface DescriptorFacial {
   descriptor: number[];
 }
 
+/** Convenio colectivo cargado por la empresa (para el asistente con IA). */
+export interface Convenio {
+  empresaId: string;
+  /** Ej. "CCT 130/75 — Empleados de Comercio". */
+  nombre: string;
+  /** Texto completo del convenio. */
+  contenido: string;
+  actualizadoEn?: string;
+}
+
+export interface NuevoConvenio {
+  nombre: string;
+  contenido: string;
+}
+
 /** Turno asignado a un empleado para un día. Horas en formato "HH:MM". */
 export interface Turno {
   id: string;

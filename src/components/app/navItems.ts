@@ -6,6 +6,7 @@ import {
   IconChartBar,
   IconClockCheck,
   IconFileCertificate,
+  IconGavel,
   IconHome,
   IconId,
   IconPlaneDeparture,
@@ -93,6 +94,12 @@ export const navItems: NavItem[] = [
     href: '/organigrama',
     icono: IconSitemap,
     roles: ['superadmin', ...GESTION],
+  },
+  {
+    etiqueta: 'Convenio',
+    href: '/convenio',
+    icono: IconGavel,
+    roles: OPERATIVOS,
   },
   {
     etiqueta: 'Reportes',

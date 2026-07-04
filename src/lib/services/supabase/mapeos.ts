@@ -6,6 +6,7 @@ import {
   Ausencia,
   ChecklistItem,
   ContactoEmergencia,
+  Convenio,
   DocumentoLegajo,
   Empleado,
   Empresa,
@@ -122,6 +123,13 @@ export const aFichaje = (f: Fila): Fichaje => ({
   geo: f.geo ?? undefined,
   dispositivoId: f.dispositivo_id ?? undefined,
   confianza: f.confianza ?? undefined,
+});
+
+export const aConvenio = (f: Fila): Convenio => ({
+  empresaId: f.empresa_id,
+  nombre: f.nombre,
+  contenido: f.contenido ?? '',
+  actualizadoEn: f.actualizado_en ?? undefined,
 });
 
 export const aTurno = (f: Fila): Turno => ({
