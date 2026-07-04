@@ -4,6 +4,7 @@ import {
   DocumentoLegajo,
   EventoAgenda,
   Fichaje,
+  NotaInterna,
   Notificacion,
   ReciboSueldo,
   Remuneracion,
@@ -264,5 +265,26 @@ export const notificacionesMock: Notificacion[] = [
     link: '/app/recibos',
     leida: false,
     creadaEn: '2026-07-01T09:00:00',
+  },
+];
+
+export const notasInternasMock: NotaInterna[] = [
+  {
+    id: 'nin-1',
+    empleadoId: 'ple-3',
+    fecha: '2026-07-03',
+    autorId: 'usr-admin',
+    autorNombre: 'Carolina Méndez',
+    motivo: 'Solicitó aumento',
+    observacion: 'Pidió revisión salarial en la reunión de equipo.',
+  },
+  {
+    id: 'nin-2',
+    empleadoId: 'ple-3',
+    fecha: '2026-06-10',
+    autorId: 'usr-admin',
+    autorNombre: 'Carolina Méndez',
+    motivo: 'Problema familiar',
+    observacion: 'Necesitó flexibilidad horaria por unos días.',
   },
 ];

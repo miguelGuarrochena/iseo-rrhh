@@ -23,6 +23,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
 import { EnrolamientoFacial } from '@/components/app/facial/EnrolamientoFacial';
+import { NotasInternas } from '@/components/app/colaboradores/NotasInternas';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
@@ -370,6 +371,12 @@ const FichaColaboradorPage = () => {
               empleado={empleado}
               onActualizado={(e) => setEmpleado({ ...e })}
             />
+          </Panel>
+        )}
+
+        {esAdmin && (
+          <Panel>
+            <NotasInternas empleadoId={empleado.id} />
           </Panel>
         )}
 

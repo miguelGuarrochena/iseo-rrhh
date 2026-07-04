@@ -15,6 +15,7 @@ import {
   EventoAgenda,
   Fichaje,
   MetricasGlobales,
+  NotaInterna,
   OpcionesFichaje,
   Notificacion,
   NuevaEmpresa,
@@ -37,6 +38,7 @@ import {
   documentosMock,
   eventosMock,
   fichajesMock,
+  notasInternasMock,
   notificacionesMock,
   recibosMock,
   remuneracionesMock,
@@ -431,6 +433,29 @@ export const resolverAusencia = async (
     ausencia.resueltaPor = resueltaPor;
     ausencia.comentarioResolucion = comentario;
     ausencia.resueltaEn = hoyISO();
+
+    // Notificar al empleado el resultado (con el motivo si fue rechazo).
+    const usuario = usuariosMock.find(
+      (u) => u.empleadoId === ausencia.empleadoId
+    );
+    if (usuario) {
+      notificacionesMock.unshift({
+        id: `not-${Date.now()}`,
+        usuarioId: usuario.id,
+        tipo: 'ausencia_resuelta',
+        titulo:
+          estado === 'aprobada' ? 'Ausencia aprobada' : 'Ausencia rechazada',
+        cuerpo:
+          estado === 'aprobada'
+            ? 'Tu solicitud de ausencia fue aprobada.'
+            : `Tu solicitud fue rechazada.${
+                comentario ? ` Motivo: ${comentario}` : ''
+              }`,
+        link: '/app/ausencias',
+        leida: false,
+        creadaEn: new Date().toISOString(),
+      });
+    }
   }
   return simular(ausencia ?? null);
 };
@@ -541,6 +566,47 @@ export const getDescriptoresFaciales = async (): Promise<DescriptorFacial[]> =>
       .map((e) => ({ empleadoId: e.id, descriptor: e.descriptorFacial! }))
   );
 
+// ---------- Notas internas (solo admins) ----------
+
+export interface NuevaNotaInterna {
+  motivo: string;
+  observacion?: string;
+  autorId: string;
+  autorNombre: string;
+}
+
+export const getNotasInternas = async (
+  empleadoId: string
+): Promise<NotaInterna[]> =>
+  simular(
+    notasInternasMock
+      .filter((n) => n.empleadoId === empleadoId)
+      .sort((a, b) => b.fecha.localeCompare(a.fecha))
+  );
+
+export const agregarNotaInterna = async (
+  empleadoId: string,
+  datos: NuevaNotaInterna
+): Promise<NotaInterna> => {
+  const nueva: NotaInterna = {
+    id: `nin-${Date.now()}`,
+    empleadoId,
+    fecha: hoyISO(),
+    autorId: datos.autorId,
+    autorNombre: datos.autorNombre,
+    motivo: datos.motivo,
+    observacion: datos.observacion,
+  };
+  notasInternasMock.unshift(nueva);
+  return simular(nueva);
+};
+
+export const quitarNotaInterna = async (id: string): Promise<void> => {
+  const i = notasInternasMock.findIndex((n) => n.id === id);
+  if (i >= 0) notasInternasMock.splice(i, 1);
+  return simular(undefined);
+};
+
 // ---------- Alertas, agenda y notificaciones ----------
 
 export const getAlertas = async (): Promise<Alerta[]> =>
@@ -628,6 +694,10 @@ export const getRemuneraciones = async (
   empleadoId: string
 ): Promise<Remuneracion[]> =>
   simular(remuneracionesMock.filter((r) => r.empleadoId === empleadoId));
+
+/** Todas las remuneraciones de la empresa (vista admin). */
+export const getRemuneracionesTodas = async (): Promise<Remuneracion[]> =>
+  simular([...remuneracionesMock]);
 
 export const getRecibos = async (empleadoId: string): Promise<ReciboSueldo[]> =>
   simular(recibosMock.filter((r) => r.empleadoId === empleadoId));

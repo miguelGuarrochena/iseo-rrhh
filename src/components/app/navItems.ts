@@ -6,7 +6,9 @@ import {
   IconClockCheck,
   IconFileCertificate,
   IconHome,
+  IconId,
   IconPlaneDeparture,
+  IconReportMoney,
   IconSettings,
   IconShieldCheck,
   IconUsers,
@@ -43,6 +45,12 @@ export const navItems: NavItem[] = [
     roles: GESTION,
   },
   {
+    etiqueta: 'Mi legajo',
+    href: '/app/mi-legajo',
+    icono: IconId,
+    roles: ['empleado'],
+  },
+  {
     etiqueta: 'Ausencias',
     href: '/app/ausencias',
     icono: IconPlaneDeparture,
@@ -59,6 +67,12 @@ export const navItems: NavItem[] = [
     href: '/app/recibos',
     icono: IconFileCertificate,
     roles: OPERATIVOS,
+  },
+  {
+    etiqueta: 'Remuneraciones',
+    href: '/app/remuneraciones',
+    icono: IconReportMoney,
+    roles: ['superadmin', ...OPERATIVOS],
   },
   {
     etiqueta: 'Agenda',

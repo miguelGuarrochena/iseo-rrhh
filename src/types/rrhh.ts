@@ -286,6 +286,18 @@ export interface DescriptorFacial {
   descriptor: number[];
 }
 
+/** Nota interna de un empleado. Solo visible para administradores. */
+export interface NotaInterna {
+  id: string;
+  empleadoId: string;
+  /** YYYY-MM-DD */
+  fecha: string;
+  autorId: string;
+  autorNombre: string;
+  motivo: string;
+  observacion?: string;
+}
+
 export interface JornadaCalculada {
   empleadoId: string;
   fecha: string;

@@ -12,6 +12,7 @@ import * as real from './supabase/real';
 export type {
   MiMes,
   NuevaAusencia,
+  NuevaNotaInterna,
   NuevoDocumento,
   NuevoEmpleado,
   NuevoEvento,
@@ -147,6 +148,20 @@ export const getDescriptoresFaciales = elegir(
   demo.getDescriptoresFaciales
 );
 
+// ---------- Notas internas (solo admins) ----------
+export const getNotasInternas = elegir(
+  real.getNotasInternas,
+  demo.getNotasInternas
+);
+export const agregarNotaInterna = elegir(
+  real.agregarNotaInterna,
+  demo.agregarNotaInterna
+);
+export const quitarNotaInterna = elegir(
+  real.quitarNotaInterna,
+  demo.quitarNotaInterna
+);
+
 // ---------- Alertas, agenda y notificaciones ----------
 export const getAlertas = elegir(real.getAlertas, demo.getAlertas);
 export const getEventosProximos = elegir(
@@ -170,6 +185,10 @@ export const getMiMes = elegir(real.getMiMes, demo.getMiMes);
 export const getRemuneraciones = elegir(
   real.getRemuneraciones,
   demo.getRemuneraciones
+);
+export const getRemuneracionesTodas = elegir(
+  real.getRemuneracionesTodas,
+  demo.getRemuneracionesTodas
 );
 export const getRecibos = elegir(real.getRecibos, demo.getRecibos);
 export const getRecibosTodos = elegir(

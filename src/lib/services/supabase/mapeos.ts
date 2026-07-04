@@ -12,6 +12,7 @@ import {
   EventoAgenda,
   Familiar,
   Fichaje,
+  NotaInterna,
   Notificacion,
   ReciboSueldo,
   Remuneracion,
@@ -120,6 +121,16 @@ export const aFichaje = (f: Fila): Fichaje => ({
   geo: f.geo ?? undefined,
   dispositivoId: f.dispositivo_id ?? undefined,
   confianza: f.confianza ?? undefined,
+});
+
+export const aNotaInterna = (f: Fila): NotaInterna => ({
+  id: f.id,
+  empleadoId: f.empleado_id,
+  fecha: String(f.fecha).slice(0, 10),
+  autorId: f.autor_id,
+  autorNombre: f.autor_nombre,
+  motivo: f.motivo,
+  observacion: f.observacion ?? undefined,
 });
 
 export const aRecibo = (f: Fila): ReciboSueldo => ({

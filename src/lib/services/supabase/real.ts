@@ -15,6 +15,7 @@ import {
   EventoAgenda,
   Fichaje,
   MetricasGlobales,
+  NotaInterna,
   Notificacion,
   NuevaEmpresa,
   OpcionesFichaje,
@@ -27,6 +28,7 @@ import {
 import type {
   MiMes,
   NuevaAusencia,
+  NuevaNotaInterna,
   NuevoDocumento,
   NuevoEmpleado,
   NuevoEvento,
@@ -43,6 +45,7 @@ import {
   aEmpresa,
   aEvento,
   aFichaje,
+  aNotaInterna,
   aNotificacion,
   aRecibo,
   aRemuneracion,
@@ -579,7 +582,37 @@ export const resolverAusencia = async (
     .select()
     .single();
   if (error) throw new Error(error.message);
-  return data ? aAusencia(data) : null;
+  if (!data) return null;
+
+  // Notificar al empleado el resultado (best-effort, no bloquea la resolución).
+  try {
+    const { data: usuario } = await sb()
+      .from('usuarios')
+      .select('id')
+      .eq('empleado_id', data.empleado_id)
+      .maybeSingle();
+    if (usuario) {
+      await sb()
+        .from('notificaciones')
+        .insert({
+          usuario_id: usuario.id,
+          tipo: 'ausencia_resuelta',
+          titulo:
+            estado === 'aprobada' ? 'Ausencia aprobada' : 'Ausencia rechazada',
+          cuerpo:
+            estado === 'aprobada'
+              ? 'Tu solicitud de ausencia fue aprobada.'
+              : `Tu solicitud fue rechazada.${
+                  comentario ? ` Motivo: ${comentario}` : ''
+                }`,
+          link: '/app/ausencias',
+        });
+    }
+  } catch {
+    // Si falla la notificación, la resolución igual queda registrada.
+  }
+
+  return aAusencia(data);
 };
 
 export const getSaldoVacaciones = async (
@@ -717,6 +750,45 @@ export const getDescriptoresFaciales = async (): Promise<
     empleadoId: f.id as string,
     descriptor: (f.descriptor_facial ?? []) as number[],
   }));
+};
+
+// ---------- Notas internas (solo admins) ----------
+
+export const getNotasInternas = async (
+  empleadoId: string
+): Promise<NotaInterna[]> => {
+  const { data, error } = await sb()
+    .from('notas_internas')
+    .select('*')
+    .eq('empleado_id', empleadoId)
+    .order('fecha', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(aNotaInterna);
+};
+
+export const agregarNotaInterna = async (
+  empleadoId: string,
+  datos: NuevaNotaInterna
+): Promise<NotaInterna> => {
+  const { data, error } = await sb()
+    .from('notas_internas')
+    .insert({
+      empresa_id: empresaId(),
+      empleado_id: empleadoId,
+      fecha: new Date().toISOString().slice(0, 10),
+      autor_id: datos.autorId,
+      autor_nombre: datos.autorNombre,
+      motivo: datos.motivo,
+      observacion: datos.observacion ?? null,
+    })
+    .select()
+    .single();
+  return aNotaInterna(oFalla(data, error));
+};
+
+export const quitarNotaInterna = async (id: string): Promise<void> => {
+  const { error } = await sb().from('notas_internas').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 };
 
 // ---------- Jornadas calculadas (para reportes y "mi mes") ----------
@@ -1023,6 +1095,17 @@ export const getRemuneraciones = async (
     .eq('empleado_id', empleadoId)
     .order('periodo', { ascending: false });
   return oFalla(data, error).map(aRemuneracion);
+};
+
+/** Todas las remuneraciones de la empresa (vista admin). */
+export const getRemuneracionesTodas = async (): Promise<Remuneracion[]> => {
+  const { data, error } = await sb()
+    .from('remuneraciones')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .order('periodo', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(aRemuneracion);
 };
 
 export const getRecibos = async (
