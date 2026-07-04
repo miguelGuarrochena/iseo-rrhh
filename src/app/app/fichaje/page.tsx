@@ -16,6 +16,7 @@ import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { formatearHora } from '@/lib/fechas';
+import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   ficharAhora,
   getEmpleados,
@@ -72,7 +73,18 @@ const FichajePage = () => {
   const fichar = async () => {
     if (!usuario.empleadoId) return;
     setFichando(true);
-    await ficharAhora(usuario.empleadoId);
+    try {
+      const marca = await ficharAhora(usuario.empleadoId);
+      avisoExito(
+        marca.tipo === 'ingreso' ? 'Ingreso registrado' : 'Egreso registrado',
+        `A las ${formatearHora(marca.timestamp)}. ¡Buen día!`
+      );
+    } catch (err) {
+      avisoError(
+        'No pudimos registrar el fichaje',
+        err instanceof Error ? err.message : undefined
+      );
+    }
     setFichando(false);
     cargar();
   };

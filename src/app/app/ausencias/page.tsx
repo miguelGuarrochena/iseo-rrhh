@@ -22,6 +22,7 @@ import {
   totalPaginasDe,
 } from '@/components/app/ui/Paginacion';
 import { formatearFecha } from '@/lib/fechas';
+import { avisoError, avisoExito } from '@/lib/avisos';
 import { tipoAusenciaIconos, tipoAusenciaLabels } from '@/lib/etiquetas';
 import {
   crearAusencia,
@@ -107,13 +108,31 @@ const AusenciasPage = () => {
     comentario?: string;
   }) => {
     if (!usuario.empleadoId) return;
-    await crearAusencia({ empleadoId: usuario.empleadoId, ...datos });
+    try {
+      await crearAusencia({ empleadoId: usuario.empleadoId, ...datos });
+      avisoExito('Solicitud enviada', 'Te avisamos cuando la resuelvan.');
+    } catch (err) {
+      avisoError(
+        'No pudimos enviar la solicitud',
+        err instanceof Error ? err.message : undefined
+      );
+    }
     close();
     cargar();
   };
 
   const resolver = async (id: string, estado: 'aprobada' | 'rechazada') => {
-    await resolverAusencia(id, estado, usuario.empleadoId ?? usuario.id);
+    try {
+      await resolverAusencia(id, estado, usuario.empleadoId ?? usuario.id);
+      avisoExito(
+        estado === 'aprobada' ? 'Solicitud aprobada' : 'Solicitud rechazada'
+      );
+    } catch (err) {
+      avisoError(
+        'No pudimos resolver la solicitud',
+        err instanceof Error ? err.message : undefined
+      );
+    }
     cargar();
   };
 

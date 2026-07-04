@@ -14,6 +14,7 @@ import {
   validarEmail,
   validarRequerido,
 } from '@/lib/validaciones';
+import { avisoExito } from '@/lib/avisos';
 import {
   cambiarRolUsuario,
   getEmpleados,
@@ -80,6 +81,10 @@ const PermisosPage = () => {
         empleadoId: empleadoId || undefined,
         empresaId: empresaVista?.id ?? usuario?.empresaId ?? undefined,
       });
+      avisoExito(
+        'Invitación enviada',
+        `${email.trim()} va a recibir el mail para crear su contraseña.`
+      );
     } catch (err) {
       setErrores({
         email: err instanceof Error ? err.message : 'No pudimos invitar.',

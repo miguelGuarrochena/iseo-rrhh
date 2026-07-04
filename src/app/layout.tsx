@@ -5,11 +5,13 @@ import {
   MantineProvider,
   mantineHtmlProps,
 } from '@mantine/core';
+import { Notifications } from '@mantine/notifications';
 import { Analytics } from '@vercel/analytics/next';
 import { theme } from '@/theme/theme';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { RegistrarSW } from '@/components/RegistrarSW';
 import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
 import '@/styles/globals.css';
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://iseo-rh.com';
@@ -133,6 +135,7 @@ const RootLayout = ({ children }: { children: ReactNode }) => (
     </head>
     <body>
       <MantineProvider theme={theme} defaultColorScheme="light">
+        <Notifications position="top-right" containerWidth={340} />
         <AuthProvider>{children}</AuthProvider>
       </MantineProvider>
       <RegistrarSW />

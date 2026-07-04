@@ -8,6 +8,7 @@ import {
   FormEmpleado,
 } from '@/components/app/colaboradores/FormEmpleado';
 import { crearEmpleado } from '@/lib/services/rrhh';
+import { avisoError, avisoExito } from '@/lib/avisos';
 
 const NuevoColaboradorPage = () => {
   const { usuario, rolEfectivo } = useAuth();
@@ -22,12 +23,23 @@ const NuevoColaboradorPage = () => {
   }
 
   const guardar = async (datos: DatosEmpleado) => {
-    const nuevo = await crearEmpleado(datos);
-    if (datos.fotoUrl) {
-      const { actualizarEmpleado } = await import('@/lib/services/rrhh');
-      await actualizarEmpleado(nuevo.id, { fotoUrl: datos.fotoUrl });
+    try {
+      const nuevo = await crearEmpleado(datos);
+      if (datos.fotoUrl) {
+        const { actualizarEmpleado } = await import('@/lib/services/rrhh');
+        await actualizarEmpleado(nuevo.id, { fotoUrl: datos.fotoUrl });
+      }
+      avisoExito(
+        'Colaborador creado',
+        `${datos.nombre} ${datos.apellido} ya tiene su ficha.`
+      );
+      router.push('/app/colaboradores');
+    } catch (err) {
+      avisoError(
+        'No pudimos crear el colaborador',
+        err instanceof Error ? err.message : undefined
+      );
     }
-    router.push('/app/colaboradores');
   };
 
   return (

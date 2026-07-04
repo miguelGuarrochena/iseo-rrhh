@@ -20,6 +20,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
@@ -141,6 +142,7 @@ const FichaColaboradorPage = () => {
         fechaVencimiento: docVencimiento || undefined,
         archivo: docArchivo ?? undefined,
       });
+      avisoExito('Documento guardado en el legajo');
     } catch (err) {
       setDocError(
         err instanceof Error ? err.message : 'No pudimos guardar el documento.'

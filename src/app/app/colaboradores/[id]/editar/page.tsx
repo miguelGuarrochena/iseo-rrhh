@@ -8,6 +8,7 @@ import {
   DatosEmpleado,
   FormEmpleado,
 } from '@/components/app/colaboradores/FormEmpleado';
+import { avisoError, avisoExito } from '@/lib/avisos';
 import { actualizarEmpleado, getEmpleado } from '@/lib/services/rrhh';
 import { Empleado } from '@/types/rrhh';
 
@@ -46,8 +47,17 @@ const EditarColaboradorPage = () => {
       obraSocial: datos.obraSocial ?? '',
       art: datos.art ?? '',
       fotoUrl: datos.fotoUrl,
-    });
-    router.push(`/app/colaboradores/${empleado.id}`);
+    })
+      .then(() => {
+        avisoExito('Cambios guardados');
+        router.push(`/app/colaboradores/${empleado.id}`);
+      })
+      .catch((err: unknown) => {
+        avisoError(
+          'No pudimos guardar los cambios',
+          err instanceof Error ? err.message : undefined
+        );
+      });
   };
 
   return (

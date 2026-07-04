@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { IconCamera, IconCheck } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { avisoError, avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
@@ -98,16 +99,24 @@ const ConfiguracionPage = () => {
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
     setGuardando(true);
-    await actualizarConfigEmpresa(config);
-    await actualizarEmpresa({
-      nombre: nombreEmpresa,
-      contactoNombre,
-      contactoEmail,
-      logoUrl,
-    });
+    try {
+      await actualizarConfigEmpresa(config);
+      await actualizarEmpresa({
+        nombre: nombreEmpresa,
+        contactoNombre,
+        contactoEmail,
+        logoUrl,
+      });
+      avisoExito('Configuración guardada');
+      setGuardado(true);
+      setTimeout(() => setGuardado(false), 2500);
+    } catch (err) {
+      avisoError(
+        'No pudimos guardar la configuración',
+        err instanceof Error ? err.message : undefined
+      );
+    }
     setGuardando(false);
-    setGuardado(true);
-    setTimeout(() => setGuardado(false), 2500);
   };
 
   return (
