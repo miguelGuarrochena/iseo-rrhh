@@ -28,14 +28,26 @@ const RUTAS_APP = [
 const esRutaApp = (path: string): boolean =>
   RUTAS_APP.some((base) => path === base || path.startsWith(`${base}/`));
 
+/**
+ * Dominio real de la request. Detrás del proxy de Vercel el dominio que ve
+ * el usuario viene en `x-forwarded-host`; `host` puede ser el interno.
+ */
+const dominioDe = (req: NextRequest): string =>
+  (req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '')
+    .split(':')[0]
+    .toLowerCase()
+    .trim();
+
 export function middleware(req: NextRequest) {
-  const host = (req.headers.get('host') ?? '').split(':')[0].toLowerCase();
+  const host = dominioDe(req);
   const { pathname, search } = req.nextUrl;
 
   // Subdominio de la app: su raíz lleva a la plataforma (que exige login).
   if (host === HOST_APP) {
     if (pathname === '/') {
-      return NextResponse.redirect(new URL('/app', req.url));
+      const url = req.nextUrl.clone();
+      url.pathname = '/app';
+      return NextResponse.redirect(url);
     }
     return NextResponse.next();
   }
