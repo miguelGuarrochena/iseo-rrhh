@@ -9,6 +9,7 @@ import {
   IconGavel,
   IconHome,
   IconId,
+  IconLifebuoy,
   IconPlaneDeparture,
   IconReportMoney,
   IconSettings,
@@ -51,7 +52,7 @@ export const navItems: NavItem[] = [
     etiqueta: 'Mi legajo',
     href: '/mi-legajo',
     icono: IconId,
-    roles: ['empleado'],
+    roles: OPERATIVOS,
   },
   {
     etiqueta: 'Ausencias',
@@ -112,6 +113,12 @@ export const navItems: NavItem[] = [
     href: '/permisos',
     icono: IconShieldCheck,
     roles: ['superadmin', 'admin_rrhh'],
+  },
+  {
+    etiqueta: 'Ayuda',
+    href: '/ayuda',
+    icono: IconLifebuoy,
+    roles: ['superadmin', ...OPERATIVOS],
   },
   {
     etiqueta: 'Configuración',
