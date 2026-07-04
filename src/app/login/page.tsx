@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { IconArrowLeft } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
-import { DemoUserPicker } from '@/components/login/DemoUserPicker';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoPassword } from '@/components/app/ui/CampoPassword';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -21,7 +20,14 @@ const LoginPage = () => {
   const ingresar = async (emailElegido: string, passwordElegida?: string) => {
     setError(null);
     setEnviando(true);
-    const usuario = await login(emailElegido, passwordElegida);
+    let usuario = null;
+    try {
+      usuario = await login(emailElegido, passwordElegida);
+    } catch (err) {
+      setEnviando(false);
+      setError(err instanceof Error ? err.message : 'No pudimos ingresar.');
+      return;
+    }
     setEnviando(false);
     if (!usuario) {
       setError(
@@ -112,8 +118,6 @@ const LoginPage = () => {
             </Boton>
           </form>
         </div>
-
-        <DemoUserPicker onElegir={ingresar} deshabilitado={enviando} />
       </div>
     </main>
   );

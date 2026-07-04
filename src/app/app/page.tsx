@@ -150,18 +150,21 @@ const DashboardPage = () => {
             etiqueta="Empleados"
             valor={metricas?.empleadosGestionados ?? '…'}
             detalle="gestionados en total"
+            href="/app/reportes"
             icono={IconUsers}
           />
           <StatCard
             etiqueta="Solicitudes"
             valor={metricas?.solicitudesPendientes ?? '…'}
             detalle="pendientes en clientes"
+            href="/app/empresas"
             icono={IconInbox}
           />
           <StatCard
             etiqueta="Adopción"
             valor="83%"
             detalle="empleados que usan la app"
+            href="/app/reportes"
             icono={IconChecklist}
           />
         </div>
@@ -247,12 +250,14 @@ const DashboardPage = () => {
             etiqueta="Mis horas"
             valor={miMes ? `${miMes.horasTrabajadas} hs` : '…'}
             detalle="última semana"
+            href="/app/fichaje"
             icono={IconClockCheck}
           />
           <StatCard
             etiqueta="Mis extras"
             valor={miMes ? `${miMes.horasExtras} hs` : '…'}
             detalle="última semana"
+            href="/app/fichaje"
             icono={IconClockPlus}
           />
           <StatCard
@@ -263,6 +268,7 @@ const DashboardPage = () => {
                 ? `${miMes.minutosTarde} min en total`
                 : 'estás impecable'
             }
+            href="/app/fichaje"
             icono={IconClockExclamation}
           />
         </div>
@@ -286,6 +292,7 @@ const DashboardPage = () => {
             etiqueta="Vencimientos"
             valor={alertas.length}
             detalle="próximos a vencer"
+            href="/app/colaboradores"
             icono={IconAlertTriangle}
           />
           <StatCard

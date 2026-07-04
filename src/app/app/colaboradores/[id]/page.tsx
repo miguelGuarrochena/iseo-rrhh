@@ -29,6 +29,7 @@ import { CampoSelect } from '@/components/app/ui/Campo';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { categoriaDocumentoLabels } from '@/lib/etiquetas';
 import {
+  abrirDocumento,
   agregarDocumento,
   darDeBajaEmpleado,
   getDocumentosDeEmpleado,
@@ -83,7 +84,9 @@ const FichaColaboradorPage = () => {
   const [docNombre, setDocNombre] = useState('');
   const [docCategoria, setDocCategoria] = useState<CategoriaDocumento>('otro');
   const [docVencimiento, setDocVencimiento] = useState('');
+  const [docArchivo, setDocArchivo] = useState<File | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
+  const [docGuardando, setDocGuardando] = useState(false);
   const [bajaAbierta, { open: abrirBaja, close: cerrarBaja }] =
     useDisclosure(false);
   const [motivoBaja, setMotivoBaja] = useState('');
@@ -129,16 +132,33 @@ const FichaColaboradorPage = () => {
       return;
     }
     setDocError(null);
-    await agregarDocumento({
-      empleadoId: empleado.id,
-      nombre: docNombre.trim(),
-      categoria: docCategoria,
-      fechaVencimiento: docVencimiento || undefined,
-    });
+    setDocGuardando(true);
+    try {
+      await agregarDocumento({
+        empleadoId: empleado.id,
+        nombre: docNombre.trim(),
+        categoria: docCategoria,
+        fechaVencimiento: docVencimiento || undefined,
+        archivo: docArchivo ?? undefined,
+      });
+    } catch (err) {
+      setDocError(
+        err instanceof Error ? err.message : 'No pudimos guardar el documento.'
+      );
+      setDocGuardando(false);
+      return;
+    }
+    setDocGuardando(false);
     setDocNombre('');
     setDocVencimiento('');
+    setDocArchivo(null);
     cerrarDoc();
     recargarDocs();
+  };
+
+  const verDocumento = async (doc: DocumentoLegajo) => {
+    const url = await abrirDocumento(doc);
+    if (url) window.open(url, '_blank', 'noopener');
   };
 
   const eliminarDocumento = async (documentoId: string) => {
@@ -244,12 +264,14 @@ const FichaColaboradorPage = () => {
               ? `${control.minutosTarde} min (semana)`
               : 'última semana'
           }
+          href="/app/reportes"
           icono={IconClockExclamation}
         />
         <StatCard
           etiqueta="Horas extras"
           valor={control ? `${control.horasExtras} hs` : '…'}
           detalle="última semana"
+          href="/app/reportes"
           icono={IconClockPlus}
         />
         <StatCard
@@ -371,16 +393,27 @@ const FichaColaboradorPage = () => {
               principal={d.nombre}
               secundario={`${categoriaDocumentoLabels[d.categoria]}${d.fechaVencimiento ? ` · vence ${formatearFecha(d.fechaVencimiento)}` : ''}`}
               extremo={
-                esAdmin ? (
-                  <Boton
-                    variante="rechazar"
-                    tamano="sm"
-                    onClick={() => void eliminarDocumento(d.id)}
-                  >
-                    <IconTrash size={14} />
-                    Quitar
-                  </Boton>
-                ) : undefined
+                <div className="flex shrink-0 items-center gap-2">
+                  {d.archivoUrl && (
+                    <Boton
+                      variante="secundario"
+                      tamano="sm"
+                      onClick={() => void verDocumento(d)}
+                    >
+                      Ver
+                    </Boton>
+                  )}
+                  {esAdmin && (
+                    <Boton
+                      variante="rechazar"
+                      tamano="sm"
+                      onClick={() => void eliminarDocumento(d.id)}
+                    >
+                      <IconTrash size={14} />
+                      Quitar
+                    </Boton>
+                  )}
+                </div>
               }
             />
           ))}
@@ -428,12 +461,22 @@ const FichaColaboradorPage = () => {
             onChange={(e) => setDocVencimiento(e.target.value)}
             ayuda="Si tiene vencimiento, genera una alerta automática."
           />
-          <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
-            La carga del archivo (PDF/foto) se habilita con el almacenamiento en
-            la fase de backend.
-          </p>
-          <Boton onClick={() => void guardarDocumento()}>
-            Guardar documento
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-semibold text-ink">
+              Archivo (PDF o foto)
+            </span>
+            <input
+              type="file"
+              accept=".pdf,image/*"
+              onChange={(e) => setDocArchivo(e.target.files?.[0] ?? null)}
+              className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-paper file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink"
+            />
+          </label>
+          <Boton
+            onClick={() => void guardarDocumento()}
+            disabled={docGuardando}
+          >
+            {docGuardando ? 'Guardando…' : 'Guardar documento'}
           </Boton>
         </div>
       </Modal>

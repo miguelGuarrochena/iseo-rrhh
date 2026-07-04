@@ -136,12 +136,14 @@ const ReportesPage = () => {
             etiqueta="Empleados"
             valor={metricas?.empleadosGestionados ?? '…'}
             detalle="gestionados en total"
+            href="/app/empresas"
             icono={IconUsers}
           />
           <StatCard
             etiqueta="Solicitudes"
             valor={metricas?.solicitudesPendientes ?? '…'}
             detalle="pendientes en clientes"
+            href="/app/empresas"
             icono={IconInbox}
           />
         </div>

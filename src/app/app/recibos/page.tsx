@@ -5,6 +5,7 @@ import {
   IconFileCertificate,
   IconSignature,
   IconEye,
+  IconUpload,
 } from '@tabler/icons-react';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -12,8 +13,11 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
+import { Campo, CampoSelect } from '@/components/app/ui/Campo';
 import { formatearFecha, formatearPeriodo } from '@/lib/fechas';
 import {
+  abrirRecibo,
+  cargarRecibo,
   firmarRecibo,
   getEmpleados,
   getRecibos,
@@ -41,6 +45,15 @@ const RecibosPage = () => {
   const [aFirmar, setAFirmar] = useState<ReciboSueldo | null>(null);
   const [firmando, setFirmando] = useState(false);
   const [modalAbierto, { open, close }] = useDisclosure(false);
+  const [cargaAbierta, { open: abrirCarga, close: cerrarCarga }] =
+    useDisclosure(false);
+  const [cargaEmpleado, setCargaEmpleado] = useState('');
+  const [cargaPeriodo, setCargaPeriodo] = useState(
+    new Date().toISOString().slice(0, 7)
+  );
+  const [cargaArchivo, setCargaArchivo] = useState<File | null>(null);
+  const [cargaError, setCargaError] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
 
   const cargar = useCallback(() => {
     if (!usuario) return;
@@ -66,6 +79,37 @@ const RecibosPage = () => {
     open();
   };
 
+  const verRecibo = async (recibo: ReciboSueldo) => {
+    const url = await abrirRecibo(recibo);
+    if (url) window.open(url, '_blank', 'noopener');
+  };
+
+  const subirRecibo = async () => {
+    if (!cargaEmpleado) {
+      setCargaError('Elegí el colaborador.');
+      return;
+    }
+    if (!cargaArchivo) {
+      setCargaError('Adjuntá el PDF del recibo.');
+      return;
+    }
+    setCargaError(null);
+    setCargando(true);
+    try {
+      await cargarRecibo(cargaEmpleado, cargaPeriodo, cargaArchivo);
+    } catch (err) {
+      setCargaError(
+        err instanceof Error ? err.message : 'No pudimos cargar el recibo.'
+      );
+      setCargando(false);
+      return;
+    }
+    setCargando(false);
+    setCargaArchivo(null);
+    cerrarCarga();
+    cargar();
+  };
+
   const confirmarFirma = async () => {
     if (!aFirmar) return;
     setFirmando(true);
@@ -81,15 +125,23 @@ const RecibosPage = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
-          Recibos de sueldo
-        </h1>
-        <p className="mt-1 text-sm text-ink-soft">
-          {esEmpleado
-            ? 'Consultá y firmá tus recibos con validez digital.'
-            : 'Estado de firmas del equipo.'}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-ink">
+            Recibos de sueldo
+          </h1>
+          <p className="mt-1 text-sm text-ink-soft">
+            {esEmpleado
+              ? 'Consultá y firmá tus recibos con validez digital.'
+              : 'Estado de firmas del equipo.'}
+          </p>
+        </div>
+        {rolEfectivo === 'admin_rrhh' && (
+          <Boton variante="negro" onClick={abrirCarga}>
+            <IconUpload size={18} />
+            Cargar recibo
+          </Boton>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -130,7 +182,11 @@ const RecibosPage = () => {
                 extremo={
                   <div className="flex shrink-0 items-center gap-2">
                     <FirmaBadge recibo={r} />
-                    <Boton variante="secundario" tamano="sm">
+                    <Boton
+                      variante="secundario"
+                      tamano="sm"
+                      onClick={() => void verRecibo(r)}
+                    >
                       <IconEye size={14} />
                       Ver
                     </Boton>
@@ -145,6 +201,57 @@ const RecibosPage = () => {
               />
             ))}
       </ListaCard>
+
+      <Modal
+        opened={cargaAbierta}
+        onClose={cerrarCarga}
+        title="Cargar recibo de sueldo"
+        radius="lg"
+        centered
+        styles={{ title: { fontWeight: 800 } }}
+      >
+        <div className="flex flex-col gap-3.5">
+          <CampoSelect
+            etiqueta="Colaborador *"
+            value={cargaEmpleado}
+            onChange={setCargaEmpleado}
+            opciones={[
+              { valor: '', etiqueta: 'Elegí un colaborador…' },
+              ...empleados.map((e) => ({
+                valor: e.id,
+                etiqueta: `${e.apellido}, ${e.nombre}`,
+              })),
+            ]}
+          />
+          <Campo
+            etiqueta="Período *"
+            type="month"
+            value={cargaPeriodo}
+            onChange={(e) => setCargaPeriodo(e.target.value)}
+          />
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-semibold text-ink">PDF *</span>
+            <input
+              type="file"
+              accept=".pdf,application/pdf"
+              onChange={(e) => setCargaArchivo(e.target.files?.[0] ?? null)}
+              className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-paper file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink"
+            />
+          </label>
+          {cargaError && (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+              {cargaError}
+            </p>
+          )}
+          <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
+            El colaborador lo va a ver en su sección Recibos y podrá firmarlo
+            digitalmente. Si el período ya tenía un recibo, se reemplaza.
+          </p>
+          <Boton onClick={() => void subirRecibo()} disabled={cargando}>
+            {cargando ? 'Cargando…' : 'Cargar recibo'}
+          </Boton>
+        </div>
+      </Modal>
 
       <Modal
         opened={modalAbierto}

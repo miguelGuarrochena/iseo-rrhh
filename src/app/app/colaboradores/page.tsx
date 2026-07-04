@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
+  IconFileSpreadsheet,
   IconFilter,
   IconPlus,
   IconSearch,
   IconUser,
 } from '@tabler/icons-react';
+import { useDisclosure } from '@mantine/hooks';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { ImportarEmpleadosModal } from '@/components/app/colaboradores/ImportarEmpleadosModal';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { aOpciones, Selector } from '@/components/app/ui/Selector';
@@ -40,10 +43,14 @@ const ColaboradoresPage = () => {
   const [estado, setEstado] = useState('activo');
   const [avanzados, setAvanzados] = useState(false);
   const [pagina, setPagina] = useState(1);
+  const [importarAbierto, { open: abrirImportar, close: cerrarImportar }] =
+    useDisclosure(false);
 
-  useEffect(() => {
+  const cargarEmpleados = () => {
     void getEmpleadosTodos().then(setEmpleados);
-  }, []);
+  };
+
+  useEffect(cargarEmpleados, []);
 
   const sectores = useMemo(
     () => Array.from(new Set(empleados.map((e) => e.sector))).sort(),
@@ -97,12 +104,18 @@ const ColaboradoresPage = () => {
           </p>
         </div>
         {rolEfectivo === 'admin_rrhh' && (
-          <Link href="/app/colaboradores/nuevo" className="no-underline">
-            <Boton type="button" variante="negro">
-              <IconPlus size={18} />
-              Alta de colaborador
+          <div className="flex flex-wrap items-center gap-2">
+            <Boton type="button" variante="secundario" onClick={abrirImportar}>
+              <IconFileSpreadsheet size={18} />
+              Importar Excel
             </Boton>
-          </Link>
+            <Link href="/app/colaboradores/nuevo" className="no-underline">
+              <Boton type="button" variante="negro">
+                <IconPlus size={18} />
+                Alta de colaborador
+              </Boton>
+            </Link>
+          </div>
         )}
       </div>
 
@@ -212,6 +225,12 @@ const ColaboradoresPage = () => {
           onCambiar={setPagina}
         />
       </ListaCard>
+
+      <ImportarEmpleadosModal
+        abierto={importarAbierto}
+        onCerrar={cerrarImportar}
+        onImportado={cargarEmpleados}
+      />
     </div>
   );
 };

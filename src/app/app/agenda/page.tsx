@@ -139,6 +139,11 @@ const AgendaPage = () => {
             visibles.map((e) => (
               <ListaItem
                 key={e.id}
+                onClick={() =>
+                  setDiaSeleccionado(
+                    diaSeleccionado === e.fecha ? null : e.fecha
+                  )
+                }
                 icono={tipoEventoIconos[e.tipo]}
                 principal={e.titulo}
                 secundario={e.descripcion ?? tipoEventoLabels[e.tipo]}

@@ -102,6 +102,14 @@ const EmpresasPage = () => {
         {filtradas.map(({ empresa, empleadosActivos }) => (
           <ListaItem
             key={empresa.id}
+            onClick={
+              empresa.estado === 'activa'
+                ? () => {
+                    entrarAEmpresa(empresa);
+                    router.push('/app');
+                  }
+                : undefined
+            }
             icono={IconBuildingFactory2}
             principal={empresa.nombre}
             secundario={`CUIT ${empresa.cuit} · ${empleadosActivos} empleados · ${empresa.contactoNombre} (${empresa.contactoEmail})`}

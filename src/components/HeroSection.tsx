@@ -73,12 +73,18 @@ export const HeroSection: React.FC = () => {
                 enfocarte en hacer crecer tu negocio.
               </p>
 
-              <div className="mt-9">
+              <div className="mt-9 flex flex-wrap items-center gap-3">
                 <button
                   onClick={scrollToContact}
                   className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-ink px-8 py-4 text-base font-semibold text-white transition-colors hover:bg-brand-600"
                 >
                   Contactanos
+                </button>
+                <button
+                  onClick={scrollToContact}
+                  className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-white px-8 py-4 text-base font-semibold text-brand-700 transition-colors hover:border-brand-600 hover:text-brand-600"
+                >
+                  Pedir una demo
                 </button>
               </div>
             </div>

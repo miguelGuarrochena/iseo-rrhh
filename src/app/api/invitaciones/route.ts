@@ -55,6 +55,38 @@ export const POST = async (req: Request) => {
     );
   }
 
+  // Si se vincula a un legajo, el email tiene que coincidir con el de la
+  // ficha (control de identidad). Si la ficha no tiene email, se completa.
+  if (cuerpo.empleadoId) {
+    const { data: empleado } = await admin
+      .from('empleados')
+      .select('email, empresa_id')
+      .eq('id', cuerpo.empleadoId)
+      .single();
+    if (!empleado || empleado.empresa_id !== empresaId) {
+      return NextResponse.json(
+        { error: 'El colaborador no pertenece a esta empresa.' },
+        { status: 400 }
+      );
+    }
+    const emailFicha = (empleado.email ?? '').trim().toLowerCase();
+    const emailInvitado = cuerpo.email.trim().toLowerCase();
+    if (emailFicha && emailFicha !== emailInvitado) {
+      return NextResponse.json(
+        {
+          error: `El email no coincide con el del legajo (${empleado.email}). Corregí la ficha o usá ese email.`,
+        },
+        { status: 400 }
+      );
+    }
+    if (!emailFicha) {
+      await admin
+        .from('empleados')
+        .update({ email: cuerpo.email.trim() })
+        .eq('id', cuerpo.empleadoId);
+    }
+  }
+
   const origen = new URL(req.url).origin;
   const { error } = await admin.auth.admin.inviteUserByEmail(cuerpo.email, {
     redirectTo: `${origen}/crear-contrasena`,
