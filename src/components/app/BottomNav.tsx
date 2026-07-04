@@ -26,8 +26,10 @@ export const BottomNav = () => {
   const tabs = conMas ? items.slice(0, MAX_TABS - 1) : items;
   const resto = conMas ? items.slice(MAX_TABS - 1) : [];
 
+  // Normaliza por si el rewrite deja el path interno con /app.
+  const ruta = pathname.replace(/^\/app(?=\/|$)/, '') || '/';
   const esActivo = (href: string) =>
-    href === '/app' ? pathname === '/app' : pathname.startsWith(href);
+    href === '/' ? ruta === '/' : ruta.startsWith(href);
   const restoActivo = resto.some((i) => esActivo(i.href));
 
   return (

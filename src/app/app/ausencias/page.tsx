@@ -250,9 +250,7 @@ const AusenciasPage = () => {
           pendientes.map((a) => (
             <ListaItem
               key={a.id}
-              href={
-                esEmpleado ? undefined : `/app/colaboradores/${a.empleadoId}`
-              }
+              href={esEmpleado ? undefined : `/colaboradores/${a.empleadoId}`}
               icono={tipoAusenciaIconos[a.tipo]}
               principal={
                 esEmpleado
@@ -293,9 +291,7 @@ const AusenciasPage = () => {
           resueltasVisibles.map((a) => (
             <ListaItem
               key={a.id}
-              href={
-                esEmpleado ? undefined : `/app/colaboradores/${a.empleadoId}`
-              }
+              href={esEmpleado ? undefined : `/colaboradores/${a.empleadoId}`}
               icono={tipoAusenciaIconos[a.tipo]}
               principal={
                 esEmpleado

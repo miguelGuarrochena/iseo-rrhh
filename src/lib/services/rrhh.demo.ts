@@ -454,7 +454,7 @@ export const resolverAusencia = async (
             : `Tu solicitud fue rechazada.${
                 comentario ? ` Motivo: ${comentario}` : ''
               }`,
-        link: '/app/ausencias',
+        link: '/ausencias',
         leida: false,
         creadaEn: new Date().toISOString(),
       });

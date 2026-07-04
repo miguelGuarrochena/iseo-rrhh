@@ -68,7 +68,7 @@ const CrearContrasenaPage = () => {
       setError(errorSupabase.message);
       return;
     }
-    router.push('/app');
+    router.push('/');
   };
 
   return (

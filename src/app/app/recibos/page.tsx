@@ -187,9 +187,7 @@ const RecibosPage = () => {
             .map((r) => (
               <ListaItem
                 key={r.id}
-                href={
-                  esEmpleado ? undefined : `/app/colaboradores/${r.empleadoId}`
-                }
+                href={esEmpleado ? undefined : `/colaboradores/${r.empleadoId}`}
                 icono={IconFileCertificate}
                 principal={
                   esEmpleado

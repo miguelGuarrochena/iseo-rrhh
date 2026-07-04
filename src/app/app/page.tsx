@@ -143,28 +143,28 @@ const DashboardPage = () => {
                 ? `+${metricas.empresasSuspendidas} suspendidas`
                 : 'todas al día'
             }
-            href="/app/empresas"
+            href="/empresas"
             icono={IconBuildingFactory2}
           />
           <StatCard
             etiqueta="Empleados"
             valor={metricas?.empleadosGestionados ?? '…'}
             detalle="gestionados en total"
-            href="/app/reportes"
+            href="/reportes"
             icono={IconUsers}
           />
           <StatCard
             etiqueta="Solicitudes"
             valor={metricas?.solicitudesPendientes ?? '…'}
             detalle="pendientes en clientes"
-            href="/app/empresas"
+            href="/empresas"
             icono={IconInbox}
           />
           <StatCard
             etiqueta="Adopción"
             valor="83%"
             detalle="empleados que usan la app"
-            href="/app/reportes"
+            href="/reportes"
             icono={IconChecklist}
           />
         </div>
@@ -172,7 +172,7 @@ const DashboardPage = () => {
         <ListaCard
           titulo="Tus clientes"
           vacio="Sin empresas cargadas."
-          accion={{ etiqueta: 'Ver empresas', href: '/app/empresas' }}
+          accion={{ etiqueta: 'Ver empresas', href: '/empresas' }}
         >
           {empresas.map(({ empresa, empleadosActivos }) => (
             <ListaItem
@@ -182,7 +182,7 @@ const DashboardPage = () => {
                 empresa.estado === 'activa'
                   ? () => {
                       entrarAEmpresa(empresa);
-                      router.push('/app');
+                      router.push('/');
                     }
                   : undefined
               }
@@ -227,7 +227,7 @@ const DashboardPage = () => {
                 ? `de ${saldo.diasCorresponden} que te corresponden`
                 : undefined
             }
-            href="/app/ausencias"
+            href="/ausencias"
             icono={IconBeach}
           />
           <StatCard
@@ -236,28 +236,28 @@ const DashboardPage = () => {
             detalle={
               recibosPendientes > 0 ? 'Tenés firmas pendientes' : 'Estás al día'
             }
-            href="/app/recibos"
+            href="/recibos"
             icono={IconFileCertificate}
           />
           <StatCard
             etiqueta="Solicitudes activas"
             valor={misAusencias.filter((a) => a.estado === 'pendiente').length}
             detalle="esperando aprobación"
-            href="/app/ausencias"
+            href="/ausencias"
             icono={IconInbox}
           />
           <StatCard
             etiqueta="Mis horas"
             valor={miMes ? `${miMes.horasTrabajadas} hs` : '…'}
             detalle="última semana"
-            href="/app/fichaje"
+            href="/fichaje"
             icono={IconClockCheck}
           />
           <StatCard
             etiqueta="Mis extras"
             valor={miMes ? `${miMes.horasExtras} hs` : '…'}
             detalle="última semana"
-            href="/app/fichaje"
+            href="/fichaje"
             icono={IconClockPlus}
           />
           <StatCard
@@ -268,7 +268,7 @@ const DashboardPage = () => {
                 ? `${miMes.minutosTarde} min en total`
                 : 'estás impecable'
             }
-            href="/app/fichaje"
+            href="/fichaje"
             icono={IconClockExclamation}
           />
         </div>
@@ -278,28 +278,28 @@ const DashboardPage = () => {
             etiqueta="Por aprobar"
             valor={pendientes.length}
             detalle="solicitudes de ausencia"
-            href="/app/ausencias"
+            href="/ausencias"
             icono={IconInbox}
           />
           <StatCard
             etiqueta="Presentes hoy"
             valor={`${presentes}/${empleados.length || '—'}`}
             detalle="ficharon ingreso"
-            href="/app/fichaje"
+            href="/fichaje"
             icono={IconClockCheck}
           />
           <StatCard
             etiqueta="Vencimientos"
             valor={alertas.length}
             detalle="próximos a vencer"
-            href="/app/colaboradores"
+            href="/colaboradores"
             icono={IconAlertTriangle}
           />
           <StatCard
             etiqueta="Colaboradores"
             valor={empleados.length}
             detalle="activos"
-            href="/app/colaboradores"
+            href="/colaboradores"
             icono={IconUsers}
           />
         </div>
@@ -310,13 +310,13 @@ const DashboardPage = () => {
           <ListaCard
             titulo="Mis solicitudes"
             vacio="Sin solicitudes."
-            accion={{ etiqueta: 'Ver todas', href: '/app/ausencias' }}
+            accion={{ etiqueta: 'Ver todas', href: '/ausencias' }}
           >
             {misAusencias.length > 0 &&
               misAusencias.map((a) => (
                 <ListaItem
                   key={a.id}
-                  href="/app/ausencias"
+                  href="/ausencias"
                   icono={tipoAusenciaIconos[a.tipo]}
                   principal={tipoAusencia[a.tipo]}
                   secundario={`${formatearFecha(a.fechaDesde)} al ${formatearFecha(a.fechaHasta)} · ${a.dias} días`}
@@ -328,13 +328,13 @@ const DashboardPage = () => {
           <ListaCard
             titulo="Solicitudes por aprobar"
             vacio="No hay solicitudes pendientes."
-            accion={{ etiqueta: 'Ver todas', href: '/app/ausencias' }}
+            accion={{ etiqueta: 'Ver todas', href: '/ausencias' }}
           >
             {pendientes.length > 0 &&
               pendientes.map((a) => (
                 <ListaItem
                   key={a.id}
-                  href="/app/ausencias"
+                  href="/ausencias"
                   icono={IconInbox}
                   principal={nombreEmpleado(a.empleadoId)}
                   secundario={`${tipoAusencia[a.tipo]} · ${formatearFecha(a.fechaDesde)} al ${formatearFecha(a.fechaHasta)}`}
@@ -347,7 +347,7 @@ const DashboardPage = () => {
         <ListaCard
           titulo="Próximos eventos"
           vacio="Sin eventos próximos."
-          accion={{ etiqueta: 'Ver agenda', href: '/app/agenda' }}
+          accion={{ etiqueta: 'Ver agenda', href: '/agenda' }}
         >
           {eventos.length > 0 &&
             eventos
@@ -355,7 +355,7 @@ const DashboardPage = () => {
               .map((e) => (
                 <ListaItem
                   key={e.id}
-                  href="/app/agenda"
+                  href="/agenda"
                   icono={IconCalendarEvent}
                   principal={e.titulo}
                   secundario={e.descripcion}
@@ -372,15 +372,15 @@ const DashboardPage = () => {
       {!esEmpleado && alertas.length > 0 && (
         <ListaCard
           titulo="Vencimientos próximos"
-          accion={{ etiqueta: 'Ver colaboradores', href: '/app/colaboradores' }}
+          accion={{ etiqueta: 'Ver colaboradores', href: '/colaboradores' }}
         >
           {alertas.map((a) => (
             <ListaItem
               key={a.id}
               href={
                 a.empleadoId
-                  ? `/app/colaboradores/${a.empleadoId}`
-                  : '/app/colaboradores'
+                  ? `/colaboradores/${a.empleadoId}`
+                  : '/colaboradores'
               }
               icono={IconAlertTriangle}
               principal={a.titulo}

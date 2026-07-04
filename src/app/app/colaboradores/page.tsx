@@ -109,7 +109,7 @@ const ColaboradoresPage = () => {
               <IconFileSpreadsheet size={18} />
               Importar Excel
             </Boton>
-            <Link href="/app/colaboradores/nuevo" className="no-underline">
+            <Link href="/colaboradores/nuevo" className="no-underline">
               <Boton type="button" variante="negro">
                 <IconPlus size={18} />
                 Alta de colaborador
@@ -200,7 +200,7 @@ const ColaboradoresPage = () => {
                 avatarUrl={e.fotoUrl}
                 principal={`${e.nombre} ${e.apellido}`}
                 secundario={`${e.puesto} · ${e.sector}`}
-                href={`/app/colaboradores/${e.id}`}
+                href={`/colaboradores/${e.id}`}
                 extremo={
                   !e.activo ? (
                     <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">

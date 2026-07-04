@@ -182,7 +182,7 @@ const FichaColaboradorPage = () => {
     await darDeBajaEmpleado(empleado.id, motivoBaja.trim(), fechaBaja);
     setProcesando(false);
     cerrarBaja();
-    router.push('/app/colaboradores');
+    router.push('/colaboradores');
   };
 
   return (
@@ -191,7 +191,7 @@ const FichaColaboradorPage = () => {
         <div>
           <Breadcrumbs
             items={[
-              { etiqueta: 'Colaboradores', href: '/app/colaboradores' },
+              { etiqueta: 'Colaboradores', href: '/colaboradores' },
               { etiqueta: `${empleado.nombre} ${empleado.apellido}` },
             ]}
           />
@@ -237,7 +237,7 @@ const FichaColaboradorPage = () => {
         {rolEfectivo === 'admin_rrhh' && empleado.activo && (
           <div className="flex gap-2">
             <Link
-              href={`/app/colaboradores/${empleado.id}/editar`}
+              href={`/colaboradores/${empleado.id}/editar`}
               className="no-underline"
             >
               <Boton type="button" variante="secundario">
@@ -259,7 +259,7 @@ const FichaColaboradorPage = () => {
           etiqueta="Vacaciones"
           valor={saldo ? `${saldo.diasDisponibles}` : '…'}
           detalle={`disponibles de ${saldo?.diasCorresponden ?? '—'}`}
-          href={`/app/ausencias?empleado=${empleado.id}`}
+          href={`/ausencias?empleado=${empleado.id}`}
           icono={IconBeach}
         />
         <StatCard
@@ -270,21 +270,21 @@ const FichaColaboradorPage = () => {
               ? `${control.minutosTarde} min (semana)`
               : 'última semana'
           }
-          href="/app/reportes"
+          href="/reportes"
           icono={IconClockExclamation}
         />
         <StatCard
           etiqueta="Horas extras"
           valor={control ? `${control.horasExtras} hs` : '…'}
           detalle="última semana"
-          href="/app/reportes"
+          href="/reportes"
           icono={IconClockPlus}
         />
         <StatCard
           etiqueta="Ausencias"
           valor={ausencias.length}
           detalle="en el año"
-          href={`/app/ausencias?empleado=${empleado.id}`}
+          href={`/ausencias?empleado=${empleado.id}`}
           icono={IconPlaneDeparture}
         />
       </div>
@@ -385,14 +385,14 @@ const FichaColaboradorPage = () => {
           vacio="Sin ausencias este año."
           accion={{
             etiqueta: 'Ver en Ausencias',
-            href: `/app/ausencias?empleado=${empleado.id}`,
+            href: `/ausencias?empleado=${empleado.id}`,
           }}
         >
           {ausencias.length > 0 &&
             ausencias.map((a) => (
               <ListaItem
                 key={a.id}
-                href={`/app/ausencias?empleado=${empleado.id}`}
+                href={`/ausencias?empleado=${empleado.id}`}
                 icono={tipoAusenciaIconos[a.tipo]}
                 principal={tipoAusenciaLabels[a.tipo]}
                 secundario={`${formatearFecha(a.fechaDesde)} al ${formatearFecha(a.fechaHasta)} · ${a.dias} días`}

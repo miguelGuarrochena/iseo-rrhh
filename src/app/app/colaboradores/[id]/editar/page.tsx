@@ -50,7 +50,7 @@ const EditarColaboradorPage = () => {
     })
       .then(() => {
         avisoExito('Cambios guardados');
-        router.push(`/app/colaboradores/${empleado.id}`);
+        router.push(`/colaboradores/${empleado.id}`);
       })
       .catch((err: unknown) => {
         avisoError(
@@ -65,10 +65,10 @@ const EditarColaboradorPage = () => {
       <div>
         <Breadcrumbs
           items={[
-            { etiqueta: 'Colaboradores', href: '/app/colaboradores' },
+            { etiqueta: 'Colaboradores', href: '/colaboradores' },
             {
               etiqueta: `${empleado.nombre} ${empleado.apellido}`,
-              href: `/app/colaboradores/${empleado.id}`,
+              href: `/colaboradores/${empleado.id}`,
             },
             { etiqueta: 'Editar' },
           ]}
@@ -82,7 +82,7 @@ const EditarColaboradorPage = () => {
         inicial={empleado}
         textoGuardar="Guardar cambios"
         onGuardar={guardar}
-        onCancelar={() => router.push(`/app/colaboradores/${empleado.id}`)}
+        onCancelar={() => router.push(`/colaboradores/${empleado.id}`)}
       />
     </div>
   );

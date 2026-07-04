@@ -87,7 +87,7 @@ const ReportesPage = () => {
       .map((e) => ({
         etiqueta: e.nombreCompleto,
         valor: e.minutosTarde,
-        href: `/app/colaboradores/${e.empleadoId}`,
+        href: `/colaboradores/${e.empleadoId}`,
       })) ?? [];
   const topExtras =
     resumen?.porEmpleado
@@ -96,7 +96,7 @@ const ReportesPage = () => {
         etiqueta: e.nombreCompleto,
         valor: e.horasExtras,
         color: '#34d399',
-        href: `/app/colaboradores/${e.empleadoId}`,
+        href: `/colaboradores/${e.empleadoId}`,
       })) ?? [];
   const presentismo = [
     { etiqueta: 'Presentes', valor: presentes, color: '#34d399' },
@@ -129,21 +129,21 @@ const ReportesPage = () => {
             detalle={
               metricas ? `+${metricas.empresasSuspendidas} suspendidas` : ''
             }
-            href="/app/empresas"
+            href="/empresas"
             icono={IconBuildingFactory2}
           />
           <StatCard
             etiqueta="Empleados"
             valor={metricas?.empleadosGestionados ?? '…'}
             detalle="gestionados en total"
-            href="/app/empresas"
+            href="/empresas"
             icono={IconUsers}
           />
           <StatCard
             etiqueta="Solicitudes"
             valor={metricas?.solicitudesPendientes ?? '…'}
             detalle="pendientes en clientes"
-            href="/app/empresas"
+            href="/empresas"
             icono={IconInbox}
           />
         </div>
@@ -243,28 +243,28 @@ const ReportesPage = () => {
           etiqueta="Ausentismo"
           valor={resumen ? `${resumen.ausentismoPct}%` : '…'}
           detalle="del mes en curso"
-          href="/app/ausencias"
+          href="/ausencias"
           icono={IconUserExclamation}
         />
         <StatCard
           etiqueta="Llegadas tarde"
           valor={resumen?.llegadasTardeTotal ?? '…'}
           detalle="última semana"
-          href="/app/fichaje"
+          href="/fichaje"
           icono={IconClockExclamation}
         />
         <StatCard
           etiqueta="Horas extras"
           valor={resumen ? `${resumen.horasExtrasTotal} hs` : '…'}
           detalle="última semana"
-          href="/app/fichaje"
+          href="/fichaje"
           icono={IconClockPlus}
         />
         <StatCard
           etiqueta="Recibos sin firmar"
           valor={resumen?.recibosSinFirmar ?? '…'}
           detalle="a reclamar"
-          href="/app/recibos"
+          href="/recibos"
           icono={IconSignature}
         />
       </div>

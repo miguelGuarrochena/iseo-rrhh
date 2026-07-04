@@ -33,7 +33,7 @@ const NuevoColaboradorPage = () => {
         'Colaborador creado',
         `${datos.nombre} ${datos.apellido} ya tiene su ficha.`
       );
-      router.push('/app/colaboradores');
+      router.push('/colaboradores');
     } catch (err) {
       avisoError(
         'No pudimos crear el colaborador',
@@ -47,7 +47,7 @@ const NuevoColaboradorPage = () => {
       <div>
         <Breadcrumbs
           items={[
-            { etiqueta: 'Colaboradores', href: '/app/colaboradores' },
+            { etiqueta: 'Colaboradores', href: '/colaboradores' },
             { etiqueta: 'Alta de colaborador' },
           ]}
         />
@@ -63,7 +63,7 @@ const NuevoColaboradorPage = () => {
       <FormEmpleado
         textoGuardar="Dar de alta"
         onGuardar={guardar}
-        onCancelar={() => router.push('/app/colaboradores')}
+        onCancelar={() => router.push('/colaboradores')}
       />
     </div>
   );

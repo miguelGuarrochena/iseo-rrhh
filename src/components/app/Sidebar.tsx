@@ -55,21 +55,21 @@ export const Sidebar = () => {
 
   const salir = () => {
     salirDeEmpresa();
-    router.push('/app/empresas');
+    router.push('/empresas');
   };
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line bg-surface px-4 py-6 lg:flex">
-      <Link href="/app" className="px-2 no-underline">
+      <Link href="/" className="px-2 no-underline">
         <Logo size="sm" />
       </Link>
 
       <nav className="mt-8 flex flex-1 flex-col gap-1">
         {navItemsPorRol(rolEfectivo).map((item) => {
+          // Normaliza por si el rewrite deja el path interno con /app.
+          const ruta = pathname.replace(/^\/app(?=\/|$)/, '') || '/';
           const activo =
-            item.href === '/app'
-              ? pathname === '/app'
-              : pathname.startsWith(item.href);
+            item.href === '/' ? ruta === '/' : ruta.startsWith(item.href);
           const Icono = item.icono;
           return (
             <Link

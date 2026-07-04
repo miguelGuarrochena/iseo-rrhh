@@ -1,70 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Separación landing / plataforma por dominio.
+ * Separación landing / plataforma por dominio, con URLs limpias.
  *
- * - iseo-rh.com (y www)  → sitio de marketing. Si alguien entra a una ruta
- *   de la app (por un link viejo), lo mandamos al subdominio.
- * - app.iseo-rh.com      → la plataforma. La raíz lleva directo al login/app.
- * - localhost / *.vercel.app → sin separación: todo funciona junto, como en dev.
+ * - iseo-rh.com (y www)   → marketing. Los links viejos con /app o las rutas
+ *   de auth se redirigen al subdominio (sin /app).
+ * - app.iseo-rh.com       → la plataforma en la raíz: `/` es el tablero,
+ *   `/colaboradores`, `/ausencias`, etc. Internamente se sirven desde la
+ *   carpeta `/app` vía rewrite, pero la URL nunca muestra `/app`.
+ * - localhost / *.vercel.app → sin separación (todo junto, como en dev).
+ *   Para probar la app en local, usá `app.localhost:3000`.
  *
- * No agrega seguridad (el login siempre es público): las rutas privadas
- * las protege RequireAuth + las reglas de Supabase. Esto es sólo prolijidad
- * de producto: cada cosa vive en su dominio.
+ * No agrega seguridad (el login siempre es público): las rutas privadas las
+ * protege RequireAuth + las reglas de Supabase.
  */
 
 const HOST_APP = 'app.iseo-rh.com';
 const HOSTS_RAIZ = ['iseo-rh.com', 'www.iseo-rh.com'];
 
-/** Rutas que pertenecen a la plataforma (deben vivir en el subdominio). */
-const RUTAS_APP = [
-  '/app',
+/** Páginas de auth que viven en la raíz (no se reescriben a /app). */
+const RUTAS_AUTH = [
   '/login',
   '/demo',
   '/recuperar-contrasena',
   '/crear-contrasena',
 ];
 
-const esRutaApp = (path: string): boolean =>
-  RUTAS_APP.some((base) => path === base || path.startsWith(`${base}/`));
+const esAuth = (path: string): boolean =>
+  RUTAS_AUTH.some((base) => path === base || path.startsWith(`${base}/`));
 
-/**
- * Dominio real de la request. Detrás del proxy de Vercel el dominio que ve
- * el usuario viene en `x-forwarded-host`; `host` puede ser el interno.
- */
+/** Dominio real de la request (detrás de proxy viene en x-forwarded-host). */
 const dominioDe = (req: NextRequest): string =>
   (req.headers.get('x-forwarded-host') ?? req.headers.get('host') ?? '')
     .split(':')[0]
     .toLowerCase()
     .trim();
 
+const esHostApp = (host: string): boolean => host.startsWith('app.');
+
 export function middleware(req: NextRequest) {
   const host = dominioDe(req);
   const { pathname, search } = req.nextUrl;
 
-  // Subdominio de la app: su raíz lleva a la plataforma (que exige login).
-  if (host === HOST_APP) {
-    if (pathname === '/') {
-      const url = req.nextUrl.clone();
-      url.pathname = '/app';
-      return NextResponse.redirect(url);
+  // ----- Subdominio de la app: URLs limpias, servidas desde /app -----
+  if (esHostApp(host)) {
+    // Alguien entró con /app en la URL: lo limpiamos.
+    if (pathname === '/app' || pathname.startsWith('/app/')) {
+      const limpio = pathname.replace(/^\/app/, '') || '/';
+      return NextResponse.redirect(new URL(`${limpio}${search}`, req.url));
     }
-    return NextResponse.next();
+    // Páginas de auth se sirven tal cual.
+    if (esAuth(pathname)) return NextResponse.next();
+    // Todo lo demás se reescribe internamente a /app/... (URL sin cambios).
+    const url = req.nextUrl.clone();
+    url.pathname = pathname === '/' ? '/app' : `/app${pathname}`;
+    return NextResponse.rewrite(url);
   }
 
-  // Dominio raíz (marketing): las rutas de la app se mudan al subdominio.
+  // ----- Dominio raíz (marketing): la plataforma vive en el subdominio -----
   if (HOSTS_RAIZ.includes(host)) {
-    if (esRutaApp(pathname)) {
-      return NextResponse.redirect(`https://${HOST_APP}${pathname}${search}`);
+    const esDeLaApp =
+      esAuth(pathname) || pathname === '/app' || pathname.startsWith('/app/');
+    if (esDeLaApp) {
+      const destino = pathname.replace(/^\/app/, '') || '/';
+      return NextResponse.redirect(`https://${HOST_APP}${destino}${search}`);
     }
     return NextResponse.next();
   }
 
-  // Local, previews de Vercel, etc.: sin separación.
+  // ----- Local / previews: sin separación -----
   return NextResponse.next();
 }
 
 export const config = {
-  // Corre en páginas, no en assets ni API.
   matcher: ['/((?!_next/|api/|.*\\..*).*)'],
 };

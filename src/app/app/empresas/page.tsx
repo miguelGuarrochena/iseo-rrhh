@@ -106,7 +106,7 @@ const EmpresasPage = () => {
               empresa.estado === 'activa'
                 ? () => {
                     entrarAEmpresa(empresa);
-                    router.push('/app');
+                    router.push('/');
                   }
                 : undefined
             }
@@ -130,7 +130,7 @@ const EmpresasPage = () => {
                     tamano="sm"
                     onClick={() => {
                       entrarAEmpresa(empresa);
-                      router.push('/app');
+                      router.push('/');
                     }}
                   >
                     <IconLogin2 size={14} />

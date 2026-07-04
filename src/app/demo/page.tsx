@@ -47,7 +47,7 @@ const DemoPage = () => {
       setError('No pudimos iniciar la demo. Probá de nuevo.');
       return;
     }
-    router.push('/app');
+    router.push('/');
   };
 
   return (

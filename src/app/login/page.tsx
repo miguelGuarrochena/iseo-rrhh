@@ -57,7 +57,7 @@ const LoginPage = () => {
       );
       return;
     }
-    router.push('/app');
+    router.push('/');
   };
 
   const onSubmit = (e: FormEvent) => {

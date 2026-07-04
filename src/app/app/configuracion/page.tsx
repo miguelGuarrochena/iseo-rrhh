@@ -72,7 +72,7 @@ const ConfiguracionPage = () => {
             Defaults de la plataforma y notificaciones. Lo específico de cada
             cliente se ajusta{' '}
             <Link
-              href="/app/empresas"
+              href="/empresas"
               className="font-semibold text-brand-700 no-underline hover:underline"
             >
               entrando a su empresa

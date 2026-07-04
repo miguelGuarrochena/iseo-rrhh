@@ -70,7 +70,7 @@ export const BuscadorGlobal = () => {
               etiqueta: `${e.nombre} ${e.apellido}`,
               detalle: e.puesto,
               icono: IconUser,
-              href: `/app/colaboradores/${e.id}`,
+              href: `/colaboradores/${e.id}`,
             }))
         : [];
     return [...gente, ...secciones].slice(0, 8);

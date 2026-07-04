@@ -124,9 +124,7 @@ const PermisosPage = () => {
         {usuarios.map((u) => (
           <ListaItem
             key={u.id}
-            href={
-              u.empleadoId ? `/app/colaboradores/${u.empleadoId}` : undefined
-            }
+            href={u.empleadoId ? `/colaboradores/${u.empleadoId}` : undefined}
             icono={IconShieldCheck}
             principal={u.nombreCompleto}
             secundario={u.email}

@@ -15,7 +15,7 @@ const NodoView = ({ nodo }: { nodo: NodoOrg }) => {
   return (
     <li className="relative">
       <Link
-        href={`/app/colaboradores/${empleado.id}`}
+        href={`/colaboradores/${empleado.id}`}
         className="inline-flex items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3 no-underline transition-colors hover:border-brand-300 hover:bg-brand-50/40"
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-sm font-bold text-brand-700">

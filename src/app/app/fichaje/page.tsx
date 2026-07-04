@@ -252,7 +252,7 @@ const FichajePage = () => {
                 fichajesHoy.map((f) => (
                   <ListaItem
                     key={f.id}
-                    href={`/app/colaboradores/${f.empleadoId}`}
+                    href={`/colaboradores/${f.empleadoId}`}
                     icono={
                       f.metodo === 'facial_tablet'
                         ? IconDeviceTablet
@@ -277,7 +277,7 @@ const FichajePage = () => {
                 sinFichar.map((e) => (
                   <ListaItem
                     key={e.id}
-                    href={`/app/colaboradores/${e.id}`}
+                    href={`/colaboradores/${e.id}`}
                     icono={IconUserOff}
                     principal={`${e.nombre} ${e.apellido}`}
                     secundario={`${e.puesto} · ${e.sector}`}
