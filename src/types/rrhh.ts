@@ -161,6 +161,14 @@ export interface Empleado {
   fechaBaja?: string;
   motivoBaja?: string;
   checklistAlta: ChecklistItem[];
+  // Biometría (fichaje por reconocimiento facial)
+  /** Descriptor facial (128 números) del rostro enrolado. Dato sensible. */
+  descriptorFacial?: number[];
+  /** Consentimiento del empleado para usar su rostro (Ley 25.326). */
+  consentimientoBiometrico?: {
+    aceptado: boolean;
+    fecha: string;
+  };
 }
 
 // ---------- Legajo digital ----------
@@ -260,6 +268,22 @@ export interface Fichaje {
   fotoUrl?: string;
   geo?: { lat: number; lng: number };
   dispositivoId?: string;
+  /** Confianza del match facial (0 a 1) cuando metodo es facial. */
+  confianza?: number;
+}
+
+/** Opciones al registrar un fichaje (método, foto, confianza, ubicación). */
+export interface OpcionesFichaje {
+  metodo?: MetodoFichaje;
+  fotoUrl?: string;
+  confianza?: number;
+  geo?: { lat: number; lng: number };
+}
+
+/** Descriptor facial enrolado de un empleado (para identificación 1:N). */
+export interface DescriptorFacial {
+  empleadoId: string;
+  descriptor: number[];
 }
 
 export interface JornadaCalculada {

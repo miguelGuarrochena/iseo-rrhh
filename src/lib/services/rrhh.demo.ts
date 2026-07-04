@@ -7,6 +7,7 @@ import {
   Alerta,
   Ausencia,
   ConfigPlataforma,
+  DescriptorFacial,
   DocumentoLegajo,
   Empleado,
   Empresa,
@@ -14,6 +15,7 @@ import {
   EventoAgenda,
   Fichaje,
   MetricasGlobales,
+  OpcionesFichaje,
   Notificacion,
   NuevaEmpresa,
   ReciboSueldo,
@@ -482,7 +484,10 @@ export const getFichajesDeEmpleadoHoy = async (
 /**
  * Ficha ingreso o egreso según el último movimiento del día.
  */
-export const ficharAhora = async (empleadoId: string): Promise<Fichaje> => {
+export const ficharAhora = async (
+  empleadoId: string,
+  opciones: OpcionesFichaje = {}
+): Promise<Fichaje> => {
   const deHoy = fichajesMock.filter(
     (f) => f.empleadoId === empleadoId && f.timestamp.startsWith(hoyISO())
   );
@@ -494,12 +499,47 @@ export const ficharAhora = async (empleadoId: string): Promise<Fichaje> => {
     empleadoId,
     tipo,
     timestamp: new Date().toISOString(),
-    metodo: 'celular',
-    geo: { lat: -34.7203, lng: -58.2542 },
+    metodo: opciones.metodo ?? 'celular',
+    fotoUrl: opciones.fotoUrl,
+    confianza: opciones.confianza,
+    geo: opciones.geo ?? { lat: -34.7203, lng: -58.2542 },
   };
   fichajesMock.push(nuevo);
   return simular(nuevo);
 };
+
+/** Enrola (o actualiza) el rostro de un empleado con su consentimiento. */
+export const enrolarRostro = async (
+  empleadoId: string,
+  descriptor: number[]
+): Promise<Empleado | null> => {
+  const empleado = empleadosMock.find((e) => e.id === empleadoId);
+  if (empleado) {
+    empleado.descriptorFacial = descriptor;
+    empleado.consentimientoBiometrico = { aceptado: true, fecha: hoyISO() };
+  }
+  return simular(empleado ?? null);
+};
+
+/** Borra el rostro enrolado de un empleado. */
+export const borrarRostro = async (
+  empleadoId: string
+): Promise<Empleado | null> => {
+  const empleado = empleadosMock.find((e) => e.id === empleadoId);
+  if (empleado) {
+    empleado.descriptorFacial = undefined;
+    empleado.consentimientoBiometrico = undefined;
+  }
+  return simular(empleado ?? null);
+};
+
+/** Descriptores de los empleados activos con rostro enrolado (para 1:N). */
+export const getDescriptoresFaciales = async (): Promise<DescriptorFacial[]> =>
+  simular(
+    empleadosMock
+      .filter((e) => e.activo && e.descriptorFacial?.length)
+      .map((e) => ({ empleadoId: e.id, descriptor: e.descriptorFacial! }))
+  );
 
 // ---------- Alertas, agenda y notificaciones ----------
 

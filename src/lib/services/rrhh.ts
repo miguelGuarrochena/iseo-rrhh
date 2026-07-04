@@ -139,6 +139,14 @@ export const getFichajesDeEmpleadoHoy = elegir(
 );
 export const ficharAhora = elegir(real.ficharAhora, demo.ficharAhora);
 
+// ---------- Reconocimiento facial ----------
+export const enrolarRostro = elegir(real.enrolarRostro, demo.enrolarRostro);
+export const borrarRostro = elegir(real.borrarRostro, demo.borrarRostro);
+export const getDescriptoresFaciales = elegir(
+  real.getDescriptoresFaciales,
+  demo.getDescriptoresFaciales
+);
+
 // ---------- Alertas, agenda y notificaciones ----------
 export const getAlertas = elegir(real.getAlertas, demo.getAlertas);
 export const getEventosProximos = elegir(

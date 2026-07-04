@@ -7,6 +7,7 @@ import {
   IconDeviceTablet,
   IconDeviceMobile,
   IconDownload,
+  IconFaceId,
   IconFingerprint,
   IconUserOff,
 } from '@tabler/icons-react';
@@ -19,12 +20,14 @@ import { formatearHora } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   ficharAhora,
+  getEmpleado,
   getEmpleados,
   getFichajesDeEmpleadoHoy,
   getFichajesDeHoy,
   getResumenControl,
 } from '@/lib/services/rrhh';
 import { Empleado, Fichaje } from '@/types/rrhh';
+import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
 
 const metodoLabel = {
   facial_tablet: 'Reconocimiento facial',
@@ -51,11 +54,15 @@ const FichajePage = () => {
   const [fichajesHoy, setFichajesHoy] = useState<Fichaje[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [fichando, setFichando] = useState(false);
+  const [miEmpleado, setMiEmpleado] = useState<Empleado | null>(null);
+  const [facialAbierto, setFacialAbierto] = useState(false);
+  const [tabletAbierto, setTabletAbierto] = useState(false);
 
   const cargar = useCallback(() => {
     if (!usuario) return;
     if (usuario.empleadoId) {
       void getFichajesDeEmpleadoHoy(usuario.empleadoId).then(setMisFichajes);
+      void getEmpleado(usuario.empleadoId).then(setMiEmpleado);
     }
     if (!esEmpleado) {
       void getFichajesDeHoy().then(setFichajesHoy);
@@ -69,6 +76,15 @@ const FichajePage = () => {
 
   const ultimo = misFichajes[misFichajes.length - 1];
   const proximoTipo = ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso';
+  const tieneRostro = Boolean(miEmpleado?.descriptorFacial?.length);
+
+  const trasFichar = (marca: Fichaje) => {
+    avisoExito(
+      marca.tipo === 'ingreso' ? 'Ingreso registrado' : 'Egreso registrado',
+      `A las ${formatearHora(marca.timestamp)}.`
+    );
+    cargar();
+  };
 
   const fichar = async () => {
     if (!usuario.empleadoId) return;
@@ -131,10 +147,19 @@ const FichajePage = () => {
           </p>
         </div>
         {!esEmpleado && (
-          <Boton variante="secundario" onClick={() => void exportarNovedades()}>
-            <IconDownload size={18} />
-            Exportar novedades
-          </Boton>
+          <div className="flex flex-wrap gap-2">
+            <Boton variante="negro" onClick={() => setTabletAbierto(true)}>
+              <IconFaceId size={18} />
+              Modo planta
+            </Boton>
+            <Boton
+              variante="secundario"
+              onClick={() => void exportarNovedades()}
+            >
+              <IconDownload size={18} />
+              Exportar novedades
+            </Boton>
+          </div>
         )}
       </div>
 
@@ -156,10 +181,13 @@ const FichajePage = () => {
           )}
           <Boton
             variante="negro"
-            onClick={() => void fichar()}
+            onClick={() =>
+              tieneRostro ? setFacialAbierto(true) : void fichar()
+            }
             disabled={fichando}
             className="px-8 py-3.5 text-base"
           >
+            {tieneRostro && <IconFaceId size={18} />}
             {fichando
               ? 'Registrando…'
               : proximoTipo === 'ingreso'
@@ -167,9 +195,32 @@ const FichajePage = () => {
                 : 'Fichar egreso'}
           </Boton>
           <p className="text-xs text-ink-soft">
-            Se registra la hora y tu ubicación aproximada.
+            {tieneRostro
+              ? 'Confirmás tu identidad con la cara y tu ubicación.'
+              : 'Se registra la hora y tu ubicación. Pedí a RRHH que registre tu rostro para fichar con la cara.'}
           </p>
         </Panel>
+      )}
+
+      {miEmpleado && (
+        <FichajeFacialModal
+          abierto={facialAbierto}
+          onCerrar={() => setFacialAbierto(false)}
+          modo="verificar"
+          empleadoId={miEmpleado.id}
+          descriptorEmpleado={miEmpleado.descriptorFacial}
+          onFichado={(marca) => trasFichar(marca)}
+        />
+      )}
+
+      {!esEmpleado && (
+        <FichajeFacialModal
+          abierto={tabletAbierto}
+          onCerrar={() => setTabletAbierto(false)}
+          modo="identificar"
+          resolverNombre={nombreEmpleado}
+          onFichado={(marca) => trasFichar(marca)}
+        />
       )}
 
       {!esEmpleado && (

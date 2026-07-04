@@ -78,6 +78,10 @@ export const aEmpleado = (f: Fila): Empleado => ({
   fechaBaja: f.fecha_baja ?? undefined,
   motivoBaja: f.motivo_baja ?? undefined,
   checklistAlta: (f.checklist_alta ?? []) as ChecklistItem[],
+  descriptorFacial: (f.descriptor_facial ?? undefined) as number[] | undefined,
+  consentimientoBiometrico: (f.consentimiento_biometrico ?? undefined) as
+    | Empleado['consentimientoBiometrico']
+    | undefined,
 });
 
 export const aDocumento = (f: Fila): DocumentoLegajo => ({
@@ -115,6 +119,7 @@ export const aFichaje = (f: Fila): Fichaje => ({
   fotoUrl: f.foto_url ?? undefined,
   geo: f.geo ?? undefined,
   dispositivoId: f.dispositivo_id ?? undefined,
+  confianza: f.confianza ?? undefined,
 });
 
 export const aRecibo = (f: Fila): ReciboSueldo => ({

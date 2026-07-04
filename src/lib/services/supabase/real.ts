@@ -7,6 +7,7 @@ import {
   Alerta,
   Ausencia,
   ConfigPlataforma,
+  DescriptorFacial,
   DocumentoLegajo,
   Empleado,
   Empresa,
@@ -16,6 +17,7 @@ import {
   MetricasGlobales,
   Notificacion,
   NuevaEmpresa,
+  OpcionesFichaje,
   ReciboSueldo,
   Remuneracion,
   ResumenControl,
@@ -638,7 +640,10 @@ export const getFichajesDeEmpleadoHoy = async (
   return oFalla(data, error).map(aFichaje);
 };
 
-export const ficharAhora = async (empleadoId: string): Promise<Fichaje> => {
+export const ficharAhora = async (
+  empleadoId: string,
+  opciones: OpcionesFichaje = {}
+): Promise<Fichaje> => {
   const deHoy = await getFichajesDeEmpleadoHoy(empleadoId);
   const ultimo = deHoy[deHoy.length - 1];
   const tipo = ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso';
@@ -648,11 +653,70 @@ export const ficharAhora = async (empleadoId: string): Promise<Fichaje> => {
       empresa_id: empresaId(),
       empleado_id: empleadoId,
       tipo,
-      metodo: 'celular',
+      metodo: opciones.metodo ?? 'celular',
+      confianza: opciones.confianza ?? null,
+      geo: opciones.geo ?? null,
+      // La foto es opcional; solo se guarda si ya es una URL (no dataURL).
+      foto_url:
+        opciones.fotoUrl && !opciones.fotoUrl.startsWith('data:')
+          ? opciones.fotoUrl
+          : null,
     })
     .select()
     .single();
   return aFichaje(oFalla(data, error));
+};
+
+/** Enrola (o actualiza) el rostro de un empleado con su consentimiento. */
+export const enrolarRostro = async (
+  empleadoId: string,
+  descriptor: number[]
+): Promise<Empleado | null> => {
+  const { data, error } = await sb()
+    .from('empleados')
+    .update({
+      descriptor_facial: descriptor,
+      consentimiento_biometrico: {
+        aceptado: true,
+        fecha: new Date().toISOString().slice(0, 10),
+      },
+    })
+    .eq('id', empleadoId)
+    .eq('empresa_id', empresaId())
+    .select()
+    .single();
+  return data ? aEmpleado(oFalla(data, error)) : null;
+};
+
+/** Borra el rostro enrolado de un empleado. */
+export const borrarRostro = async (
+  empleadoId: string
+): Promise<Empleado | null> => {
+  const { data, error } = await sb()
+    .from('empleados')
+    .update({ descriptor_facial: null, consentimiento_biometrico: null })
+    .eq('id', empleadoId)
+    .eq('empresa_id', empresaId())
+    .select()
+    .single();
+  return data ? aEmpleado(oFalla(data, error)) : null;
+};
+
+/** Descriptores de los empleados activos con rostro enrolado (para 1:N). */
+export const getDescriptoresFaciales = async (): Promise<
+  DescriptorFacial[]
+> => {
+  const { data, error } = await sb()
+    .from('empleados')
+    .select('id, descriptor_facial')
+    .eq('empresa_id', empresaId())
+    .eq('activo', true)
+    .not('descriptor_facial', 'is', null);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((f) => ({
+    empleadoId: f.id as string,
+    descriptor: (f.descriptor_facial ?? []) as number[],
+  }));
 };
 
 // ---------- Jornadas calculadas (para reportes y "mi mes") ----------

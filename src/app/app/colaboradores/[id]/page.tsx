@@ -22,6 +22,7 @@ import {
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
+import { EnrolamientoFacial } from '@/components/app/facial/EnrolamientoFacial';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
@@ -362,6 +363,15 @@ const FichaColaboradorPage = () => {
             ))}
           </div>
         </Panel>
+
+        {empleado.activo && (
+          <Panel>
+            <EnrolamientoFacial
+              empleado={empleado}
+              onActualizado={(e) => setEmpleado({ ...e })}
+            />
+          </Panel>
+        )}
 
         <ListaCard
           titulo="Ausencias del año"
