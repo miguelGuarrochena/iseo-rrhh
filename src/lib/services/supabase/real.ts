@@ -21,8 +21,10 @@ import {
   OpcionesFichaje,
   ReciboSueldo,
   Remuneracion,
+  NuevoTurno,
   ResumenControl,
   SaldoVacaciones,
+  Turno,
   Usuario,
 } from '@/types/rrhh';
 import type {
@@ -49,6 +51,7 @@ import {
   aNotificacion,
   aRecibo,
   aRemuneracion,
+  aTurno,
   aUsuario,
 } from './mapeos';
 import {
@@ -789,6 +792,65 @@ export const agregarNotaInterna = async (
 export const quitarNotaInterna = async (id: string): Promise<void> => {
   const { error } = await sb().from('notas_internas').delete().eq('id', id);
   if (error) throw new Error(error.message);
+};
+
+// ---------- Turnos ----------
+
+export const getTurnos = async (): Promise<Turno[]> => {
+  const { data, error } = await sb()
+    .from('turnos')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .order('fecha');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(aTurno);
+};
+
+export const getTurnosDeEmpleado = async (
+  empleadoId: string
+): Promise<Turno[]> => {
+  const { data, error } = await sb()
+    .from('turnos')
+    .select('*')
+    .eq('empleado_id', empleadoId)
+    .order('fecha');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(aTurno);
+};
+
+export const asignarTurno = async (datos: NuevoTurno): Promise<Turno> => {
+  const { data, error } = await sb()
+    .from('turnos')
+    .upsert(
+      {
+        empresa_id: empresaId(),
+        empleado_id: datos.empleadoId,
+        fecha: datos.fecha,
+        hora_entrada: datos.horaEntrada,
+        hora_salida: datos.horaSalida,
+      },
+      { onConflict: 'empleado_id,fecha' }
+    )
+    .select()
+    .single();
+  return aTurno(oFalla(data, error));
+};
+
+export const quitarTurno = async (id: string): Promise<void> => {
+  const { error } = await sb().from('turnos').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+};
+
+export const getFichajesDeEmpleado = async (
+  empleadoId: string
+): Promise<Fichaje[]> => {
+  const { data, error } = await sb()
+    .from('fichajes')
+    .select('*')
+    .eq('empleado_id', empleadoId)
+    .order('ts');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(aFichaje);
 };
 
 // ---------- Jornadas calculadas (para reportes y "mi mes") ----------

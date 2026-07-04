@@ -286,6 +286,24 @@ export interface DescriptorFacial {
   descriptor: number[];
 }
 
+/** Turno asignado a un empleado para un día. Horas en formato "HH:MM". */
+export interface Turno {
+  id: string;
+  empleadoId: string;
+  /** YYYY-MM-DD */
+  fecha: string;
+  horaEntrada: string;
+  horaSalida: string;
+}
+
+/** Datos para asignar un turno. */
+export interface NuevoTurno {
+  empleadoId: string;
+  fecha: string;
+  horaEntrada: string;
+  horaSalida: string;
+}
+
 /** Nota interna de un empleado. Solo visible para administradores. */
 export interface NotaInterna {
   id: string;

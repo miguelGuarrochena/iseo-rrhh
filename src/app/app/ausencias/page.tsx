@@ -12,6 +12,8 @@ import { useDisclosure } from '@mantine/hooks';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
+import { Panel } from '@/components/app/Panel';
+import { CalendarioAusencias } from '@/components/app/ausencias/CalendarioAusencias';
 import { EstadoBadge } from '@/components/app/EstadoBadge';
 import { NuevaAusenciaModal } from '@/components/app/ausencias/NuevaAusenciaModal';
 import { Boton } from '@/components/app/ui/Boton';
@@ -195,6 +197,21 @@ const AusenciasPage = () => {
           />
         )}
       </div>
+
+      {!esEmpleado && (
+        <Panel>
+          <h2 className="text-base font-bold text-ink">
+            Calendario de ausencias
+          </h2>
+          <p className="mb-4 mt-1 text-sm text-ink-soft">
+            Quién está ausente cada día. Tocá un día para ver el detalle.
+          </p>
+          <CalendarioAusencias
+            ausencias={ausencias}
+            nombreEmpleado={nombreEmpleado}
+          />
+        </Panel>
+      )}
 
       {esEmpleado && (
         <div className="grid grid-cols-3 gap-4">

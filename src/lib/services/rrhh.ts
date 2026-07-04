@@ -148,6 +148,19 @@ export const getDescriptoresFaciales = elegir(
   demo.getDescriptoresFaciales
 );
 
+// ---------- Turnos ----------
+export const getTurnos = elegir(real.getTurnos, demo.getTurnos);
+export const getTurnosDeEmpleado = elegir(
+  real.getTurnosDeEmpleado,
+  demo.getTurnosDeEmpleado
+);
+export const asignarTurno = elegir(real.asignarTurno, demo.asignarTurno);
+export const quitarTurno = elegir(real.quitarTurno, demo.quitarTurno);
+export const getFichajesDeEmpleado = elegir(
+  real.getFichajesDeEmpleado,
+  demo.getFichajesDeEmpleado
+);
+
 // ---------- Notas internas (solo admins) ----------
 export const getNotasInternas = elegir(
   real.getNotasInternas,

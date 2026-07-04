@@ -16,9 +16,11 @@ import {
   Fichaje,
   MetricasGlobales,
   NotaInterna,
+  NuevoTurno,
   OpcionesFichaje,
   Notificacion,
   NuevaEmpresa,
+  Turno,
   ReciboSueldo,
   Remuneracion,
   ResumenControl,
@@ -42,6 +44,7 @@ import {
   notificacionesMock,
   recibosMock,
   remuneracionesMock,
+  turnosMock,
 } from '@/lib/mocks/operaciones';
 
 const LATENCIA_MS = 150;
@@ -606,6 +609,42 @@ export const quitarNotaInterna = async (id: string): Promise<void> => {
   if (i >= 0) notasInternasMock.splice(i, 1);
   return simular(undefined);
 };
+
+// ---------- Turnos ----------
+
+export const getTurnos = async (): Promise<Turno[]> => simular([...turnosMock]);
+
+export const getTurnosDeEmpleado = async (
+  empleadoId: string
+): Promise<Turno[]> =>
+  simular(turnosMock.filter((t) => t.empleadoId === empleadoId));
+
+/** Asigna un turno; si ya había uno ese día para el empleado, lo reemplaza. */
+export const asignarTurno = async (datos: NuevoTurno): Promise<Turno> => {
+  const existente = turnosMock.find(
+    (t) => t.empleadoId === datos.empleadoId && t.fecha === datos.fecha
+  );
+  if (existente) {
+    existente.horaEntrada = datos.horaEntrada;
+    existente.horaSalida = datos.horaSalida;
+    return simular(existente);
+  }
+  const nuevo: Turno = { id: `tur-${Date.now()}`, ...datos };
+  turnosMock.push(nuevo);
+  return simular(nuevo);
+};
+
+export const quitarTurno = async (id: string): Promise<void> => {
+  const i = turnosMock.findIndex((t) => t.id === id);
+  if (i >= 0) turnosMock.splice(i, 1);
+  return simular(undefined);
+};
+
+/** Todos los fichajes de un empleado (para el control de turnos). */
+export const getFichajesDeEmpleado = async (
+  empleadoId: string
+): Promise<Fichaje[]> =>
+  simular(fichajesMock.filter((f) => f.empleadoId === empleadoId));
 
 // ---------- Alertas, agenda y notificaciones ----------
 

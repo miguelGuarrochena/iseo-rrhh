@@ -8,6 +8,7 @@ import {
   Notificacion,
   ReciboSueldo,
   Remuneracion,
+  Turno,
 } from '@/types/rrhh';
 
 export const documentosMock: DocumentoLegajo[] = [
@@ -265,6 +266,30 @@ export const notificacionesMock: Notificacion[] = [
     link: '/app/recibos',
     leida: false,
     creadaEn: '2026-07-01T09:00:00',
+  },
+];
+
+export const turnosMock: Turno[] = [
+  {
+    id: 'tur-1',
+    empleadoId: 'ple-3',
+    fecha: '2026-06-29',
+    horaEntrada: '08:00',
+    horaSalida: '17:00',
+  },
+  {
+    id: 'tur-2',
+    empleadoId: 'ple-3',
+    fecha: '2026-06-30',
+    horaEntrada: '08:00',
+    horaSalida: '17:00',
+  },
+  {
+    id: 'tur-3',
+    empleadoId: 'ple-3',
+    fecha: '2026-07-01',
+    horaEntrada: '08:00',
+    horaSalida: '17:00',
   },
 ];
 

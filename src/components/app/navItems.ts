@@ -1,6 +1,7 @@
 import {
   Icon,
   IconBuildingFactory2,
+  IconCalendarClock,
   IconCalendarEvent,
   IconChartBar,
   IconClockCheck,
@@ -11,6 +12,7 @@ import {
   IconReportMoney,
   IconSettings,
   IconShieldCheck,
+  IconSitemap,
   IconUsers,
 } from '@tabler/icons-react';
 import { Rol } from '@/types/rrhh';
@@ -63,6 +65,12 @@ export const navItems: NavItem[] = [
     roles: OPERATIVOS,
   },
   {
+    etiqueta: 'Turnos',
+    href: '/app/turnos',
+    icono: IconCalendarClock,
+    roles: OPERATIVOS,
+  },
+  {
     etiqueta: 'Recibos',
     href: '/app/recibos',
     icono: IconFileCertificate,
@@ -79,6 +87,12 @@ export const navItems: NavItem[] = [
     href: '/app/agenda',
     icono: IconCalendarEvent,
     roles: OPERATIVOS,
+  },
+  {
+    etiqueta: 'Organigrama',
+    href: '/app/organigrama',
+    icono: IconSitemap,
+    roles: ['superadmin', ...GESTION],
   },
   {
     etiqueta: 'Reportes',

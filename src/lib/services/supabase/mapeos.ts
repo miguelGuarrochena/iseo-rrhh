@@ -16,6 +16,7 @@ import {
   Notificacion,
   ReciboSueldo,
   Remuneracion,
+  Turno,
   Usuario,
 } from '@/types/rrhh';
 
@@ -121,6 +122,14 @@ export const aFichaje = (f: Fila): Fichaje => ({
   geo: f.geo ?? undefined,
   dispositivoId: f.dispositivo_id ?? undefined,
   confianza: f.confianza ?? undefined,
+});
+
+export const aTurno = (f: Fila): Turno => ({
+  id: f.id,
+  empleadoId: f.empleado_id,
+  fecha: String(f.fecha).slice(0, 10),
+  horaEntrada: String(f.hora_entrada).slice(0, 5),
+  horaSalida: String(f.hora_salida).slice(0, 5),
 });
 
 export const aNotaInterna = (f: Fila): NotaInterna => ({
