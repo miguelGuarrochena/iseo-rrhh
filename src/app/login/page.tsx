@@ -5,7 +5,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  IconArrowLeft,
   IconBeach,
   IconClockCheck,
   IconFileCertificate,
@@ -14,12 +13,6 @@ import { Logo } from '@/components/Logo';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoPassword } from '@/components/app/ui/CampoPassword';
 import { useAuth } from '@/lib/auth/AuthProvider';
-
-/** En el subdominio de la app, "volver al sitio" va al dominio de marketing. */
-const urlSitio = (): string =>
-  typeof window !== 'undefined' && window.location.hostname.startsWith('app.')
-    ? 'https://iseo-rh.com'
-    : '/';
 
 const ventajas = [
   {
@@ -88,7 +81,7 @@ const LoginPage = () => {
           className="object-cover"
           priority
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-700/90 via-brand-800/85 to-ink/90" />
+        <div className="absolute inset-0 bg-gradient-to-t from-ink/85 via-ink/45 to-ink/25" />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
           <p className="text-2xl font-extrabold tracking-tight">
             ISEO <span className="text-brand-200">RH</span>
@@ -122,14 +115,6 @@ const LoginPage = () => {
       {/* Formulario */}
       <div className="flex min-h-screen flex-col justify-center px-4 py-10 sm:px-8">
         <div className="mx-auto w-full max-w-md">
-          <a
-            href={urlSitio()}
-            className="mb-6 inline-flex items-center gap-1.5 text-sm font-medium text-ink-soft no-underline transition-colors hover:text-ink"
-          >
-            <IconArrowLeft size={16} />
-            Volver al sitio
-          </a>
-
           <div className="rounded-3xl border border-line bg-surface p-8 sm:p-10">
             <Logo size="md" />
 

@@ -24,6 +24,7 @@ import { avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
+import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
 import { hoyISO } from '@/lib/fechas';
 import { CampoSelect } from '@/components/app/ui/Campo';
@@ -463,17 +464,11 @@ const FichaColaboradorPage = () => {
             onChange={(e) => setDocVencimiento(e.target.value)}
             ayuda="Si tiene vencimiento, genera una alerta automática."
           />
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">
-              Archivo (PDF o foto)
-            </span>
-            <input
-              type="file"
-              accept=".pdf,image/*"
-              onChange={(e) => setDocArchivo(e.target.files?.[0] ?? null)}
-              className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-paper file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink"
-            />
-          </label>
+          <CampoArchivo
+            etiqueta="Archivo (PDF o foto)"
+            accept=".pdf,image/*"
+            onArchivo={setDocArchivo}
+          />
           <Boton
             onClick={() => void guardarDocumento()}
             disabled={docGuardando}

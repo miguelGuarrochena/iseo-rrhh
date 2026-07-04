@@ -14,6 +14,7 @@ import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
+import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { formatearFecha, formatearPeriodo } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
@@ -245,15 +246,11 @@ const RecibosPage = () => {
             value={cargaPeriodo}
             onChange={(e) => setCargaPeriodo(e.target.value)}
           />
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">PDF *</span>
-            <input
-              type="file"
-              accept=".pdf,application/pdf"
-              onChange={(e) => setCargaArchivo(e.target.files?.[0] ?? null)}
-              className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-line file:bg-paper file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-ink"
-            />
-          </label>
+          <CampoArchivo
+            etiqueta="PDF *"
+            accept=".pdf,application/pdf"
+            onArchivo={setCargaArchivo}
+          />
           {cargaError && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
               {cargaError}
