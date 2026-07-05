@@ -1403,6 +1403,41 @@ export const actualizarAbonoEmpresa = async (
   return aEmpresa(oFalla(data, error));
 };
 
+export const getEmpresaPorId = async (
+  empresaId: string
+): Promise<Empresa | null> => {
+  const { data, error } = await sb()
+    .from('empresas')
+    .select('*')
+    .eq('id', empresaId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? aEmpresa(data) : null;
+};
+
+export const getEmpleadosDeEmpresaCount = async (
+  empresaId: string
+): Promise<number> => {
+  const { count, error } = await sb()
+    .from('empleados')
+    .select('id', { count: 'exact', head: true })
+    .eq('empresa_id', empresaId)
+    .eq('activo', true);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+};
+
+export const getMovimientosDeEmpresa = async (
+  empresaId: string
+): Promise<MovimientoFinanciero[]> => {
+  const { data, error } = await sb()
+    .from('movimientos_financieros')
+    .select('*')
+    .eq('empresa_id', empresaId)
+    .order('fecha', { ascending: false });
+  return oFalla(data, error).map(aMovimiento);
+};
+
 export const getResumenFinanzas = async (
   periodo: string
 ): Promise<ResumenFinanzas> => {

@@ -62,6 +62,18 @@ export const actualizarDatosEmpresa = elegir(
   real.actualizarDatosEmpresa,
   demo.actualizarDatosEmpresa
 );
+export const getEmpresaPorId = elegir(
+  real.getEmpresaPorId,
+  demo.getEmpresaPorId
+);
+export const getEmpleadosDeEmpresaCount = elegir(
+  real.getEmpleadosDeEmpresaCount,
+  demo.getEmpleadosDeEmpresaCount
+);
+export const getMovimientosDeEmpresa = elegir(
+  real.getMovimientosDeEmpresa,
+  demo.getMovimientosDeEmpresa
+);
 export const actualizarConfigEmpresa = elegir(
   real.actualizarConfigEmpresa,
   demo.actualizarConfigEmpresa

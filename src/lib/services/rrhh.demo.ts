@@ -127,6 +127,24 @@ export const actualizarDatosEmpresa = async (
   return simular(empresa);
 };
 
+export const getEmpresaPorId = async (
+  empresaId: string
+): Promise<Empresa | null> =>
+  simular(empresasMock.find((e) => e.id === empresaId) ?? null);
+
+export const getEmpleadosDeEmpresaCount = async (
+  empresaId: string
+): Promise<number> => simular(empleadosActivosDe(empresaId));
+
+export const getMovimientosDeEmpresa = async (
+  empresaId: string
+): Promise<MovimientoFinanciero[]> =>
+  simular(
+    movimientosMock
+      .filter((m) => m.empresaId === empresaId)
+      .sort((a, b) => (a.fecha < b.fecha ? 1 : -1))
+  );
+
 export const cambiarEstadoEmpresa = async (
   empresaId: string,
   estado: Empresa['estado']

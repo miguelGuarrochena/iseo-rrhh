@@ -12,10 +12,9 @@ import { useDisclosure } from '@mantine/hooks';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { NuevaEmpresaModal } from '@/components/app/empresas/NuevaEmpresaModal';
-import { EditarEmpresaModal } from '@/components/app/empresas/EditarEmpresaModal';
 import { Boton } from '@/components/app/ui/Boton';
 import { Selector } from '@/components/app/ui/Selector';
-import { cambiarEstadoEmpresa, getEmpresas } from '@/lib/services/rrhh';
+import { getEmpresas } from '@/lib/services/rrhh';
 import { Empresa, EmpresaResumen, NuevaEmpresa } from '@/types/rrhh';
 import { crearEmpresa } from '@/lib/services/rrhh';
 
@@ -26,7 +25,6 @@ const EmpresasPage = () => {
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState('');
   const [modalAbierto, { open, close }] = useDisclosure(false);
-  const [ficha, setFicha] = useState<EmpresaResumen | null>(null);
 
   const cargar = useCallback(() => {
     void getEmpresas().then(setEmpresas);
@@ -50,11 +48,6 @@ const EmpresasPage = () => {
       </p>
     );
   }
-
-  const alternarEstado = async (empresaId: string, activa: boolean) => {
-    await cambiarEstadoEmpresa(empresaId, activa ? 'suspendida' : 'activa');
-    cargar();
-  };
 
   const crear = async (datos: NuevaEmpresa) => {
     await crearEmpresa(datos);
@@ -137,10 +130,10 @@ const EmpresasPage = () => {
                 <Boton
                   variante="secundario"
                   tamano="sm"
-                  onClick={() => setFicha({ empresa, empleadosActivos })}
+                  onClick={() => router.push(`/empresas/${empresa.id}`)}
                 >
                   <IconId size={14} />
-                  Ficha
+                  Ver detalle
                 </Boton>
                 {empresa.estado === 'activa' && (
                   <Boton
@@ -162,18 +155,6 @@ const EmpresasPage = () => {
         abierto={modalAbierto}
         onCerrar={close}
         onCrear={crear}
-      />
-
-      <EditarEmpresaModal
-        empresa={ficha?.empresa ?? null}
-        empleados={ficha?.empleadosActivos ?? 0}
-        onCerrar={() => setFicha(null)}
-        onGuardado={cargar}
-        onIngresar={ingresar}
-        onCambiarEstado={(e) => {
-          void alternarEstado(e.id, e.estado === 'activa');
-          setFicha(null);
-        }}
       />
     </div>
   );
