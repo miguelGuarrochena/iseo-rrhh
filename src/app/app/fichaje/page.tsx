@@ -9,6 +9,7 @@ import {
   IconDownload,
   IconFaceId,
   IconFingerprint,
+  IconPencilPlus,
   IconUserOff,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -28,12 +29,14 @@ import {
 } from '@/lib/services/rrhh';
 import { Empleado, Fichaje, MetodoFichaje, ModoFichaje } from '@/types/rrhh';
 import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
+import { FichajeManualModal } from '@/components/app/facial/FichajeManualModal';
 import { getTerminalLocal } from '@/lib/terminal';
 
 const metodoLabel: Record<MetodoFichaje, string> = {
   facial_tablet: 'Reconocimiento facial',
   celular: 'Celular + GPS',
   remoto: 'Remoto',
+  manual: 'Carga manual',
 };
 
 const PanelFichajePropio = ({
@@ -128,6 +131,7 @@ const FichajePage = () => {
   const [miEmpleado, setMiEmpleado] = useState<Empleado | null>(null);
   const [facialAbierto, setFacialAbierto] = useState(false);
   const [tabletAbierto, setTabletAbierto] = useState(false);
+  const [manualAbierto, setManualAbierto] = useState(false);
   const [esTerminal, setEsTerminal] = useState(false);
 
   const cargar = useCallback(() => {
@@ -221,6 +225,10 @@ const FichajePage = () => {
                 Modo planta
               </Boton>
             )}
+            <Boton variante="secundario" onClick={() => setManualAbierto(true)}>
+              <IconPencilPlus size={18} />
+              Cargar a mano
+            </Boton>
             <Boton
               variante="secundario"
               onClick={() => void exportarNovedades()}
@@ -236,7 +244,8 @@ const FichajePage = () => {
         <p className="flex items-center gap-2 rounded-xl bg-paper px-4 py-2.5 text-xs text-ink-soft">
           <IconDeviceTablet size={14} className="shrink-0" />
           Para el fichaje en planta (Modo planta), autorizá esta tablet como
-          terminal en Configuración → Terminales de fichaje.
+          terminal en Configuración → Terminales de fichaje. Si la tablet falla
+          o no hay conexión, usá &quot;Cargar a mano&quot; como respaldo.
         </p>
       )}
 
@@ -275,6 +284,16 @@ const FichajePage = () => {
       )}
 
       {!esEmpleado && (
+        <FichajeManualModal
+          abierto={manualAbierto}
+          onCerrar={() => setManualAbierto(false)}
+          empleados={empleados}
+          registradoPor={usuario.nombreCompleto ?? 'RRHH'}
+          onFichado={() => cargar()}
+        />
+      )}
+
+      {!esEmpleado && (
         <>
           <div className="grid grid-cols-3 gap-4">
             <StatCard
@@ -307,14 +326,16 @@ const FichajePage = () => {
                     icono={
                       f.metodo === 'facial_tablet'
                         ? IconDeviceTablet
-                        : IconDeviceMobile
+                        : f.metodo === 'manual'
+                          ? IconPencilPlus
+                          : IconDeviceMobile
                     }
                     principal={nombreEmpleado(f.empleadoId)}
                     secundario={`${f.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} · ${metodoLabel[f.metodo]}${
                       f.confianza != null
                         ? ` · ${Math.round(f.confianza * 100)}% de confianza`
                         : ''
-                    }`}
+                    }${f.registradoPor ? ` · por ${f.registradoPor}` : ''}`}
                     extremo={
                       <span className="shrink-0 text-sm font-bold text-ink">
                         {formatearHora(f.timestamp)}

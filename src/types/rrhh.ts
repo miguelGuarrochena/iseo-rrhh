@@ -22,8 +22,8 @@ export interface Usuario {
 
 // ---------- Empresa (tenant) ----------
 
-/** Cómo quedó registrado un fichaje. */
-export type MetodoFichaje = 'facial_tablet' | 'celular' | 'remoto';
+/** Cómo quedó registrado un fichaje. 'manual' = carga a mano por RRHH/supervisor. */
+export type MetodoFichaje = 'facial_tablet' | 'celular' | 'remoto' | 'manual';
 
 /** Modo de fichaje configurado para un empleado. */
 export type ModoFichaje = 'planta' | 'celular' | 'remoto';
@@ -289,6 +289,8 @@ export interface Fichaje {
   confianza?: number;
   /** El fichaje se hizo fuera de la zona de trabajo (geocerca). */
   fueraDeZona?: boolean;
+  /** Quién lo cargó a mano (nombre) cuando metodo es 'manual'. */
+  registradoPor?: string;
 }
 
 /** Opciones al registrar un fichaje (método, foto, confianza, ubicación). */
@@ -298,6 +300,12 @@ export interface OpcionesFichaje {
   confianza?: number;
   geo?: { lat: number; lng: number };
   fueraDeZona?: boolean;
+  /** Forzar tipo (para carga manual); por defecto alterna ingreso/egreso. */
+  tipo?: TipoFichaje;
+  /** Momento del fichaje (para carga manual); por defecto ahora. */
+  timestamp?: string;
+  /** Quién lo carga a mano (carga manual). */
+  registradoPor?: string;
 }
 
 /** Descriptor facial enrolado de un empleado (para identificación 1:N). */

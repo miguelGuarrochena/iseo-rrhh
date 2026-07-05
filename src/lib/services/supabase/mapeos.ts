@@ -127,6 +127,7 @@ export const aFichaje = (f: Fila): Fichaje => ({
   dispositivoId: f.dispositivo_id ?? undefined,
   confianza: f.confianza ?? undefined,
   fueraDeZona: f.fuera_de_zona ?? undefined,
+  registradoPor: f.registrado_por ?? undefined,
 });
 
 export const aTerminal = (f: Fila): Terminal => ({

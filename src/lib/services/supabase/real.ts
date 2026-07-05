@@ -691,17 +691,20 @@ export const ficharAhora = async (
 ): Promise<Fichaje> => {
   const deHoy = await getFichajesDeEmpleadoHoy(empleadoId);
   const ultimo = deHoy[deHoy.length - 1];
-  const tipo = ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso';
+  const tipo =
+    opciones.tipo ?? (ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso');
   const { data, error } = await sb()
     .from('fichajes')
     .insert({
       empresa_id: empresaId(),
       empleado_id: empleadoId,
       tipo,
+      ts: opciones.timestamp ?? undefined,
       metodo: opciones.metodo ?? 'celular',
       confianza: opciones.confianza ?? null,
       geo: opciones.geo ?? null,
       fuera_de_zona: opciones.fueraDeZona ?? null,
+      registrado_por: opciones.registradoPor ?? null,
       // La foto es opcional; solo se guarda si ya es una URL (no dataURL).
       foto_url:
         opciones.fotoUrl && !opciones.fotoUrl.startsWith('data:')

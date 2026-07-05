@@ -529,17 +529,21 @@ export const ficharAhora = async (
   );
   const ultimo = deHoy[deHoy.length - 1];
   const tipo: Fichaje['tipo'] =
-    ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso';
+    opciones.tipo ?? (ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso');
+  const esManual = opciones.metodo === 'manual';
   const nuevo: Fichaje = {
     id: `fic-${Date.now()}`,
     empleadoId,
     tipo,
-    timestamp: new Date().toISOString(),
+    timestamp: opciones.timestamp ?? new Date().toISOString(),
     metodo: opciones.metodo ?? 'celular',
     fotoUrl: opciones.fotoUrl,
     confianza: opciones.confianza,
-    geo: opciones.geo ?? { lat: -34.7203, lng: -58.2542 },
+    geo: esManual
+      ? undefined
+      : (opciones.geo ?? { lat: -34.7203, lng: -58.2542 }),
     fueraDeZona: opciones.fueraDeZona,
+    registradoPor: opciones.registradoPor,
   };
   fichajesMock.push(nuevo);
   return simular(nuevo);
