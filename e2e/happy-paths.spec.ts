@@ -30,7 +30,7 @@ test('admin RRHH llega a Fichaje y ve la carga manual de respaldo', async ({
   await entrarComo(page, /Admin RRHH/);
   await page.goto('/fichaje');
   await expect(
-    page.getByRole('heading', { name: /Fichaje/i })
+    page.getByRole('heading', { level: 1, name: 'Fichaje', exact: true })
   ).toBeVisible();
   await expect(page.getByRole('button', { name: /Cargar a mano/i })).toBeVisible();
 });
