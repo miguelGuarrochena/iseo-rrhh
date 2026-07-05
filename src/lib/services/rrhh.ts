@@ -58,6 +58,10 @@ export const actualizarEmpresa = elegir(
   real.actualizarEmpresa,
   demo.actualizarEmpresa
 );
+export const actualizarDatosEmpresa = elegir(
+  real.actualizarDatosEmpresa,
+  demo.actualizarDatosEmpresa
+);
 export const actualizarConfigEmpresa = elegir(
   real.actualizarConfigEmpresa,
   demo.actualizarConfigEmpresa

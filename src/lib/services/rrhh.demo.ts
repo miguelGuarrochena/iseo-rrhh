@@ -8,6 +8,7 @@ import {
   Ausencia,
   ConfigPlataforma,
   Convenio,
+  DatosEmpresaCliente,
   DescriptorFacial,
   DocumentoLegajo,
   Empleado,
@@ -95,9 +96,14 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
     id: `emp-${Date.now()}`,
     nombre: datos.nombre,
     cuit: datos.cuit,
+    razonSocial: datos.razonSocial,
+    domicilio: datos.domicilio,
     estado: 'activa',
     contactoNombre: datos.contactoNombre,
     contactoEmail: datos.contactoEmail,
+    contactoTelefono: datos.contactoTelefono,
+    plan: datos.plan,
+    abonoMensual: datos.abonoMensual ?? 0,
     config: {
       metodosFichaje: ['celular'],
       toleranciaLlegadaTardeMin: 10,
@@ -109,6 +115,16 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
   };
   empresasMock.push(nueva);
   return simular(nueva);
+};
+
+export const actualizarDatosEmpresa = async (
+  empresaId: string,
+  datos: DatosEmpresaCliente
+): Promise<Empresa> => {
+  const empresa = empresasMock.find((e) => e.id === empresaId);
+  if (!empresa) throw new Error('Empresa no encontrada.');
+  Object.assign(empresa, datos);
+  return simular(empresa);
 };
 
 export const cambiarEstadoEmpresa = async (
@@ -957,6 +973,7 @@ export const getResumenFinanzas = async (
       empresaId: e.id,
       nombre: e.nombre,
       estado: e.estado,
+      empleados: empleadosActivosDe(e.id),
       abonoMensual,
       cobradoEnPeriodo,
       alDia: abonoMensual === 0 || cobradoEnPeriodo >= abonoMensual,

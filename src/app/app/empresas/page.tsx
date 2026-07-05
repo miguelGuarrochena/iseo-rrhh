@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   IconBuildingFactory2,
+  IconId,
   IconLogin2,
   IconPlus,
 } from '@tabler/icons-react';
@@ -11,10 +12,11 @@ import { useDisclosure } from '@mantine/hooks';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { NuevaEmpresaModal } from '@/components/app/empresas/NuevaEmpresaModal';
+import { EditarEmpresaModal } from '@/components/app/empresas/EditarEmpresaModal';
 import { Boton } from '@/components/app/ui/Boton';
 import { Selector } from '@/components/app/ui/Selector';
 import { cambiarEstadoEmpresa, getEmpresas } from '@/lib/services/rrhh';
-import { EmpresaResumen, NuevaEmpresa } from '@/types/rrhh';
+import { Empresa, EmpresaResumen, NuevaEmpresa } from '@/types/rrhh';
 import { crearEmpresa } from '@/lib/services/rrhh';
 
 const EmpresasPage = () => {
@@ -24,6 +26,7 @@ const EmpresasPage = () => {
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState('');
   const [modalAbierto, { open, close }] = useDisclosure(false);
+  const [ficha, setFicha] = useState<EmpresaResumen | null>(null);
 
   const cargar = useCallback(() => {
     void getEmpresas().then(setEmpresas);
@@ -57,6 +60,11 @@ const EmpresasPage = () => {
     await crearEmpresa(datos);
     close();
     cargar();
+  };
+
+  const ingresar = (empresa: Empresa) => {
+    entrarAEmpresa(empresa);
+    router.push('/');
   };
 
   return (
@@ -112,7 +120,9 @@ const EmpresasPage = () => {
             }
             icono={IconBuildingFactory2}
             principal={empresa.nombre}
-            secundario={`CUIT ${empresa.cuit} · ${empleadosActivos} empleados · ${empresa.contactoNombre} (${empresa.contactoEmail})`}
+            secundario={`CUIT ${empresa.cuit} · ${empleadosActivos} empleados${
+              empresa.plan ? ` · plan ${empresa.plan}` : ''
+            } · ${empresa.contactoNombre}`}
             extremo={
               <div className="flex shrink-0 items-center gap-2">
                 <span
@@ -124,34 +134,22 @@ const EmpresasPage = () => {
                 >
                   {empresa.estado === 'activa' ? 'Activa' : 'Suspendida'}
                 </span>
+                <Boton
+                  variante="secundario"
+                  tamano="sm"
+                  onClick={() => setFicha({ empresa, empleadosActivos })}
+                >
+                  <IconId size={14} />
+                  Ficha
+                </Boton>
                 {empresa.estado === 'activa' && (
                   <Boton
                     variante="secundario"
                     tamano="sm"
-                    onClick={() => {
-                      entrarAEmpresa(empresa);
-                      router.push('/');
-                    }}
+                    onClick={() => ingresar(empresa)}
                   >
                     <IconLogin2 size={14} />
                     Ingresar
-                  </Boton>
-                )}
-                {empresa.estado === 'activa' ? (
-                  <Boton
-                    variante="rechazar"
-                    tamano="sm"
-                    onClick={() => void alternarEstado(empresa.id, true)}
-                  >
-                    Suspender
-                  </Boton>
-                ) : (
-                  <Boton
-                    variante="aprobar"
-                    tamano="sm"
-                    onClick={() => void alternarEstado(empresa.id, false)}
-                  >
-                    Reactivar
                   </Boton>
                 )}
               </div>
@@ -164,6 +162,18 @@ const EmpresasPage = () => {
         abierto={modalAbierto}
         onCerrar={close}
         onCrear={crear}
+      />
+
+      <EditarEmpresaModal
+        empresa={ficha?.empresa ?? null}
+        empleados={ficha?.empleadosActivos ?? 0}
+        onCerrar={() => setFicha(null)}
+        onGuardado={cargar}
+        onIngresar={ingresar}
+        onCambiarEstado={(e) => {
+          void alternarEstado(e.id, e.estado === 'activa');
+          setFicha(null);
+        }}
       />
     </div>
   );

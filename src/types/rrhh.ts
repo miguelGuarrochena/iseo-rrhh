@@ -48,25 +48,54 @@ export type EstadoEmpresa = 'activa' | 'suspendida';
 
 export interface Empresa {
   id: string;
+  /** Nombre comercial / cómo se muestra. */
   nombre: string;
   cuit: string;
+  /** Razón social (nombre legal), si difiere del comercial. */
+  razonSocial?: string;
+  domicilio?: string;
   logoUrl?: string;
   estado: EstadoEmpresa;
   contactoNombre: string;
   contactoEmail: string;
+  /** Teléfono del responsable/contacto. */
+  contactoTelefono?: string;
   config: ConfigEmpresa;
+  /** Nombre del plan contratado (ej. "Básico", "Full"). */
+  plan?: string;
   /** Abono mensual que la empresa le paga a ISEO (facturación). */
   abonoMensual?: number;
   creadaEn: string;
 }
 
-/** Datos mínimos para dar de alta un cliente (superadmin) */
+/** Datos para dar de alta un cliente (superadmin) */
 export interface NuevaEmpresa {
   nombre: string;
   cuit: string;
+  razonSocial?: string;
+  domicilio?: string;
   contactoNombre: string;
   contactoEmail: string;
+  contactoTelefono?: string;
+  plan?: string;
+  abonoMensual?: number;
 }
+
+/** Cambios editables de la ficha de un cliente (superadmin). */
+export type DatosEmpresaCliente = Partial<
+  Pick<
+    Empresa,
+    | 'nombre'
+    | 'razonSocial'
+    | 'cuit'
+    | 'domicilio'
+    | 'contactoNombre'
+    | 'contactoEmail'
+    | 'contactoTelefono'
+    | 'plan'
+    | 'abonoMensual'
+  >
+>;
 
 /** Empresa + indicadores para el listado del superadmin */
 export interface EmpresaResumen {
@@ -472,6 +501,7 @@ export interface FacturacionEmpresa {
   empresaId: string;
   nombre: string;
   estado: EstadoEmpresa;
+  empleados: number;
   abonoMensual: number;
   cobradoEnPeriodo: number;
   alDia: boolean;

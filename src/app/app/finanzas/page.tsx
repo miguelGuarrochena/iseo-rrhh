@@ -209,7 +209,8 @@ const FinanzasPage = () => {
               <div className="min-w-0">
                 <p className="truncate font-semibold text-ink">{f.nombre}</p>
                 <p className="text-xs text-ink-soft">
-                  Abono {formatearPesos(f.abonoMensual)} · cobrado{' '}
+                  {f.empleados} {f.empleados === 1 ? 'empleado' : 'empleados'} ·
+                  abono {formatearPesos(f.abonoMensual)} · cobrado{' '}
                   {formatearPesos(f.cobradoEnPeriodo)}
                 </p>
               </div>

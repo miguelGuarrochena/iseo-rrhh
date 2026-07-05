@@ -23,22 +23,28 @@ export const NuevaEmpresaModal = ({
   onCerrar,
   onCrear,
 }: NuevaEmpresaModalProps) => {
-  const [datos, setDatos] = useState<NuevaEmpresa>({
+  const inicial: NuevaEmpresa = {
     nombre: '',
     cuit: '',
+    razonSocial: '',
+    domicilio: '',
     contactoNombre: '',
     contactoEmail: '',
-  });
+    contactoTelefono: '',
+    plan: '',
+    abonoMensual: 0,
+  };
+  const [datos, setDatos] = useState<NuevaEmpresa>(inicial);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
 
-  const set = (campo: keyof NuevaEmpresa) => (valor: string) =>
+  const set = (campo: keyof NuevaEmpresa) => (valor: string | number) =>
     setDatos((prev) => ({ ...prev, [campo]: valor }));
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const nuevos = juntarErrores({
-      nombre: validarRequerido(datos.nombre, 'La razón social'),
+      nombre: validarRequerido(datos.nombre, 'El nombre'),
       cuit: validarRequerido(datos.cuit, 'El CUIT') ?? validarCuit(datos.cuit),
       contactoNombre: validarRequerido(
         datos.contactoNombre,
@@ -52,9 +58,9 @@ export const NuevaEmpresaModal = ({
     if (Object.keys(nuevos).length > 0) return;
 
     setEnviando(true);
-    await onCrear(datos);
+    await onCrear({ ...datos, abonoMensual: Number(datos.abonoMensual) || 0 });
     setEnviando(false);
-    setDatos({ nombre: '', cuit: '', contactoNombre: '', contactoEmail: '' });
+    setDatos(inicial);
   };
 
   return (
@@ -68,11 +74,12 @@ export const NuevaEmpresaModal = ({
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-3.5" noValidate>
         <Campo
-          etiqueta="Razón social *"
+          etiqueta="Nombre *"
           value={datos.nombre}
           onChange={(e) => set('nombre')(e.target.value)}
-          placeholder="Metalúrgica Ejemplo S.A."
+          placeholder="Metalúrgica Ejemplo"
           error={errores.nombre}
+          ayuda="Cómo se muestra la empresa."
         />
         <Campo
           etiqueta="CUIT *"
@@ -82,21 +89,58 @@ export const NuevaEmpresaModal = ({
           error={errores.cuit}
           ayuda="Se valida el dígito verificador."
         />
+        <div className="grid gap-3.5 sm:grid-cols-2">
+          <Campo
+            etiqueta="Razón social"
+            value={datos.razonSocial ?? ''}
+            onChange={(e) => set('razonSocial')(e.target.value)}
+            placeholder="Nombre legal (si difiere)"
+          />
+          <Campo
+            etiqueta="Domicilio"
+            value={datos.domicilio ?? ''}
+            onChange={(e) => set('domicilio')(e.target.value)}
+            placeholder="Calle, ciudad, provincia"
+          />
+        </div>
+        <div className="grid gap-3.5 sm:grid-cols-2">
+          <Campo
+            etiqueta="Plan"
+            value={datos.plan ?? ''}
+            onChange={(e) => set('plan')(e.target.value)}
+            placeholder="Básico, Full…"
+          />
+          <Campo
+            etiqueta="Abono mensual"
+            type="number"
+            value={String(datos.abonoMensual ?? '')}
+            onChange={(e) => set('abonoMensual')(e.target.value)}
+            placeholder="0"
+          />
+        </div>
         <Campo
-          etiqueta="Contacto (nombre) *"
+          etiqueta="Responsable *"
           value={datos.contactoNombre}
           onChange={(e) => set('contactoNombre')(e.target.value)}
           placeholder="Quien administra RRHH"
           error={errores.contactoNombre}
         />
-        <Campo
-          etiqueta="Contacto (email) *"
-          type="email"
-          value={datos.contactoEmail}
-          onChange={(e) => set('contactoEmail')(e.target.value)}
-          placeholder="rrhh@empresa.com"
-          error={errores.contactoEmail}
-        />
+        <div className="grid gap-3.5 sm:grid-cols-2">
+          <Campo
+            etiqueta="Email del responsable *"
+            type="email"
+            value={datos.contactoEmail}
+            onChange={(e) => set('contactoEmail')(e.target.value)}
+            placeholder="rrhh@empresa.com"
+            error={errores.contactoEmail}
+          />
+          <Campo
+            etiqueta="Teléfono"
+            value={datos.contactoTelefono ?? ''}
+            onChange={(e) => set('contactoTelefono')(e.target.value)}
+            placeholder="11-1234-5678"
+          />
+        </div>
 
         <Boton
           type="submit"

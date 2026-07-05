@@ -8,6 +8,7 @@ import {
   Ausencia,
   ConfigPlataforma,
   Convenio,
+  DatosEmpresaCliente,
   DescriptorFacial,
   DocumentoLegajo,
   Empleado,
@@ -122,8 +123,13 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
     .insert({
       nombre: datos.nombre,
       cuit: datos.cuit,
+      razon_social: datos.razonSocial ?? null,
+      domicilio: datos.domicilio ?? null,
       contacto_nombre: datos.contactoNombre,
       contacto_email: datos.contactoEmail,
+      contacto_telefono: datos.contactoTelefono ?? null,
+      plan: datos.plan ?? null,
+      abono_mensual: datos.abonoMensual ?? 0,
       config: {
         metodosFichaje: cfg.metodosFichajeDefault,
         toleranciaLlegadaTardeMin: cfg.toleranciaDefaultMin,
@@ -132,6 +138,35 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
         diasAvisoVencimiento: cfg.diasAvisoDefault,
       },
     })
+    .select()
+    .single();
+  return aEmpresa(oFalla(data, error));
+};
+
+/** Edita la ficha comercial de un cliente (solo superadmin). */
+export const actualizarDatosEmpresa = async (
+  empresaId: string,
+  datos: DatosEmpresaCliente
+): Promise<Empresa> => {
+  const mapa: Record<keyof DatosEmpresaCliente, string> = {
+    nombre: 'nombre',
+    razonSocial: 'razon_social',
+    cuit: 'cuit',
+    domicilio: 'domicilio',
+    contactoNombre: 'contacto_nombre',
+    contactoEmail: 'contacto_email',
+    contactoTelefono: 'contacto_telefono',
+    plan: 'plan',
+    abonoMensual: 'abono_mensual',
+  };
+  const cambios: Record<string, unknown> = {};
+  (Object.keys(datos) as (keyof DatosEmpresaCliente)[]).forEach((k) => {
+    if (datos[k] !== undefined) cambios[mapa[k]] = datos[k];
+  });
+  const { data, error } = await sb()
+    .from('empresas')
+    .update(cambios)
+    .eq('id', empresaId)
     .select()
     .single();
   return aEmpresa(oFalla(data, error));
@@ -1371,13 +1406,22 @@ export const actualizarAbonoEmpresa = async (
 export const getResumenFinanzas = async (
   periodo: string
 ): Promise<ResumenFinanzas> => {
-  const [{ data: movs, error: e1 }, { data: emps, error: e2 }] =
-    await Promise.all([
-      sb().from('movimientos_financieros').select('*').eq('periodo', periodo),
-      sb().from('empresas').select('*'),
-    ]);
+  const [
+    { data: movs, error: e1 },
+    { data: emps, error: e2 },
+    { data: plantel, error: e3 },
+  ] = await Promise.all([
+    sb().from('movimientos_financieros').select('*').eq('periodo', periodo),
+    sb().from('empresas').select('*'),
+    sb().from('empleados').select('empresa_id').eq('activo', true),
+  ]);
   const movimientos = oFalla(movs, e1).map(aMovimiento);
   const empresas = oFalla(emps, e2).map(aEmpresa);
+  const filas = oFalla(plantel, e3) as { empresa_id: string }[];
+  const empleadosPorEmpresa = filas.reduce<Record<string, number>>((acc, f) => {
+    acc[f.empresa_id] = (acc[f.empresa_id] ?? 0) + 1;
+    return acc;
+  }, {});
 
   const ingresosDelMes = movimientos
     .filter((m) => m.tipo === 'ingreso')
@@ -1395,6 +1439,7 @@ export const getResumenFinanzas = async (
       empresaId: e.id,
       nombre: e.nombre,
       estado: e.estado,
+      empleados: empleadosPorEmpresa[e.id] ?? 0,
       abonoMensual,
       cobradoEnPeriodo,
       alDia: abonoMensual === 0 || cobradoEnPeriodo >= abonoMensual,
