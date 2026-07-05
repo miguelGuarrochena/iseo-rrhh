@@ -13,6 +13,7 @@
      Paleta suave: fondo celeste claro, tinta gris-azulada, bordes tenues. */
   --paper-rgb: 241 244 250;
   --surface-rgb: 255 255 255;
+  --surface-hover-rgb: 232 238 253;
   --ink-rgb: 47 46 58;
   --ink-soft-rgb: 126 124 140;
   --line-rgb: 228 232 241;
@@ -23,9 +24,16 @@
 [data-mantine-color-scheme='dark'] .app-scope {
   --paper-rgb: 34 38 52;
   --surface-rgb: 46 50 66;
+  --surface-hover-rgb: 58 64 84;
   --ink-rgb: 238 240 246;
   --ink-soft-rgb: 162 166 182;
   --line-rgb: 70 75 94;
+}
+
+/* Hover de bloques (StatCard, filas): fondo opaco y sutil, sin que el
+   bloque se "pierda" contra el fondo. Se adapta al tema. */
+.hover-bloque:hover {
+  background-color: rgb(var(--surface-hover-rgb));
 }
 
 * {

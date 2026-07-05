@@ -25,7 +25,7 @@ export const StatCard = ({
     <div
       className={`flex h-full flex-col rounded-2xl border border-line bg-surface p-4 sm:p-5 ${
         href
-          ? 'transition-colors duration-200 hover:border-brand-300 hover:bg-brand-50/40'
+          ? 'hover-bloque transition-colors duration-200 hover:border-brand-300'
           : ''
       }`}
     >

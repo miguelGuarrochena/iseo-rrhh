@@ -66,7 +66,7 @@ export const ListaItem = ({
       onClick={onClick}
       className={`flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 sm:px-5 ${
         clickeable
-          ? 'cursor-pointer transition-colors duration-200 hover:border-brand-300 hover:bg-brand-50/40'
+          ? 'hover-bloque cursor-pointer transition-colors duration-200 hover:border-brand-300'
           : ''
       }`}
     >
