@@ -22,7 +22,19 @@ export interface Usuario {
 
 // ---------- Empresa (tenant) ----------
 
-export type MetodoFichaje = 'facial_tablet' | 'celular';
+/** Cómo quedó registrado un fichaje. */
+export type MetodoFichaje = 'facial_tablet' | 'celular' | 'remoto';
+
+/** Modo de fichaje configurado para un empleado. */
+export type ModoFichaje = 'planta' | 'celular' | 'remoto';
+
+/** Zona de trabajo para validar el fichaje por celular (geocerca). */
+export interface Geocerca {
+  lat: number;
+  lng: number;
+  /** Radio permitido en metros. */
+  radioM: number;
+}
 
 export interface ConfigEmpresa {
   metodosFichaje: MetodoFichaje[];
@@ -161,6 +173,11 @@ export interface Empleado {
   fechaBaja?: string;
   motivoBaja?: string;
   checklistAlta: ChecklistItem[];
+  // Fichaje
+  /** Cómo ficha este empleado (default: 'celular'). */
+  modoFichaje?: ModoFichaje;
+  /** Zona de trabajo (solo si modoFichaje === 'celular'). */
+  geocerca?: Geocerca;
   // Biometría (fichaje por reconocimiento facial)
   /** Descriptor facial (128 números) del rostro enrolado. Dato sensible. */
   descriptorFacial?: number[];
@@ -270,6 +287,8 @@ export interface Fichaje {
   dispositivoId?: string;
   /** Confianza del match facial (0 a 1) cuando metodo es facial. */
   confianza?: number;
+  /** El fichaje se hizo fuera de la zona de trabajo (geocerca). */
+  fueraDeZona?: boolean;
 }
 
 /** Opciones al registrar un fichaje (método, foto, confianza, ubicación). */
@@ -278,6 +297,7 @@ export interface OpcionesFichaje {
   fotoUrl?: string;
   confianza?: number;
   geo?: { lat: number; lng: number };
+  fueraDeZona?: boolean;
 }
 
 /** Descriptor facial enrolado de un empleado (para identificación 1:N). */

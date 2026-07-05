@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { IconCamera, IconX } from '@tabler/icons-react';
+import { IconCamera, IconMapPin, IconX } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
@@ -18,11 +18,13 @@ import {
   validarTelefono,
 } from '@/lib/validaciones';
 import { getEmpleados, NuevoEmpleado } from '@/lib/services/rrhh';
+import { obtenerUbicacion } from '@/lib/facial/ubicacion';
 import {
   Empleado,
   EstadoCivil,
   ModalidadContratacion,
   ModalidadPago,
+  ModoFichaje,
   NivelEstudios,
 } from '@/types/rrhh';
 
@@ -55,6 +57,12 @@ const modalidadesPago: Record<ModalidadPago, string> = {
   quincenal: 'Quincenal',
   semanal: 'Semanal',
   jornal: 'Jornal',
+};
+
+const modosFichaje: Record<ModoFichaje, string> = {
+  planta: 'En planta (tablet con reconocimiento facial)',
+  celular: 'Celular (cara + GPS dentro de la zona de trabajo)',
+  remoto: 'Remoto (cara, sin validar ubicación)',
 };
 
 export interface DatosEmpleado extends NuevoEmpleado {
@@ -90,6 +98,8 @@ const desdeEmpleado = (e: Empleado): DatosEmpleado => ({
   cbu: e.cbu || undefined,
   obraSocial: e.obraSocial || undefined,
   art: e.art || undefined,
+  modoFichaje: e.modoFichaje ?? 'celular',
+  geocerca: e.geocerca,
   fotoUrl: e.fotoUrl,
 });
 
@@ -127,6 +137,29 @@ export const FormEmpleado = ({
 
   const set = (campo: keyof DatosEmpleado) => (valor: string) =>
     setDatos((prev) => ({ ...prev, [campo]: valor || undefined }));
+
+  const setGeocerca = (campo: 'lat' | 'lng' | 'radioM', valor: string) =>
+    setDatos((prev) => {
+      const base = prev.geocerca ?? { lat: 0, lng: 0, radioM: 150 };
+      const num = Number(valor);
+      return {
+        ...prev,
+        geocerca: { ...base, [campo]: Number.isFinite(num) ? num : 0 },
+      };
+    });
+
+  const usarUbicacionActual = async () => {
+    const geo = await obtenerUbicacion();
+    if (!geo) return;
+    setDatos((prev) => ({
+      ...prev,
+      geocerca: {
+        lat: geo.lat,
+        lng: geo.lng,
+        radioM: prev.geocerca?.radioM ?? 150,
+      },
+    }));
+  };
 
   const cargarFoto = (archivo: File | undefined) => {
     if (!archivo) return;
@@ -371,6 +404,63 @@ export const FormEmpleado = ({
             onChange={(e) => set('art')(e.target.value)}
           />
         </div>
+      </Panel>
+
+      <Panel>
+        <h2 className="text-base font-bold text-ink">Fichaje</h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          Definí dónde y cómo ficha este colaborador. En todos los casos se
+          confirma la identidad con reconocimiento facial.
+        </p>
+        <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
+          <CampoSelect
+            etiqueta="Modo de fichaje"
+            value={datos.modoFichaje ?? 'celular'}
+            onChange={set('modoFichaje')}
+            opciones={aOpciones(modosFichaje)}
+          />
+        </div>
+
+        {datos.modoFichaje === 'celular' && (
+          <div className="mt-4 rounded-xl bg-paper p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold text-ink">Zona de trabajo</p>
+              <Boton
+                type="button"
+                variante="secundario"
+                className="text-xs"
+                onClick={usarUbicacionActual}
+              >
+                <IconMapPin size={15} />
+                Usar mi ubicación actual
+              </Boton>
+            </div>
+            <p className="mt-1 text-xs text-ink-soft">
+              El fichaje se marca fuera de zona si está a más del radio indicado
+              del punto.
+            </p>
+            <div className="mt-3 grid gap-3.5 sm:grid-cols-3">
+              <Campo
+                etiqueta="Latitud"
+                value={datos.geocerca?.lat?.toString() ?? ''}
+                onChange={(e) => setGeocerca('lat', e.target.value)}
+                placeholder="-34.6037"
+              />
+              <Campo
+                etiqueta="Longitud"
+                value={datos.geocerca?.lng?.toString() ?? ''}
+                onChange={(e) => setGeocerca('lng', e.target.value)}
+                placeholder="-58.3816"
+              />
+              <Campo
+                etiqueta="Radio (m)"
+                value={datos.geocerca?.radioM?.toString() ?? ''}
+                onChange={(e) => setGeocerca('radioM', e.target.value)}
+                placeholder="150"
+              />
+            </div>
+          </div>
+        )}
       </Panel>
 
       {Object.keys(errores).length > 0 && (

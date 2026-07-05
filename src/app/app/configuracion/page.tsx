@@ -15,15 +15,10 @@ import {
   actualizarEmpresa,
   getEmpresa,
 } from '@/lib/services/rrhh';
-import { ConfigEmpresa, MetodoFichaje } from '@/types/rrhh';
+import { ConfigEmpresa } from '@/types/rrhh';
 
 const campoClase =
   'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-600';
-
-const metodos: Record<MetodoFichaje, string> = {
-  facial_tablet: 'Reconocimiento facial (tablet en planta)',
-  celular: 'Celular (foto + ubicación)',
-};
 
 const ConfiguracionPage = () => {
   const { usuario, rolEfectivo, empresaVista } = useAuth();
@@ -89,13 +84,6 @@ const ConfiguracionPage = () => {
   if (!config) {
     return <p className="text-sm text-ink-soft">Cargando configuración…</p>;
   }
-
-  const toggleMetodo = (metodo: MetodoFichaje) => {
-    const activos = config.metodosFichaje.includes(metodo)
-      ? config.metodosFichaje.filter((m) => m !== metodo)
-      : [...config.metodosFichaje, metodo];
-    setConfig({ ...config, metodosFichaje: activos });
-  };
 
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
@@ -186,24 +174,11 @@ const ConfiguracionPage = () => {
 
         <Panel>
           <h2 className="text-base font-bold text-ink">Fichaje</h2>
-          <div className="mt-4 flex flex-col gap-2">
-            {(Object.keys(metodos) as MetodoFichaje[]).map((m) => (
-              <label
-                key={m}
-                className="flex cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 py-3"
-              >
-                <input
-                  type="checkbox"
-                  checked={config.metodosFichaje.includes(m)}
-                  onChange={() => toggleMetodo(m)}
-                  className="h-4 w-4 accent-brand-600"
-                />
-                <span className="text-sm font-medium text-ink">
-                  {metodos[m]}
-                </span>
-              </label>
-            ))}
-          </div>
+          <p className="mt-1 text-sm text-ink-soft">
+            El modo de fichaje (en planta, celular con GPS o remoto) se
+            configura por colaborador desde su ficha. Acá definís los horarios y
+            la tolerancia que aplican a toda la empresa.
+          </p>
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-1.5">

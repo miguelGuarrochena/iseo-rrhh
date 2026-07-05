@@ -328,6 +328,8 @@ export const crearEmpleado = async (
       cbu: datos.cbu ?? '',
       obra_social: datos.obraSocial ?? '',
       art: datos.art ?? '',
+      modo_fichaje: datos.modoFichaje ?? 'celular',
+      geocerca: datos.geocerca ?? null,
       checklist_alta: CHECKLIST_ALTA,
     })
     .select()
@@ -369,6 +371,8 @@ export const actualizarEmpleado = async (
     cbu: 'cbu',
     obraSocial: 'obra_social',
     art: 'art',
+    modoFichaje: 'modo_fichaje',
+    geocerca: 'geocerca',
   };
   Object.entries(datos).forEach(([clave, valor]) => {
     const col = mapa[clave];
@@ -697,6 +701,7 @@ export const ficharAhora = async (
       metodo: opciones.metodo ?? 'celular',
       confianza: opciones.confianza ?? null,
       geo: opciones.geo ?? null,
+      fuera_de_zona: opciones.fueraDeZona ?? null,
       // La foto es opcional; solo se guarda si ya es una URL (no dataURL).
       foto_url:
         opciones.fotoUrl && !opciones.fotoUrl.startsWith('data:')

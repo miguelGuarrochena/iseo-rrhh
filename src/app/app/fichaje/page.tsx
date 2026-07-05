@@ -17,25 +17,94 @@ import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { formatearHora } from '@/lib/fechas';
-import { avisoError, avisoExito } from '@/lib/avisos';
+import { avisoExito } from '@/lib/avisos';
 import {
-  ficharAhora,
   getEmpleado,
   getEmpleados,
-  getEmpresa,
   getFichajesDeEmpleadoHoy,
   getFichajesDeHoy,
   getResumenControl,
   getTerminales,
 } from '@/lib/services/rrhh';
-import { Empleado, Fichaje, MetodoFichaje } from '@/types/rrhh';
+import { Empleado, Fichaje, MetodoFichaje, ModoFichaje } from '@/types/rrhh';
 import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
 import { getTerminalLocal } from '@/lib/terminal';
 
-const metodoLabel = {
+const metodoLabel: Record<MetodoFichaje, string> = {
   facial_tablet: 'Reconocimiento facial',
-  celular: 'Celular',
-} as const;
+  celular: 'Celular + GPS',
+  remoto: 'Remoto',
+};
+
+const PanelFichajePropio = ({
+  modo,
+  ultimo,
+  proximoTipo,
+  tieneRostro,
+  onFichar,
+}: {
+  modo: ModoFichaje;
+  ultimo?: Fichaje;
+  proximoTipo: 'ingreso' | 'egreso';
+  tieneRostro: boolean;
+  onFichar: () => void;
+}) => {
+  if (modo === 'planta') {
+    return (
+      <Panel className="flex flex-col items-center gap-3 py-10 text-center">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+          <IconDeviceTablet size={32} stroke={1.6} />
+        </span>
+        <p className="text-base font-bold text-ink">Fichás en la terminal</p>
+        <p className="max-w-sm text-sm text-ink-soft">
+          Tu fichaje es en planta: acercate a la tablet de la empresa y fichá
+          con reconocimiento facial. Desde este dispositivo no se ficha.
+        </p>
+      </Panel>
+    );
+  }
+
+  return (
+    <Panel className="flex flex-col items-center gap-4 py-10 text-center">
+      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+        <IconFingerprint size={32} stroke={1.6} />
+      </span>
+      {ultimo ? (
+        <p className="text-sm text-ink-soft">
+          Último movimiento:{' '}
+          <strong className="text-ink">
+            {ultimo.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} a las{' '}
+            {formatearHora(ultimo.timestamp)}
+          </strong>
+        </p>
+      ) : (
+        <p className="text-sm text-ink-soft">Todavía no fichaste hoy.</p>
+      )}
+      {tieneRostro ? (
+        <>
+          <Boton
+            variante="negro"
+            onClick={onFichar}
+            className="px-8 py-3.5 text-base"
+          >
+            <IconFaceId size={18} />
+            {proximoTipo === 'ingreso' ? 'Fichar ingreso' : 'Fichar egreso'}
+          </Boton>
+          <p className="max-w-sm text-xs text-ink-soft">
+            {modo === 'celular'
+              ? 'Confirmás tu identidad con la cara y validamos que estés en tu zona de trabajo.'
+              : 'Confirmás tu identidad con la cara. Podés fichar desde cualquier lugar.'}
+          </p>
+        </>
+      ) : (
+        <p className="max-w-sm text-sm text-ink-soft">
+          Para fichar necesitás tener tu rostro registrado. Pedíselo a RRHH
+          desde tu ficha.
+        </p>
+      )}
+    </Panel>
+  );
+};
 
 const descargarCSV = (nombre: string, filas: string[][]) => {
   const csv = filas.map((f) => f.map((c) => `"${c}"`).join(';')).join('\n');
@@ -56,11 +125,9 @@ const FichajePage = () => {
   const [misFichajes, setMisFichajes] = useState<Fichaje[]>([]);
   const [fichajesHoy, setFichajesHoy] = useState<Fichaje[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [fichando, setFichando] = useState(false);
   const [miEmpleado, setMiEmpleado] = useState<Empleado | null>(null);
   const [facialAbierto, setFacialAbierto] = useState(false);
   const [tabletAbierto, setTabletAbierto] = useState(false);
-  const [metodos, setMetodos] = useState<MetodoFichaje[]>([]);
   const [esTerminal, setEsTerminal] = useState(false);
 
   const cargar = useCallback(() => {
@@ -73,9 +140,6 @@ const FichajePage = () => {
       void getFichajesDeHoy().then(setFichajesHoy);
       void getEmpleados().then(setEmpleados);
     }
-    void getEmpresa()
-      .then((e) => setMetodos(e.config.metodosFichaje))
-      .catch(() => {});
   }, [usuario, esEmpleado]);
 
   useEffect(cargar, [cargar]);
@@ -98,34 +162,13 @@ const FichajePage = () => {
   const ultimo = misFichajes[misFichajes.length - 1];
   const proximoTipo = ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso';
   const tieneRostro = Boolean(miEmpleado?.descriptorFacial?.length);
-  const usaCelular = metodos.includes('celular');
-  const usaTablet = metodos.includes('facial_tablet');
-  const modoPlantaDisponible = usaTablet && esTerminal;
+  const modoEmp: ModoFichaje = miEmpleado?.modoFichaje ?? 'celular';
 
   const trasFichar = (marca: Fichaje) => {
     avisoExito(
       marca.tipo === 'ingreso' ? 'Ingreso registrado' : 'Egreso registrado',
       `A las ${formatearHora(marca.timestamp)}.`
     );
-    cargar();
-  };
-
-  const fichar = async () => {
-    if (!usuario.empleadoId) return;
-    setFichando(true);
-    try {
-      const marca = await ficharAhora(usuario.empleadoId);
-      avisoExito(
-        marca.tipo === 'ingreso' ? 'Ingreso registrado' : 'Egreso registrado',
-        `A las ${formatearHora(marca.timestamp)}. ¡Buen día!`
-      );
-    } catch (err) {
-      avisoError(
-        'No pudimos registrar el fichaje',
-        err instanceof Error ? err.message : undefined
-      );
-    }
-    setFichando(false);
     cargar();
   };
 
@@ -172,7 +215,7 @@ const FichajePage = () => {
         </div>
         {!esEmpleado && (
           <div className="flex flex-wrap gap-2">
-            {modoPlantaDisponible && (
+            {esTerminal && (
               <Boton variante="negro" onClick={() => setTabletAbierto(true)}>
                 <IconFaceId size={18} />
                 Modo planta
@@ -189,50 +232,22 @@ const FichajePage = () => {
         )}
       </div>
 
-      {!esEmpleado && usaTablet && !esTerminal && (
-        <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
-          Para usar el Modo planta, autorizá este dispositivo como terminal
-          desde Configuración → Terminales de fichaje.
+      {!esEmpleado && !esTerminal && (
+        <p className="flex items-center gap-2 rounded-xl bg-paper px-4 py-2.5 text-xs text-ink-soft">
+          <IconDeviceTablet size={14} className="shrink-0" />
+          Para el fichaje en planta (Modo planta), autorizá esta tablet como
+          terminal en Configuración → Terminales de fichaje.
         </p>
       )}
 
-      {usuario.empleadoId && (metodos.length === 0 || usaCelular) && (
-        <Panel className="flex flex-col items-center gap-4 py-10 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-            <IconFingerprint size={32} stroke={1.6} />
-          </span>
-          {ultimo ? (
-            <p className="text-sm text-ink-soft">
-              Último movimiento:{' '}
-              <strong className="text-ink">
-                {ultimo.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} a las{' '}
-                {formatearHora(ultimo.timestamp)}
-              </strong>
-            </p>
-          ) : (
-            <p className="text-sm text-ink-soft">Todavía no fichaste hoy.</p>
-          )}
-          <Boton
-            variante="negro"
-            onClick={() =>
-              tieneRostro ? setFacialAbierto(true) : void fichar()
-            }
-            disabled={fichando}
-            className="px-8 py-3.5 text-base"
-          >
-            {tieneRostro && <IconFaceId size={18} />}
-            {fichando
-              ? 'Registrando…'
-              : proximoTipo === 'ingreso'
-                ? 'Fichar ingreso'
-                : 'Fichar egreso'}
-          </Boton>
-          <p className="text-xs text-ink-soft">
-            {tieneRostro
-              ? 'Confirmás tu identidad con la cara y tu ubicación.'
-              : 'Se registra la hora y tu ubicación. Pedí a RRHH que registre tu rostro para fichar con la cara.'}
-          </p>
-        </Panel>
+      {usuario.empleadoId && (
+        <PanelFichajePropio
+          modo={modoEmp}
+          ultimo={ultimo}
+          proximoTipo={proximoTipo}
+          tieneRostro={tieneRostro}
+          onFichar={() => setFacialAbierto(true)}
+        />
       )}
 
       {miEmpleado && (
@@ -242,6 +257,9 @@ const FichajePage = () => {
           modo="verificar"
           empleadoId={miEmpleado.id}
           descriptorEmpleado={miEmpleado.descriptorFacial}
+          metodoRegistro={modoEmp === 'remoto' ? 'remoto' : 'celular'}
+          pedirUbicacion={modoEmp === 'celular'}
+          geocerca={miEmpleado.geocerca}
           onFichado={(marca) => trasFichar(marca)}
         />
       )}

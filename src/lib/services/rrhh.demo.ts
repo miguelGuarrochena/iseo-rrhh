@@ -169,6 +169,9 @@ export interface NuevoEmpleado {
   cbu?: string;
   obraSocial?: string;
   art?: string;
+  // Fichaje: dónde y cómo ficha
+  modoFichaje?: Empleado['modoFichaje'];
+  geocerca?: Empleado['geocerca'];
 }
 
 export const crearEmpleado = async (
@@ -204,6 +207,8 @@ export const crearEmpleado = async (
     cbu: datos.cbu ?? '',
     obraSocial: datos.obraSocial ?? '',
     art: datos.art ?? '',
+    modoFichaje: datos.modoFichaje ?? 'celular',
+    geocerca: datos.geocerca,
     activo: true,
     checklistAlta: [
       { id: 'chk-dni', etiqueta: 'DNI', completo: false },
@@ -534,6 +539,7 @@ export const ficharAhora = async (
     fotoUrl: opciones.fotoUrl,
     confianza: opciones.confianza,
     geo: opciones.geo ?? { lat: -34.7203, lng: -58.2542 },
+    fueraDeZona: opciones.fueraDeZona,
   };
   fichajesMock.push(nuevo);
   return simular(nuevo);

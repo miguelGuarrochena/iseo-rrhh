@@ -82,6 +82,8 @@ export const aEmpleado = (f: Fila): Empleado => ({
   fechaBaja: f.fecha_baja ?? undefined,
   motivoBaja: f.motivo_baja ?? undefined,
   checklistAlta: (f.checklist_alta ?? []) as ChecklistItem[],
+  modoFichaje: (f.modo_fichaje ?? undefined) as Empleado['modoFichaje'],
+  geocerca: (f.geocerca ?? undefined) as Empleado['geocerca'],
   descriptorFacial: (f.descriptor_facial ?? undefined) as number[] | undefined,
   consentimientoBiometrico: (f.consentimiento_biometrico ?? undefined) as
     | Empleado['consentimientoBiometrico']
@@ -124,6 +126,7 @@ export const aFichaje = (f: Fila): Fichaje => ({
   geo: f.geo ?? undefined,
   dispositivoId: f.dispositivo_id ?? undefined,
   confianza: f.confianza ?? undefined,
+  fueraDeZona: f.fuera_de_zona ?? undefined,
 });
 
 export const aTerminal = (f: Fila): Terminal => ({

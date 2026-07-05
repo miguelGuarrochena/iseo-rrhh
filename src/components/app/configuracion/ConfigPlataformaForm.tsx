@@ -10,12 +10,7 @@ import {
   actualizarConfigPlataforma,
   getConfigPlataforma,
 } from '@/lib/services/rrhh';
-import { ConfigPlataforma, MetodoFichaje } from '@/types/rrhh';
-
-const metodos: Record<MetodoFichaje, string> = {
-  facial_tablet: 'Reconocimiento facial (tablet)',
-  celular: 'Celular (foto + ubicación)',
-};
+import { ConfigPlataforma } from '@/types/rrhh';
 
 const campoClase =
   'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-600';
@@ -38,13 +33,6 @@ export const ConfigPlataformaForm = () => {
     return <p className="text-sm text-ink-soft">Cargando configuración…</p>;
   }
 
-  const toggleMetodo = (metodo: MetodoFichaje) => {
-    const activos = config.metodosFichajeDefault.includes(metodo)
-      ? config.metodosFichajeDefault.filter((m) => m !== metodo)
-      : [...config.metodosFichajeDefault, metodo];
-    setConfig({ ...config, metodosFichajeDefault: activos });
-  };
-
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
     const err = validarEmail(config.emailAvisos);
@@ -64,24 +52,10 @@ export const ConfigPlataformaForm = () => {
           Valores por defecto para empresas nuevas
         </h2>
         <p className="mt-1 text-sm text-ink-soft">
-          Cada empresa después los ajusta en su propia configuración.
+          Horarios por defecto para empresas nuevas. Cada empresa después los
+          ajusta en su propia configuración, y el modo de fichaje se define por
+          colaborador.
         </p>
-        <div className="mt-4 flex flex-col gap-2">
-          {(Object.keys(metodos) as MetodoFichaje[]).map((m) => (
-            <label
-              key={m}
-              className="flex cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 py-3"
-            >
-              <input
-                type="checkbox"
-                checked={config.metodosFichajeDefault.includes(m)}
-                onChange={() => toggleMetodo(m)}
-                className="h-4 w-4 accent-brand-600"
-              />
-              <span className="text-sm font-medium text-ink">{metodos[m]}</span>
-            </label>
-          ))}
-        </div>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-semibold text-ink">Entrada</span>

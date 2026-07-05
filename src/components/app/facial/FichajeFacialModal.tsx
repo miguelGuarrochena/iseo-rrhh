@@ -10,9 +10,9 @@ import {
   distancia,
   mejorCoincidencia,
 } from '@/lib/facial/reconocimiento';
-import { obtenerUbicacion } from '@/lib/facial/ubicacion';
+import { distanciaMetros, obtenerUbicacion } from '@/lib/facial/ubicacion';
 import { ficharAhora, getDescriptoresFaciales } from '@/lib/services/rrhh';
-import { Fichaje } from '@/types/rrhh';
+import { Fichaje, Geocerca, MetodoFichaje } from '@/types/rrhh';
 
 type Modo = 'verificar' | 'identificar';
 
@@ -26,6 +26,12 @@ interface FichajeFacialModalProps {
   descriptorEmpleado?: number[];
   /** Nombre a mostrar dado un id (para el modo tablet). */
   resolverNombre?: (empleadoId: string) => string;
+  /** Método con que se registra (celular/remoto en verificar; tablet en identificar). */
+  metodoRegistro?: MetodoFichaje;
+  /** Si captura ubicación GPS (celular y tablet sí; remoto no). */
+  pedirUbicacion?: boolean;
+  /** Zona de trabajo a validar (modo celular). */
+  geocerca?: Geocerca;
   onFichado: (fichaje: Fichaje, empleadoId: string) => void;
 }
 
@@ -33,6 +39,7 @@ interface Resultado {
   tipo: Fichaje['tipo'];
   nombre?: string;
   confianza: number;
+  fueraDeZona?: boolean;
 }
 
 /**
@@ -46,6 +53,9 @@ export const FichajeFacialModal = ({
   empleadoId,
   descriptorEmpleado,
   resolverNombre,
+  metodoRegistro,
+  pedirUbicacion = true,
+  geocerca,
   onFichado,
 }: FichajeFacialModalProps) => {
   const [procesando, setProcesando] = useState(false);
@@ -59,17 +69,30 @@ export const FichajeFacialModal = ({
   };
 
   const fichar = async (empId: string, confianza: number, foto: string) => {
-    const geo = await obtenerUbicacion();
+    const metodo: MetodoFichaje =
+      modo === 'identificar' ? 'facial_tablet' : (metodoRegistro ?? 'celular');
+
+    let geo: { lat: number; lng: number } | undefined;
+    let fueraDeZona: boolean | undefined;
+    if (pedirUbicacion) {
+      geo = await obtenerUbicacion();
+      if (geo && geocerca) {
+        fueraDeZona = distanciaMetros(geo, geocerca) > geocerca.radioM;
+      }
+    }
+
     const fichaje = await ficharAhora(empId, {
-      metodo: modo === 'identificar' ? 'facial_tablet' : 'celular',
+      metodo,
       confianza,
       geo,
       fotoUrl: foto,
+      fueraDeZona,
     });
     setResultado({
       tipo: fichaje.tipo,
       nombre: resolverNombre?.(empId),
       confianza,
+      fueraDeZona,
     });
     onFichado(fichaje, empId);
   };
@@ -148,6 +171,11 @@ export const FichajeFacialModal = ({
               })}
               {` · ${Math.round(resultado.confianza * 100)}% de confianza`}
             </p>
+            {resultado.fueraDeZona && (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
+                Registrado fuera de la zona de trabajo
+              </p>
+            )}
           </div>
           <div className="flex w-full gap-2">
             {modo === 'identificar' && (
