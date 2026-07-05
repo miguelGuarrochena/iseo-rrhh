@@ -240,3 +240,22 @@ export const cargarRecibo = elegir(real.cargarRecibo, demo.cargarRecibo);
 // ---------- Archivos ----------
 export const abrirRecibo = elegir(real.abrirRecibo, demo.abrirRecibo);
 export const abrirDocumento = elegir(real.abrirDocumento, demo.abrirDocumento);
+
+// ---------- Finanzas (superadmin) ----------
+export const getResumenFinanzas = elegir(
+  real.getResumenFinanzas,
+  demo.getResumenFinanzas
+);
+export const getMovimientos = elegir(real.getMovimientos, demo.getMovimientos);
+export const crearMovimiento = elegir(
+  real.crearMovimiento,
+  demo.crearMovimiento
+);
+export const eliminarMovimiento = elegir(
+  real.eliminarMovimiento,
+  demo.eliminarMovimiento
+);
+export const actualizarAbonoEmpresa = elegir(
+  real.actualizarAbonoEmpresa,
+  demo.actualizarAbonoEmpresa
+);

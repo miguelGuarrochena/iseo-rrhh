@@ -15,7 +15,11 @@ import {
   EmpresaResumen,
   EventoAgenda,
   Fichaje,
+  FacturacionEmpresa,
   MetricasGlobales,
+  MovimientoFinanciero,
+  NuevoMovimiento,
+  ResumenFinanzas,
   NotaInterna,
   NuevoConvenio,
   NuevoTurno,
@@ -37,6 +41,7 @@ import { dotacionMock, empresaMock, empresasMock } from '@/lib/mocks/empresa';
 import { usuariosMock } from '@/lib/mocks/usuarios';
 import { empleadosMock } from '@/lib/mocks/empleados';
 import { jornadasMock } from '@/lib/mocks/jornadas';
+import { movimientosMock } from '@/lib/mocks/finanzas';
 import {
   alertasMock,
   ausenciasMock,
@@ -885,3 +890,91 @@ export const abrirRecibo = async (recibo: ReciboSueldo): Promise<string> =>
 
 export const abrirDocumento = async (doc: DocumentoLegajo): Promise<string> =>
   simular(doc.archivoUrl);
+
+// ---------- Finanzas (superadmin) ----------
+
+const periodoDe = (fechaISO: string): string => fechaISO.slice(0, 7);
+
+export const getMovimientos = async (
+  periodo?: string
+): Promise<MovimientoFinanciero[]> => {
+  const lista = periodo
+    ? movimientosMock.filter((m) => m.periodo === periodo)
+    : [...movimientosMock];
+  return simular([...lista].sort((a, b) => (a.fecha < b.fecha ? 1 : -1)));
+};
+
+export const crearMovimiento = async (
+  datos: NuevoMovimiento
+): Promise<MovimientoFinanciero> => {
+  const nuevo: MovimientoFinanciero = {
+    id: `mov-${Date.now()}`,
+    tipo: datos.tipo,
+    concepto: datos.concepto,
+    categoria: datos.categoria,
+    empresaId: datos.empresaId,
+    monto: datos.monto,
+    fecha: datos.fecha,
+    periodo: periodoDe(datos.fecha),
+  };
+  movimientosMock.push(nuevo);
+  return simular(nuevo);
+};
+
+export const eliminarMovimiento = async (id: string): Promise<void> => {
+  const i = movimientosMock.findIndex((m) => m.id === id);
+  if (i >= 0) movimientosMock.splice(i, 1);
+  return simular(undefined);
+};
+
+export const actualizarAbonoEmpresa = async (
+  empresaId: string,
+  abonoMensual: number
+): Promise<Empresa | null> => {
+  const empresa = empresasMock.find((e) => e.id === empresaId);
+  if (empresa) empresa.abonoMensual = abonoMensual;
+  return simular(empresa ?? null);
+};
+
+export const getResumenFinanzas = async (
+  periodo: string
+): Promise<ResumenFinanzas> => {
+  const delMes = movimientosMock.filter((m) => m.periodo === periodo);
+  const ingresosDelMes = delMes
+    .filter((m) => m.tipo === 'ingreso')
+    .reduce((a, m) => a + m.monto, 0);
+  const gastosDelMes = delMes
+    .filter((m) => m.tipo === 'gasto')
+    .reduce((a, m) => a + m.monto, 0);
+
+  const activas = empresasMock.filter((e) => e.estado === 'activa');
+  const facturacion: FacturacionEmpresa[] = empresasMock.map((e) => {
+    const cobradoEnPeriodo = delMes
+      .filter((m) => m.tipo === 'ingreso' && m.empresaId === e.id)
+      .reduce((a, m) => a + m.monto, 0);
+    const abonoMensual = e.abonoMensual ?? 0;
+    return {
+      empresaId: e.id,
+      nombre: e.nombre,
+      estado: e.estado,
+      abonoMensual,
+      cobradoEnPeriodo,
+      alDia: abonoMensual === 0 || cobradoEnPeriodo >= abonoMensual,
+    };
+  });
+
+  const cobrables = facturacion.filter(
+    (f) => f.estado === 'activa' && f.abonoMensual > 0
+  );
+
+  return simular({
+    periodo,
+    ingresosDelMes,
+    gastosDelMes,
+    neto: ingresosDelMes - gastosDelMes,
+    mrr: activas.reduce((a, e) => a + (e.abonoMensual ?? 0), 0),
+    empresasAlDia: cobrables.filter((f) => f.alDia).length,
+    empresasVencidas: cobrables.filter((f) => !f.alDia).length,
+    facturacion,
+  });
+};

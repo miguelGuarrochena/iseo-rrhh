@@ -31,6 +31,7 @@ import {
   getMetricasGlobales,
   getMiMes,
   getRecibos,
+  getResumenFinanzas,
   getSaldoVacaciones,
   MiMes,
 } from '@/lib/services/rrhh';
@@ -77,6 +78,7 @@ const DashboardPage = () => {
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
   const [metricas, setMetricas] = useState<MetricasGlobales | null>(null);
   const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
+  const [pagosPendientes, setPagosPendientes] = useState(0);
   const [miMes, setMiMes] = useState<MiMes | null>(null);
 
   useEffect(() => {
@@ -85,6 +87,9 @@ const DashboardPage = () => {
     if (rolEfectivo === 'superadmin') {
       void getMetricasGlobales().then(setMetricas);
       void getEmpresas().then(setEmpresas);
+      void getResumenFinanzas(new Date().toISOString().slice(0, 7)).then((r) =>
+        setPagosPendientes(r.empresasVencidas)
+      );
       return;
     }
 
@@ -134,6 +139,23 @@ const DashboardPage = () => {
           </p>
         </div>
 
+        {pagosPendientes > 0 && (
+          <button
+            onClick={() => router.push('/finanzas')}
+            className="flex cursor-pointer items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left transition-colors hover:border-amber-300"
+          >
+            <IconAlertTriangle size={20} className="shrink-0 text-amber-700" />
+            <span className="text-sm text-amber-900">
+              <strong>
+                {pagosPendientes === 1
+                  ? '1 empresa con el pago pendiente'
+                  : `${pagosPendientes} empresas con el pago pendiente`}
+              </strong>{' '}
+              este mes. Revisá Finanzas.
+            </span>
+          </button>
+        )}
+
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard
             etiqueta="Empresas activas"
@@ -150,7 +172,7 @@ const DashboardPage = () => {
             etiqueta="Empleados"
             valor={metricas?.empleadosGestionados ?? '…'}
             detalle="gestionados en total"
-            href="/reportes"
+            href="/empresas"
             icono={IconUsers}
           />
           <StatCard
@@ -164,7 +186,7 @@ const DashboardPage = () => {
             etiqueta="Adopción"
             valor="83%"
             detalle="empleados que usan la app"
-            href="/reportes"
+            href="/empresas"
             icono={IconChecklist}
           />
         </div>

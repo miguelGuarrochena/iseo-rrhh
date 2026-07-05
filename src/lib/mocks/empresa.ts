@@ -21,6 +21,7 @@ export const empresasMock: Empresa[] = [
     contactoNombre: 'Carolina Méndez',
     contactoEmail: 'rrhh@bombasdelsur.com',
     config: configBase,
+    abonoMensual: 85000,
     creadaEn: '2026-01-05',
   },
   {
@@ -31,6 +32,7 @@ export const empresasMock: Empresa[] = [
     contactoNombre: 'Federico Álvarez',
     contactoEmail: 'admin@negroholandes.com',
     config: { ...configBase, metodosFichaje: ['celular'] },
+    abonoMensual: 60000,
     creadaEn: '2026-03-18',
   },
   {

@@ -15,7 +15,11 @@ import {
   EmpresaResumen,
   EventoAgenda,
   Fichaje,
+  FacturacionEmpresa,
   MetricasGlobales,
+  MovimientoFinanciero,
+  NuevoMovimiento,
+  ResumenFinanzas,
   NotaInterna,
   Notificacion,
   NuevaEmpresa,
@@ -51,6 +55,7 @@ import {
   aEmpresa,
   aEvento,
   aFichaje,
+  aMovimiento,
   aNotaInterna,
   aNotificacion,
   aRecibo,
@@ -1308,3 +1313,108 @@ export const abrirDocumento = async (doc: DocumentoLegajo): Promise<string> =>
   esPathDeStorage(doc.archivoUrl)
     ? urlFirmada('documentos', doc.archivoUrl)
     : doc.archivoUrl;
+
+// ---------- Finanzas (superadmin) ----------
+
+export const getMovimientos = async (
+  periodo?: string
+): Promise<MovimientoFinanciero[]> => {
+  let q = sb()
+    .from('movimientos_financieros')
+    .select('*')
+    .order('fecha', { ascending: false });
+  if (periodo) q = q.eq('periodo', periodo);
+  const { data, error } = await q;
+  return oFalla(data, error).map(aMovimiento);
+};
+
+export const crearMovimiento = async (
+  datos: NuevoMovimiento
+): Promise<MovimientoFinanciero> => {
+  const { data, error } = await sb()
+    .from('movimientos_financieros')
+    .insert({
+      tipo: datos.tipo,
+      concepto: datos.concepto,
+      categoria: datos.categoria ?? null,
+      empresa_id: datos.empresaId ?? null,
+      monto: datos.monto,
+      fecha: datos.fecha,
+      periodo: datos.fecha.slice(0, 7),
+    })
+    .select()
+    .single();
+  return aMovimiento(oFalla(data, error));
+};
+
+export const eliminarMovimiento = async (id: string): Promise<void> => {
+  const { error } = await sb()
+    .from('movimientos_financieros')
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+};
+
+export const actualizarAbonoEmpresa = async (
+  empresaId: string,
+  abonoMensual: number
+): Promise<Empresa | null> => {
+  const { data, error } = await sb()
+    .from('empresas')
+    .update({ abono_mensual: abonoMensual })
+    .eq('id', empresaId)
+    .select()
+    .single();
+  return aEmpresa(oFalla(data, error));
+};
+
+export const getResumenFinanzas = async (
+  periodo: string
+): Promise<ResumenFinanzas> => {
+  const [{ data: movs, error: e1 }, { data: emps, error: e2 }] =
+    await Promise.all([
+      sb().from('movimientos_financieros').select('*').eq('periodo', periodo),
+      sb().from('empresas').select('*'),
+    ]);
+  const movimientos = oFalla(movs, e1).map(aMovimiento);
+  const empresas = oFalla(emps, e2).map(aEmpresa);
+
+  const ingresosDelMes = movimientos
+    .filter((m) => m.tipo === 'ingreso')
+    .reduce((a, m) => a + m.monto, 0);
+  const gastosDelMes = movimientos
+    .filter((m) => m.tipo === 'gasto')
+    .reduce((a, m) => a + m.monto, 0);
+
+  const facturacion: FacturacionEmpresa[] = empresas.map((e) => {
+    const cobradoEnPeriodo = movimientos
+      .filter((m) => m.tipo === 'ingreso' && m.empresaId === e.id)
+      .reduce((a, m) => a + m.monto, 0);
+    const abonoMensual = e.abonoMensual ?? 0;
+    return {
+      empresaId: e.id,
+      nombre: e.nombre,
+      estado: e.estado,
+      abonoMensual,
+      cobradoEnPeriodo,
+      alDia: abonoMensual === 0 || cobradoEnPeriodo >= abonoMensual,
+    };
+  });
+
+  const cobrables = facturacion.filter(
+    (f) => f.estado === 'activa' && f.abonoMensual > 0
+  );
+
+  return {
+    periodo,
+    ingresosDelMes,
+    gastosDelMes,
+    neto: ingresosDelMes - gastosDelMes,
+    mrr: empresas
+      .filter((e) => e.estado === 'activa')
+      .reduce((a, e) => a + (e.abonoMensual ?? 0), 0),
+    empresasAlDia: cobrables.filter((f) => f.alDia).length,
+    empresasVencidas: cobrables.filter((f) => !f.alDia).length,
+    facturacion,
+  };
+};

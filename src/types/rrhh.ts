@@ -55,6 +55,8 @@ export interface Empresa {
   contactoNombre: string;
   contactoEmail: string;
   config: ConfigEmpresa;
+  /** Abono mensual que la empresa le paga a ISEO (facturación). */
+  abonoMensual?: number;
   creadaEn: string;
 }
 
@@ -434,6 +436,58 @@ export interface ResumenControl {
   jornadasIncompletas: number;
   recibosSinFirmar: number;
   porEmpleado: ControlEmpleado[];
+}
+
+// ---------- Finanzas del negocio (solo superadmin / ISEO) ----------
+
+export type TipoMovimiento = 'ingreso' | 'gasto';
+
+/** Un ingreso o gasto de ISEO. Los ingresos pueden vincularse a una empresa
+ *  cliente (cobro del abono); los gastos son generales. */
+export interface MovimientoFinanciero {
+  id: string;
+  tipo: TipoMovimiento;
+  concepto: string;
+  categoria?: string;
+  /** Empresa cliente asociada (cuando es el cobro de un abono). */
+  empresaId?: string;
+  monto: number;
+  /** YYYY-MM-DD */
+  fecha: string;
+  /** YYYY-MM (para agrupar por mes) */
+  periodo: string;
+}
+
+export interface NuevoMovimiento {
+  tipo: TipoMovimiento;
+  concepto: string;
+  categoria?: string;
+  empresaId?: string;
+  monto: number;
+  fecha: string;
+}
+
+/** Estado de facturación de una empresa cliente en un período. */
+export interface FacturacionEmpresa {
+  empresaId: string;
+  nombre: string;
+  estado: EstadoEmpresa;
+  abonoMensual: number;
+  cobradoEnPeriodo: number;
+  alDia: boolean;
+}
+
+/** Resumen financiero del negocio para un período (YYYY-MM). */
+export interface ResumenFinanzas {
+  periodo: string;
+  ingresosDelMes: number;
+  gastosDelMes: number;
+  neto: number;
+  /** Ingreso mensual recurrente: suma de abonos de empresas activas. */
+  mrr: number;
+  empresasAlDia: number;
+  empresasVencidas: number;
+  facturacion: FacturacionEmpresa[];
 }
 
 // ---------- Notificaciones ----------

@@ -13,6 +13,7 @@ import {
   EventoAgenda,
   Familiar,
   Fichaje,
+  MovimientoFinanciero,
   NotaInterna,
   Notificacion,
   ReciboSueldo,
@@ -34,7 +35,19 @@ export const aEmpresa = (f: Fila): Empresa => ({
   contactoNombre: f.contacto_nombre,
   contactoEmail: f.contacto_email,
   config: f.config,
+  abonoMensual: f.abono_mensual != null ? Number(f.abono_mensual) : undefined,
   creadaEn: String(f.creada_en).slice(0, 10),
+});
+
+export const aMovimiento = (f: Fila): MovimientoFinanciero => ({
+  id: f.id,
+  tipo: f.tipo,
+  concepto: f.concepto,
+  categoria: f.categoria ?? undefined,
+  empresaId: f.empresa_id ?? undefined,
+  monto: Number(f.monto),
+  fecha: String(f.fecha).slice(0, 10),
+  periodo: f.periodo,
 });
 
 export const aUsuario = (f: Fila): Usuario => ({

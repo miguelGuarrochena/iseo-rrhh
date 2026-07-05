@@ -1,6 +1,7 @@
 import {
   Icon,
   IconBuildingFactory2,
+  IconCashBanknote,
   IconCalendarClock,
   IconCalendarEvent,
   IconChartBar,
@@ -43,6 +44,12 @@ export const navItems: NavItem[] = [
     roles: ['superadmin'],
   },
   {
+    etiqueta: 'Finanzas',
+    href: '/finanzas',
+    icono: IconCashBanknote,
+    roles: ['superadmin'],
+  },
+  {
     etiqueta: 'Colaboradores',
     href: '/colaboradores',
     icono: IconUsers,
@@ -82,7 +89,7 @@ export const navItems: NavItem[] = [
     etiqueta: 'Remuneraciones',
     href: '/remuneraciones',
     icono: IconReportMoney,
-    roles: ['superadmin', ...OPERATIVOS],
+    roles: OPERATIVOS,
   },
   {
     etiqueta: 'Agenda',
@@ -94,7 +101,7 @@ export const navItems: NavItem[] = [
     etiqueta: 'Organigrama',
     href: '/organigrama',
     icono: IconSitemap,
-    roles: ['superadmin', ...GESTION],
+    roles: GESTION,
   },
   {
     etiqueta: 'Convenio',
@@ -106,7 +113,7 @@ export const navItems: NavItem[] = [
     etiqueta: 'Reportes',
     href: '/reportes',
     icono: IconChartBar,
-    roles: ['superadmin', ...GESTION],
+    roles: GESTION,
   },
   {
     etiqueta: 'Permisos',
