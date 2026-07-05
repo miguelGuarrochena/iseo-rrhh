@@ -64,7 +64,7 @@ export const Sidebar = () => {
         <Logo size="sm" />
       </Link>
 
-      <nav className="mt-8 flex flex-1 flex-col gap-1">
+      <nav className="mt-8 flex flex-1 flex-col gap-1 overflow-y-auto">
         {navItemsPorRol(rolEfectivo).map((item) => {
           // Normaliza por si el rewrite deja el path interno con /app.
           const ruta = pathname.replace(/^\/app(?=\/|$)/, '') || '/';
