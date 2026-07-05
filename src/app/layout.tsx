@@ -10,6 +10,7 @@ import { Analytics } from '@vercel/analytics/next';
 import { theme } from '@/theme/theme';
 import { AuthProvider } from '@/lib/auth/AuthProvider';
 import { RegistrarSW } from '@/components/RegistrarSW';
+import { CapturarErrores } from '@/components/CapturarErrores';
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import '@/styles/globals.css';
@@ -78,7 +79,12 @@ export const metadata: Metadata = {
     description: SITE_DESCRIPTION,
     images: [{ url: OG_IMAGE, alt: 'ISEO RH — Recursos Humanos para PyMEs' }],
   },
-  other: { 'content-language': 'es-AR' },
+  other: {
+    'content-language': 'es-AR',
+    // Estándar actual (apple-mobile-web-app-capable quedó deprecada; la
+    // agrega appleWebApp para iOS y esta cubre el resto de navegadores).
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 export const viewport: Viewport = {
@@ -138,6 +144,7 @@ const RootLayout = ({ children }: { children: ReactNode }) => (
         <Notifications position="top-right" containerWidth={340} />
         <AuthProvider>{children}</AuthProvider>
       </MantineProvider>
+      <CapturarErrores />
       <RegistrarSW />
       <Analytics />
     </body>

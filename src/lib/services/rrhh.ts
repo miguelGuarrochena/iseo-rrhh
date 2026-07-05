@@ -5,6 +5,7 @@
  * Las pantallas importan siempre de acá y no saben cuál corre detrás.
  */
 import { haySesionReal } from '@/lib/auth/store';
+import { demoHabilitado } from '@/lib/entorno';
 import * as demo from './rrhh.demo';
 import * as real from './supabase/real';
 
@@ -24,7 +25,17 @@ const elegir = <A extends unknown[], R>(
   reales: (...args: A) => Promise<R>,
   demos: (...args: A) => Promise<R>
 ): ((...args: A) => Promise<R>) => {
-  return (...args: A) => (haySesionReal() ? reales(...args) : demos(...args));
+  return (...args: A) => {
+    if (haySesionReal()) return reales(...args);
+    // Sin sesión real: solo se sirven mocks si el demo está habilitado.
+    // En producción esto no debe ocurrir (no hay datos falsos).
+    if (!demoHabilitado()) {
+      return Promise.reject(
+        new Error('La aplicación no está conectada al servidor.')
+      );
+    }
+    return demos(...args);
+  };
 };
 
 // ---------- Solo demo ----------

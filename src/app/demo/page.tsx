@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,6 +12,7 @@ import {
 import { Logo } from '@/components/Logo';
 import { DemoUserPicker } from '@/components/login/DemoUserPicker';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { demoHabilitado } from '@/lib/entorno';
 
 const ventajas = [
   {
@@ -37,6 +38,13 @@ const DemoPage = () => {
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  // Con el demo apagado (producción), esta ruta no existe: al login.
+  useEffect(() => {
+    if (!demoHabilitado()) router.replace('/login');
+  }, [router]);
+
+  if (!demoHabilitado()) return null;
 
   const ingresar = async (email: string) => {
     setError(null);

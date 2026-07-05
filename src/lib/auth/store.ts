@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { Empresa, Rol, Usuario } from '@/types/rrhh';
 import { usuariosMock } from '@/lib/mocks/usuarios';
 import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
+import { demoHabilitado } from '@/lib/entorno';
 
 /** Login demo: contra los usuarios mock, con latencia simulada. */
 const loginDemo = (email: string): Promise<Usuario | null> =>
@@ -101,6 +102,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           if (perfil) await supabase().auth.signOut();
         }
       }
+      // Sesión demo en localStorage: solo si el demo está habilitado.
+      // En producción no se restauran accesos de prueba.
+      if (!demoHabilitado()) {
+        window.localStorage.removeItem(SESSION_KEY);
+        window.localStorage.removeItem(EMPRESA_VISTA_KEY);
+        set({ cargando: false });
+        return;
+      }
       try {
         const guardado = window.localStorage.getItem(SESSION_KEY);
         const vista = window.localStorage.getItem(EMPRESA_VISTA_KEY);
@@ -132,6 +141,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   login: async (email, password) => {
+    // Con contraseña se espera auth real. Si el proyecto no tiene las
+    // claves de Supabase, avisamos claro en vez de caer a datos falsos.
+    if (password && !supabaseConfigurado()) {
+      throw new Error(
+        'La aplicación no está conectada al servidor. Avisá a ISEO RH (falta configuración).'
+      );
+    }
     // Con contraseña: auth real contra Supabase.
     if (password && supabaseConfigurado()) {
       const { data, error } = await supabase().auth.signInWithPassword({
@@ -155,7 +171,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ usuario: perfil, sesionReal: true });
       return perfil;
     }
-    // Modo demo: mocks + localStorage.
+    // Modo demo: mocks + localStorage. Solo si el demo está habilitado
+    // (apagado en producción por defecto).
+    if (!demoHabilitado()) return null;
     const encontrado = await loginDemo(email);
     if (encontrado) {
       set({ usuario: encontrado, sesionReal: false });
