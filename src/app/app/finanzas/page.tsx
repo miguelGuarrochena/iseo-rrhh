@@ -21,6 +21,7 @@ import { Boton } from '@/components/app/ui/Boton';
 import { CampoMes } from '@/components/app/ui/CampoMes';
 import { MovimientoModal } from '@/components/app/finanzas/MovimientoModal';
 import { AbonoModal } from '@/components/app/finanzas/AbonoModal';
+import { BarrasIngresoGasto } from '@/components/app/finanzas/BarrasIngresoGasto';
 import { formatearPesos } from '@/lib/formato';
 import { hoyISO } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
@@ -40,12 +41,37 @@ import {
 } from '@/types/rrhh';
 
 const periodoActual = hoyISO().slice(0, 7);
+const MESES = [
+  'ene',
+  'feb',
+  'mar',
+  'abr',
+  'may',
+  'jun',
+  'jul',
+  'ago',
+  'sep',
+  'oct',
+  'nov',
+  'dic',
+];
+
+/** Últimos 6 períodos (YYYY-MM) terminando en el actual. */
+const ultimosPeriodos = (): string[] => {
+  const base = new Date(`${periodoActual}-01T00:00:00`);
+  return Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(base);
+    d.setMonth(d.getMonth() - (5 - i));
+    return d.toISOString().slice(0, 7);
+  });
+};
 
 const FinanzasPage = () => {
   const { usuario } = useAuth();
   const [periodo, setPeriodo] = useState(periodoActual);
   const [resumen, setResumen] = useState<ResumenFinanzas | null>(null);
   const [movimientos, setMovimientos] = useState<MovimientoFinanciero[]>([]);
+  const [todos, setTodos] = useState<MovimientoFinanciero[]>([]);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [modalTipo, setModalTipo] = useState<TipoMovimiento | null>(null);
   const [abonoEmpresa, setAbonoEmpresa] = useState<FacturacionEmpresa | null>(
@@ -55,6 +81,7 @@ const FinanzasPage = () => {
   const cargar = useCallback(() => {
     void getResumenFinanzas(periodo).then(setResumen);
     void getMovimientos(periodo).then(setMovimientos);
+    void getMovimientos().then(setTodos);
   }, [periodo]);
 
   useEffect(cargar, [cargar]);
@@ -78,6 +105,19 @@ const FinanzasPage = () => {
   const vencidas = resumen?.facturacion.filter(
     (f) => f.estado === 'activa' && f.abonoMensual > 0 && !f.alDia
   );
+
+  const serieMensual = ultimosPeriodos().map((p) => {
+    const delMes = todos.filter((m) => m.periodo === p);
+    return {
+      label: MESES[Number(p.slice(5, 7)) - 1],
+      ingreso: delMes
+        .filter((m) => m.tipo === 'ingreso')
+        .reduce((a, m) => a + m.monto, 0),
+      gasto: delMes
+        .filter((m) => m.tipo === 'gasto')
+        .reduce((a, m) => a + m.monto, 0),
+    };
+  });
 
   const registrarCobro = async (f: FacturacionEmpresa) => {
     const fecha = periodo === periodoActual ? hoyISO() : `${periodo}-15`;
@@ -192,6 +232,13 @@ const FinanzasPage = () => {
           icono={IconRepeat}
         />
       </div>
+
+      <Panel>
+        <h2 className="text-base font-bold text-ink">
+          Ingresos y gastos — últimos meses
+        </h2>
+        <BarrasIngresoGasto datos={serieMensual} />
+      </Panel>
 
       <Panel>
         <h2 className="text-base font-bold text-ink">
