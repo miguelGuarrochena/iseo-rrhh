@@ -22,12 +22,15 @@ import {
   ficharAhora,
   getEmpleado,
   getEmpleados,
+  getEmpresa,
   getFichajesDeEmpleadoHoy,
   getFichajesDeHoy,
   getResumenControl,
+  getTerminales,
 } from '@/lib/services/rrhh';
-import { Empleado, Fichaje } from '@/types/rrhh';
+import { Empleado, Fichaje, MetodoFichaje } from '@/types/rrhh';
 import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
+import { getTerminalLocal } from '@/lib/terminal';
 
 const metodoLabel = {
   facial_tablet: 'Reconocimiento facial',
@@ -57,6 +60,8 @@ const FichajePage = () => {
   const [miEmpleado, setMiEmpleado] = useState<Empleado | null>(null);
   const [facialAbierto, setFacialAbierto] = useState(false);
   const [tabletAbierto, setTabletAbierto] = useState(false);
+  const [metodos, setMetodos] = useState<MetodoFichaje[]>([]);
+  const [esTerminal, setEsTerminal] = useState(false);
 
   const cargar = useCallback(() => {
     if (!usuario) return;
@@ -68,15 +73,34 @@ const FichajePage = () => {
       void getFichajesDeHoy().then(setFichajesHoy);
       void getEmpleados().then(setEmpleados);
     }
+    void getEmpresa()
+      .then((e) => setMetodos(e.config.metodosFichaje))
+      .catch(() => {});
   }, [usuario, esEmpleado]);
 
   useEffect(cargar, [cargar]);
+
+  // Verifica si ESTE dispositivo está autorizado como terminal de planta.
+  useEffect(() => {
+    if (esEmpleado) return;
+    const localId = getTerminalLocal();
+    if (!localId) {
+      setEsTerminal(false);
+      return;
+    }
+    void getTerminales()
+      .then((ts) => setEsTerminal(ts.some((t) => t.id === localId)))
+      .catch(() => setEsTerminal(false));
+  }, [esEmpleado]);
 
   if (!usuario) return null;
 
   const ultimo = misFichajes[misFichajes.length - 1];
   const proximoTipo = ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso';
   const tieneRostro = Boolean(miEmpleado?.descriptorFacial?.length);
+  const usaCelular = metodos.includes('celular');
+  const usaTablet = metodos.includes('facial_tablet');
+  const modoPlantaDisponible = usaTablet && esTerminal;
 
   const trasFichar = (marca: Fichaje) => {
     avisoExito(
@@ -148,10 +172,12 @@ const FichajePage = () => {
         </div>
         {!esEmpleado && (
           <div className="flex flex-wrap gap-2">
-            <Boton variante="negro" onClick={() => setTabletAbierto(true)}>
-              <IconFaceId size={18} />
-              Modo planta
-            </Boton>
+            {modoPlantaDisponible && (
+              <Boton variante="negro" onClick={() => setTabletAbierto(true)}>
+                <IconFaceId size={18} />
+                Modo planta
+              </Boton>
+            )}
             <Boton
               variante="secundario"
               onClick={() => void exportarNovedades()}
@@ -163,7 +189,14 @@ const FichajePage = () => {
         )}
       </div>
 
-      {usuario.empleadoId && (
+      {!esEmpleado && usaTablet && !esTerminal && (
+        <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
+          Para usar el Modo planta, autorizá este dispositivo como terminal
+          desde Configuración → Terminales de fichaje.
+        </p>
+      )}
+
+      {usuario.empleadoId && (metodos.length === 0 || usaCelular) && (
         <Panel className="flex flex-col items-center gap-4 py-10 text-center">
           <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-brand-700">
             <IconFingerprint size={32} stroke={1.6} />

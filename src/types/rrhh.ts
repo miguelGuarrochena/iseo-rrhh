@@ -286,6 +286,14 @@ export interface DescriptorFacial {
   descriptor: number[];
 }
 
+/** Terminal de fichaje autorizada (tablet en planta para el Modo planta). */
+export interface Terminal {
+  id: string;
+  empresaId: string;
+  nombre: string;
+  creadoEn?: string;
+}
+
 /** Convenio colectivo cargado por la empresa (para el asistente con IA). */
 export interface Convenio {
   empresaId: string;

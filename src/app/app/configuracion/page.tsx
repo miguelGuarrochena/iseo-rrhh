@@ -6,6 +6,7 @@ import { IconCamera, IconCheck } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
+import { Terminales } from '@/components/app/configuracion/Terminales';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { ConfigPlataformaForm } from '@/components/app/configuracion/ConfigPlataformaForm';
@@ -249,6 +250,10 @@ const ConfiguracionPage = () => {
               />
             </label>
           </div>
+        </Panel>
+
+        <Panel>
+          <Terminales />
         </Panel>
 
         <Panel>

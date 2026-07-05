@@ -22,6 +22,7 @@ import {
   OpcionesFichaje,
   Notificacion,
   NuevaEmpresa,
+  Terminal,
   Turno,
   ReciboSueldo,
   Remuneracion,
@@ -669,6 +670,32 @@ Artículo 30 - Categorías.
 Las categorías del personal son: Maestranza, Administrativo, Cajero, Vendedor y Auxiliar especializado, según las tareas efectivamente desempeñadas.`,
   actualizadoEn: hoyISO(),
 };
+
+// ---------- Terminales de fichaje ----------
+
+const terminalesMock: Terminal[] = [];
+
+export const getTerminales = async (): Promise<Terminal[]> =>
+  simular([...terminalesMock]);
+
+export const registrarTerminal = async (nombre: string): Promise<Terminal> => {
+  const nueva: Terminal = {
+    id: `term-${Date.now()}`,
+    empresaId: 'emp-1',
+    nombre,
+    creadoEn: hoyISO(),
+  };
+  terminalesMock.push(nueva);
+  return simular(nueva);
+};
+
+export const quitarTerminal = async (id: string): Promise<void> => {
+  const i = terminalesMock.findIndex((t) => t.id === id);
+  if (i >= 0) terminalesMock.splice(i, 1);
+  return simular(undefined);
+};
+
+// ---------- Convenio colectivo ----------
 
 export const getConvenio = async (): Promise<Convenio | null> =>
   simular(convenioDemo);

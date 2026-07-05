@@ -161,6 +161,14 @@ export const getFichajesDeEmpleado = elegir(
   demo.getFichajesDeEmpleado
 );
 
+// ---------- Terminales de fichaje ----------
+export const getTerminales = elegir(real.getTerminales, demo.getTerminales);
+export const registrarTerminal = elegir(
+  real.registrarTerminal,
+  demo.registrarTerminal
+);
+export const quitarTerminal = elegir(real.quitarTerminal, demo.quitarTerminal);
+
 // ---------- Convenio colectivo ----------
 export const getConvenio = elegir(real.getConvenio, demo.getConvenio);
 export const guardarConvenio = elegir(

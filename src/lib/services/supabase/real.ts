@@ -26,6 +26,7 @@ import {
   NuevoTurno,
   ResumenControl,
   SaldoVacaciones,
+  Terminal,
   Turno,
   Usuario,
 } from '@/types/rrhh';
@@ -54,6 +55,7 @@ import {
   aNotificacion,
   aRecibo,
   aRemuneracion,
+  aTerminal,
   aTurno,
   aUsuario,
 } from './mapeos';
@@ -854,6 +856,32 @@ export const getFichajesDeEmpleado = async (
     .order('ts');
   if (error) throw new Error(error.message);
   return (data ?? []).map(aFichaje);
+};
+
+// ---------- Terminales de fichaje ----------
+
+export const getTerminales = async (): Promise<Terminal[]> => {
+  const { data, error } = await sb()
+    .from('terminales')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .order('creado_en');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(aTerminal);
+};
+
+export const registrarTerminal = async (nombre: string): Promise<Terminal> => {
+  const { data, error } = await sb()
+    .from('terminales')
+    .insert({ empresa_id: empresaId(), nombre })
+    .select()
+    .single();
+  return aTerminal(oFalla(data, error));
+};
+
+export const quitarTerminal = async (id: string): Promise<void> => {
+  const { error } = await sb().from('terminales').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 };
 
 // ---------- Convenio colectivo ----------

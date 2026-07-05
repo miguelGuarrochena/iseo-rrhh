@@ -80,6 +80,10 @@ export const CapturaFacial = ({
       canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
       const foto = canvas.toDataURL('image/jpeg', 0.7);
       onCaptura(Array.from(descriptor), foto);
+    } catch {
+      setMensaje(
+        'No pudimos iniciar el reconocimiento facial. Revisá tu conexión e intentá de nuevo.'
+      );
     } finally {
       setAnalizando(false);
     }

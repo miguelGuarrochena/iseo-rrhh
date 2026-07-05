@@ -17,6 +17,7 @@ import {
   Notificacion,
   ReciboSueldo,
   Remuneracion,
+  Terminal,
   Turno,
   Usuario,
 } from '@/types/rrhh';
@@ -123,6 +124,13 @@ export const aFichaje = (f: Fila): Fichaje => ({
   geo: f.geo ?? undefined,
   dispositivoId: f.dispositivo_id ?? undefined,
   confianza: f.confianza ?? undefined,
+});
+
+export const aTerminal = (f: Fila): Terminal => ({
+  id: f.id,
+  empresaId: f.empresa_id,
+  nombre: f.nombre,
+  creadoEn: f.creado_en ? String(f.creado_en).slice(0, 10) : undefined,
 });
 
 export const aConvenio = (f: Fila): Convenio => ({

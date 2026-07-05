@@ -95,9 +95,17 @@ export const FichajeFacialModal = ({
         );
       } else {
         const candidatos = await getDescriptoresFaciales();
+        if (candidatos.length === 0) {
+          setError(
+            'Todavía no hay rostros registrados. Registrá la cara de los colaboradores desde su ficha para poder fichar en planta.'
+          );
+          return;
+        }
         const match = mejorCoincidencia(descriptor, candidatos);
         if (!match) {
-          setError('No reconocimos a nadie. Probá de nuevo.');
+          setError(
+            'No reconocimos a nadie. Acercate, mirá de frente y con buena luz.'
+          );
           return;
         }
         await fichar(match.empleadoId, match.confianza, foto);
