@@ -37,7 +37,9 @@ const procesar = async (req: Request) => {
     await Promise.all([
       admin
         .from('empresas')
-        .select('id, nombre, abono_mensual, estado, contacto_email')
+        .select(
+          'id, nombre, razon_social, cuit, domicilio, plan, abono_mensual, estado, contacto_email, contacto_nombre'
+        )
         .eq('estado', 'activa'),
       admin
         .from('movimientos_financieros')
@@ -81,17 +83,23 @@ const procesar = async (req: Request) => {
 
     if (enVentanaPrevio && e.contacto_email) {
       if (!(await yaHecho(e.id, 'recordatorio'))) {
+        const vence = `${String(diaVenc).padStart(2, '0')}/${periodo.slice(
+          5,
+          7
+        )}/${periodo.slice(0, 4)}`;
         const ok = await enviarEmail({
           para: [e.contacto_email],
-          asunto: `Recordatorio de pago — ISEO RH (${periodo})`,
-          html: `
-            <div style="font-family: sans-serif; color: #2f2e3a;">
-              <p>Hola,</p>
-              <p>Te recordamos que el abono de <strong>${e.nombre}</strong>
-              correspondiente a ${periodo} (${formatearPesos(abono)}) vence el
-              día ${diaVenc}. Si ya lo abonaste, ignorá este mensaje.</p>
-              <p>Gracias,<br/>Equipo ISEO RH</p>
-            </div>`,
+          asunto: `Aviso de pago — Abono ${periodo} · ISEO RH`,
+          html: emailRecordatorio({
+            razonSocial: e.razon_social || e.nombre,
+            cuit: e.cuit ?? '',
+            domicilio: e.domicilio ?? '',
+            plan: e.plan ?? '',
+            contacto: e.contacto_nombre ?? '',
+            periodo,
+            monto: abono,
+            vence,
+          }),
         });
         if (ok) recordatorios += 1;
       }
@@ -120,4 +128,46 @@ const procesar = async (req: Request) => {
     recordatorios,
     notificados,
   });
+};
+
+/** Mail formal de aviso de pago (estilo comprobante). */
+const emailRecordatorio = (d: {
+  razonSocial: string;
+  cuit: string;
+  domicilio: string;
+  plan: string;
+  contacto: string;
+  periodo: string;
+  monto: number;
+  vence: string;
+}): string => {
+  const fila = (k: string, v: string) =>
+    v
+      ? `<tr><td style="padding:6px 0;color:#6b6a7b;">${k}</td><td style="padding:6px 0;text-align:right;color:#2f2e3a;font-weight:600;">${v}</td></tr>`
+      : '';
+  return `
+  <div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;color:#2f2e3a;">
+    <div style="background:#2563eb;color:#fff;padding:18px 22px;border-radius:12px 12px 0 0;">
+      <div style="font-size:18px;font-weight:800;">ISEO RH</div>
+      <div style="font-size:13px;opacity:.9;">Aviso de pago — Abono ${d.periodo}</div>
+    </div>
+    <div style="border:1px solid #e4e8f1;border-top:none;border-radius:0 0 12px 12px;padding:22px;">
+      <p style="margin:0 0 14px;">Estimado/a ${d.contacto || 'cliente'},</p>
+      <p style="margin:0 0 18px;">Le recordamos que se encuentra próximo a vencer el abono del servicio de ISEO RH correspondiente al período <strong>${d.periodo}</strong>. El pago se realiza de forma manual.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px;border-top:1px solid #e4e8f1;">
+        ${fila('Cliente', d.razonSocial)}
+        ${fila('CUIT', d.cuit)}
+        ${fila('Domicilio', d.domicilio)}
+        ${fila('Plan', d.plan)}
+        ${fila('Período', d.periodo)}
+        ${fila('Vencimiento', d.vence)}
+      </table>
+      <div style="margin-top:16px;padding:14px 16px;background:#f1f4fa;border-radius:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:#6b6a7b;font-size:13px;">Total a abonar</span>
+        <span style="font-size:20px;font-weight:800;color:#1a45ab;">${formatearPesos(d.monto)}</span>
+      </div>
+      <p style="margin:18px 0 0;font-size:13px;color:#6b6a7b;">Si ya realizó el pago, por favor ignore este mensaje. Ante cualquier duda, responda a este correo.</p>
+      <p style="margin:14px 0 0;">Saludos cordiales,<br/><strong>Equipo ISEO RH</strong></p>
+    </div>
+  </div>`;
 };
