@@ -130,13 +130,13 @@ const ColaboradoresPage = () => {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar por nombre, puesto, sector o DNI…"
-              className="w-full rounded-xl border border-line bg-surface py-3 pl-11 pr-4 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
+              className="h-12 w-full rounded-xl border border-line bg-surface pl-11 pr-4 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
             />
           </div>
           <Selector
             valor={sector}
             onCambiar={setSector}
-            className="sm:w-52"
+            className="sm:w-52 [&>button]:h-12"
             opciones={[
               { valor: '', etiqueta: 'Todos los sectores' },
               ...sectores.map((s) => ({ valor: s, etiqueta: s })),
@@ -146,6 +146,7 @@ const ColaboradoresPage = () => {
             type="button"
             variante={avanzados ? 'primario' : 'secundario'}
             onClick={() => setAvanzados((v) => !v)}
+            className="h-12"
           >
             <IconFilter size={16} />
             Filtros

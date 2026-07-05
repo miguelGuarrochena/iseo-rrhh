@@ -87,7 +87,6 @@ const ReportesPage = () => {
       .map((e) => ({
         etiqueta: e.nombreCompleto,
         valor: e.minutosTarde,
-        href: `/colaboradores/${e.empleadoId}`,
       })) ?? [];
   const topExtras =
     resumen?.porEmpleado
@@ -96,7 +95,6 @@ const ReportesPage = () => {
         etiqueta: e.nombreCompleto,
         valor: e.horasExtras,
         color: '#34d399',
-        href: `/colaboradores/${e.empleadoId}`,
       })) ?? [];
   const presentismo = [
     { etiqueta: 'Presentes', valor: presentes, color: '#34d399' },
