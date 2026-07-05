@@ -686,6 +686,32 @@ export const asignarTurno = async (datos: NuevoTurno): Promise<Turno> => {
   return simular(nuevo);
 };
 
+/** Asigna el mismo horario a varios días (semana/mes) de una. */
+export const asignarTurnos = async (lista: NuevoTurno[]): Promise<void> => {
+  lista.forEach((datos, i) => {
+    const existente = turnosMock.find(
+      (t) => t.empleadoId === datos.empleadoId && t.fecha === datos.fecha
+    );
+    if (existente) {
+      existente.horaEntrada = datos.horaEntrada;
+      existente.horaSalida = datos.horaSalida;
+    } else {
+      turnosMock.push({ id: `tur-${Date.now()}-${i}`, ...datos });
+    }
+  });
+  return simular(undefined);
+};
+
+export const aprobarExtrasTurno = async (
+  turnoId: string,
+  aprobado: boolean
+): Promise<Turno> => {
+  const turno = turnosMock.find((t) => t.id === turnoId);
+  if (!turno) throw new Error('Turno no encontrado.');
+  turno.extrasAprobadas = aprobado;
+  return simular(turno);
+};
+
 export const quitarTurno = async (id: string): Promise<void> => {
   const i = turnosMock.findIndex((t) => t.id === id);
   if (i >= 0) turnosMock.splice(i, 1);

@@ -376,6 +376,8 @@ export interface Turno {
   fecha: string;
   horaEntrada: string;
   horaSalida: string;
+  /** El supervisor aprobó las horas extra de ese día para pagarlas. */
+  extrasAprobadas?: boolean;
 }
 
 /** Datos para asignar un turno. */

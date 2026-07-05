@@ -889,6 +889,38 @@ export const asignarTurno = async (datos: NuevoTurno): Promise<Turno> => {
   return aTurno(oFalla(data, error));
 };
 
+/** Asigna el mismo horario a varios días (semana/mes) de una. */
+export const asignarTurnos = async (lista: NuevoTurno[]): Promise<void> => {
+  if (lista.length === 0) return;
+  const emp = empresaId();
+  const { error } = await sb()
+    .from('turnos')
+    .upsert(
+      lista.map((d) => ({
+        empresa_id: emp,
+        empleado_id: d.empleadoId,
+        fecha: d.fecha,
+        hora_entrada: d.horaEntrada,
+        hora_salida: d.horaSalida,
+      })),
+      { onConflict: 'empleado_id,fecha' }
+    );
+  if (error) throw new Error(error.message);
+};
+
+export const aprobarExtrasTurno = async (
+  turnoId: string,
+  aprobado: boolean
+): Promise<Turno> => {
+  const { data, error } = await sb()
+    .from('turnos')
+    .update({ extras_aprobadas: aprobado })
+    .eq('id', turnoId)
+    .select()
+    .single();
+  return aTurno(oFalla(data, error));
+};
+
 export const quitarTurno = async (id: string): Promise<void> => {
   const { error } = await sb().from('turnos').delete().eq('id', id);
   if (error) throw new Error(error.message);

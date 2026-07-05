@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   IconAlertTriangle,
+  IconCheck,
   IconChevronLeft,
   IconChevronRight,
   IconClockExclamation,
@@ -16,7 +17,9 @@ import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { avisoExito } from '@/lib/avisos';
 import {
+  aprobarExtrasTurno,
   asignarTurno,
+  asignarTurnos,
   getEmpleados,
   getFichajesDeEmpleado,
   getTurnosDeEmpleado,
@@ -48,13 +51,17 @@ const FilaDia = ({
   etiqueta,
   turno,
   fichajes,
+  puedeGestionar,
   onGuardar,
+  onAprobarExtras,
 }: {
   fecha: string;
   etiqueta: string;
   turno?: Turno;
   fichajes: Fichaje[];
+  puedeGestionar: boolean;
   onGuardar: (entrada: string, salida: string) => Promise<void>;
+  onAprobarExtras: (aprobado: boolean) => Promise<void>;
 }) => {
   const [entrada, setEntrada] = useState(turno?.horaEntrada ?? '08:00');
   const [salida, setSalida] = useState(turno?.horaSalida ?? '17:00');
@@ -144,6 +151,28 @@ const FilaDia = ({
           </span>
         )}
         {control &&
+          control.extrasMin > 0 &&
+          turno &&
+          puedeGestionar &&
+          (turno.extrasAprobadas ? (
+            <button
+              type="button"
+              onClick={() => void onAprobarExtras(false)}
+              className="flex cursor-pointer items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white transition-colors hover:bg-emerald-700"
+              title="Quitar aprobación"
+            >
+              <IconCheck size={12} /> Aprobada
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void onAprobarExtras(true)}
+              className="cursor-pointer rounded-full border border-emerald-300 px-2.5 py-1 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-50"
+            >
+              Aprobar extra
+            </button>
+          ))}
+        {control &&
           !control.ausente &&
           control.tardeMin === 0 &&
           control.antesMin === 0 &&
@@ -164,6 +193,9 @@ const TurnosPage = () => {
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [fichajes, setFichajes] = useState<Fichaje[]>([]);
   const [semana, setSemana] = useState(() => lunesDe(new Date()));
+  const [baseEntrada, setBaseEntrada] = useState('08:00');
+  const [baseSalida, setBaseSalida] = useState('17:00');
+  const [aplicando, setAplicando] = useState(false);
 
   const puedeGestionar =
     rolEfectivo === 'admin_rrhh' ||
@@ -218,6 +250,50 @@ const TurnosPage = () => {
     });
     avisoExito('Turno guardado', 'Se comparará con la fichada del día.');
     cargar();
+  };
+
+  const aplicar = async (fechas: string[], etiqueta: string) => {
+    if (!empleadoId) return;
+    setAplicando(true);
+    try {
+      await asignarTurnos(
+        fechas.map((fecha) => ({
+          empleadoId,
+          fecha,
+          horaEntrada: baseEntrada,
+          horaSalida: baseSalida,
+        }))
+      );
+      avisoExito(
+        `Horario aplicado a ${etiqueta}`,
+        `${baseEntrada}–${baseSalida}. Podés ajustar días puntuales abajo.`
+      );
+      cargar();
+    } finally {
+      setAplicando(false);
+    }
+  };
+
+  const aprobarExtras = async (turnoId: string, aprobado: boolean) => {
+    await aprobarExtrasTurno(turnoId, aprobado);
+    avisoExito(
+      aprobado ? 'Horas extra aprobadas' : 'Aprobación quitada',
+      aprobado ? 'Quedan marcadas para liquidar.' : undefined
+    );
+    cargar();
+  };
+
+  const aplicarSemana = () => aplicar(dias, 'la semana');
+
+  const aplicarMes = () => {
+    const ancla = new Date(`${dias[0]}T00:00:00`);
+    const anio = ancla.getFullYear();
+    const mes = ancla.getMonth();
+    const total = new Date(anio, mes + 1, 0).getDate();
+    const fechas = Array.from({ length: total }, (_, i) =>
+      iso(new Date(anio, mes, i + 1))
+    );
+    aplicar(fechas, 'todo el mes');
   };
 
   if (!usuario) return null;
@@ -300,6 +376,49 @@ const TurnosPage = () => {
         />
       </div>
 
+      {empleadoId && puedeGestionar && (
+        <Panel className="flex flex-wrap items-end gap-4">
+          <div>
+            <p className="text-sm font-bold text-ink">Horario habitual</p>
+            <p className="text-xs text-ink-soft">
+              Cargalo una vez y aplicalo a toda la semana o el mes. Después
+              ajustás los días que difieran.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="time"
+              value={baseEntrada}
+              onChange={(e) => setBaseEntrada(e.target.value)}
+              className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink outline-none focus:border-brand-600"
+            />
+            <span className="text-ink-soft">→</span>
+            <input
+              type="time"
+              value={baseSalida}
+              onChange={(e) => setBaseSalida(e.target.value)}
+              className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink outline-none focus:border-brand-600"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Boton
+              variante="secundario"
+              onClick={() => void aplicarSemana()}
+              disabled={aplicando}
+            >
+              Aplicar a la semana
+            </Boton>
+            <Boton
+              variante="negro"
+              onClick={() => void aplicarMes()}
+              disabled={aplicando}
+            >
+              Aplicar al mes
+            </Boton>
+          </div>
+        </Panel>
+      )}
+
       <Panel>
         {!empleadoId ? (
           <p className="text-sm text-ink-soft">Elegí un colaborador.</p>
@@ -312,7 +431,12 @@ const TurnosPage = () => {
                 etiqueta={DIAS[i]}
                 turno={turnoDe(fecha)}
                 fichajes={fichajes}
+                puedeGestionar={puedeGestionar}
                 onGuardar={(entrada, salida) => guardar(fecha, entrada, salida)}
+                onAprobarExtras={(aprobado) => {
+                  const t = turnoDe(fecha);
+                  return t ? aprobarExtras(t.id, aprobado) : Promise.resolve();
+                }}
               />
             ))}
           </div>

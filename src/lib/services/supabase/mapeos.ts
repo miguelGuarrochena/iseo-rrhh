@@ -167,6 +167,7 @@ export const aTurno = (f: Fila): Turno => ({
   fecha: String(f.fecha).slice(0, 10),
   horaEntrada: String(f.hora_entrada).slice(0, 5),
   horaSalida: String(f.hora_salida).slice(0, 5),
+  extrasAprobadas: f.extras_aprobadas ?? false,
 });
 
 export const aNotaInterna = (f: Fila): NotaInterna => ({
