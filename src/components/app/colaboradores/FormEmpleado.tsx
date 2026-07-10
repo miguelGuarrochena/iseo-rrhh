@@ -182,12 +182,8 @@ export const FormEmpleado = ({
       email: validarEmail(datos.email ?? ''),
       telefono: validarTelefono(datos.telefono ?? ''),
       cbu: validarCbu(datos.cbu ?? ''),
-      puesto: validarRequerido(datos.puesto ?? '', 'El puesto'),
-      sector: validarRequerido(datos.sector ?? '', 'El sector'),
-      fechaIngreso: validarRequerido(
-        datos.fechaIngreso ?? '',
-        'La fecha de ingreso'
-      ),
+      // Puesto, sector y fecha de ingreso se pueden completar después
+      // desde la ficha (mismo criterio que la importación por Excel).
       fechaFinContrato:
         datos.modalidadContratacion === 'plazo_fijo' && !datos.fechaFinContrato
           ? 'El contrato a plazo fijo necesita fecha de fin.'
@@ -202,20 +198,46 @@ export const FormEmpleado = ({
         datos.fechaNacimiento >= datos.fechaIngreso
           ? 'La fecha de nacimiento no puede ser posterior al ingreso.'
           : null,
+      // La geocerca es opcional (sin ella, el fichaje por celular no
+      // valida ubicación); si se cargó, tiene que ser coherente.
       geocerca:
-        (datos.modoFichaje ?? 'celular') === 'celular' &&
-        (!datos.geocerca ||
-          Math.abs(datos.geocerca.lat) > 90 ||
+        datos.geocerca &&
+        (datos.geocerca.lat !== 0 ||
+          datos.geocerca.lng !== 0 ||
+          datos.geocerca.radioM !== 0) &&
+        (Math.abs(datos.geocerca.lat) > 90 ||
           Math.abs(datos.geocerca.lng) > 180 ||
           datos.geocerca.radioM < 50)
-          ? 'Para fichaje por celular cargá una ubicación válida y un radio mínimo de 50 m.'
+          ? 'La ubicación no es válida o el radio es menor a 50 m.'
           : null,
     });
     setErrores(nuevos);
-    if (Object.keys(nuevos).length > 0) return;
+    if (Object.keys(nuevos).length > 0) {
+      // Llevar la vista al primer campo con error.
+      setTimeout(() => {
+        document
+          .querySelector('[data-error-campo]')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+      return;
+    }
     setEnviando(true);
     await onGuardar(datos);
     setEnviando(false);
+  };
+
+  /** Nombres legibles de los campos con error, para el aviso de abajo. */
+  const etiquetasError: Record<string, string> = {
+    nombre: 'Nombre',
+    apellido: 'Apellido',
+    dni: 'DNI',
+    cuil: 'CUIL',
+    email: 'Email',
+    telefono: 'Teléfono',
+    cbu: 'CBU',
+    fechaFinContrato: 'Fin de contrato',
+    fechaNacimiento: 'Fecha de nacimiento',
+    geocerca: 'Zona de fichaje',
   };
 
   return (
@@ -343,21 +365,21 @@ export const FormEmpleado = ({
         <h2 className="text-base font-bold text-ink">Datos laborales</h2>
         <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
           <Campo
-            etiqueta="Puesto *"
+            etiqueta="Puesto"
             value={datos.puesto}
             onChange={(e) => set('puesto')(e.target.value)}
             placeholder="Operario, Analista…"
             error={errores.puesto}
           />
           <Campo
-            etiqueta="Sector *"
+            etiqueta="Sector"
             value={datos.sector}
             onChange={(e) => set('sector')(e.target.value)}
             placeholder="Producción, Administración…"
             error={errores.sector}
           />
           <CampoFecha
-            etiqueta="Fecha de ingreso *"
+            etiqueta="Fecha de ingreso"
             value={datos.fechaIngreso}
             onChange={set('fechaIngreso')}
             error={errores.fechaIngreso}
@@ -493,7 +515,13 @@ export const FormEmpleado = ({
 
       {Object.keys(errores).length > 0 && (
         <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          Revisá los campos marcados: hay datos faltantes o inválidos.
+          Revisá:{' '}
+          <strong>
+            {Object.keys(errores)
+              .map((k) => etiquetasError[k] ?? k)
+              .join(', ')}
+          </strong>
+          . {Object.values(errores)[0]}
         </p>
       )}
 

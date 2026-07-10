@@ -162,7 +162,10 @@ export const CampoFecha = ({
   const borde = error ? 'border-red-300' : 'border-line';
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div
+      className="flex flex-col gap-1.5"
+      {...(error ? { 'data-error-campo': '' } : {})}
+    >
       <span className="text-sm font-semibold text-ink">{etiqueta}</span>
       <div ref={contenedor} className="relative">
         <div

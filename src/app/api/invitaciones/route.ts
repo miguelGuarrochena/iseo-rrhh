@@ -10,6 +10,24 @@ interface CuerpoInvitacion {
   empleadoId?: string;
 }
 
+/** Errores comunes de Supabase Auth, en castellano y accionables. */
+const traducirErrorInvitacion = (mensaje: string): string => {
+  const m = mensaje.toLowerCase();
+  if (
+    m.includes('already') &&
+    (m.includes('registered') || m.includes('exists'))
+  ) {
+    return 'Ese email ya tiene una cuenta en la plataforma (cada email puede usarse una sola vez, aunque sea en otra empresa). Usá otro email o borrá el usuario anterior desde Supabase → Authentication → Users.';
+  }
+  if (m.includes('invalid') && m.includes('email')) {
+    return 'El email no tiene un formato válido. Revisá que no tenga espacios ni errores de tipeo.';
+  }
+  if (m.includes('rate limit') || m.includes('too many')) {
+    return 'Se enviaron muchos emails seguidos y el servicio puso una pausa. Esperá unos minutos y reintentá.';
+  }
+  return mensaje;
+};
+
 /**
  * Invita a un usuario a la plataforma. Requiere sesión de superadmin
  * o admin_rrhh (token en Authorization). Supabase manda el email con
@@ -98,7 +116,10 @@ export const POST = async (req: Request) => {
     },
   });
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.json(
+      { error: traducirErrorInvitacion(error.message) },
+      { status: 400 }
+    );
   }
 
   return NextResponse.json({ ok: true });

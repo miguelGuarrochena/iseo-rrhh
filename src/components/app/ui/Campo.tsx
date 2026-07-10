@@ -21,7 +21,10 @@ interface CampoProps
 
 /** Input con etiqueta, error y texto de ayuda. */
 export const Campo = ({ etiqueta, error, ayuda, ...props }: CampoProps) => (
-  <label className="flex flex-col gap-1.5">
+  <label
+    className="flex flex-col gap-1.5"
+    {...(error ? { 'data-error-campo': '' } : {})}
+  >
     <span className="text-sm font-semibold text-ink">{etiqueta}</span>
     <input {...props} className={claseDe(error)} />
     {error && <span className="text-xs font-medium text-red-600">{error}</span>}

@@ -122,7 +122,7 @@ const PanelFichajePropio = ({
       ) : (
         <p className="max-w-sm text-sm text-ink-soft">
           Para fichar necesitás tener tu rostro registrado. Pedíselo a RRHH
-          desde tu ficha.
+          desde tu legajo personal.
         </p>
       )}
     </Panel>
