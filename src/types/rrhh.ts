@@ -314,6 +314,12 @@ export interface Ausencia {
   creadaEn: string;
 }
 
+/** Vista limitada para que un empleado vea vacaciones aprobadas de su sector. */
+export interface VacacionSector extends Ausencia {
+  empleadoNombre: string;
+  empleadoApellido: string;
+}
+
 export interface SaldoVacaciones {
   empleadoId: string;
   anio: number;

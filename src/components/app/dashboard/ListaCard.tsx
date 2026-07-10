@@ -94,7 +94,7 @@ export const ListaItem = ({
   const fila = (
     <div
       onClick={onClick}
-      className={`flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 sm:px-5 ${
+      className={`flex flex-col gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${
         clickeable
           ? 'hover-bloque cursor-pointer transition-colors duration-200 hover:border-brand-300'
           : ''
@@ -124,7 +124,7 @@ export const ListaItem = ({
       </div>
       {extremo && (
         <div
-          className="flex shrink-0 items-center"
+          className="flex shrink-0 items-center justify-end"
           onClick={(e) => {
             // Si el extremo tiene controles (botones, selects), su click
             // no debe disparar la navegación de la fila.

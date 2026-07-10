@@ -150,6 +150,10 @@ export const getVacacionesAprobadasDeEmpleados = elegir(
   real.getVacacionesAprobadasDeEmpleados,
   demo.getVacacionesAprobadasDeEmpleados
 );
+export const getVacacionesAprobadasMiSector = elegir(
+  real.getVacacionesAprobadasMiSector,
+  demo.getVacacionesAprobadasMiSector
+);
 export const crearAusencia = elegir(real.crearAusencia, demo.crearAusencia);
 export const resolverAusencia = elegir(
   real.resolverAusencia,

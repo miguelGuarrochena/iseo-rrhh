@@ -1,5 +1,8 @@
 import {
+  enrolarRostro,
   getAusenciasPendientes,
+  getDescriptoresFaciales,
+  getEmpleados,
   getSaldoVacaciones,
   loginConEmail,
 } from '@/lib/services/rrhh';
@@ -28,5 +31,17 @@ describe('servicios (mocks)', () => {
     expect(saldo?.diasUtilizados).toBe(5);
     expect(saldo?.diasPendientesAprobacion).toBe(5);
     expect(saldo?.diasDisponibles).toBe(11);
+  });
+
+  it('los listados de empleados no exponen biometría facial', async () => {
+    await enrolarRostro('ple-3', [0.1, 0.2, 0.3]);
+
+    const empleados = await getEmpleados();
+    const empleado = empleados.find((e) => e.id === 'ple-3');
+    const descriptores = await getDescriptoresFaciales();
+
+    expect(empleado).toBeTruthy();
+    expect(empleado).not.toHaveProperty('descriptorFacial');
+    expect(descriptores.some((d) => d.empleadoId === 'ple-3')).toBe(true);
   });
 });

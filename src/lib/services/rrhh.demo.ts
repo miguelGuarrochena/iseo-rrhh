@@ -35,6 +35,7 @@ import {
   ResumenControl,
   SaldoVacaciones,
   Usuario,
+  VacacionSector,
 } from '@/types/rrhh';
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
@@ -172,18 +173,29 @@ export const getMetricasGlobales = async (): Promise<MetricasGlobales> => {
 
 // ---------- Empleados ----------
 
+const sinBiometria = (empleado: Empleado): Empleado => {
+  const { descriptorFacial, consentimientoBiometrico, ...resto } = empleado;
+  void descriptorFacial;
+  void consentimientoBiometrico;
+  return { ...resto };
+};
+
 export const getEmpleados = async (): Promise<Empleado[]> =>
-  simular(empleadosMock.filter((e) => e.activo));
+  simular(empleadosMock.filter((e) => e.activo).map(sinBiometria));
 
 /** Incluye también los dados de baja (para el listado con filtro de estado) */
 export const getEmpleadosTodos = async (): Promise<Empleado[]> =>
-  simular([...empleadosMock]);
+  simular(empleadosMock.map(sinBiometria));
 
 export const getEmpleado = async (id: string): Promise<Empleado | null> =>
   simular(empleadosMock.find((e) => e.id === id) ?? null);
 
 export const getEquipo = async (supervisorId: string): Promise<Empleado[]> =>
-  simular(empleadosMock.filter((e) => e.supervisorId === supervisorId));
+  simular(
+    empleadosMock
+      .filter((e) => e.supervisorId === supervisorId)
+      .map(sinBiometria)
+  );
 
 export interface NuevoEmpleado {
   nombre: string;
@@ -459,6 +471,44 @@ export const getVacacionesAprobadasDeEmpleados = async (
         a.estado === 'aprobada'
     )
   );
+
+export const getVacacionesAprobadasMiSector = async (
+  empleadoId?: string
+): Promise<VacacionSector[]> => {
+  const actual = empleadosMock.find((e) => e.id === empleadoId);
+  if (!actual) return simular([]);
+  const idsSector = new Set(
+    empleadosMock
+      .filter((e) => e.activo && e.sector === actual.sector)
+      .map((e) => e.id)
+  );
+
+  return simular(
+    ausenciasMock
+      .filter(
+        (a) =>
+          idsSector.has(a.empleadoId) &&
+          a.tipo === 'vacaciones' &&
+          a.estado === 'aprobada'
+      )
+      .map((a) => {
+        const empleado = empleadosMock.find((e) => e.id === a.empleadoId);
+        return {
+          id: a.id,
+          empleadoId: a.empleadoId,
+          tipo: a.tipo,
+          fechaDesde: a.fechaDesde,
+          fechaHasta: a.fechaHasta,
+          dias: a.dias,
+          estado: a.estado,
+          adjuntos: [],
+          creadaEn: a.creadaEn,
+          empleadoNombre: empleado?.nombre ?? 'Compañero',
+          empleadoApellido: empleado?.apellido ?? '',
+        };
+      })
+  );
+};
 
 export interface NuevaAusencia {
   empleadoId: string;

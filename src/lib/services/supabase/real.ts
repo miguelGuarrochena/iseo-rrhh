@@ -35,6 +35,7 @@ import {
   Terminal,
   Turno,
   Usuario,
+  VacacionSector,
 } from '@/types/rrhh';
 import type {
   MiMes,
@@ -90,6 +91,31 @@ const oFalla = <T>(data: T | null, error: { message: string } | null): T => {
   if (error) throw new Error(error.message);
   if (data === null) throw new Error('Sin datos.');
   return data;
+};
+
+const registrarAuditoria = async (
+  accion: string,
+  entidad: string,
+  entidadId?: string,
+  detalle: Record<string, unknown> = {}
+): Promise<void> => {
+  try {
+    const { usuario } = useAuthStore.getState();
+    if (!usuario) return;
+    await sb()
+      .from('auditoria_acciones')
+      .insert({
+        empresa_id: empresaId(),
+        actor_id: usuario.id,
+        actor_nombre: usuario.nombreCompleto,
+        accion,
+        entidad,
+        entidad_id: entidadId ?? null,
+        detalle,
+      });
+  } catch {
+    // La auditoría no debe romper la acción principal.
+  }
 };
 
 // ---------- Empresa ----------
@@ -278,6 +304,42 @@ export const actualizarConfigPlataforma = async (
 
 // ---------- Empleados ----------
 
+const EMPLEADO_SELECT_SIN_BIOMETRIA = `
+  id,
+  empresa_id,
+  nombre,
+  apellido,
+  dni,
+  cuil,
+  fecha_nacimiento,
+  estado_civil,
+  nivel_estudios,
+  domicilio,
+  telefono,
+  email,
+  contacto_emergencia,
+  grupo_familiar,
+  foto_url,
+  fecha_ingreso,
+  puesto,
+  sector,
+  supervisor_id,
+  modalidad_contratacion,
+  fecha_fin_contrato,
+  modalidad_pago,
+  banco,
+  cbu,
+  obra_social,
+  art,
+  convenio,
+  activo,
+  fecha_baja,
+  motivo_baja,
+  checklist_alta,
+  modo_fichaje,
+  geocerca
+`;
+
 /** Reemplaza los paths de fotos por URLs firmadas para mostrarlas. */
 const conFotosFirmadas = async (empleados: Empleado[]): Promise<Empleado[]> => {
   const paths = empleados
@@ -295,7 +357,7 @@ const conFotosFirmadas = async (empleados: Empleado[]): Promise<Empleado[]> => {
 export const getEmpleados = async (): Promise<Empleado[]> => {
   const { data, error } = await sb()
     .from('empleados')
-    .select('*')
+    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
     .eq('empresa_id', empresaId())
     .eq('activo', true)
     .order('apellido');
@@ -305,7 +367,7 @@ export const getEmpleados = async (): Promise<Empleado[]> => {
 export const getEmpleadosTodos = async (): Promise<Empleado[]> => {
   const { data, error } = await sb()
     .from('empleados')
-    .select('*')
+    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
     .eq('empresa_id', empresaId())
     .order('apellido');
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
@@ -325,7 +387,7 @@ export const getEmpleado = async (id: string): Promise<Empleado | null> => {
 export const getEquipo = async (supervisorId: string): Promise<Empleado[]> => {
   const { data, error } = await sb()
     .from('empleados')
-    .select('*')
+    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
     .eq('supervisor_id', supervisorId)
     .eq('activo', true);
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
@@ -432,7 +494,11 @@ export const actualizarEmpleado = async (
     .select()
     .single();
   if (error) throw new Error(error.message);
-  return data ? aEmpleado(data) : null;
+  if (!data) return null;
+  await registrarAuditoria('actualizar', 'empleado', id, {
+    campos: Object.keys(cambios),
+  });
+  return aEmpleado(data);
 };
 
 export const darDeBajaEmpleado = async (
@@ -447,7 +513,9 @@ export const darDeBajaEmpleado = async (
     .select()
     .single();
   if (error) throw new Error(error.message);
-  return data ? aEmpleado(data) : null;
+  if (!data) return null;
+  await registrarAuditoria('dar_baja', 'empleado', id, { fecha });
+  return aEmpleado(data);
 };
 
 export const toggleChecklistItem = async (
@@ -500,15 +568,29 @@ export const agregarDocumento = async (
     })
     .select()
     .single();
-  return aDocumento(oFalla(data, error));
+  const documento = aDocumento(oFalla(data, error));
+  await registrarAuditoria('agregar', 'documento_legajo', documento.id, {
+    empleadoId: datos.empleadoId,
+    categoria: datos.categoria,
+  });
+  return documento;
 };
 
 export const quitarDocumento = async (documentoId: string): Promise<void> => {
+  const { data: previo } = await sb()
+    .from('documentos_legajo')
+    .select('empleado_id,categoria')
+    .eq('id', documentoId)
+    .maybeSingle();
   const { error } = await sb()
     .from('documentos_legajo')
     .delete()
     .eq('id', documentoId);
   if (error) throw new Error(error.message);
+  await registrarAuditoria('quitar', 'documento_legajo', documentoId, {
+    empleadoId: previo?.empleado_id,
+    categoria: previo?.categoria,
+  });
 };
 
 // ---------- Usuarios y permisos ----------
@@ -615,6 +697,43 @@ export const getVacacionesAprobadasDeEmpleados = async (
     .in('empleado_id', empleadoIds)
     .order('fecha_desde', { ascending: true });
   return oFalla(data, error).map(aAusencia);
+};
+
+interface FilaVacacionSector {
+  id: string;
+  empleado_id: string;
+  empleado_nombre: string;
+  empleado_apellido: string;
+  tipo: Ausencia['tipo'];
+  fecha_desde: string;
+  fecha_hasta: string;
+  dias: number;
+  estado: Ausencia['estado'];
+  creada_en: string;
+}
+
+const aVacacionSector = (f: FilaVacacionSector): VacacionSector => ({
+  id: f.id,
+  empleadoId: f.empleado_id,
+  empleadoNombre: f.empleado_nombre,
+  empleadoApellido: f.empleado_apellido,
+  tipo: f.tipo,
+  fechaDesde: String(f.fecha_desde).slice(0, 10),
+  fechaHasta: String(f.fecha_hasta).slice(0, 10),
+  dias: f.dias,
+  estado: f.estado,
+  adjuntos: [],
+  creadaEn: String(f.creada_en).slice(0, 10),
+});
+
+export const getVacacionesAprobadasMiSector = async (
+  empleadoId?: string
+): Promise<VacacionSector[]> => {
+  // En Supabase se ignora el argumento: el sector sale de auth.uid() vía RPC.
+  void empleadoId;
+  const { data, error } = await sb().rpc('vacaciones_aprobadas_mi_sector');
+  const filas = oFalla(data as FilaVacacionSector[] | null, error);
+  return filas.map(aVacacionSector);
 };
 
 /** Avisa a varios usuarios (best-effort: nunca rompe la acción principal). */
@@ -742,6 +861,11 @@ export const resolverAusencia = async (
     // Si falla la notificación, la resolución igual queda registrada.
   }
 
+  await registrarAuditoria('resolver', 'ausencia', ausenciaId, {
+    estado,
+    empleadoId: data.empleado_id,
+  });
+
   return aAusencia(data);
 };
 
@@ -831,7 +955,15 @@ export const ficharAhora = async (
     })
     .select()
     .single();
-  return aFichaje(oFalla(data, error));
+  const fichaje = aFichaje(oFalla(data, error));
+  if (opciones.metodo === 'manual' || opciones.registradoPor) {
+    await registrarAuditoria('cargar_manual', 'fichaje', fichaje.id, {
+      empleadoId,
+      tipo,
+      timestamp: fichaje.timestamp,
+    });
+  }
+  return fichaje;
 };
 
 /** Enrola (o actualiza) el rostro de un empleado con su consentimiento. */
@@ -852,7 +984,9 @@ export const enrolarRostro = async (
     .eq('empresa_id', empresaId())
     .select()
     .single();
-  return data ? aEmpleado(oFalla(data, error)) : null;
+  if (!data) return null;
+  await registrarAuditoria('enrolar', 'biometria_facial', empleadoId);
+  return aEmpleado(oFalla(data, error));
 };
 
 /** Borra el rostro enrolado de un empleado. */
@@ -866,7 +1000,9 @@ export const borrarRostro = async (
     .eq('empresa_id', empresaId())
     .select()
     .single();
-  return data ? aEmpleado(oFalla(data, error)) : null;
+  if (!data) return null;
+  await registrarAuditoria('borrar', 'biometria_facial', empleadoId);
+  return aEmpleado(oFalla(data, error));
 };
 
 /** Descriptores de los empleados activos con rostro enrolado (para 1:N). */
@@ -1413,7 +1549,12 @@ export const cargarRemuneracion = async (
     )
     .select()
     .single();
-  return aRemuneracion(oFalla(data, error));
+  const remuneracion = aRemuneracion(oFalla(data, error));
+  await registrarAuditoria('cargar', 'remuneracion', remuneracion.id, {
+    empleadoId: datos.empleadoId,
+    periodo: datos.periodo,
+  });
+  return remuneracion;
 };
 
 export const getRecibos = async (
@@ -1447,7 +1588,13 @@ export const firmarRecibo = async (
     .select()
     .single();
   if (error) throw new Error(error.message);
-  return data ? aRecibo(data) : null;
+  if (!data) return null;
+  const recibo = aRecibo(data);
+  await registrarAuditoria('firmar', 'recibo', recibo.id, {
+    empleadoId: recibo.empleadoId,
+    periodo: recibo.periodo,
+  });
+  return recibo;
 };
 
 /** El admin sube el PDF del recibo de un período (pisa si ya existía). */
@@ -1471,6 +1618,10 @@ export const cargarRecibo = async (
     .select()
     .single();
   const recibo = aRecibo(oFalla(data, error));
+  await registrarAuditoria('cargar', 'recibo', recibo.id, {
+    empleadoId,
+    periodo,
+  });
 
   // Avisar al empleado que tiene un recibo para firmar.
   try {

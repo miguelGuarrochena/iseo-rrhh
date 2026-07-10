@@ -30,9 +30,10 @@ import {
   crearAusencia,
   getAusencias,
   getAusenciasDeEmpleado,
+  getEmpleado,
   getEmpleados,
   getSaldoVacaciones,
-  getVacacionesAprobadasDeEmpleados,
+  getVacacionesAprobadasMiSector,
   resolverAusencia,
 } from '@/lib/services/rrhh';
 import {
@@ -40,6 +41,7 @@ import {
   Empleado,
   SaldoVacaciones,
   TipoAusencia,
+  VacacionSector,
 } from '@/types/rrhh';
 
 const ANIO_ACTUAL = new Date().getFullYear();
@@ -54,7 +56,9 @@ const AusenciasPage = () => {
 
   const [saldo, setSaldo] = useState<SaldoVacaciones | null>(null);
   const [ausencias, setAusencias] = useState<Ausencia[]>([]);
-  const [vacacionesSector, setVacacionesSector] = useState<Ausencia[]>([]);
+  const [vacacionesSector, setVacacionesSector] = useState<VacacionSector[]>(
+    []
+  );
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [filtroTipo, setFiltroTipo] = useState<TipoAusencia | ''>('');
   const [filtroEstado, setFiltroEstado] = useState('');
@@ -68,23 +72,17 @@ const AusenciasPage = () => {
     if (esEmpleado && usuario.empleadoId) {
       const empleadoId = usuario.empleadoId;
       void (async () => {
-        const [misAusencias, saldoVacaciones, listaEmpleados] =
+        const [misAusencias, saldoVacaciones, empleado, vacaciones] =
           await Promise.all([
             getAusenciasDeEmpleado(empleadoId),
             getSaldoVacaciones(empleadoId, ANIO_ACTUAL),
-            getEmpleados(),
+            getEmpleado(empleadoId),
+            getVacacionesAprobadasMiSector(empleadoId),
           ]);
         setAusencias(misAusencias);
         setSaldo(saldoVacaciones);
-        setEmpleados(listaEmpleados);
-
-        const empleadoActual = listaEmpleados.find((e) => e.id === empleadoId);
-        const idsSector = empleadoActual?.sector
-          ? listaEmpleados
-              .filter((e) => e.sector === empleadoActual.sector)
-              .map((e) => e.id)
-          : [];
-        setVacacionesSector(await getVacacionesAprobadasDeEmpleados(idsSector));
+        setEmpleados(empleado ? [empleado] : []);
+        setVacacionesSector(vacaciones);
       })().finally(() => setCargando(false));
     } else {
       void getAusencias()
@@ -124,7 +122,11 @@ const AusenciasPage = () => {
 
   const nombreEmpleado = (id: string): string => {
     const e = empleados.find((x) => x.id === id);
-    return e ? `${e.nombre} ${e.apellido}` : '—';
+    if (e) return `${e.nombre} ${e.apellido}`;
+    const vacacion = vacacionesSector.find((v) => v.empleadoId === id);
+    return vacacion
+      ? `${vacacion.empleadoNombre} ${vacacion.empleadoApellido}`.trim()
+      : 'Compañero';
   };
   const empleadoActual = usuario.empleadoId
     ? empleados.find((e) => e.id === usuario.empleadoId)

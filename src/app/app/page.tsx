@@ -33,7 +33,7 @@ import {
   getRecibos,
   getResumenFinanzas,
   getSaldoVacaciones,
-  getVacacionesAprobadasDeEmpleados,
+  getVacacionesAprobadasMiSector,
   MiMes,
 } from '@/lib/services/rrhh';
 import {
@@ -44,6 +44,7 @@ import {
   EventoAgenda,
   MetricasGlobales,
   SaldoVacaciones,
+  VacacionSector,
 } from '@/types/rrhh';
 
 const ANIO_ACTUAL = new Date().getFullYear();
@@ -81,7 +82,9 @@ const DashboardPage = () => {
   const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
   const [pagosPendientes, setPagosPendientes] = useState(0);
   const [miMes, setMiMes] = useState<MiMes | null>(null);
-  const [vacacionesSector, setVacacionesSector] = useState<Ausencia[]>([]);
+  const [vacacionesSector, setVacacionesSector] = useState<VacacionSector[]>(
+    []
+  );
   const [, setCargando] = useState(true);
 
   useEffect(() => {
@@ -106,16 +109,9 @@ const DashboardPage = () => {
       void getAusenciasDeEmpleado(usuario.empleadoId)
         .then(setMisAusencias)
         .finally(() => setCargando(false));
-      void getEmpleados().then((lista) => {
-        setEmpleados(lista);
-        const actual = lista.find((e) => e.id === usuario.empleadoId);
-        const idsSector = actual?.sector
-          ? lista.filter((e) => e.sector === actual.sector).map((e) => e.id)
-          : [];
-        void getVacacionesAprobadasDeEmpleados(idsSector).then(
-          setVacacionesSector
-        );
-      });
+      void getVacacionesAprobadasMiSector(usuario.empleadoId).then(
+        setVacacionesSector
+      );
       void getRecibos(usuario.empleadoId).then((r) =>
         setRecibosPendientes(
           r.filter((x) => x.estadoFirma === 'pendiente').length
@@ -143,7 +139,11 @@ const DashboardPage = () => {
   const nombrePila = usuario.nombreCompleto.split(' ')[0];
   const nombreEmpleado = (id: string): string => {
     const e = empleados.find((x) => x.id === id);
-    return e ? `${e.nombre} ${e.apellido}` : '—';
+    if (e) return `${e.nombre} ${e.apellido}`;
+    const vacacion = vacacionesSector.find((v) => v.empleadoId === id);
+    return vacacion
+      ? `${vacacion.empleadoNombre} ${vacacion.empleadoApellido}`.trim()
+      : 'Compañero';
   };
   const hoyISO = new Date().toISOString().slice(0, 10);
   const proximasVacacionesSector = vacacionesSector

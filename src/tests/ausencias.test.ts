@@ -7,6 +7,7 @@ import {
   firmarRecibo,
   getAusenciasDeEmpleado,
   getFichajesDeEmpleadoHoy,
+  getVacacionesAprobadasMiSector,
   resolverAusencia,
 } from '@/lib/services/rrhh';
 
@@ -52,6 +53,30 @@ describe('flujo de ausencias', () => {
     await resolverAusencia(creada.id, 'rechazada', 'ple-1');
     const reintento = await resolverAusencia(creada.id, 'aprobada', 'ple-1');
     expect(reintento?.estado).toBe('rechazada');
+  });
+
+  it('expone al empleado solo vacaciones aprobadas de su sector', async () => {
+    const mismaArea = await crearAusencia({
+      empleadoId: 'ple-5',
+      tipo: 'vacaciones',
+      fechaDesde: '2026-10-06',
+      fechaHasta: '2026-10-10',
+      comentario: 'Dato interno que no debe exponerse',
+    });
+    await resolverAusencia(mismaArea.id, 'aprobada', 'ple-1');
+
+    const visible = await getVacacionesAprobadasMiSector('ple-3');
+
+    expect(visible.some((a) => a.id === mismaArea.id)).toBe(true);
+    expect(visible.every((a) => a.tipo === 'vacaciones')).toBe(true);
+    expect(visible.every((a) => a.estado === 'aprobada')).toBe(true);
+    expect(visible.every((a) => a.empleadoNombre && a.empleadoApellido)).toBe(
+      true
+    );
+    expect(visible.some((a) => a.empleadoId === 'ple-4')).toBe(false);
+    expect(visible.find((a) => a.id === mismaArea.id)).not.toHaveProperty(
+      'comentarioEmpleado'
+    );
   });
 });
 
