@@ -408,6 +408,7 @@ export interface Terminal {
 
 /** Convenio colectivo cargado por la empresa (para el asistente con IA). */
 export interface Convenio {
+  id: string;
   empresaId: string;
   /** Ej. "CCT 130/75 — Empleados de Comercio". */
   nombre: string;

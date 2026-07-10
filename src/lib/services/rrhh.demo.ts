@@ -841,7 +841,9 @@ export const getFichajesDeEmpleado = async (
 
 // ---------- Convenio colectivo ----------
 
-let convenioDemo: Convenio | null = {
+const conveniosMock: Convenio[] = [];
+const convenioEjemplo: Convenio = {
+  id: 'cnv-1',
   empresaId: 'emp-1',
   nombre: 'CCT 130/75 — Empleados de Comercio (ejemplo)',
   contenido: `Artículo 10 - Jornada de trabajo.
@@ -860,6 +862,7 @@ Artículo 30 - Categorías.
 Las categorías del personal son: Maestranza, Administrativo, Cajero, Vendedor y Auxiliar especializado, según las tareas efectivamente desempeñadas.`,
   actualizadoEn: hoyISO(),
 };
+conveniosMock.push(convenioEjemplo);
 
 // ---------- Terminales de fichaje ----------
 
@@ -887,19 +890,43 @@ export const quitarTerminal = async (id: string): Promise<void> => {
 
 // ---------- Convenio colectivo ----------
 
-export const getConvenio = async (): Promise<Convenio | null> =>
-  simular(convenioDemo);
+export const getConvenios = async (): Promise<Convenio[]> =>
+  simular(
+    conveniosMock
+      .filter((c) => c.empresaId === empresaDemo())
+      .sort((a, b) => a.nombre.localeCompare(b.nombre))
+  );
 
-export const guardarConvenio = async (
+export const crearConvenio = async (
   datos: NuevoConvenio
 ): Promise<Convenio> => {
-  convenioDemo = {
-    empresaId: 'emp-1',
+  const nuevo: Convenio = {
+    id: `cnv-${Date.now()}`,
+    empresaId: empresaDemo(),
     nombre: datos.nombre,
     contenido: datos.contenido,
     actualizadoEn: hoyISO(),
   };
-  return simular(convenioDemo);
+  conveniosMock.push(nuevo);
+  return simular(nuevo);
+};
+
+export const actualizarConvenio = async (
+  id: string,
+  datos: NuevoConvenio
+): Promise<Convenio> => {
+  const convenio = conveniosMock.find((c) => c.id === id);
+  if (!convenio) throw new Error('Convenio inexistente.');
+  convenio.nombre = datos.nombre;
+  convenio.contenido = datos.contenido;
+  convenio.actualizadoEn = hoyISO();
+  return simular(convenio);
+};
+
+export const eliminarConvenio = async (id: string): Promise<void> => {
+  const i = conveniosMock.findIndex((c) => c.id === id);
+  if (i >= 0) conveniosMock.splice(i, 1);
+  await simular(undefined);
 };
 
 // ---------- Alertas, agenda y notificaciones ----------

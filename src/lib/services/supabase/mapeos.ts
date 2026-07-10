@@ -158,6 +158,7 @@ export const aTerminal = (f: Fila): Terminal => ({
 });
 
 export const aConvenio = (f: Fila): Convenio => ({
+  id: f.id,
   empresaId: f.empresa_id,
   nombre: f.nombre,
   contenido: f.contenido ?? '',

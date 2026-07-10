@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import {
   IconCashBanknote,
@@ -11,6 +11,7 @@ import {
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
+import { DescuentosFijos } from '@/components/app/remuneraciones/DescuentosFijos';
 import {
   cargarRemuneracion,
   getAdelantos,
@@ -121,6 +122,11 @@ export const RemuneracionModal = ({
     }
   }, [abierto, inicial, convenioSugerido, empleadoId]);
 
+  const recargarRecurrentes = useCallback(() => {
+    if (empleadoActual)
+      void getDescuentosRecurrentes(empleadoActual).then(setRecurrentes);
+  }, [empleadoActual]);
+
   // Los descuentos fijos y adelantos son del colaborador elegido.
   useEffect(() => {
     if (abierto && empleadoActual) {
@@ -128,6 +134,14 @@ export const RemuneracionModal = ({
       void getAdelantos(empleadoActual).then(setAdelantos);
     }
   }, [abierto, empleadoActual]);
+
+  // Al elegir un colaborador desde el dropdown (acceso directo), el convenio
+  // se autocompleta con el suyo, igual que cuando se carga desde la ficha.
+  useEffect(() => {
+    if (!abierto || inicial || !empleados || !elegido) return;
+    const emp = empleados.find((e) => e.id === elegido);
+    setConvenio(emp?.convenio ?? '');
+  }, [abierto, inicial, empleados, elegido]);
 
   /** Descuentos que entran solos: fijos + adelantos aprobados del período. */
   const automaticos = useMemo(() => {
@@ -269,6 +283,16 @@ export const RemuneracionModal = ({
             />
           </div>
         </div>
+
+        {/* Descuentos fijos del colaborador: se gestionan acá para poder
+            cargar todo desde un solo lugar, sin salir del modal. */}
+        {empleadoActual && (
+          <DescuentosFijos
+            empleadoId={empleadoActual}
+            puedeEditar
+            onCambio={recargarRecurrentes}
+          />
+        )}
 
         {/* Descuentos */}
         <div className="flex flex-col gap-3 rounded-2xl border border-line bg-paper/50 p-4">

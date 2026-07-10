@@ -1184,33 +1184,50 @@ export const quitarTerminal = async (id: string): Promise<void> => {
 
 // ---------- Convenio colectivo ----------
 
-export const getConvenio = async (): Promise<Convenio | null> => {
+export const getConvenios = async (): Promise<Convenio[]> => {
   const { data, error } = await sb()
     .from('convenios')
     .select('*')
     .eq('empresa_id', empresaId())
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return data ? aConvenio(data) : null;
+    .order('nombre');
+  return oFalla(data, error).map(aConvenio);
 };
 
-export const guardarConvenio = async (
+export const crearConvenio = async (
   datos: NuevoConvenio
 ): Promise<Convenio> => {
   const { data, error } = await sb()
     .from('convenios')
-    .upsert(
-      {
-        empresa_id: empresaId(),
-        nombre: datos.nombre,
-        contenido: datos.contenido,
-        actualizado_en: new Date().toISOString(),
-      },
-      { onConflict: 'empresa_id' }
-    )
+    .insert({
+      empresa_id: empresaId(),
+      nombre: datos.nombre,
+      contenido: datos.contenido,
+    })
     .select()
     .single();
   return aConvenio(oFalla(data, error));
+};
+
+export const actualizarConvenio = async (
+  id: string,
+  datos: NuevoConvenio
+): Promise<Convenio> => {
+  const { data, error } = await sb()
+    .from('convenios')
+    .update({
+      nombre: datos.nombre,
+      contenido: datos.contenido,
+      actualizado_en: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .select()
+    .single();
+  return aConvenio(oFalla(data, error));
+};
+
+export const eliminarConvenio = async (id: string): Promise<void> => {
+  const { error } = await sb().from('convenios').delete().eq('id', id);
+  if (error) throw new Error(error.message);
 };
 
 // ---------- Jornadas calculadas (para reportes y "mi mes") ----------

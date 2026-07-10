@@ -5,7 +5,6 @@ import { IconPlus, IconReportMoney } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { RemuneracionModal } from './RemuneracionModal';
-import { DescuentosFijos } from './DescuentosFijos';
 import { getRemuneraciones } from '@/lib/services/rrhh';
 import { formatearPesos } from '@/lib/formato';
 import { formatearPeriodo } from '@/lib/fechas';
@@ -62,8 +61,6 @@ export const RemuneracionesEmpleado = ({
           </Boton>
         )}
       </div>
-
-      <DescuentosFijos empleadoId={empleadoId} puedeEditar={puedeEditar} />
 
       {rems.length === 0 ? (
         <p className="mt-4 text-sm text-ink-soft">

@@ -16,13 +16,19 @@ import { DescuentoRecurrente } from '@/types/rrhh';
 interface Props {
   empleadoId: string;
   puedeEditar: boolean;
+  /** Se llama cuando se agrega o quita un descuento (para recalcular afuera). */
+  onCambio?: () => void;
 }
 
 /**
  * Descuentos fijos del empleado (sindicato, comedor, etc.): quedan
  * cargados una vez y se arrastran como sugerencia en cada período.
  */
-export const DescuentosFijos = ({ empleadoId, puedeEditar }: Props) => {
+export const DescuentosFijos = ({
+  empleadoId,
+  puedeEditar,
+  onCambio,
+}: Props) => {
   const [descuentos, setDescuentos] = useState<DescuentoRecurrente[]>([]);
   const [agregando, setAgregando] = useState(false);
   const [concepto, setConcepto] = useState('');
@@ -49,6 +55,7 @@ export const DescuentosFijos = ({ empleadoId, puedeEditar }: Props) => {
       setMonto('');
       setAgregando(false);
       cargar();
+      onCambio?.();
     } catch (err) {
       avisoError(
         'No pudimos agregarlo',
@@ -63,6 +70,7 @@ export const DescuentosFijos = ({ empleadoId, puedeEditar }: Props) => {
       await eliminarDescuentoRecurrente(d.id);
       avisoExito('Descuento fijo eliminado', `${d.concepto} ya no se aplica.`);
       cargar();
+      onCambio?.();
     } catch (err) {
       avisoError(
         'No pudimos eliminarlo',

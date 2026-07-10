@@ -210,10 +210,15 @@ export const registrarTerminal = elegir(
 export const quitarTerminal = elegir(real.quitarTerminal, demo.quitarTerminal);
 
 // ---------- Convenio colectivo ----------
-export const getConvenio = elegir(real.getConvenio, demo.getConvenio);
-export const guardarConvenio = elegir(
-  real.guardarConvenio,
-  demo.guardarConvenio
+export const getConvenios = elegir(real.getConvenios, demo.getConvenios);
+export const crearConvenio = elegir(real.crearConvenio, demo.crearConvenio);
+export const actualizarConvenio = elegir(
+  real.actualizarConvenio,
+  demo.actualizarConvenio
+);
+export const eliminarConvenio = elegir(
+  real.eliminarConvenio,
+  demo.eliminarConvenio
 );
 
 // ---------- Notas internas (solo admins) ----------
