@@ -60,8 +60,8 @@ operarla como admin ("Salir de la empresa" en el menú lateral para volver).
 | Ausencias | todos | Empleado solicita; admin/supervisor aprueba o rechaza. Saldo de vacaciones por LCT. |
 | Fichaje | todos | Ingreso/egreso por celular (con foto y GPS opcional), reconocimiento facial en tablet de planta, o carga manual del admin. Export CSV de novedades. |
 | Turnos | todos | Horarios asignados vs. fichada real: tardes, salidas anticipadas. |
-| Recibos | todos | Admin sube el PDF por período; el empleado lo ve y **firma digitalmente**. |
-| Remuneraciones | todos (cada uno lo suyo) | Admin carga bruto/no remunerativo/descuentos; aportes y neto se calculan solos. Empleado ve su evolución, aumentos y aguinaldo estimado. **Exportar para liquidación** (CSV al contador). |
+| Recibos | todos | Admin sube el PDF por período (individual o **carga masiva**: varios PDFs que se asignan solos por CUIL/DNI del nombre de archivo). El **empleador firma/publica** primero; recién ahí el empleado lo ve y **firma digitalmente**. |
+| Remuneraciones | todos (cada uno lo suyo) | Admin carga bruto/no remunerativo/descuentos; aportes y neto se calculan solos. **Descuentos fijos** por empleado (sindicato, comedor) que se arrastran cada mes y **adelantos** (empleado pide → admin aprueba → se descuenta del período). Empleado ve su evolución, aumentos y aguinaldo estimado. **Exportar para liquidación** (CSV al contador). |
 | Agenda | todos | Calendario compartido + cumpleaños automáticos. |
 | Organigrama | admin, supervisor | Quién reporta a quién; el admin reasigna supervisores tocando. |
 | Convenio | todos | El convenio colectivo cargado, consultable con IA. |

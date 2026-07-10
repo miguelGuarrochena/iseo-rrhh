@@ -27,10 +27,29 @@ const pad = (n: number) => String(n).padStart(2, '0');
 const iso = (anio: number, mes: number, dia: number) =>
   `${anio}-${pad(mes + 1)}-${pad(dia)}`;
 
-/** "2026-07-02" → "2 de julio de 2026" */
-const formatearLargo = (valor: string): string => {
-  const [a, m, d] = valor.split('-').map(Number);
-  return `${d} de ${MESES[m - 1].toLowerCase()} de ${a}`;
+/** "2026-07-02" → "02/07/2026" (lo que se ve y se tipea). */
+const aCorta = (valor: string): string => {
+  if (!valor) return '';
+  const [a, m, d] = valor.split('-');
+  return `${d}/${m}/${a}`;
+};
+
+/**
+ * Parsea una fecha tipeada con números: "2/7/2026", "02/07/2026",
+ * "02-07-26", "02.07.2026" → ISO "2026-07-02". Devuelve null si no es
+ * una fecha real.
+ */
+export const parsearFechaTipeada = (texto: string): string | null => {
+  const m = texto
+    .trim()
+    .match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/);
+  if (!m) return null;
+  const dia = Number(m[1]);
+  const mes = Number(m[2]);
+  const anio = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  if (mes < 1 || mes > 12 || dia < 1) return null;
+  if (dia > new Date(anio, mes, 0).getDate()) return null;
+  return iso(anio, mes - 1, dia);
 };
 
 interface CampoFechaProps {
@@ -46,9 +65,9 @@ interface CampoFechaProps {
 }
 
 /**
- * Selector de fecha propio (calendario en español), con el estilo de la
- * app. Reemplaza el input date nativo para no depender del idioma del
- * navegador. Value y onChange usan ISO "YYYY-MM-DD".
+ * Campo de fecha propio: se puede tipear con números (dd/mm/aaaa) o
+ * elegir del calendario en español. Value y onChange usan ISO
+ * "YYYY-MM-DD".
  */
 export const CampoFecha = ({
   etiqueta,
@@ -58,15 +77,21 @@ export const CampoFecha = ({
   ayuda,
   min,
   max,
-  placeholder = 'Elegí una fecha',
+  placeholder = 'dd/mm/aaaa',
 }: CampoFechaProps) => {
   const [abierto, setAbierto] = useState(false);
+  const [texto, setTexto] = useState(aCorta(value));
   const contenedor = useRef<HTMLDivElement>(null);
 
   const hoy = new Date();
   const base = value ? value.split('-').map(Number) : null;
   const [anio, setAnio] = useState(base ? base[0] : hoy.getFullYear());
   const [mes, setMes] = useState(base ? base[1] - 1 : hoy.getMonth());
+
+  // El texto sigue al value (elección en calendario o cambio externo).
+  useEffect(() => {
+    setTexto(aCorta(value));
+  }, [value]);
 
   // Al abrir, ubicarse en el mes de la fecha elegida.
   useEffect(() => {
@@ -107,28 +132,69 @@ export const CampoFecha = ({
   const fueraDeRango = (fecha: string) =>
     (min && fecha < min) || (max && fecha > max);
 
+  /** Al tipear: si lo escrito ya es una fecha válida, se toma. */
+  const alTipear = (t: string) => {
+    setTexto(t);
+    if (t.trim() === '') {
+      if (value) onChange('');
+      return;
+    }
+    const parseada = parsearFechaTipeada(t);
+    if (parseada && !fueraDeRango(parseada)) onChange(parseada);
+  };
+
+  /** Al salir del campo: normaliza o revierte si quedó a medias. */
+  const alSalir = () => {
+    if (texto.trim() === '') {
+      if (value) onChange('');
+      setTexto('');
+      return;
+    }
+    const parseada = parsearFechaTipeada(texto);
+    if (parseada && !fueraDeRango(parseada)) {
+      onChange(parseada);
+      setTexto(aCorta(parseada));
+    } else {
+      setTexto(aCorta(value));
+    }
+  };
+
   const borde = error ? 'border-red-300' : 'border-line';
 
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-semibold text-ink">{etiqueta}</span>
       <div ref={contenedor} className="relative">
-        <button
-          type="button"
-          onClick={() => setAbierto((v) => !v)}
-          className={`flex w-full items-center justify-between gap-2 rounded-xl border bg-surface px-4 py-3 text-left text-base outline-none transition-colors ${borde} ${
+        <div
+          className={`flex w-full items-center gap-2 rounded-xl border bg-surface px-4 py-3 transition-colors focus-within:border-brand-600 ${borde} ${
             abierto ? 'border-brand-600' : ''
-          } ${value ? 'text-ink' : 'text-ink-soft/60'}`}
+          }`}
         >
-          <span className="truncate">
-            {value ? formatearLargo(value) : placeholder}
-          </span>
-          <IconCalendar
-            size={18}
-            className="shrink-0 text-ink-soft"
-            stroke={1.8}
+          <input
+            type="text"
+            inputMode="numeric"
+            value={texto}
+            onChange={(e) => alTipear(e.target.value)}
+            onBlur={alSalir}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                alSalir();
+              }
+            }}
+            placeholder={placeholder}
+            aria-label={etiqueta}
+            className="w-full min-w-0 bg-transparent text-base text-ink outline-none placeholder:text-ink-soft/60"
           />
-        </button>
+          <button
+            type="button"
+            onClick={() => setAbierto((v) => !v)}
+            aria-label="Abrir calendario"
+            className="shrink-0 cursor-pointer text-ink-soft transition-colors hover:text-brand-700"
+          >
+            <IconCalendar size={18} stroke={1.8} />
+          </button>
+        </div>
 
         {abierto && (
           <div className="absolute z-50 mt-2 w-[19rem] rounded-2xl border border-line bg-surface p-3 shadow-lift">

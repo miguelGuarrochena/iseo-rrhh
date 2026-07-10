@@ -3,10 +3,12 @@
  * de dominio (camelCase). Un solo lugar para todo el mapeo.
  */
 import {
+  Adelanto,
   Ausencia,
   ChecklistItem,
   ContactoEmergencia,
   Convenio,
+  DescuentoRecurrente,
   DocumentoLegajo,
   Empleado,
   Empresa,
@@ -188,6 +190,27 @@ export const aRecibo = (f: Fila): ReciboSueldo => ({
   archivoUrl: f.archivo_url,
   estadoFirma: f.estado_firma,
   firmadoEn: f.firmado_en ? String(f.firmado_en).slice(0, 10) : undefined,
+  firmadoEmpleadorEn: f.firmado_empleador_en
+    ? String(f.firmado_empleador_en).slice(0, 10)
+    : undefined,
+});
+
+export const aDescuentoRecurrente = (f: Fila): DescuentoRecurrente => ({
+  id: f.id,
+  empleadoId: f.empleado_id,
+  concepto: f.concepto,
+  monto: Number(f.monto),
+});
+
+export const aAdelanto = (f: Fila): Adelanto => ({
+  id: f.id,
+  empleadoId: f.empleado_id,
+  monto: Number(f.monto),
+  motivo: f.motivo ?? undefined,
+  estado: f.estado,
+  periodo: f.periodo ?? undefined,
+  creadoEn: String(f.creado_en).slice(0, 10),
+  resueltoEn: f.resuelto_en ? String(f.resuelto_en).slice(0, 10) : undefined,
 });
 
 export const aRemuneracion = (f: Fila): Remuneracion => ({

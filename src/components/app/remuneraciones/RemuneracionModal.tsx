@@ -1,16 +1,20 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
-import { cargarRemuneracion } from '@/lib/services/rrhh';
+import {
+  cargarRemuneracion,
+  getAdelantos,
+  getDescuentosRecurrentes,
+} from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { calcularLiquidacion, APORTES_TOTAL } from '@/lib/remuneraciones';
 import { formatearPesos } from '@/lib/formato';
 import { hoyISO } from '@/lib/fechas';
-import { Remuneracion } from '@/types/rrhh';
+import { Adelanto, DescuentoRecurrente, Remuneracion } from '@/types/rrhh';
 
 interface RemuneracionModalProps {
   abierto: boolean;
@@ -39,6 +43,8 @@ export const RemuneracionModal = ({
   const [convenio, setConvenio] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recurrentes, setRecurrentes] = useState<DescuentoRecurrente[]>([]);
+  const [adelantos, setAdelantos] = useState<Adelanto[]>([]);
 
   useEffect(() => {
     if (abierto) {
@@ -48,8 +54,33 @@ export const RemuneracionModal = ({
       setOtros(inicial?.otrosDescuentos ? String(inicial.otrosDescuentos) : '');
       setConvenio(inicial?.convenio ?? convenioSugerido ?? '');
       setError(null);
+      void getDescuentosRecurrentes(empleadoId).then(setRecurrentes);
+      void getAdelantos(empleadoId).then(setAdelantos);
     }
-  }, [abierto, inicial, convenioSugerido]);
+  }, [abierto, inicial, convenioSugerido, empleadoId]);
+
+  /** Descuentos que "ya quedan": fijos + adelantos aprobados del período. */
+  const sugerencia = useMemo(() => {
+    const partes = recurrentes.map((d) => ({
+      etiqueta: d.concepto,
+      monto: d.monto,
+    }));
+    adelantos
+      .filter((a) => a.estado === 'aprobado' && a.periodo === periodo)
+      .forEach((a) => partes.push({ etiqueta: 'Adelanto', monto: a.monto }));
+    return {
+      partes,
+      total: partes.reduce((acc, p) => acc + p.monto, 0),
+    };
+  }, [recurrentes, adelantos, periodo]);
+
+  // Al cargar un período nuevo, los descuentos fijos se arrastran solos.
+  useEffect(() => {
+    if (abierto && !inicial && sugerencia.total > 0) {
+      setOtros(String(sugerencia.total));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abierto, inicial, sugerencia.total, periodo]);
 
   const { aportes, neto } = calcularLiquidacion({
     montoBruto: num(bruto),
@@ -150,6 +181,27 @@ export const RemuneracionModal = ({
             ayuda="Descuentos extra además de jubilación, PAMI y obra social."
           />
         </div>
+
+        {sugerencia.total > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-brand-50 px-4 py-2.5 text-xs text-ink-soft">
+            <span>
+              Descuentos del período:{' '}
+              {sugerencia.partes
+                .map((p) => `${p.etiqueta} ${formatearPesos(p.monto)}`)
+                .join(' · ')}
+            </span>
+            {num(otros) !== sugerencia.total && (
+              <Boton
+                variante="sutil"
+                tamano="sm"
+                type="button"
+                onClick={() => setOtros(String(sugerencia.total))}
+              >
+                Aplicar {formatearPesos(sugerencia.total)}
+              </Boton>
+            )}
+          </div>
+        )}
 
         <div className="rounded-xl bg-paper px-4 py-3">
           {fila('Remunerativo', formatearPesos(num(bruto)))}

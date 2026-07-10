@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   IconFileCertificate,
+  IconFiles,
   IconSignature,
   IconEye,
   IconUpload,
+  IconWritingSign,
 } from '@tabler/icons-react';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -22,10 +24,12 @@ import {
   abrirRecibo,
   cargarRecibo,
   firmarRecibo,
+  firmarReciboEmpleador,
   getEmpleados,
   getRecibos,
   getRecibosTodos,
 } from '@/lib/services/rrhh';
+import { CargaMasivaModal } from '@/components/app/recibos/CargaMasivaModal';
 import { Empleado, ReciboSueldo } from '@/types/rrhh';
 
 const FirmaBadge = ({ recibo }: { recibo: ReciboSueldo }) =>
@@ -55,8 +59,11 @@ const RecibosPage = () => {
     new Date().toISOString().slice(0, 7)
   );
   const [cargaArchivo, setCargaArchivo] = useState<File | null>(null);
+  const [cargaPublicar, setCargaPublicar] = useState(true);
   const [cargaError, setCargaError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [masivaAbierta, setMasivaAbierta] = useState(false);
+  const [publicando, setPublicando] = useState(false);
 
   const [cargandoLista, setCargandoLista] = useState(true);
 
@@ -105,10 +112,17 @@ const RecibosPage = () => {
     setCargaError(null);
     setCargando(true);
     try {
-      await cargarRecibo(cargaEmpleado, cargaPeriodo, cargaArchivo);
+      await cargarRecibo(
+        cargaEmpleado,
+        cargaPeriodo,
+        cargaArchivo,
+        cargaPublicar
+      );
       avisoExito(
         'Recibo cargado',
-        'El colaborador ya lo ve en su sección Recibos.'
+        cargaPublicar
+          ? 'El colaborador ya lo ve en su sección Recibos.'
+          : 'Quedó sin publicar: firmalo como empleador cuando quieras.'
       );
     } catch (err) {
       setCargaError(
@@ -144,8 +158,52 @@ const RecibosPage = () => {
     cargar();
   };
 
-  const pendientes = recibos.filter((r) => r.estadoFirma === 'pendiente');
-  const firmados = recibos.filter((r) => r.estadoFirma === 'firmado');
+  const publicarRecibo = async (r: ReciboSueldo) => {
+    setPublicando(true);
+    try {
+      await firmarReciboEmpleador(r.id);
+      avisoExito(
+        'Recibo publicado',
+        `${formatearPeriodo(r.periodo)} de ${nombreEmpleado(r.empleadoId)} ya está disponible para firmar.`
+      );
+      cargar();
+    } catch (err) {
+      avisoError(
+        'No pudimos publicarlo',
+        err instanceof Error ? err.message : undefined
+      );
+    }
+    setPublicando(false);
+  };
+
+  const publicarTodos = async (lista: ReciboSueldo[]) => {
+    setPublicando(true);
+    let ok = 0;
+    for (const r of lista) {
+      try {
+        await firmarReciboEmpleador(r.id);
+        ok += 1;
+      } catch {
+        // sigue con el resto
+      }
+    }
+    setPublicando(false);
+    avisoExito(
+      `${ok} recibo${ok === 1 ? '' : 's'} publicado${ok === 1 ? '' : 's'}`,
+      'El equipo ya los ve para firmar.'
+    );
+    cargar();
+  };
+
+  // Para el admin: los sin firma del empleador van aparte (borradores).
+  const borradores = esEmpleado
+    ? []
+    : recibos.filter((r) => !r.firmadoEmpleadorEn);
+  const publicados = esEmpleado
+    ? recibos
+    : recibos.filter((r) => r.firmadoEmpleadorEn);
+  const pendientes = publicados.filter((r) => r.estadoFirma === 'pendiente');
+  const firmados = publicados.filter((r) => r.estadoFirma === 'firmado');
 
   return (
     <div className="flex flex-col gap-6">
@@ -161,10 +219,16 @@ const RecibosPage = () => {
           </p>
         </div>
         {rolEfectivo === 'admin_rrhh' && (
-          <Boton variante="negro" onClick={abrirCarga}>
-            <IconUpload size={18} />
-            Cargar recibo
-          </Boton>
+          <div className="flex flex-wrap gap-2">
+            <Boton variante="secundario" onClick={() => setMasivaAbierta(true)}>
+              <IconFiles size={18} />
+              Carga masiva
+            </Boton>
+            <Boton variante="negro" onClick={abrirCarga}>
+              <IconUpload size={18} />
+              Cargar recibo
+            </Boton>
+          </div>
         )}
       </div>
 
@@ -181,7 +245,66 @@ const RecibosPage = () => {
           detalle="al día"
           icono={IconFileCertificate}
         />
+        {!esEmpleado && borradores.length > 0 && (
+          <StatCard
+            etiqueta="Sin publicar"
+            valor={borradores.length}
+            detalle="falta tu firma"
+            icono={IconWritingSign}
+          />
+        )}
       </div>
+
+      {!esEmpleado && borradores.length > 0 && (
+        <ListaCard
+          titulo="Sin publicar — falta la firma del empleador"
+          vacio=""
+        >
+          {borradores.length > 1 && (
+            <div className="flex justify-end">
+              <Boton
+                variante="secundario"
+                tamano="sm"
+                onClick={() => void publicarTodos(borradores)}
+                disabled={publicando}
+              >
+                <IconWritingSign size={14} />
+                Firmar y publicar todos
+              </Boton>
+            </div>
+          )}
+          {[...borradores]
+            .sort((a, b) => b.periodo.localeCompare(a.periodo))
+            .map((r) => (
+              <ListaItem
+                key={r.id}
+                icono={IconFileCertificate}
+                principal={`${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`}
+                secundario="El colaborador todavía no lo ve"
+                extremo={
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Boton
+                      variante="secundario"
+                      tamano="sm"
+                      onClick={() => void verRecibo(r)}
+                    >
+                      <IconEye size={14} />
+                      Ver
+                    </Boton>
+                    <Boton
+                      tamano="sm"
+                      onClick={() => void publicarRecibo(r)}
+                      disabled={publicando}
+                    >
+                      <IconWritingSign size={14} />
+                      Firmar y publicar
+                    </Boton>
+                  </div>
+                }
+              />
+            ))}
+        </ListaCard>
+      )}
 
       <ListaCard
         titulo={esEmpleado ? 'Pendientes de firma' : 'Pendientes del equipo'}
@@ -296,6 +419,22 @@ const RecibosPage = () => {
             accept=".pdf,application/pdf"
             onArchivo={setCargaArchivo}
           />
+          <label className="flex cursor-pointer items-center gap-2.5 rounded-xl bg-paper px-4 py-3 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={cargaPublicar}
+              onChange={(e) => setCargaPublicar(e.target.checked)}
+              className="h-4 w-4 accent-brand-600"
+            />
+            <span className="text-xs">
+              <span className="font-semibold">
+                Firmar como empleador y publicar ahora.
+              </span>{' '}
+              <span className="text-ink-soft">
+                Si lo destildás, queda como borrador.
+              </span>
+            </span>
+          </label>
           {cargaError && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
               {cargaError}
@@ -310,6 +449,13 @@ const RecibosPage = () => {
           </Boton>
         </div>
       </Modal>
+
+      <CargaMasivaModal
+        abierto={masivaAbierta}
+        empleados={empleados}
+        onCerrar={() => setMasivaAbierta(false)}
+        onCargado={cargar}
+      />
 
       <Modal
         opened={modalAbierto}

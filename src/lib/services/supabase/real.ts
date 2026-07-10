@@ -4,12 +4,14 @@
  * entre una y otra la hace el facade src/lib/services/rrhh.ts.
  */
 import {
+  Adelanto,
   Alerta,
   Ausencia,
   ConfigPlataforma,
   Convenio,
   DatosEmpresaCliente,
   DescriptorFacial,
+  DescuentoRecurrente,
   DocumentoLegajo,
   Empleado,
   Empresa,
@@ -53,8 +55,10 @@ import { diasEntre, hoyISO } from '@/lib/fechas';
 import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import {
+  aAdelanto,
   aAusencia,
   aConvenio,
+  aDescuentoRecurrente,
   aDocumento,
   aEmpleado,
   aEmpresa,
@@ -1597,33 +1601,8 @@ export const firmarRecibo = async (
   return recibo;
 };
 
-/** El admin sube el PDF del recibo de un período (pisa si ya existía). */
-export const cargarRecibo = async (
-  empleadoId: string,
-  periodo: string,
-  archivo: File
-): Promise<ReciboSueldo> => {
-  const path = await subirReciboPdf(empleadoId, periodo, archivo);
-  const { data, error } = await sb()
-    .from('recibos')
-    .upsert(
-      {
-        empresa_id: empresaId(),
-        empleado_id: empleadoId,
-        periodo,
-        archivo_url: path,
-      },
-      { onConflict: 'empleado_id,periodo' }
-    )
-    .select()
-    .single();
-  const recibo = aRecibo(oFalla(data, error));
-  await registrarAuditoria('cargar', 'recibo', recibo.id, {
-    empleadoId,
-    periodo,
-  });
-
-  // Avisar al empleado que tiene un recibo para firmar.
+/** Avisa al empleado que su recibo ya está disponible para firmar. */
+const avisarReciboDisponible = async (empleadoId: string): Promise<void> => {
   try {
     const { data: usuario } = await sb()
       .from('usuarios')
@@ -1642,8 +1621,195 @@ export const cargarRecibo = async (
   } catch {
     // La notificación nunca bloquea la carga.
   }
+};
 
+/**
+ * El admin sube el PDF del recibo de un período (pisa si ya existía).
+ * Con publicar=false queda como borrador hasta la firma del empleador.
+ */
+export const cargarRecibo = async (
+  empleadoId: string,
+  periodo: string,
+  archivo: File,
+  publicar = true
+): Promise<ReciboSueldo> => {
+  const path = await subirReciboPdf(empleadoId, periodo, archivo);
+  const { data, error } = await sb()
+    .from('recibos')
+    .upsert(
+      {
+        empresa_id: empresaId(),
+        empleado_id: empleadoId,
+        periodo,
+        archivo_url: path,
+        firmado_empleador_en: publicar ? new Date().toISOString() : null,
+      },
+      { onConflict: 'empleado_id,periodo' }
+    )
+    .select()
+    .single();
+  const recibo = aRecibo(oFalla(data, error));
+  await registrarAuditoria('cargar', 'recibo', recibo.id, {
+    empleadoId,
+    periodo,
+  });
+  if (publicar) await avisarReciboDisponible(empleadoId);
   return recibo;
+};
+
+/** Firma del empleador: publica el recibo para que el empleado lo vea. */
+export const firmarReciboEmpleador = async (
+  reciboId: string
+): Promise<ReciboSueldo> => {
+  const { data, error } = await sb()
+    .from('recibos')
+    .update({ firmado_empleador_en: new Date().toISOString() })
+    .eq('id', reciboId)
+    .select()
+    .single();
+  const recibo = aRecibo(oFalla(data, error));
+  await registrarAuditoria('firmar_empleador', 'recibo', recibo.id, {
+    empleadoId: recibo.empleadoId,
+    periodo: recibo.periodo,
+  });
+  await avisarReciboDisponible(recibo.empleadoId);
+  return recibo;
+};
+
+// ---------- Descuentos recurrentes ----------
+
+export const getDescuentosRecurrentes = async (
+  empleadoId: string
+): Promise<DescuentoRecurrente[]> => {
+  const { data, error } = await sb()
+    .from('descuentos_recurrentes')
+    .select('*')
+    .eq('empleado_id', empleadoId)
+    .order('creado_en');
+  return oFalla(data, error).map(aDescuentoRecurrente);
+};
+
+export const crearDescuentoRecurrente = async (
+  empleadoId: string,
+  concepto: string,
+  monto: number
+): Promise<DescuentoRecurrente> => {
+  const { data, error } = await sb()
+    .from('descuentos_recurrentes')
+    .insert({
+      empresa_id: empresaId(),
+      empleado_id: empleadoId,
+      concepto,
+      monto,
+    })
+    .select()
+    .single();
+  return aDescuentoRecurrente(oFalla(data, error));
+};
+
+export const eliminarDescuentoRecurrente = async (
+  id: string
+): Promise<void> => {
+  const { error } = await sb()
+    .from('descuentos_recurrentes')
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+};
+
+// ---------- Adelantos ----------
+
+/** Adelantos del empleado, o de toda la empresa si no se pasa id. */
+export const getAdelantos = async (
+  empleadoId?: string
+): Promise<Adelanto[]> => {
+  let q = sb()
+    .from('adelantos')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .order('creado_en', { ascending: false });
+  if (empleadoId) q = q.eq('empleado_id', empleadoId);
+  const { data, error } = await q;
+  return oFalla(data, error).map(aAdelanto);
+};
+
+/** El empleado pide un adelanto; se avisa a los gestores. */
+export const solicitarAdelanto = async (
+  empleadoId: string,
+  monto: number,
+  motivo?: string
+): Promise<Adelanto> => {
+  const { data, error } = await sb()
+    .from('adelantos')
+    .insert({
+      empresa_id: empresaId(),
+      empleado_id: empleadoId,
+      monto,
+      motivo: motivo?.trim() || null,
+    })
+    .select()
+    .single();
+  const adelanto = aAdelanto(oFalla(data, error));
+  try {
+    const [gestores, empleado] = await Promise.all([
+      usuariosGestores(),
+      getEmpleado(empleadoId),
+    ]);
+    const quien = empleado
+      ? `${empleado.nombre} ${empleado.apellido}`
+      : 'Un colaborador';
+    await notificarUsuarios(
+      gestores,
+      'adelanto_solicitado',
+      'Pedido de adelanto',
+      `${quien} pidió un adelanto de $${monto.toLocaleString('es-AR')}.`,
+      '/remuneraciones'
+    );
+  } catch {
+    // La notificación nunca bloquea el pedido.
+  }
+  return adelanto;
+};
+
+/** El admin aprueba (fijando el período de descuento) o rechaza. */
+export const resolverAdelanto = async (
+  adelantoId: string,
+  aprobar: boolean,
+  periodo?: string
+): Promise<Adelanto> => {
+  const { data, error } = await sb()
+    .from('adelantos')
+    .update({
+      estado: aprobar ? 'aprobado' : 'rechazado',
+      periodo: aprobar ? (periodo ?? hoyISO().slice(0, 7)) : null,
+      resuelto_en: new Date().toISOString(),
+    })
+    .eq('id', adelantoId)
+    .eq('estado', 'pendiente')
+    .select()
+    .single();
+  const adelanto = aAdelanto(oFalla(data, error));
+  try {
+    const { data: usuario } = await sb()
+      .from('usuarios')
+      .select('id')
+      .eq('empleado_id', adelanto.empleadoId)
+      .maybeSingle();
+    if (usuario) {
+      await notificarUsuarios(
+        [usuario.id],
+        'adelanto_resuelto',
+        aprobar ? 'Adelanto aprobado' : 'Adelanto rechazado',
+        aprobar
+          ? `Te aprobaron un adelanto de $${adelanto.monto.toLocaleString('es-AR')}. Se descuenta en el período correspondiente.`
+          : 'Tu pedido de adelanto fue rechazado. Consultá con RRHH.',
+        '/remuneraciones'
+      );
+    }
+  } catch {
+    // La notificación nunca bloquea la resolución.
+  }
+  return adelanto;
 };
 
 /** Marca como leídas todas las notificaciones del usuario. */

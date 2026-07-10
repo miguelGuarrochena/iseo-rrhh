@@ -275,6 +275,29 @@ export interface NuevaRemuneracion {
   convenio?: string;
 }
 
+/** Descuento fijo (sindicato, comedor, etc.) que se arrastra cada mes. */
+export interface DescuentoRecurrente {
+  id: string;
+  empleadoId: string;
+  concepto: string;
+  monto: number;
+}
+
+export type EstadoAdelanto = 'pendiente' | 'aprobado' | 'rechazado';
+
+/** Adelanto de sueldo: el empleado pide, el admin resuelve. */
+export interface Adelanto {
+  id: string;
+  empleadoId: string;
+  monto: number;
+  motivo?: string;
+  estado: EstadoAdelanto;
+  /** YYYY-MM en el que se descuenta del neto (se fija al aprobar). */
+  periodo?: string;
+  creadoEn: string;
+  resueltoEn?: string;
+}
+
 export type EstadoFirma = 'pendiente' | 'firmado';
 
 export interface ReciboSueldo {
@@ -284,6 +307,8 @@ export interface ReciboSueldo {
   archivoUrl: string;
   estadoFirma: EstadoFirma;
   firmadoEn?: string;
+  /** Cuándo lo firmó/publicó el empleador; sin esto el empleado no lo ve. */
+  firmadoEmpleadorEn?: string;
 }
 
 // ---------- Ausencias ----------
@@ -559,6 +584,8 @@ export interface Notificacion {
     | 'ausencia_solicitada'
     | 'ausencia_resuelta'
     | 'recibo_disponible'
+    | 'adelanto_solicitado'
+    | 'adelanto_resuelto'
     | 'vencimiento'
     | 'evento'
     | 'general';

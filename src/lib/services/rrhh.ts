@@ -273,6 +273,31 @@ export const getRecibosTodos = elegir(
 );
 export const firmarRecibo = elegir(real.firmarRecibo, demo.firmarRecibo);
 export const cargarRecibo = elegir(real.cargarRecibo, demo.cargarRecibo);
+export const firmarReciboEmpleador = elegir(
+  real.firmarReciboEmpleador,
+  demo.firmarReciboEmpleador
+);
+export const getDescuentosRecurrentes = elegir(
+  real.getDescuentosRecurrentes,
+  demo.getDescuentosRecurrentes
+);
+export const crearDescuentoRecurrente = elegir(
+  real.crearDescuentoRecurrente,
+  demo.crearDescuentoRecurrente
+);
+export const eliminarDescuentoRecurrente = elegir(
+  real.eliminarDescuentoRecurrente,
+  demo.eliminarDescuentoRecurrente
+);
+export const getAdelantos = elegir(real.getAdelantos, demo.getAdelantos);
+export const solicitarAdelanto = elegir(
+  real.solicitarAdelanto,
+  demo.solicitarAdelanto
+);
+export const resolverAdelanto = elegir(
+  real.resolverAdelanto,
+  demo.resolverAdelanto
+);
 
 // ---------- Archivos ----------
 export const abrirRecibo = elegir(real.abrirRecibo, demo.abrirRecibo);

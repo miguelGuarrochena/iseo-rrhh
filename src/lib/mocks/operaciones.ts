@@ -1,6 +1,8 @@
 import {
+  Adelanto,
   Alerta,
   Ausencia,
+  DescuentoRecurrente,
   DocumentoLegajo,
   EventoAgenda,
   Fichaje,
@@ -236,6 +238,7 @@ export const recibosMock: ReciboSueldo[] = [
     archivoUrl: '/recibos/2026-05.pdf',
     estadoFirma: 'firmado',
     firmadoEn: '2026-06-05',
+    firmadoEmpleadorEn: '2026-06-01',
   },
   {
     id: 'rec-2',
@@ -243,6 +246,27 @@ export const recibosMock: ReciboSueldo[] = [
     periodo: '2026-06',
     archivoUrl: '/recibos/2026-06.pdf',
     estadoFirma: 'pendiente',
+    firmadoEmpleadorEn: '2026-07-01',
+  },
+];
+
+export const descuentosRecurrentesMock: DescuentoRecurrente[] = [
+  {
+    id: 'dsc-1',
+    empleadoId: 'ple-3',
+    concepto: 'Sindicato',
+    monto: 21500,
+  },
+];
+
+export const adelantosMock: Adelanto[] = [
+  {
+    id: 'ade-1',
+    empleadoId: 'ple-3',
+    monto: 150000,
+    motivo: 'Arreglo del auto',
+    estado: 'pendiente',
+    creadoEn: '2026-07-06',
   },
 ];
 

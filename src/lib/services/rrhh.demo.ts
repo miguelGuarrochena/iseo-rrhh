@@ -22,6 +22,8 @@ import {
   NuevoMovimiento,
   ResumenFinanzas,
   NotaInterna,
+  Adelanto,
+  DescuentoRecurrente,
   NuevaRemuneracion,
   NuevoConvenio,
   NuevoTurno,
@@ -47,8 +49,10 @@ import { empleadosMock } from '@/lib/mocks/empleados';
 import { jornadasMock } from '@/lib/mocks/jornadas';
 import { movimientosMock } from '@/lib/mocks/finanzas';
 import {
+  adelantosMock,
   alertasMock,
   ausenciasMock,
+  descuentosRecurrentesMock,
   documentosMock,
   eventosMock,
   fichajesMock,
@@ -998,7 +1002,11 @@ export const cargarRemuneracion = async (
 };
 
 export const getRecibos = async (empleadoId: string): Promise<ReciboSueldo[]> =>
-  simular(recibosMock.filter((r) => r.empleadoId === empleadoId));
+  simular(
+    recibosMock.filter(
+      (r) => r.empleadoId === empleadoId && r.firmadoEmpleadorEn
+    )
+  );
 
 export const getRecibosTodos = async (): Promise<ReciboSueldo[]> =>
   simular([...recibosMock]);
@@ -1046,22 +1054,7 @@ export const actualizarConfigEmpresa = async (
 
 // ---------- Archivos (demo: sin storage real) ----------
 
-export const cargarRecibo = async (
-  empleadoId: string,
-  periodo: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _archivo: File
-): Promise<ReciboSueldo> => {
-  const nuevo: ReciboSueldo = {
-    id: `rec-${Date.now()}`,
-    empleadoId,
-    periodo,
-    archivoUrl: `/recibos/${empleadoId}/${periodo}.pdf`,
-    estadoFirma: 'pendiente',
-  };
-  recibosMock.push(nuevo);
-
-  // Avisar al empleado que tiene un recibo para firmar.
+const avisarReciboDisponible = (empleadoId: string) => {
   const usuario = usuariosMock.find((u) => u.empleadoId === empleadoId);
   if (usuario) {
     notificacionesMock.unshift({
@@ -1075,8 +1068,142 @@ export const cargarRecibo = async (
       creadaEn: new Date().toISOString(),
     });
   }
+};
+
+export const cargarRecibo = async (
+  empleadoId: string,
+  periodo: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _archivo: File,
+  publicar = true
+): Promise<ReciboSueldo> => {
+  const nuevo: ReciboSueldo = {
+    id: `rec-${Date.now()}`,
+    empleadoId,
+    periodo,
+    archivoUrl: `/recibos/${empleadoId}/${periodo}.pdf`,
+    estadoFirma: 'pendiente',
+    firmadoEmpleadorEn: publicar ? hoyISO() : undefined,
+  };
+  recibosMock.push(nuevo);
+  if (publicar) avisarReciboDisponible(empleadoId);
+  return simular(nuevo);
+};
+
+/** Firma del empleador: publica el recibo para el empleado. */
+export const firmarReciboEmpleador = async (
+  reciboId: string
+): Promise<ReciboSueldo> => {
+  const recibo = recibosMock.find((r) => r.id === reciboId);
+  if (!recibo) throw new Error('Recibo inexistente.');
+  recibo.firmadoEmpleadorEn = hoyISO();
+  avisarReciboDisponible(recibo.empleadoId);
+  return simular(recibo);
+};
+
+// ---------- Descuentos recurrentes ----------
+
+export const getDescuentosRecurrentes = async (
+  empleadoId: string
+): Promise<DescuentoRecurrente[]> =>
+  simular(descuentosRecurrentesMock.filter((d) => d.empleadoId === empleadoId));
+
+export const crearDescuentoRecurrente = async (
+  empleadoId: string,
+  concepto: string,
+  monto: number
+): Promise<DescuentoRecurrente> => {
+  const nuevo: DescuentoRecurrente = {
+    id: `dsc-${Date.now()}`,
+    empleadoId,
+    concepto,
+    monto,
+  };
+  descuentosRecurrentesMock.push(nuevo);
+  return simular(nuevo);
+};
+
+export const eliminarDescuentoRecurrente = async (
+  id: string
+): Promise<void> => {
+  const i = descuentosRecurrentesMock.findIndex((d) => d.id === id);
+  if (i >= 0) descuentosRecurrentesMock.splice(i, 1);
+  await simular(undefined);
+};
+
+// ---------- Adelantos ----------
+
+export const getAdelantos = async (empleadoId?: string): Promise<Adelanto[]> =>
+  simular(
+    adelantosMock.filter((a) => !empleadoId || a.empleadoId === empleadoId)
+  );
+
+export const solicitarAdelanto = async (
+  empleadoId: string,
+  monto: number,
+  motivo?: string
+): Promise<Adelanto> => {
+  const nuevo: Adelanto = {
+    id: `ade-${Date.now()}`,
+    empleadoId,
+    monto,
+    motivo: motivo?.trim() || undefined,
+    estado: 'pendiente',
+    creadoEn: hoyISO(),
+  };
+  adelantosMock.unshift(nuevo);
+
+  // Avisar a los gestores que hay un pedido para resolver.
+  const empleado = empleadosMock.find((e) => e.id === empleadoId);
+  usuariosMock
+    .filter((u) => u.rol === 'admin_rrhh' || u.rol === 'supervisor')
+    .forEach((u) =>
+      notificacionesMock.unshift({
+        id: `not-${Date.now()}-${u.id}`,
+        usuarioId: u.id,
+        tipo: 'adelanto_solicitado',
+        titulo: 'Pedido de adelanto',
+        cuerpo: `${empleado ? `${empleado.nombre} ${empleado.apellido}` : 'Un colaborador'} pidió un adelanto de $${monto.toLocaleString('es-AR')}.`,
+        link: '/remuneraciones',
+        leida: false,
+        creadaEn: new Date().toISOString(),
+      })
+    );
 
   return simular(nuevo);
+};
+
+export const resolverAdelanto = async (
+  adelantoId: string,
+  aprobar: boolean,
+  periodo?: string
+): Promise<Adelanto> => {
+  const adelanto = adelantosMock.find((a) => a.id === adelantoId);
+  if (!adelanto) throw new Error('Adelanto inexistente.');
+  adelanto.estado = aprobar ? 'aprobado' : 'rechazado';
+  adelanto.periodo = aprobar ? (periodo ?? hoyISO().slice(0, 7)) : undefined;
+  adelanto.resueltoEn = hoyISO();
+
+  // Avisar al empleado.
+  const usuario = usuariosMock.find(
+    (u) => u.empleadoId === adelanto.empleadoId
+  );
+  if (usuario) {
+    notificacionesMock.unshift({
+      id: `not-${Date.now()}`,
+      usuarioId: usuario.id,
+      tipo: 'adelanto_resuelto',
+      titulo: aprobar ? 'Adelanto aprobado' : 'Adelanto rechazado',
+      cuerpo: aprobar
+        ? `Te aprobaron un adelanto de $${adelanto.monto.toLocaleString('es-AR')}.`
+        : 'Tu pedido de adelanto fue rechazado. Consultá con RRHH.',
+      link: '/remuneraciones',
+      leida: false,
+      creadaEn: new Date().toISOString(),
+    });
+  }
+
+  return simular(adelanto);
 };
 
 /** Marca como leídas todas las notificaciones del usuario. */

@@ -14,6 +14,10 @@ import {
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
+import {
+  AdelantosAdmin,
+  AdelantosEmpleado,
+} from '@/components/app/remuneraciones/Adelantos';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import {
   getEmpleados,
@@ -184,6 +188,8 @@ const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
           </div>
         )}
       </Panel>
+
+      <AdelantosEmpleado empleadoId={empleadoId} />
     </div>
   );
 };
@@ -351,6 +357,8 @@ const VistaAdmin = () => {
           exactos, consultá con tu contador.
         </p>
       </Panel>
+
+      <AdelantosAdmin empleados={empleados} />
     </div>
   );
 };
