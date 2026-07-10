@@ -24,6 +24,7 @@ import {
   NotaInterna,
   Notificacion,
   NuevaEmpresa,
+  NuevaRemuneracion,
   NuevoConvenio,
   OpcionesFichaje,
   ReciboSueldo,
@@ -45,6 +46,8 @@ import type {
   NuevoUsuario,
 } from '@/lib/services/rrhh.demo';
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
+import { tipoAusenciaLabels } from '@/lib/etiquetas';
+import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { diasEntre, hoyISO } from '@/lib/fechas';
 import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
@@ -368,6 +371,7 @@ export const crearEmpleado = async (
       cbu: datos.cbu ?? '',
       obra_social: datos.obraSocial ?? '',
       art: datos.art ?? '',
+      convenio: datos.convenio ?? null,
       modo_fichaje: datos.modoFichaje ?? 'celular',
       geocerca: datos.geocerca ?? null,
       checklist_alta: CHECKLIST_ALTA,
@@ -411,6 +415,7 @@ export const actualizarEmpleado = async (
     cbu: 'cbu',
     obraSocial: 'obra_social',
     art: 'art',
+    convenio: 'convenio',
     modoFichaje: 'modo_fichaje',
     geocerca: 'geocerca',
   };
@@ -595,6 +600,40 @@ export const getAusenciasPendientes = async (): Promise<Ausencia[]> => {
   return oFalla(data, error).map(aAusencia);
 };
 
+/** Avisa a varios usuarios (best-effort: nunca rompe la acción principal). */
+const notificarUsuarios = async (
+  usuarioIds: string[],
+  tipo: Notificacion['tipo'],
+  titulo: string,
+  cuerpo: string,
+  link?: string
+): Promise<void> => {
+  const propios = useAuthStore.getState().usuario?.id;
+  const destinos = usuarioIds.filter((id) => id && id !== propios);
+  if (destinos.length === 0) return;
+  await sb()
+    .from('notificaciones')
+    .insert(
+      destinos.map((usuario_id) => ({
+        usuario_id,
+        tipo,
+        titulo,
+        cuerpo,
+        link: link ?? null,
+      }))
+    );
+};
+
+/** Ids de usuario de los gestores (admin y supervisores) de la empresa. */
+const usuariosGestores = async (): Promise<string[]> => {
+  const { data } = await sb()
+    .from('usuarios')
+    .select('id')
+    .eq('empresa_id', empresaId())
+    .in('rol', ['admin_rrhh', 'supervisor']);
+  return (data ?? []).map((u) => u.id);
+};
+
 export const crearAusencia = async (
   datos: NuevaAusencia
 ): Promise<Ausencia> => {
@@ -611,7 +650,29 @@ export const crearAusencia = async (
     })
     .select()
     .single();
-  return aAusencia(oFalla(data, error));
+  const ausencia = aAusencia(oFalla(data, error));
+
+  // Avisar a los gestores que hay una solicitud para resolver.
+  try {
+    const [gestores, empleado] = await Promise.all([
+      usuariosGestores(),
+      getEmpleado(datos.empleadoId),
+    ]);
+    const quien = empleado
+      ? `${empleado.nombre} ${empleado.apellido}`
+      : 'Un colaborador';
+    await notificarUsuarios(
+      gestores,
+      'ausencia_solicitada',
+      'Nueva solicitud de ausencia',
+      `${quien} pidió ${tipoAusenciaLabels[datos.tipo].toLowerCase()} (${ausencia.dias} días).`,
+      '/ausencias'
+    );
+  } catch {
+    // La notificación nunca bloquea la solicitud.
+  }
+
+  return ausencia;
 };
 
 export const resolverAusencia = async (
@@ -1312,6 +1373,32 @@ export const getRemuneracionesTodas = async (): Promise<Remuneracion[]> => {
   return (data ?? []).map(aRemuneracion);
 };
 
+/** Carga o actualiza la remuneración de un empleado para un período. */
+export const cargarRemuneracion = async (
+  datos: NuevaRemuneracion
+): Promise<Remuneracion> => {
+  const { aportes, neto } = calcularLiquidacion(datos);
+  const { data, error } = await sb()
+    .from('remuneraciones')
+    .upsert(
+      {
+        empresa_id: empresaId(),
+        empleado_id: datos.empleadoId,
+        periodo: datos.periodo,
+        monto_bruto: datos.montoBruto,
+        no_remunerativo: datos.noRemunerativo ?? 0,
+        otros_descuentos: datos.otrosDescuentos ?? 0,
+        convenio: datos.convenio ?? null,
+        aportes,
+        monto_neto: neto,
+      },
+      { onConflict: 'empleado_id,periodo' }
+    )
+    .select()
+    .single();
+  return aRemuneracion(oFalla(data, error));
+};
+
 export const getRecibos = async (
   empleadoId: string
 ): Promise<ReciboSueldo[]> => {
@@ -1366,7 +1453,40 @@ export const cargarRecibo = async (
     )
     .select()
     .single();
-  return aRecibo(oFalla(data, error));
+  const recibo = aRecibo(oFalla(data, error));
+
+  // Avisar al empleado que tiene un recibo para firmar.
+  try {
+    const { data: usuario } = await sb()
+      .from('usuarios')
+      .select('id')
+      .eq('empleado_id', empleadoId)
+      .maybeSingle();
+    if (usuario) {
+      await notificarUsuarios(
+        [usuario.id],
+        'recibo_disponible',
+        'Recibo de sueldo disponible',
+        'Ya podés verlo y firmarlo desde la sección Recibos.',
+        '/recibos'
+      );
+    }
+  } catch {
+    // La notificación nunca bloquea la carga.
+  }
+
+  return recibo;
+};
+
+/** Marca como leídas todas las notificaciones del usuario. */
+export const marcarNotificacionesLeidas = async (
+  usuarioId: string
+): Promise<void> => {
+  await sb()
+    .from('notificaciones')
+    .update({ leida: true })
+    .eq('usuario_id', usuarioId)
+    .eq('leida', false);
 };
 
 /** URL temporal para ver el PDF del recibo. */

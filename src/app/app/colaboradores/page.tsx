@@ -45,9 +45,12 @@ const ColaboradoresPage = () => {
   const [pagina, setPagina] = useState(1);
   const [importarAbierto, { open: abrirImportar, close: cerrarImportar }] =
     useDisclosure(false);
+  const [cargando, setCargando] = useState(true);
 
   const cargarEmpleados = () => {
-    void getEmpleadosTodos().then(setEmpleados);
+    void getEmpleadosTodos()
+      .then(setEmpleados)
+      .finally(() => setCargando(false));
   };
 
   useEffect(cargarEmpleados, []);
@@ -186,7 +189,8 @@ const ColaboradoresPage = () => {
       </div>
 
       <ListaCard
-        titulo={`Equipo (${filtrados.length})`}
+        titulo={cargando ? 'Equipo' : `Equipo (${filtrados.length})`}
+        cargando={cargando}
         vacio="No se encontraron colaboradores con esos filtros."
       >
         {visibles.length > 0 &&

@@ -22,6 +22,7 @@ import {
   NuevoMovimiento,
   ResumenFinanzas,
   NotaInterna,
+  NuevaRemuneracion,
   NuevoConvenio,
   NuevoTurno,
   OpcionesFichaje,
@@ -36,6 +37,7 @@ import {
   Usuario,
 } from '@/types/rrhh';
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
+import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { diasEntre, hoyISO } from '@/lib/fechas';
 import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
 import { dotacionMock, empresaMock, empresasMock } from '@/lib/mocks/empresa';
@@ -208,6 +210,7 @@ export interface NuevoEmpleado {
   cbu?: string;
   obraSocial?: string;
   art?: string;
+  convenio?: string;
   // Fichaje: dónde y cómo ficha
   modoFichaje?: Empleado['modoFichaje'];
   geocerca?: Empleado['geocerca'];
@@ -246,6 +249,7 @@ export const crearEmpleado = async (
     cbu: datos.cbu ?? '',
     obraSocial: datos.obraSocial ?? '',
     art: datos.art ?? '',
+    convenio: datos.convenio,
     modoFichaje: datos.modoFichaje ?? 'celular',
     geocerca: datos.geocerca,
     activo: true,
@@ -468,6 +472,24 @@ export const crearAusencia = async (
     creadaEn: hoyISO(),
   };
   ausenciasMock.unshift(nueva);
+
+  // Avisar a los gestores que hay una solicitud para resolver.
+  const empleado = empleadosMock.find((e) => e.id === datos.empleadoId);
+  usuariosMock
+    .filter((u) => u.rol === 'admin_rrhh' || u.rol === 'supervisor')
+    .forEach((u) =>
+      notificacionesMock.unshift({
+        id: `not-${Date.now()}-${u.id}`,
+        usuarioId: u.id,
+        tipo: 'ausencia_solicitada',
+        titulo: 'Nueva solicitud de ausencia',
+        cuerpo: `${empleado ? `${empleado.nombre} ${empleado.apellido}` : 'Un colaborador'} pidió ${nueva.dias} días.`,
+        link: '/ausencias',
+        leida: false,
+        creadaEn: new Date().toISOString(),
+      })
+    );
+
   return simular(nueva);
 };
 
@@ -879,6 +901,40 @@ export const getRemuneraciones = async (
 export const getRemuneracionesTodas = async (): Promise<Remuneracion[]> =>
   simular([...remuneracionesMock]);
 
+/** Carga o actualiza la remuneración de un empleado para un período. */
+export const cargarRemuneracion = async (
+  datos: NuevaRemuneracion
+): Promise<Remuneracion> => {
+  const { aportes, neto } = calcularLiquidacion(datos);
+  const existente = remuneracionesMock.find(
+    (r) => r.empleadoId === datos.empleadoId && r.periodo === datos.periodo
+  );
+  if (existente) {
+    Object.assign(existente, {
+      montoBruto: datos.montoBruto,
+      noRemunerativo: datos.noRemunerativo,
+      otrosDescuentos: datos.otrosDescuentos,
+      convenio: datos.convenio,
+      aportes,
+      montoNeto: neto,
+    });
+    return simular(existente);
+  }
+  const nueva: Remuneracion = {
+    id: `rem-${Date.now()}`,
+    empleadoId: datos.empleadoId,
+    periodo: datos.periodo,
+    montoBruto: datos.montoBruto,
+    noRemunerativo: datos.noRemunerativo,
+    otrosDescuentos: datos.otrosDescuentos,
+    convenio: datos.convenio,
+    aportes,
+    montoNeto: neto,
+  };
+  remuneracionesMock.push(nueva);
+  return simular(nueva);
+};
+
 export const getRecibos = async (empleadoId: string): Promise<ReciboSueldo[]> =>
   simular(recibosMock.filter((r) => r.empleadoId === empleadoId));
 
@@ -942,7 +998,33 @@ export const cargarRecibo = async (
     estadoFirma: 'pendiente',
   };
   recibosMock.push(nuevo);
+
+  // Avisar al empleado que tiene un recibo para firmar.
+  const usuario = usuariosMock.find((u) => u.empleadoId === empleadoId);
+  if (usuario) {
+    notificacionesMock.unshift({
+      id: `not-${Date.now()}`,
+      usuarioId: usuario.id,
+      tipo: 'recibo_disponible',
+      titulo: 'Recibo de sueldo disponible',
+      cuerpo: 'Ya podés verlo y firmarlo desde la sección Recibos.',
+      link: '/recibos',
+      leida: false,
+      creadaEn: new Date().toISOString(),
+    });
+  }
+
   return simular(nuevo);
+};
+
+/** Marca como leídas todas las notificaciones del usuario. */
+export const marcarNotificacionesLeidas = async (
+  usuarioId: string
+): Promise<void> => {
+  notificacionesMock.forEach((n) => {
+    if (n.usuarioId === usuarioId) n.leida = true;
+  });
+  return simular(undefined);
 };
 
 export const abrirRecibo = async (recibo: ReciboSueldo): Promise<string> =>

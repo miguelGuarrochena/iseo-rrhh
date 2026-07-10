@@ -59,14 +59,19 @@ const AusenciasPage = () => {
   const [filtroEmpleado, setFiltroEmpleado] = useState('');
   const [pagina, setPagina] = useState(1);
   const [modalAbierto, { open, close }] = useDisclosure(false);
+  const [cargando, setCargando] = useState(true);
 
   const cargar = useCallback(() => {
     if (!usuario) return;
     if (esEmpleado && usuario.empleadoId) {
-      void getAusenciasDeEmpleado(usuario.empleadoId).then(setAusencias);
+      void getAusenciasDeEmpleado(usuario.empleadoId)
+        .then(setAusencias)
+        .finally(() => setCargando(false));
       void getSaldoVacaciones(usuario.empleadoId, ANIO_ACTUAL).then(setSaldo);
     } else {
-      void getAusencias().then(setAusencias);
+      void getAusencias()
+        .then(setAusencias)
+        .finally(() => setCargando(false));
       void getEmpleados().then(setEmpleados);
     }
   }, [usuario, esEmpleado]);
@@ -240,6 +245,7 @@ const AusenciasPage = () => {
         titulo={
           esEmpleado ? 'Solicitudes en curso' : 'Pendientes de aprobación'
         }
+        cargando={cargando}
         vacio={
           esEmpleado
             ? 'No tenés solicitudes en curso.'
@@ -286,7 +292,11 @@ const AusenciasPage = () => {
           ))}
       </ListaCard>
 
-      <ListaCard titulo="Historial" vacio="Sin movimientos anteriores.">
+      <ListaCard
+        titulo="Historial"
+        cargando={cargando}
+        vacio="Sin movimientos anteriores."
+      >
         {resueltasVisibles.length > 0 &&
           resueltasVisibles.map((a) => (
             <ListaItem

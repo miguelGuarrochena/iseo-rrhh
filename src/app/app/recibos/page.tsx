@@ -58,12 +58,18 @@ const RecibosPage = () => {
   const [cargaError, setCargaError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
 
+  const [cargandoLista, setCargandoLista] = useState(true);
+
   const cargar = useCallback(() => {
     if (!usuario) return;
     if (esEmpleado && usuario.empleadoId) {
-      void getRecibos(usuario.empleadoId).then(setRecibos);
+      void getRecibos(usuario.empleadoId)
+        .then(setRecibos)
+        .finally(() => setCargandoLista(false));
     } else {
-      void getRecibosTodos().then(setRecibos);
+      void getRecibosTodos()
+        .then(setRecibos)
+        .finally(() => setCargandoLista(false));
       void getEmpleados().then(setEmpleados);
     }
   }, [usuario, esEmpleado]);
@@ -179,6 +185,7 @@ const RecibosPage = () => {
 
       <ListaCard
         titulo={esEmpleado ? 'Mis recibos' : 'Recibos del equipo'}
+        cargando={cargandoLista}
         vacio="No hay recibos cargados todavía."
       >
         {recibos.length > 0 &&

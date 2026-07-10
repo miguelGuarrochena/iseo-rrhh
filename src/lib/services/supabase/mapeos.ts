@@ -95,6 +95,7 @@ export const aEmpleado = (f: Fila): Empleado => ({
   cbu: f.cbu ?? '',
   obraSocial: f.obra_social ?? '',
   art: f.art ?? '',
+  convenio: f.convenio ?? undefined,
   activo: f.activo,
   fechaBaja: f.fecha_baja ?? undefined,
   motivoBaja: f.motivo_baja ?? undefined,
@@ -194,7 +195,13 @@ export const aRemuneracion = (f: Fila): Remuneracion => ({
   empleadoId: f.empleado_id,
   periodo: f.periodo,
   montoBruto: Number(f.monto_bruto),
+  noRemunerativo:
+    f.no_remunerativo != null ? Number(f.no_remunerativo) : undefined,
+  aportes: f.aportes != null ? Number(f.aportes) : undefined,
+  otrosDescuentos:
+    f.otros_descuentos != null ? Number(f.otros_descuentos) : undefined,
   montoNeto: Number(f.monto_neto),
+  convenio: f.convenio ?? undefined,
 });
 
 export const aEvento = (f: Fila): EventoAgenda => ({

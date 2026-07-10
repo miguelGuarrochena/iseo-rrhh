@@ -80,13 +80,16 @@ const DashboardPage = () => {
   const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
   const [pagosPendientes, setPagosPendientes] = useState(0);
   const [miMes, setMiMes] = useState<MiMes | null>(null);
+  const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     if (!usuario || !rolEfectivo) return;
 
     if (rolEfectivo === 'superadmin') {
       void getMetricasGlobales().then(setMetricas);
-      void getEmpresas().then(setEmpresas);
+      void getEmpresas()
+        .then(setEmpresas)
+        .finally(() => setCargando(false));
       void getResumenFinanzas(new Date().toISOString().slice(0, 7)).then((r) =>
         setPagosPendientes(r.empresasVencidas)
       );
@@ -98,7 +101,9 @@ const DashboardPage = () => {
     if (usuario.empleadoId) {
       void getMiMes(usuario.empleadoId).then(setMiMes);
       void getSaldoVacaciones(usuario.empleadoId, ANIO_ACTUAL).then(setSaldo);
-      void getAusenciasDeEmpleado(usuario.empleadoId).then(setMisAusencias);
+      void getAusenciasDeEmpleado(usuario.empleadoId)
+        .then(setMisAusencias)
+        .finally(() => setCargando(false));
       void getRecibos(usuario.empleadoId).then((r) =>
         setRecibosPendientes(
           r.filter((x) => x.estadoFirma === 'pendiente').length
@@ -106,7 +111,9 @@ const DashboardPage = () => {
       );
     }
     if (rolEfectivo !== 'empleado') {
-      void getAusenciasPendientes().then(setPendientes);
+      void getAusenciasPendientes()
+        .then(setPendientes)
+        .finally(() => setCargando(false));
       void getEmpleados().then(setEmpleados);
       void getFichajesDeHoy().then((f) =>
         setPresentes(

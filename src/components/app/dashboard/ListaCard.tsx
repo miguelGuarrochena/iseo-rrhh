@@ -7,8 +7,22 @@ interface ListaCardProps {
   vacio?: string;
   /** Link de acento (azul) a la sección completa, ej. "Ver todas" */
   accion?: { etiqueta: string; href: string };
+  /** Mientras carga muestra filas fantasma en vez del texto de vacío */
+  cargando?: boolean;
   children?: ReactNode;
 }
+
+/** Fila fantasma mientras cargan los datos. */
+const FilaEsqueleto = () => (
+  <div className="flex animate-pulse items-center gap-3.5 rounded-2xl border border-line bg-surface px-4 py-3.5 sm:px-5">
+    <span className="h-9 w-9 flex-shrink-0 rounded-full bg-paper" />
+    <div className="flex min-w-0 flex-1 flex-col gap-2">
+      <span className="h-3.5 w-2/5 rounded-full bg-paper" />
+      <span className="h-3 w-3/5 rounded-full bg-paper/70" />
+    </div>
+    <span className="h-6 w-16 shrink-0 rounded-full bg-paper" />
+  </div>
+);
 
 /**
  * Caja blanca grande (como los bloques de la landing) que contiene
@@ -18,6 +32,7 @@ export const ListaCard = ({
   titulo,
   vacio,
   accion,
+  cargando,
   children,
 }: ListaCardProps) => (
   <section className="rounded-3xl border border-line bg-surface p-5 sm:p-6">
@@ -33,7 +48,15 @@ export const ListaCard = ({
       )}
     </div>
     <div className="mt-4 flex flex-col gap-3">
-      {children ?? <p className="text-sm text-ink-soft">{vacio}</p>}
+      {cargando ? (
+        <>
+          <FilaEsqueleto />
+          <FilaEsqueleto />
+          <FilaEsqueleto />
+        </>
+      ) : (
+        (children ?? <p className="text-sm text-ink-soft">{vacio}</p>)
+      )}
     </div>
   </section>
 );

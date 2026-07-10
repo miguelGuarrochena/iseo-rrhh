@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   IconArrowUpRight,
   IconBuildingBank,
   IconCoin,
+  IconDownload,
   IconGift,
   IconReportMoney,
   IconTrendingUp,
@@ -26,6 +28,9 @@ import {
 } from '@/lib/remuneraciones';
 import { formatearPesos, formatearPorcentaje } from '@/lib/formato';
 import { formatearPeriodo } from '@/lib/fechas';
+import { descargarCSV } from '@/lib/csv';
+import { Boton } from '@/components/app/ui/Boton';
+import { avisoExito } from '@/lib/avisos';
 
 /** Gráfico de líneas simple en SVG (sin librerías). */
 const LineaEvolucion = ({
@@ -184,6 +189,7 @@ const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
 };
 
 const VistaAdmin = () => {
+  const router = useRouter();
   const [rems, setRems] = useState<Remuneracion[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
 
@@ -196,6 +202,42 @@ const VistaAdmin = () => {
   const nombre = (id: string) => {
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.nombre} ${e.apellido}` : '—';
+  };
+
+  /** CSV con el detalle del último período de cada uno, para el contador. */
+  const exportarLiquidacion = () => {
+    const filas: string[][] = [
+      [
+        'Colaborador',
+        'CUIL',
+        'Convenio',
+        'Período',
+        'Bruto remunerativo',
+        'No remunerativo',
+        'Aportes empleado',
+        'Otros descuentos',
+        'Neto',
+      ],
+    ];
+    resumen.porEmpleado.forEach((f) => {
+      const rem = rems.find(
+        (r) => r.empleadoId === f.empleadoId && r.periodo === f.periodo
+      );
+      const emp = empleados.find((e) => e.id === f.empleadoId);
+      filas.push([
+        nombre(f.empleadoId),
+        emp?.cuil ?? '',
+        rem?.convenio ?? emp?.convenio ?? '',
+        formatearPeriodo(f.periodo),
+        String(rem?.montoBruto ?? f.bruto),
+        String(rem?.noRemunerativo ?? 0),
+        String(rem?.aportes ?? 0),
+        String(rem?.otrosDescuentos ?? 0),
+        String(rem?.montoNeto ?? f.neto),
+      ]);
+    });
+    descargarCSV('remuneraciones-liquidacion.csv', filas);
+    avisoExito('Export listo', 'Se descargó el CSV para tu contador.');
   };
 
   return (
@@ -228,9 +270,20 @@ const VistaAdmin = () => {
       </div>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">
-          Remuneración por colaborador
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-bold text-ink">
+            Remuneración por colaborador
+          </h2>
+          <Boton
+            variante="secundario"
+            tamano="sm"
+            onClick={exportarLiquidacion}
+            disabled={resumen.porEmpleado.length === 0}
+          >
+            <IconDownload size={14} />
+            Exportar para liquidación
+          </Boton>
+        </div>
         {resumen.porEmpleado.length === 0 ? (
           <p className="mt-3 text-sm text-ink-soft">
             No hay remuneraciones cargadas.
@@ -248,7 +301,13 @@ const VistaAdmin = () => {
               </thead>
               <tbody>
                 {resumen.porEmpleado.map((f) => (
-                  <tr key={f.empleadoId} className="border-b border-line/60">
+                  <tr
+                    key={f.empleadoId}
+                    onClick={() =>
+                      router.push(`/colaboradores/${f.empleadoId}`)
+                    }
+                    className="cursor-pointer border-b border-line/60 transition-colors hover:bg-paper"
+                  >
                     <td className="py-2.5 pr-4 font-semibold text-ink">
                       {nombre(f.empleadoId)}
                     </td>

@@ -24,6 +24,7 @@ import { avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
 import { EnrolamientoFacial } from '@/components/app/facial/EnrolamientoFacial';
 import { NotasInternas } from '@/components/app/colaboradores/NotasInternas';
+import { RemuneracionesEmpleado } from '@/components/app/remuneraciones/RemuneracionesEmpleado';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
@@ -373,6 +374,12 @@ const FichaColaboradorPage = () => {
             />
           </Panel>
         )}
+
+        <RemuneracionesEmpleado
+          empleadoId={empleado.id}
+          puedeEditar={esAdmin}
+          convenioEmpleado={empleado.convenio}
+        />
 
         {esAdmin && (
           <Panel>

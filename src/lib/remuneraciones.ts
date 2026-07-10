@@ -7,6 +7,37 @@ import { Remuneracion } from '@/types/rrhh';
 /** Contribuciones patronales estimadas sobre el bruto (aprox.). */
 export const CARGAS_PATRONALES = 0.27;
 
+/** Aportes personales del empleado sobre el remunerativo. */
+export const APORTES = {
+  jubilacion: 0.11, // SIPA
+  ley19032: 0.03, // PAMI
+  obraSocial: 0.03, // obra social
+} as const;
+
+/** Total de aportes personales sobre el remunerativo (17%). */
+export const APORTES_TOTAL =
+  APORTES.jubilacion + APORTES.ley19032 + APORTES.obraSocial;
+
+/** Aportes personales estimados sobre el sueldo remunerativo. */
+export const calcularAportes = (remunerativo: number): number =>
+  Math.round(Math.max(0, remunerativo) * APORTES_TOTAL);
+
+/**
+ * Calcula aportes y neto. Neto = remunerativo + no remunerativo − aportes −
+ * otros descuentos.
+ */
+export const calcularLiquidacion = (d: {
+  montoBruto: number;
+  noRemunerativo?: number;
+  otrosDescuentos?: number;
+}): { aportes: number; neto: number } => {
+  const aportes = calcularAportes(d.montoBruto);
+  const neto = Math.round(
+    d.montoBruto + (d.noRemunerativo ?? 0) - aportes - (d.otrosDescuentos ?? 0)
+  );
+  return { aportes, neto };
+};
+
 const semestreDe = (mes: number): 1 | 2 => (mes <= 6 ? 1 : 2);
 
 export interface Aumento {

@@ -18,6 +18,7 @@ import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { formatearHora } from '@/lib/fechas';
+import { descargarCSV } from '@/lib/csv';
 import { avisoExito } from '@/lib/avisos';
 import {
   getEmpleado,
@@ -107,18 +108,6 @@ const PanelFichajePropio = ({
       )}
     </Panel>
   );
-};
-
-const descargarCSV = (nombre: string, filas: string[][]) => {
-  const csv = filas.map((f) => f.map((c) => `"${c}"`).join(';')).join('\n');
-  const url = URL.createObjectURL(
-    new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' })
-  );
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = nombre;
-  a.click();
-  URL.revokeObjectURL(url);
 };
 
 const FichajePage = () => {

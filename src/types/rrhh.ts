@@ -199,6 +199,8 @@ export interface Empleado {
   cbu: string;
   obraSocial: string;
   art: string;
+  /** Convenio colectivo bajo el que está encuadrado (ej. "CCT 130/75"). */
+  convenio?: string;
   // Estado
   activo: boolean;
   fechaBaja?: string;
@@ -249,8 +251,28 @@ export interface Remuneracion {
   empleadoId: string;
   /** formato YYYY-MM */
   periodo: string;
+  /** Sueldo bruto remunerativo (base para aportes). */
   montoBruto: number;
+  /** Adicionales no remunerativos (no tributan aportes). */
+  noRemunerativo?: number;
+  /** Aportes del empleado (jubilación + PAMI + obra social + otros). */
+  aportes?: number;
+  /** Otros descuentos (sindicato, adelantos, etc.). */
+  otrosDescuentos?: number;
+  /** Neto = remunerativo + no remunerativo − aportes − otros descuentos. */
   montoNeto: number;
+  /** Convenio colectivo aplicado (ej. "CCT 130/75"). */
+  convenio?: string;
+}
+
+/** Datos para cargar/actualizar la remuneración de un período. */
+export interface NuevaRemuneracion {
+  empleadoId: string;
+  periodo: string;
+  montoBruto: number;
+  noRemunerativo?: number;
+  otrosDescuentos?: number;
+  convenio?: string;
 }
 
 export type EstadoFirma = 'pendiente' | 'firmado';

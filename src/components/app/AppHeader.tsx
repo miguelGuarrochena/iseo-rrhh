@@ -12,7 +12,10 @@ import {
   IconSun,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { getNotificaciones } from '@/lib/services/rrhh';
+import {
+  getNotificaciones,
+  marcarNotificacionesLeidas,
+} from '@/lib/services/rrhh';
 import { BuscadorGlobal } from './BuscadorGlobal';
 import { InstalarAppModal } from './InstalarAppModal';
 import { Notificacion, Rol } from '@/types/rrhh';
@@ -51,6 +54,14 @@ export const AppHeader = () => {
 
   const sinLeer = notificaciones.filter((n) => !n.leida).length;
 
+  /** Al abrir la campana se marcan leídas (el badge se apaga). */
+  const alAbrirCampana = (abierta: boolean) => {
+    if (!abierta || sinLeer === 0) return;
+    void marcarNotificacionesLeidas(usuario.id).then(() =>
+      setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: true })))
+    );
+  };
+
   const oscuro = colorScheme === 'dark';
 
   const subtitulo = empresaVista
@@ -86,7 +97,13 @@ export const AppHeader = () => {
               <IconMoon size={20} stroke={1.8} />
             )}
           </button>
-          <Menu position="bottom-end" radius="lg" shadow="md" width={320}>
+          <Menu
+            position="bottom-end"
+            radius="lg"
+            shadow="md"
+            width={320}
+            onChange={alAbrirCampana}
+          >
             <Menu.Target>
               <button
                 aria-label="Notificaciones"

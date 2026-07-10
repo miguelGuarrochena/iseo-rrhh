@@ -233,6 +233,10 @@ export const getNotificaciones = elegir(
   real.getNotificaciones,
   demo.getNotificaciones
 );
+export const marcarNotificacionesLeidas = elegir(
+  real.marcarNotificacionesLeidas,
+  demo.marcarNotificacionesLeidas
+);
 
 // ---------- Reportes ----------
 export const getResumenControl = elegir(
@@ -249,6 +253,10 @@ export const getRemuneraciones = elegir(
 export const getRemuneracionesTodas = elegir(
   real.getRemuneracionesTodas,
   demo.getRemuneracionesTodas
+);
+export const cargarRemuneracion = elegir(
+  real.cargarRemuneracion,
+  demo.cargarRemuneracion
 );
 export const getRecibos = elegir(real.getRecibos, demo.getRecibos);
 export const getRecibosTodos = elegir(

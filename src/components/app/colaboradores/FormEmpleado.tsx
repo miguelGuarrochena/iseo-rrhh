@@ -98,6 +98,7 @@ const desdeEmpleado = (e: Empleado): DatosEmpleado => ({
   cbu: e.cbu || undefined,
   obraSocial: e.obraSocial || undefined,
   art: e.art || undefined,
+  convenio: e.convenio || undefined,
   modoFichaje: e.modoFichaje ?? 'celular',
   geocerca: e.geocerca,
   fotoUrl: e.fotoUrl,
@@ -190,6 +191,16 @@ export const FormEmpleado = ({
       fechaFinContrato:
         datos.modalidadContratacion === 'plazo_fijo' && !datos.fechaFinContrato
           ? 'El contrato a plazo fijo necesita fecha de fin.'
+          : datos.fechaFinContrato &&
+              datos.fechaIngreso &&
+              datos.fechaFinContrato < datos.fechaIngreso
+            ? 'El fin de contrato no puede ser anterior al ingreso.'
+            : null,
+      fechaNacimiento:
+        datos.fechaNacimiento &&
+        datos.fechaIngreso &&
+        datos.fechaNacimiento >= datos.fechaIngreso
+          ? 'La fecha de nacimiento no puede ser posterior al ingreso.'
           : null,
     });
     setErrores(nuevos);
@@ -283,6 +294,7 @@ export const FormEmpleado = ({
             etiqueta="Fecha de nacimiento"
             value={datos.fechaNacimiento ?? ''}
             onChange={set('fechaNacimiento')}
+            error={errores.fechaNacimiento}
           />
           <CampoSelect
             etiqueta="Estado civil"
@@ -402,6 +414,13 @@ export const FormEmpleado = ({
             etiqueta="ART"
             value={datos.art ?? ''}
             onChange={(e) => set('art')(e.target.value)}
+          />
+          <Campo
+            etiqueta="Convenio colectivo"
+            value={datos.convenio ?? ''}
+            onChange={(e) => set('convenio')(e.target.value)}
+            placeholder="CCT 130/75 — Comercio"
+            ayuda="Se usa en cada remuneración del empleado."
           />
         </div>
       </Panel>
