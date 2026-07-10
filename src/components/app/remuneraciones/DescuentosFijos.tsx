@@ -74,12 +74,16 @@ export const DescuentosFijos = ({ empleadoId, puedeEditar }: Props) => {
   if (!puedeEditar && descuentos.length === 0) return null;
 
   return (
-    <div className="mt-4 rounded-xl border border-line bg-paper/60 px-4 py-3">
+    <div
+      data-testid="descuentos-fijos"
+      className="mt-4 rounded-xl border border-line bg-paper/60 px-4 py-3"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-bold text-ink">Descuentos fijos</p>
           <p className="text-xs text-ink-soft">
-            Sindicato, comedor, etc. Se descuentan todos los meses.
+            Sindicato, comedor, etc. Quedan guardados y entran solos como
+            descuento en cada liquidación.
           </p>
         </div>
         {puedeEditar && !agregando && (

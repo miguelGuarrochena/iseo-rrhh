@@ -8,7 +8,10 @@ import { test, expect } from '@playwright/test';
  * Si estos pasan, lo básico (auth, ruteo, layout por rol) no está roto.
  */
 
-const entrarComo = async (page: import('@playwright/test').Page, rol: RegExp) => {
+const entrarComo = async (
+  page: import('@playwright/test').Page,
+  rol: RegExp
+) => {
   await page.goto('/demo');
   await page.getByRole('button', { name: rol }).first().click();
   await expect(page).toHaveURL(/\/$|\/#/);
@@ -32,7 +35,9 @@ test('admin RRHH llega a Fichaje y ve la carga manual de respaldo', async ({
   await expect(
     page.getByRole('heading', { level: 1, name: 'Fichaje', exact: true })
   ).toBeVisible();
-  await expect(page.getByRole('button', { name: /Cargar a mano/i })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /Cargar a mano/i })
+  ).toBeVisible();
 });
 
 test('admin RRHH ve el listado de colaboradores', async ({ page }) => {
