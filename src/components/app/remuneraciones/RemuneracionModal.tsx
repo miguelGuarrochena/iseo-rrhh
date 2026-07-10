@@ -38,6 +38,7 @@ export const RemuneracionModal = ({
   const [otros, setOtros] = useState('');
   const [convenio, setConvenio] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (abierto) {
@@ -46,6 +47,7 @@ export const RemuneracionModal = ({
       setNoRem(inicial?.noRemunerativo ? String(inicial.noRemunerativo) : '');
       setOtros(inicial?.otrosDescuentos ? String(inicial.otrosDescuentos) : '');
       setConvenio(inicial?.convenio ?? convenioSugerido ?? '');
+      setError(null);
     }
   }, [abierto, inicial, convenioSugerido]);
 
@@ -56,7 +58,19 @@ export const RemuneracionModal = ({
   });
 
   const guardar = async () => {
-    if (num(bruto) <= 0) return;
+    if (!periodo) {
+      setError('El período es obligatorio.');
+      return;
+    }
+    if (num(bruto) <= 0) {
+      setError('El sueldo bruto debe ser mayor a cero.');
+      return;
+    }
+    if (num(noRem) < 0 || num(otros) < 0) {
+      setError('Los importes no pueden ser negativos.');
+      return;
+    }
+    setError(null);
     setGuardando(true);
     try {
       await cargarRemuneracion({
@@ -117,6 +131,7 @@ export const RemuneracionModal = ({
             onChange={(e) => setBruto(e.target.value)}
             placeholder="0"
             ayuda="Base para aportes personales y estimación de cargas."
+            error={error?.includes('bruto') ? error : undefined}
           />
           <Campo
             etiqueta="No remunerativo (opcional)"
@@ -156,6 +171,12 @@ export const RemuneracionModal = ({
           sobre el remunerativo. Es una estimación; para la liquidación oficial
           confirmá con tu contador.
         </p>
+
+        {error && !error.includes('bruto') && (
+          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
 
         <div className="flex gap-2">
           <Boton variante="secundario" className="flex-1" onClick={onCerrar}>

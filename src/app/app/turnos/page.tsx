@@ -15,7 +15,7 @@ import { Panel } from '@/components/app/Panel';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
-import { avisoExito } from '@/lib/avisos';
+import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   aprobarExtrasTurno,
   asignarTurno,
@@ -66,6 +66,7 @@ const FilaDia = ({
   const [entrada, setEntrada] = useState(turno?.horaEntrada ?? '08:00');
   const [salida, setSalida] = useState(turno?.horaSalida ?? '17:00');
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (turno) {
@@ -80,6 +81,15 @@ const FilaDia = ({
   );
 
   const guardar = async () => {
+    if (!entrada || !salida) {
+      setError('Completá entrada y salida.');
+      return;
+    }
+    if (salida <= entrada) {
+      setError('La salida debe ser posterior a la entrada.');
+      return;
+    }
+    setError(null);
     setGuardando(true);
     try {
       await onGuardar(entrada, salida);
@@ -127,6 +137,12 @@ const FilaDia = ({
       >
         {guardando ? 'Guardando…' : turno ? 'Actualizar' : 'Asignar'}
       </Boton>
+
+      {error && (
+        <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
+          {error}
+        </span>
+      )}
 
       {/* Control contra la fichada */}
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
@@ -242,6 +258,14 @@ const TurnosPage = () => {
   };
 
   const guardar = async (fecha: string, entrada: string, salida: string) => {
+    if (!empleadoId) return;
+    if (!entrada || !salida || salida <= entrada) {
+      avisoError(
+        'Revisá el horario',
+        'La salida debe ser posterior a la entrada.'
+      );
+      return;
+    }
     await asignarTurno({
       empleadoId,
       fecha,
@@ -254,6 +278,13 @@ const TurnosPage = () => {
 
   const aplicar = async (fechas: string[], etiqueta: string) => {
     if (!empleadoId) return;
+    if (!baseEntrada || !baseSalida || baseSalida <= baseEntrada) {
+      avisoError(
+        'Revisá el horario',
+        'La salida debe ser posterior a la entrada.'
+      );
+      return;
+    }
     setAplicando(true);
     try {
       await asignarTurnos(

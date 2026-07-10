@@ -202,6 +202,14 @@ export const FormEmpleado = ({
         datos.fechaNacimiento >= datos.fechaIngreso
           ? 'La fecha de nacimiento no puede ser posterior al ingreso.'
           : null,
+      geocerca:
+        (datos.modoFichaje ?? 'celular') === 'celular' &&
+        (!datos.geocerca ||
+          Math.abs(datos.geocerca.lat) > 90 ||
+          Math.abs(datos.geocerca.lng) > 180 ||
+          datos.geocerca.radioM < 50)
+          ? 'Para fichaje por celular cargá una ubicación válida y un radio mínimo de 50 m.'
+          : null,
     });
     setErrores(nuevos);
     if (Object.keys(nuevos).length > 0) return;
@@ -464,6 +472,7 @@ export const FormEmpleado = ({
                 value={datos.geocerca?.lat?.toString() ?? ''}
                 onChange={(e) => setGeocerca('lat', e.target.value)}
                 placeholder="-34.6037"
+                error={errores.geocerca}
               />
               <Campo
                 etiqueta="Longitud"

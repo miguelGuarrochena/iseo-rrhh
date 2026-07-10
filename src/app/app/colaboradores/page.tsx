@@ -82,7 +82,7 @@ const ColaboradoresPage = () => {
   const totalPaginas = totalPaginasDe(filtrados.length, POR_PAGINA);
   const visibles = paginar(filtrados, pagina, POR_PAGINA);
   const hayFiltros = Boolean(
-    busqueda || sector || modalidad || legajo || estado
+    busqueda || sector || modalidad || legajo || estado !== 'activo'
   );
   const limpiarFiltros = () => {
     setBusqueda('');
@@ -90,6 +90,7 @@ const ColaboradoresPage = () => {
     setModalidad('');
     setLegajo('');
     setEstado('activo');
+    setPagina(1);
   };
 
   useEffect(() => {
@@ -218,6 +219,7 @@ const ColaboradoresPage = () => {
       <ListaCard
         titulo={cargando ? 'Equipo' : `Equipo (${filtrados.length})`}
         cargando={cargando}
+        tieneItems={visibles.length > 0}
         vacio="No se encontraron colaboradores con esos filtros."
       >
         {visibles.length > 0 &&

@@ -45,6 +45,7 @@ export const FichajeManualModal = ({
   const [fecha, setFecha] = useState(hoyISO());
   const [hora, setHora] = useState(horaActual());
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const opcionesEmpleados = useMemo(
     () =>
@@ -59,14 +60,35 @@ export const FichajeManualModal = ({
     setTipo('ingreso');
     setFecha(hoyISO());
     setHora(horaActual());
+    setError(null);
     onCerrar();
   };
 
   const guardar = async () => {
-    if (!empleadoId || !fecha || !hora) return;
+    if (!empleadoId) {
+      setError('Elegí un colaborador.');
+      return;
+    }
+    if (!fecha) {
+      setError('La fecha es obligatoria.');
+      return;
+    }
+    if (!hora) {
+      setError('La hora es obligatoria.');
+      return;
+    }
+    const cuando = new Date(`${fecha}T${hora}:00`);
+    if (Number.isNaN(cuando.getTime())) {
+      setError('La fecha u hora no son válidas.');
+      return;
+    }
+    if (cuando > new Date()) {
+      setError('No se puede cargar un fichaje futuro.');
+      return;
+    }
+    setError(null);
     setGuardando(true);
     try {
-      const cuando = new Date(`${fecha}T${hora}:00`);
       const fichaje = await ficharAhora(empleadoId, {
         metodo: 'manual',
         tipo,
@@ -87,6 +109,7 @@ export const FichajeManualModal = ({
         'No pudimos cargar el fichaje',
         err instanceof Error ? err.message : undefined
       );
+      setError(err instanceof Error ? err.message : 'No pudimos cargar.');
     }
     setGuardando(false);
   };
@@ -135,6 +158,12 @@ export const FichajeManualModal = ({
           />
         </div>
 
+        {error && (
+          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </p>
+        )}
+
         <div className="flex gap-2">
           <Boton variante="secundario" className="flex-1" onClick={cerrar}>
             Cancelar
@@ -142,7 +171,7 @@ export const FichajeManualModal = ({
           <Boton
             className="flex-1"
             onClick={() => void guardar()}
-            disabled={!empleadoId || guardando}
+            disabled={guardando}
           >
             {guardando ? 'Cargando…' : 'Cargar fichaje'}
           </Boton>

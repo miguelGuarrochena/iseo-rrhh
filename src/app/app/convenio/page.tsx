@@ -32,6 +32,7 @@ const ConvenioPage = () => {
   const [respuesta, setRespuesta] = useState<string | null>(null);
   const [consultando, setConsultando] = useState(false);
   const [errorIA, setErrorIA] = useState<string | null>(null);
+  const [errorGuardado, setErrorGuardado] = useState<string | null>(null);
 
   useEffect(() => {
     void getConvenio().then((c) => {
@@ -52,6 +53,15 @@ const ConvenioPage = () => {
   );
 
   const guardar = async () => {
+    if (!nombre.trim()) {
+      setErrorGuardado('El nombre del convenio es obligatorio.');
+      return;
+    }
+    if (!contenido.trim()) {
+      setErrorGuardado('Pegá el texto del convenio antes de guardar.');
+      return;
+    }
+    setErrorGuardado(null);
     setGuardando(true);
     try {
       const actualizado = await guardarConvenio({ nombre, contenido });
@@ -122,6 +132,9 @@ const ConvenioPage = () => {
               value={nombre}
               onChange={(e) => setNombre(e.target.value)}
               placeholder="Ej. CCT 130/75 — Empleados de Comercio"
+              error={
+                errorGuardado?.includes('nombre') ? errorGuardado : undefined
+              }
             />
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold text-ink">
@@ -134,6 +147,11 @@ const ConvenioPage = () => {
                 placeholder="Pegá acá el texto del convenio. Separá los artículos con una línea en blanco."
                 className="w-full resize-y rounded-xl border border-line bg-surface px-4 py-3 text-sm leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
               />
+              {errorGuardado && !errorGuardado.includes('nombre') && (
+                <span className="text-xs font-medium text-red-600">
+                  {errorGuardado}
+                </span>
+              )}
             </label>
             <div className="flex gap-2">
               <Boton onClick={() => void guardar()} disabled={guardando}>

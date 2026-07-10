@@ -8,6 +8,12 @@ import { Campo } from '@/components/app/ui/Campo';
 import { actualizarDatosEmpresa } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
+import {
+  juntarErrores,
+  validarCuit,
+  validarEmail,
+  validarRequerido,
+} from '@/lib/validaciones';
 import { DatosEmpresaCliente, Empresa } from '@/types/rrhh';
 
 interface EditarEmpresaModalProps {
@@ -31,6 +37,7 @@ export const EditarEmpresaModal = ({
 }: EditarEmpresaModalProps) => {
   const [datos, setDatos] = useState<DatosEmpresaCliente>(vacio);
   const [guardando, setGuardando] = useState(false);
+  const [errores, setErrores] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (empresa) {
@@ -55,6 +62,24 @@ export const EditarEmpresaModal = ({
 
   const guardar = async () => {
     if (!empresa) return;
+    const nuevos = juntarErrores({
+      nombre: validarRequerido(datos.nombre ?? '', 'El nombre comercial'),
+      cuit:
+        validarRequerido(datos.cuit ?? '', 'El CUIT') ??
+        validarCuit(datos.cuit ?? ''),
+      contactoNombre: validarRequerido(
+        datos.contactoNombre ?? '',
+        'El responsable'
+      ),
+      contactoEmail:
+        validarRequerido(
+          datos.contactoEmail ?? '',
+          'El email del responsable'
+        ) ?? validarEmail(datos.contactoEmail ?? ''),
+    });
+    setErrores(nuevos);
+    if (Object.keys(nuevos).length > 0) return;
+
     setGuardando(true);
     try {
       await actualizarDatosEmpresa(empresa.id, {
@@ -111,6 +136,7 @@ export const EditarEmpresaModal = ({
               etiqueta="Nombre comercial"
               value={datos.nombre ?? ''}
               onChange={set('nombre')}
+              error={errores.nombre}
             />
             <Campo
               etiqueta="Razón social"
@@ -121,6 +147,7 @@ export const EditarEmpresaModal = ({
               etiqueta="CUIT"
               value={datos.cuit ?? ''}
               onChange={set('cuit')}
+              error={errores.cuit}
             />
             <Campo
               etiqueta="Plan"
@@ -143,12 +170,14 @@ export const EditarEmpresaModal = ({
               etiqueta="Responsable"
               value={datos.contactoNombre ?? ''}
               onChange={set('contactoNombre')}
+              error={errores.contactoNombre}
             />
             <Campo
               etiqueta="Email del responsable"
               type="email"
               value={datos.contactoEmail ?? ''}
               onChange={set('contactoEmail')}
+              error={errores.contactoEmail}
             />
             <Campo
               etiqueta="Teléfono del responsable"

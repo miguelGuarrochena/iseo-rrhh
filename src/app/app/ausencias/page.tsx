@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   IconBeach,
   IconCheck,
@@ -52,6 +53,9 @@ const rangoDe = (a: Ausencia): string =>
 
 const AusenciasPage = () => {
   const { usuario, rolEfectivo } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const esEmpleado = rolEfectivo === 'empleado';
 
   const [saldo, setSaldo] = useState<SaldoVacaciones | null>(null);
@@ -97,11 +101,23 @@ const AusenciasPage = () => {
 
   // Permite llegar filtrado desde otras pantallas: /app/ausencias?empleado=ple-2
   useEffect(() => {
-    const desdeUrl = new URLSearchParams(window.location.search).get(
-      'empleado'
-    );
-    if (desdeUrl) setFiltroEmpleado(desdeUrl);
-  }, []);
+    const desdeUrl = searchParams.get('empleado');
+    setFiltroEmpleado(desdeUrl ?? '');
+  }, [searchParams]);
+
+  const cambiarFiltroEmpleado = (empleadoId: string) => {
+    setFiltroEmpleado(empleadoId);
+    const params = new URLSearchParams(searchParams.toString());
+    if (empleadoId) {
+      params.set('empleado', empleadoId);
+    } else {
+      params.delete('empleado');
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  };
 
   const filtradas = useMemo(
     () =>
@@ -117,6 +133,13 @@ const AusenciasPage = () => {
   useEffect(() => {
     setPagina(1);
   }, [filtroTipo, filtroEstado, filtroEmpleado]);
+
+  const hayFiltros = Boolean(filtroTipo || filtroEstado || filtroEmpleado);
+  const limpiarFiltros = () => {
+    setFiltroTipo('');
+    setFiltroEstado('');
+    cambiarFiltroEmpleado('');
+  };
 
   if (!usuario) return null;
 
@@ -142,14 +165,15 @@ const AusenciasPage = () => {
     try {
       await crearAusencia({ empleadoId: usuario.empleadoId, ...datos });
       avisoExito('Solicitud enviada', 'Te avisamos cuando la resuelvan.');
+      close();
+      cargar();
     } catch (err) {
       avisoError(
         'No pudimos enviar la solicitud',
         err instanceof Error ? err.message : undefined
       );
+      throw err;
     }
-    close();
-    cargar();
   };
 
   const resolver = async (id: string, estado: 'aprobada' | 'rechazada') => {
@@ -193,37 +217,58 @@ const AusenciasPage = () => {
         )}
       </div>
 
-      <div className="flex flex-wrap gap-3">
-        <Selector
-          valor={filtroTipo}
-          onCambiar={(v) => setFiltroTipo(v as TipoAusencia | '')}
-          opciones={[
-            { valor: '', etiqueta: 'Todos los tipos' },
-            ...aOpciones(tipoAusenciaLabels),
-          ]}
-        />
-        <Selector
-          valor={filtroEstado}
-          onCambiar={setFiltroEstado}
-          opciones={[
-            { valor: '', etiqueta: 'Todos los estados' },
-            { valor: 'pendiente', etiqueta: 'Pendientes' },
-            { valor: 'aprobada', etiqueta: 'Aprobadas' },
-            { valor: 'rechazada', etiqueta: 'Rechazadas' },
-          ]}
-        />
-        {!esEmpleado && empleados.length > 0 && (
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-wrap gap-3">
           <Selector
-            valor={filtroEmpleado}
-            onCambiar={setFiltroEmpleado}
+            valor={filtroTipo}
+            onCambiar={(v) => setFiltroTipo(v as TipoAusencia | '')}
             opciones={[
-              { valor: '', etiqueta: 'Todos los colaboradores' },
-              ...empleados.map((e) => ({
-                valor: e.id,
-                etiqueta: `${e.nombre} ${e.apellido}`,
-              })),
+              { valor: '', etiqueta: 'Todos los tipos' },
+              ...aOpciones(tipoAusenciaLabels),
             ]}
           />
+          <Selector
+            valor={filtroEstado}
+            onCambiar={setFiltroEstado}
+            opciones={[
+              { valor: '', etiqueta: 'Todos los estados' },
+              { valor: 'pendiente', etiqueta: 'Pendientes' },
+              { valor: 'aprobada', etiqueta: 'Aprobadas' },
+              { valor: 'rechazada', etiqueta: 'Rechazadas' },
+            ]}
+          />
+          {!esEmpleado && empleados.length > 0 && (
+            <Selector
+              valor={filtroEmpleado}
+              onCambiar={cambiarFiltroEmpleado}
+              opciones={[
+                { valor: '', etiqueta: 'Todos los colaboradores' },
+                ...empleados.map((e) => ({
+                  valor: e.id,
+                  etiqueta: `${e.nombre} ${e.apellido}`,
+                })),
+              ]}
+            />
+          )}
+        </div>
+
+        {hayFiltros && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-paper px-4 py-3 text-sm text-ink-soft">
+            <span>
+              Mostrando {filtradas.length} de {ausencias.length} solicitudes.
+              {filtroEmpleado
+                ? ` Colaborador: ${nombreEmpleado(filtroEmpleado)}.`
+                : ''}
+            </span>
+            <Boton
+              type="button"
+              variante="sutil"
+              tamano="sm"
+              onClick={limpiarFiltros}
+            >
+              Limpiar filtros
+            </Boton>
+          </div>
         )}
       </div>
 
@@ -236,7 +281,7 @@ const AusenciasPage = () => {
             Quién está ausente cada día. Tocá un día para ver el detalle.
           </p>
           <CalendarioAusencias
-            ausencias={ausencias}
+            ausencias={filtradas}
             nombreEmpleado={nombreEmpleado}
           />
         </Panel>
@@ -336,6 +381,7 @@ const AusenciasPage = () => {
       <ListaCard
         titulo="Historial"
         cargando={cargando}
+        tieneItems={resueltasVisibles.length > 0}
         vacio="Sin movimientos anteriores."
       >
         {resueltasVisibles.length > 0 &&

@@ -1,14 +1,26 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { ContactSection } from '@/components/ContactSection';
 
 jest.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: React.PropsWithChildren<object>) => (
-      <div {...props}>{children}</div>
-    ),
+    div: ({
+      children,
+      ...props
+    }: React.PropsWithChildren<Record<string, unknown>>) => {
+      const domProps = { ...props };
+      delete domProps.initial;
+      delete domProps.whileInView;
+      delete domProps.viewport;
+      delete domProps.transition;
+      return (
+        <div {...(domProps as React.HTMLAttributes<HTMLDivElement>)}>
+          {children}
+        </div>
+      );
+    },
   },
 }));
 
@@ -47,9 +59,11 @@ describe('ContactSection', () => {
     });
 
     renderWithMantine(<ContactSection />);
-    await user.click(
-      screen.getByRole('button', { name: /copiar correo electrónico/i })
-    );
+    await act(async () => {
+      await user.click(
+        screen.getByRole('button', { name: /copiar correo electrónico/i })
+      );
+    });
 
     expect(writeText).toHaveBeenCalledWith('info@iseo-rh.com');
     await waitFor(() => {

@@ -11,6 +11,11 @@ import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { ConfigPlataformaForm } from '@/components/app/configuracion/ConfigPlataformaForm';
 import {
+  juntarErrores,
+  validarEmail,
+  validarRequerido,
+} from '@/lib/validaciones';
+import {
   actualizarConfigEmpresa,
   actualizarEmpresa,
   getEmpresa,
@@ -29,6 +34,7 @@ const ConfiguracionPage = () => {
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
+  const [errores, setErrores] = useState<Record<string, string>>({});
   const inputLogo = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -87,6 +93,28 @@ const ConfiguracionPage = () => {
 
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
+    const nuevos = juntarErrores({
+      nombreEmpresa: validarRequerido(nombreEmpresa, 'El nombre de la empresa'),
+      contactoNombre: validarRequerido(contactoNombre, 'El contacto'),
+      contactoEmail:
+        validarRequerido(contactoEmail, 'El email de contacto') ??
+        validarEmail(contactoEmail),
+      horaEntrada: validarRequerido(config.horaEntrada, 'La hora de entrada'),
+      horaSalida: validarRequerido(config.horaSalida, 'La hora de salida'),
+      tolerancia:
+        !Number.isFinite(config.toleranciaLlegadaTardeMin) ||
+        config.toleranciaLlegadaTardeMin < 0
+          ? 'La tolerancia no puede ser negativa.'
+          : null,
+      diasAviso:
+        !Number.isFinite(config.diasAvisoVencimiento) ||
+        config.diasAvisoVencimiento < 1
+          ? 'Los días de aviso deben ser al menos 1.'
+          : null,
+    });
+    setErrores(nuevos);
+    if (Object.keys(nuevos).length > 0) return;
+
     setGuardando(true);
     try {
       await actualizarConfigEmpresa(config);
@@ -157,17 +185,20 @@ const ConfiguracionPage = () => {
               etiqueta="Nombre de la empresa"
               value={nombreEmpresa}
               onChange={(e) => setNombreEmpresa(e.target.value)}
+              error={errores.nombreEmpresa}
             />
             <Campo
               etiqueta="Contacto (nombre)"
               value={contactoNombre}
               onChange={(e) => setContactoNombre(e.target.value)}
+              error={errores.contactoNombre}
             />
             <Campo
               etiqueta="Contacto (email)"
               type="email"
               value={contactoEmail}
               onChange={(e) => setContactoEmail(e.target.value)}
+              error={errores.contactoEmail}
             />
           </div>
         </Panel>
@@ -193,6 +224,11 @@ const ConfiguracionPage = () => {
                 }
                 className={campoClase}
               />
+              {errores.horaEntrada && (
+                <span className="text-xs font-medium text-red-600">
+                  {errores.horaEntrada}
+                </span>
+              )}
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold text-ink">
@@ -206,6 +242,11 @@ const ConfiguracionPage = () => {
                 }
                 className={campoClase}
               />
+              {errores.horaSalida && (
+                <span className="text-xs font-medium text-red-600">
+                  {errores.horaSalida}
+                </span>
+              )}
             </label>
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold text-ink">
@@ -223,6 +264,11 @@ const ConfiguracionPage = () => {
                 }
                 className={campoClase}
               />
+              {errores.tolerancia && (
+                <span className="text-xs font-medium text-red-600">
+                  {errores.tolerancia}
+                </span>
+              )}
             </label>
           </div>
         </Panel>
@@ -252,6 +298,11 @@ const ConfiguracionPage = () => {
             <span className="text-xs text-ink-soft">
               Aplica a contratos a plazo, exámenes médicos, ART y documentos.
             </span>
+            {errores.diasAviso && (
+              <span className="text-xs font-medium text-red-600">
+                {errores.diasAviso}
+              </span>
+            )}
           </label>
         </Panel>
 

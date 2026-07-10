@@ -5,9 +5,21 @@ import { FeaturesSection } from '@/components/FeaturesSection';
 
 jest.mock('framer-motion', () => ({
   motion: {
-    div: ({ children, ...props }: React.PropsWithChildren<object>) => (
-      <div {...props}>{children}</div>
-    ),
+    div: ({
+      children,
+      ...props
+    }: React.PropsWithChildren<Record<string, unknown>>) => {
+      const domProps = { ...props };
+      delete domProps.initial;
+      delete domProps.whileInView;
+      delete domProps.viewport;
+      delete domProps.transition;
+      return (
+        <div {...(domProps as React.HTMLAttributes<HTMLDivElement>)}>
+          {children}
+        </div>
+      );
+    },
   },
 }));
 

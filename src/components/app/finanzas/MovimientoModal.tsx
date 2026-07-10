@@ -32,6 +32,7 @@ export const MovimientoModal = ({
   const [monto, setMonto] = useState('');
   const [fecha, setFecha] = useState(hoyISO());
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const opcionesEmpresa = useMemo(
     () => [
@@ -47,12 +48,25 @@ export const MovimientoModal = ({
     setEmpresaId('');
     setMonto('');
     setFecha(hoyISO());
+    setError(null);
     onCerrar();
   };
 
   const guardar = async () => {
     const montoNum = Number(monto);
-    if (!concepto.trim() || !montoNum || montoNum <= 0) return;
+    if (!concepto.trim()) {
+      setError('El concepto es obligatorio.');
+      return;
+    }
+    if (!Number.isFinite(montoNum) || montoNum <= 0) {
+      setError('El monto debe ser mayor a cero.');
+      return;
+    }
+    if (!fecha) {
+      setError('La fecha es obligatoria.');
+      return;
+    }
+    setError(null);
     setGuardando(true);
     try {
       const m = await crearMovimiento({
@@ -128,13 +142,20 @@ export const MovimientoModal = ({
           />
         )}
         <div className="flex gap-2">
+          {error && (
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </p>
+          )}
+        </div>
+        <div className="flex gap-2">
           <Boton variante="secundario" className="flex-1" onClick={cerrar}>
             Cancelar
           </Boton>
           <Boton
             className="flex-1"
             onClick={() => void guardar()}
-            disabled={guardando || !concepto.trim() || !monto}
+            disabled={guardando}
           >
             {guardando ? 'Guardando…' : 'Guardar'}
           </Boton>

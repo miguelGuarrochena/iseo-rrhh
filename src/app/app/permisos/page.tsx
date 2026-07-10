@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { IconPlus, IconShieldCheck } from '@tabler/icons-react';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -124,17 +125,26 @@ const PermisosPage = () => {
         {usuarios.map((u) => (
           <ListaItem
             key={u.id}
-            href={u.empleadoId ? `/colaboradores/${u.empleadoId}` : undefined}
             icono={IconShieldCheck}
             principal={u.nombreCompleto}
             secundario={u.email}
             extremo={
-              <Selector
-                tamano="sm"
-                valor={u.rol}
-                onCambiar={(v) => void cambiarRol(u.id, v as Rol)}
-                opciones={aOpciones(rolesAsignables)}
-              />
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {u.empleadoId && (
+                  <Link
+                    href={`/colaboradores/${u.empleadoId}`}
+                    className="text-xs font-bold text-brand-700 no-underline hover:underline"
+                  >
+                    Ver ficha
+                  </Link>
+                )}
+                <Selector
+                  tamano="sm"
+                  valor={u.rol}
+                  onCambiar={(v) => void cambiarRol(u.id, v as Rol)}
+                  opciones={aOpciones(rolesAsignables)}
+                />
+              </div>
             }
           />
         ))}

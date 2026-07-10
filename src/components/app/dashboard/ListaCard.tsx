@@ -9,6 +9,8 @@ interface ListaCardProps {
   accion?: { etiqueta: string; href: string };
   /** Mientras carga muestra filas fantasma en vez del texto de vacío */
   cargando?: boolean;
+  /** Útil cuando children incluye controles auxiliares como paginación. */
+  tieneItems?: boolean;
   children?: ReactNode;
 }
 
@@ -33,10 +35,12 @@ export const ListaCard = ({
   vacio,
   accion,
   cargando,
+  tieneItems,
   children,
 }: ListaCardProps) => {
   const tieneContenido =
-    children !== undefined && children !== null && children !== false;
+    tieneItems ??
+    (children !== undefined && children !== null && children !== false);
 
   return (
     <section className="rounded-3xl border border-line bg-surface p-5 sm:p-6">

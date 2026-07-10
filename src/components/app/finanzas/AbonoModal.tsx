@@ -22,16 +22,26 @@ export const AbonoModal = ({
 }: AbonoModalProps) => {
   const [monto, setMonto] = useState('');
   const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (empresa) setMonto(String(empresa.abonoMensual || ''));
+    if (empresa) {
+      setMonto(String(empresa.abonoMensual || ''));
+      setError(null);
+    }
   }, [empresa]);
 
   const guardar = async () => {
     if (!empresa) return;
+    const valor = Number(monto);
+    if (!Number.isFinite(valor) || valor < 0) {
+      setError('El abono no puede ser negativo.');
+      return;
+    }
+    setError(null);
     setGuardando(true);
     try {
-      await actualizarAbonoEmpresa(empresa.empresaId, Number(monto) || 0);
+      await actualizarAbonoEmpresa(empresa.empresaId, valor || 0);
       avisoExito('Abono actualizado');
       onGuardado();
       onCerrar();
@@ -65,6 +75,7 @@ export const AbonoModal = ({
             value={monto}
             onChange={(e) => setMonto(e.target.value)}
             placeholder="0"
+            error={error ?? undefined}
           />
           <div className="flex gap-2">
             <Boton variante="secundario" className="flex-1" onClick={onCerrar}>

@@ -62,14 +62,21 @@ export const NuevaAusenciaModal = ({
     }
     setError(null);
     setEnviando(true);
-    await onCrear({
-      tipo,
-      fechaDesde,
-      fechaHasta,
-      comentario: comentario.trim() || undefined,
-    });
-    setEnviando(false);
-    setComentario('');
+    try {
+      await onCrear({
+        tipo,
+        fechaDesde,
+        fechaHasta,
+        comentario: comentario.trim() || undefined,
+      });
+      setComentario('');
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'No pudimos enviar la solicitud.'
+      );
+    } finally {
+      setEnviando(false);
+    }
   };
 
   return (

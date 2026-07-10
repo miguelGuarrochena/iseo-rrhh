@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { Header } from '@/components/Header';
@@ -47,7 +47,9 @@ describe('Header', () => {
     const button = screen.getAllByRole('button', {
       name: /¿qué ofrecemos\?/i,
     })[0];
-    await user.click(button);
+    await act(async () => {
+      await user.click(button);
+    });
 
     expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
     document.body.removeChild(target);
@@ -63,7 +65,9 @@ describe('Header', () => {
     const button = screen.getAllByRole('button', {
       name: /^contactanos$/i,
     })[0];
-    await user.click(button);
+    await act(async () => {
+      await user.click(button);
+    });
 
     expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
     document.body.removeChild(target);
