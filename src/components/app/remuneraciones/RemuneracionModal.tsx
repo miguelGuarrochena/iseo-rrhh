@@ -108,6 +108,7 @@ export const RemuneracionModal = ({
             value={convenio}
             onChange={(e) => setConvenio(e.target.value)}
             placeholder="CCT 130/75 — Comercio"
+            ayuda="Queda como referencia del período; no calcula escalas automáticamente."
           />
           <Campo
             etiqueta="Sueldo bruto (remunerativo)"
@@ -115,6 +116,7 @@ export const RemuneracionModal = ({
             value={bruto}
             onChange={(e) => setBruto(e.target.value)}
             placeholder="0"
+            ayuda="Base para aportes personales y estimación de cargas."
           />
           <Campo
             etiqueta="No remunerativo (opcional)"
@@ -122,6 +124,7 @@ export const RemuneracionModal = ({
             value={noRem}
             onChange={(e) => setNoRem(e.target.value)}
             placeholder="0"
+            ayuda="Adicionales que no integran la base de aportes."
           />
           <Campo
             etiqueta="Otros descuentos (opcional)"
@@ -129,6 +132,7 @@ export const RemuneracionModal = ({
             value={otros}
             onChange={(e) => setOtros(e.target.value)}
             placeholder="Sindicato, adelantos…"
+            ayuda="Descuentos extra además de jubilación, PAMI y obra social."
           />
         </div>
 

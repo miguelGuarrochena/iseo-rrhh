@@ -362,6 +362,8 @@ const AusenciasPage = () => {
         abierto={modalAbierto}
         onCerrar={close}
         onCrear={crear}
+        vacacionesSector={vacacionesSector}
+        nombreEmpleado={nombreEmpleado}
       />
     </div>
   );

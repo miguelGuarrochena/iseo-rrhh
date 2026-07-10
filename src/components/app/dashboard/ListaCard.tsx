@@ -34,32 +34,39 @@ export const ListaCard = ({
   accion,
   cargando,
   children,
-}: ListaCardProps) => (
-  <section className="rounded-3xl border border-line bg-surface p-5 sm:p-6">
-    <div className="flex items-baseline justify-between gap-3">
-      <h2 className="text-base font-bold text-ink">{titulo}</h2>
-      {accion && (
-        <Link
-          href={accion.href}
-          className="shrink-0 text-sm font-semibold text-brand-700 no-underline transition-colors hover:text-brand-600 hover:underline"
-        >
-          {accion.etiqueta} →
-        </Link>
-      )}
-    </div>
-    <div className="mt-4 flex flex-col gap-3">
-      {cargando ? (
-        <>
-          <FilaEsqueleto />
-          <FilaEsqueleto />
-          <FilaEsqueleto />
-        </>
-      ) : (
-        (children ?? <p className="text-sm text-ink-soft">{vacio}</p>)
-      )}
-    </div>
-  </section>
-);
+}: ListaCardProps) => {
+  const tieneContenido =
+    children !== undefined && children !== null && children !== false;
+
+  return (
+    <section className="rounded-3xl border border-line bg-surface p-5 sm:p-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 className="text-base font-bold text-ink">{titulo}</h2>
+        {accion && (
+          <Link
+            href={accion.href}
+            className="shrink-0 text-sm font-semibold text-brand-700 no-underline transition-colors hover:text-brand-600 hover:underline"
+          >
+            {accion.etiqueta} →
+          </Link>
+        )}
+      </div>
+      <div className="mt-4 flex flex-col gap-3">
+        {cargando ? (
+          <>
+            <FilaEsqueleto />
+            <FilaEsqueleto />
+            <FilaEsqueleto />
+          </>
+        ) : tieneContenido ? (
+          children
+        ) : (
+          <p className="text-sm text-ink-soft">{vacio}</p>
+        )}
+      </div>
+    </section>
+  );
+};
 
 interface ListaItemProps {
   principal: string;

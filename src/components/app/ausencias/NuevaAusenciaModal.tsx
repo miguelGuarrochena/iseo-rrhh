@@ -6,9 +6,9 @@ import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
-import { diasEntre, hoyISO } from '@/lib/fechas';
+import { diasEntre, formatearFecha, hoyISO } from '@/lib/fechas';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
-import { TipoAusencia } from '@/types/rrhh';
+import { Ausencia, TipoAusencia } from '@/types/rrhh';
 
 interface NuevaAusenciaModalProps {
   abierto: boolean;
@@ -19,6 +19,8 @@ interface NuevaAusenciaModalProps {
     fechaHasta: string;
     comentario?: string;
   }) => Promise<void>;
+  vacacionesSector?: Ausencia[];
+  nombreEmpleado?: (empleadoId: string) => string;
 }
 
 const campoClase =
@@ -28,6 +30,8 @@ export const NuevaAusenciaModal = ({
   abierto,
   onCerrar,
   onCrear,
+  vacacionesSector = [],
+  nombreEmpleado,
 }: NuevaAusenciaModalProps) => {
   const [tipo, setTipo] = useState<TipoAusencia>('vacaciones');
   const [fechaDesde, setFechaDesde] = useState(hoyISO());
@@ -39,6 +43,15 @@ export const NuevaAusenciaModal = ({
   const dias = useMemo(
     () => diasEntre(fechaDesde, fechaHasta),
     [fechaDesde, fechaHasta]
+  );
+  const superpuestas = useMemo(
+    () =>
+      tipo === 'vacaciones'
+        ? vacacionesSector.filter(
+            (a) => fechaDesde <= a.fechaHasta && fechaHasta >= a.fechaDesde
+          )
+        : [],
+    [fechaDesde, fechaHasta, tipo, vacacionesSector]
   );
 
   const onSubmit = async (e: FormEvent) => {
@@ -94,6 +107,35 @@ export const NuevaAusenciaModal = ({
           <p className="text-sm text-ink-soft">
             Total: <strong className="text-ink">{dias} días</strong>
           </p>
+        )}
+
+        {tipo === 'vacaciones' && vacacionesSector.length > 0 && (
+          <div
+            className={`rounded-xl px-4 py-3 text-xs ${
+              superpuestas.length > 0
+                ? 'bg-amber-50 text-amber-900'
+                : 'bg-emerald-50 text-emerald-800'
+            }`}
+          >
+            {superpuestas.length > 0 ? (
+              <>
+                <p className="font-bold">
+                  Hay vacaciones aprobadas del sector en esas fechas:
+                </p>
+                <ul className="mt-2 flex flex-col gap-1">
+                  {superpuestas.slice(0, 4).map((a) => (
+                    <li key={a.id}>
+                      {nombreEmpleado?.(a.empleadoId) ?? 'Compañero'} ·{' '}
+                      {formatearFecha(a.fechaDesde)} al{' '}
+                      {formatearFecha(a.fechaHasta)}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              'No hay vacaciones aprobadas del sector pisando este rango.'
+            )}
+          </div>
         )}
 
         <label className="flex flex-col gap-1.5">

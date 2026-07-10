@@ -184,12 +184,16 @@ const RecibosPage = () => {
       </div>
 
       <ListaCard
-        titulo={esEmpleado ? 'Mis recibos' : 'Recibos del equipo'}
+        titulo={esEmpleado ? 'Pendientes de firma' : 'Pendientes del equipo'}
         cargando={cargandoLista}
-        vacio="No hay recibos cargados todavía."
+        vacio={
+          esEmpleado
+            ? 'No tenés recibos pendientes de firma.'
+            : 'No hay recibos pendientes de firma.'
+        }
       >
-        {recibos.length > 0 &&
-          [...recibos]
+        {pendientes.length > 0 &&
+          [...pendientes]
             .sort((a, b) => b.periodo.localeCompare(a.periodo))
             .map((r) => (
               <ListaItem
@@ -219,6 +223,42 @@ const RecibosPage = () => {
                         Firmar
                       </Boton>
                     )}
+                  </div>
+                }
+              />
+            ))}
+      </ListaCard>
+
+      <ListaCard
+        titulo={esEmpleado ? 'Historial de recibos' : 'Historial firmado'}
+        cargando={cargandoLista}
+        vacio="Todavía no hay recibos firmados."
+      >
+        {firmados.length > 0 &&
+          [...firmados]
+            .sort((a, b) => b.periodo.localeCompare(a.periodo))
+            .map((r) => (
+              <ListaItem
+                key={r.id}
+                href={esEmpleado ? undefined : `/colaboradores/${r.empleadoId}`}
+                icono={IconFileCertificate}
+                principal={
+                  esEmpleado
+                    ? formatearPeriodo(r.periodo)
+                    : `${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`
+                }
+                secundario="Recibo de sueldo firmado"
+                extremo={
+                  <div className="flex shrink-0 items-center gap-2">
+                    <FirmaBadge recibo={r} />
+                    <Boton
+                      variante="secundario"
+                      tamano="sm"
+                      onClick={() => void verRecibo(r)}
+                    >
+                      <IconEye size={14} />
+                      Ver
+                    </Boton>
                   </div>
                 }
               />

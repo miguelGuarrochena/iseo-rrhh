@@ -53,6 +53,9 @@ const PanelFichajePropio = ({
   tieneRostro: boolean;
   onFichar: () => void;
 }) => {
+  const modoTexto =
+    modo === 'celular' ? 'Celular + GPS' : 'Remoto con reconocimiento facial';
+
   if (modo === 'planta') {
     return (
       <Panel className="flex flex-col items-center gap-3 py-10 text-center">
@@ -86,6 +89,22 @@ const PanelFichajePropio = ({
       )}
       {tieneRostro ? (
         <>
+          <div className="grid w-full max-w-md grid-cols-2 gap-3 text-left">
+            <div className="rounded-2xl bg-paper px-4 py-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-ink-soft">
+                Próximo fichaje
+              </p>
+              <p className="mt-1 text-sm font-bold text-ink">
+                {proximoTipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
+              </p>
+            </div>
+            <div className="rounded-2xl bg-paper px-4 py-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-ink-soft">
+                Método
+              </p>
+              <p className="mt-1 text-sm font-bold text-ink">{modoTexto}</p>
+            </div>
+          </div>
           <Boton
             variante="negro"
             onClick={onFichar}
@@ -278,7 +297,10 @@ const FichajePage = () => {
           onCerrar={() => setManualAbierto(false)}
           empleados={empleados}
           registradoPor={usuario.nombreCompleto ?? 'RRHH'}
-          onFichado={() => cargar()}
+          onFichado={() => {
+            avisoExito('Fichaje manual cargado');
+            cargar();
+          }}
         />
       )}
 

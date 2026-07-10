@@ -81,6 +81,16 @@ const ColaboradoresPage = () => {
 
   const totalPaginas = totalPaginasDe(filtrados.length, POR_PAGINA);
   const visibles = paginar(filtrados, pagina, POR_PAGINA);
+  const hayFiltros = Boolean(
+    busqueda || sector || modalidad || legajo || estado
+  );
+  const limpiarFiltros = () => {
+    setBusqueda('');
+    setSector('');
+    setModalidad('');
+    setLegajo('');
+    setEstado('activo');
+  };
 
   useEffect(() => {
     setPagina(1);
@@ -184,6 +194,23 @@ const ColaboradoresPage = () => {
                 { valor: 'pendiente', etiqueta: 'Con documentación pendiente' },
               ]}
             />
+          </div>
+        )}
+
+        {hayFiltros && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-paper px-4 py-3 text-sm text-ink-soft">
+            <span>
+              Mostrando {filtrados.length} de {empleados.length} colaboradores
+              con los filtros actuales.
+            </span>
+            <Boton
+              type="button"
+              variante="sutil"
+              tamano="sm"
+              onClick={limpiarFiltros}
+            >
+              Limpiar filtros
+            </Boton>
           </div>
         )}
       </div>

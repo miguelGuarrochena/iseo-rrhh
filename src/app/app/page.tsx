@@ -33,6 +33,7 @@ import {
   getRecibos,
   getResumenFinanzas,
   getSaldoVacaciones,
+  getVacacionesAprobadasDeEmpleados,
   MiMes,
 } from '@/lib/services/rrhh';
 import {
@@ -80,6 +81,7 @@ const DashboardPage = () => {
   const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
   const [pagosPendientes, setPagosPendientes] = useState(0);
   const [miMes, setMiMes] = useState<MiMes | null>(null);
+  const [vacacionesSector, setVacacionesSector] = useState<Ausencia[]>([]);
   const [, setCargando] = useState(true);
 
   useEffect(() => {
@@ -104,6 +106,16 @@ const DashboardPage = () => {
       void getAusenciasDeEmpleado(usuario.empleadoId)
         .then(setMisAusencias)
         .finally(() => setCargando(false));
+      void getEmpleados().then((lista) => {
+        setEmpleados(lista);
+        const actual = lista.find((e) => e.id === usuario.empleadoId);
+        const idsSector = actual?.sector
+          ? lista.filter((e) => e.sector === actual.sector).map((e) => e.id)
+          : [];
+        void getVacacionesAprobadasDeEmpleados(idsSector).then(
+          setVacacionesSector
+        );
+      });
       void getRecibos(usuario.empleadoId).then((r) =>
         setRecibosPendientes(
           r.filter((x) => x.estadoFirma === 'pendiente').length
@@ -133,6 +145,10 @@ const DashboardPage = () => {
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.nombre} ${e.apellido}` : '—';
   };
+  const hoyISO = new Date().toISOString().slice(0, 10);
+  const proximasVacacionesSector = vacacionesSector
+    .filter((a) => a.fechaHasta >= hoyISO)
+    .slice(0, 4);
 
   if (esSuperadmin) {
     return (
@@ -338,8 +354,8 @@ const DashboardPage = () => {
         {esEmpleado ? (
           <ListaCard
             titulo="Mis solicitudes"
-            vacio="Sin solicitudes."
-            accion={{ etiqueta: 'Ver todas', href: '/ausencias' }}
+            vacio="Sin solicitudes. Podés pedir vacaciones desde Ausencias."
+            accion={{ etiqueta: 'Pedir vacaciones', href: '/ausencias' }}
           >
             {misAusencias.length > 0 &&
               misAusencias.map((a) => (
@@ -367,6 +383,26 @@ const DashboardPage = () => {
                   icono={IconInbox}
                   principal={nombreEmpleado(a.empleadoId)}
                   secundario={`${tipoAusencia[a.tipo]} · ${formatearFecha(a.fechaDesde)} al ${formatearFecha(a.fechaHasta)}`}
+                  extremo={<EstadoBadge estado={a.estado} />}
+                />
+              ))}
+          </ListaCard>
+        )}
+
+        {esEmpleado && (
+          <ListaCard
+            titulo="Vacaciones del sector"
+            vacio="No hay vacaciones aprobadas próximas en tu sector."
+            accion={{ etiqueta: 'Ver calendario', href: '/ausencias' }}
+          >
+            {proximasVacacionesSector.length > 0 &&
+              proximasVacacionesSector.map((a) => (
+                <ListaItem
+                  key={a.id}
+                  href="/ausencias"
+                  icono={IconBeach}
+                  principal={nombreEmpleado(a.empleadoId)}
+                  secundario={`${formatearFecha(a.fechaDesde)} al ${formatearFecha(a.fechaHasta)} · ${a.dias} días`}
                   extremo={<EstadoBadge estado={a.estado} />}
                 />
               ))}

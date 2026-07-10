@@ -242,6 +242,25 @@ const VistaAdmin = () => {
 
   return (
     <div className="flex flex-col gap-6">
+      <Panel className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-base font-bold text-ink">
+            ¿Tenés que cargar o actualizar sueldos?
+          </h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Entrá al legajo del colaborador y usá “Cargar remuneración” en la
+            sección Remuneraciones.
+          </p>
+        </div>
+        <Boton
+          variante="secundario"
+          onClick={() => router.push('/colaboradores')}
+          className="shrink-0"
+        >
+          Ir a colaboradores
+        </Boton>
+      </Panel>
+
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard
           etiqueta="Masa salarial"
