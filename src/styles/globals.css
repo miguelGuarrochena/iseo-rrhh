@@ -3,9 +3,11 @@
 @tailwind utilities;
 
 :root {
-  --font-jakarta:
+  --font-jakarta: var(
+    --font-jakarta-next,
     'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+    'Helvetica Neue', Arial, sans-serif
+  );
   --paper: #f1f4fa;
   --ink: #2f2e3a;
 

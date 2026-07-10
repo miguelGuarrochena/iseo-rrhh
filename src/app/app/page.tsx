@@ -80,7 +80,7 @@ const DashboardPage = () => {
   const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
   const [pagosPendientes, setPagosPendientes] = useState(0);
   const [miMes, setMiMes] = useState<MiMes | null>(null);
-  const [cargando, setCargando] = useState(true);
+  const [, setCargando] = useState(true);
 
   useEffect(() => {
     if (!usuario || !rolEfectivo) return;

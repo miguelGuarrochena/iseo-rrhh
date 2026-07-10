@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import type { ReactNode } from 'react';
 import {
   ColorSchemeScript,
@@ -20,6 +21,14 @@ const SITE_TITLE = 'ISEO RH — Recursos Humanos para PyMEs';
 const SITE_DESCRIPTION =
   'ISEO RH es tu aliado en la gestión y organización del personal. Diagnóstico, herramienta online, visitas programadas y procesos a medida para que tu empresa gane en claridad, previsibilidad y cultura organizacional.';
 const OG_IMAGE = `${SITE_URL}/og-image.svg`;
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+  variable: '--font-jakarta-next',
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -117,21 +126,9 @@ const jsonLd = {
 };
 
 const RootLayout = ({ children }: { children: ReactNode }) => (
-  <html lang="es" {...mantineHtmlProps}>
+  <html lang="es" {...mantineHtmlProps} className={plusJakarta.variable}>
     <head>
       <ColorSchemeScript defaultColorScheme="light" />
-
-      {/* Tipografía moderna: Plus Jakarta Sans */}
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link
-        rel="preconnect"
-        href="https://fonts.gstatic.com"
-        crossOrigin="anonymous"
-      />
-      <link
-        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&display=swap"
-        rel="stylesheet"
-      />
 
       {/* Datos estructurados schema.org */}
       <script
