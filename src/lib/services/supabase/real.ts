@@ -600,6 +600,23 @@ export const getAusenciasPendientes = async (): Promise<Ausencia[]> => {
   return oFalla(data, error).map(aAusencia);
 };
 
+export const getVacacionesAprobadasDeEmpleados = async (
+  empleadoIds: string[]
+): Promise<Ausencia[]> => {
+  if (empleadoIds.length === 0) return [];
+  const { data, error } = await sb()
+    .from('ausencias')
+    .select(
+      'id,empleado_id,tipo,fecha_desde,fecha_hasta,dias,estado,adjuntos,resuelta_en,creada_en'
+    )
+    .eq('empresa_id', empresaId())
+    .eq('tipo', 'vacaciones')
+    .eq('estado', 'aprobada')
+    .in('empleado_id', empleadoIds)
+    .order('fecha_desde', { ascending: true });
+  return oFalla(data, error).map(aAusencia);
+};
+
 /** Avisa a varios usuarios (best-effort: nunca rompe la acción principal). */
 const notificarUsuarios = async (
   usuarioIds: string[],

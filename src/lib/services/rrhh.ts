@@ -146,6 +146,10 @@ export const getAusenciasPendientes = elegir(
   real.getAusenciasPendientes,
   demo.getAusenciasPendientes
 );
+export const getVacacionesAprobadasDeEmpleados = elegir(
+  real.getVacacionesAprobadasDeEmpleados,
+  demo.getVacacionesAprobadasDeEmpleados
+);
 export const crearAusencia = elegir(real.crearAusencia, demo.crearAusencia);
 export const resolverAusencia = elegir(
   real.resolverAusencia,

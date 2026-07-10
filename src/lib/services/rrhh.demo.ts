@@ -448,6 +448,18 @@ export const getAusenciasDeEmpleado = async (
 export const getAusenciasPendientes = async (): Promise<Ausencia[]> =>
   simular(ausenciasMock.filter((a) => a.estado === 'pendiente'));
 
+export const getVacacionesAprobadasDeEmpleados = async (
+  empleadoIds: string[]
+): Promise<Ausencia[]> =>
+  simular(
+    ausenciasMock.filter(
+      (a) =>
+        empleadoIds.includes(a.empleadoId) &&
+        a.tipo === 'vacaciones' &&
+        a.estado === 'aprobada'
+    )
+  );
+
 export interface NuevaAusencia {
   empleadoId: string;
   tipo: Ausencia['tipo'];

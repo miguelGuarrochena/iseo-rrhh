@@ -31,6 +31,7 @@ const iso = (anio: number, mes: number, dia: number) =>
 interface CalendarioAusenciasProps {
   ausencias: Ausencia[];
   nombreEmpleado: (empleadoId: string) => string;
+  soloAprobadas?: boolean;
 }
 
 /**
@@ -40,16 +41,20 @@ interface CalendarioAusenciasProps {
 export const CalendarioAusencias = ({
   ausencias,
   nombreEmpleado,
+  soloAprobadas = false,
 }: CalendarioAusenciasProps) => {
   const hoy = new Date();
   const [anio, setAnio] = useState(hoy.getFullYear());
   const [mes, setMes] = useState(hoy.getMonth());
   const [diaSel, setDiaSel] = useState<string | null>(null);
 
-  // Solo cuentan las aprobadas o pendientes (no las rechazadas).
+  // Admin ve aprobadas y pendientes; empleados solo ven vacaciones aprobadas.
   const vigentes = useMemo(
-    () => ausencias.filter((a) => a.estado !== 'rechazada'),
-    [ausencias]
+    () =>
+      ausencias.filter((a) =>
+        soloAprobadas ? a.estado === 'aprobada' : a.estado !== 'rechazada'
+      ),
+    [ausencias, soloAprobadas]
   );
 
   const ausentesEn = (fecha: string): Ausencia[] =>
