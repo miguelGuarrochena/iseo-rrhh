@@ -58,7 +58,7 @@ operarla como admin ("Salir de la empresa" en el menú lateral para volver).
 | Colaboradores | admin, supervisor | Listado + ficha completa: legajo, documentos, checklist, notas internas, remuneraciones, baja. **Importar Excel** para el alta masiva. |
 | Mi legajo | empleado, supervisor | La propia ficha del empleado: datos y documentos. |
 | Ausencias | todos | Empleado solicita; admin/supervisor aprueba o rechaza. Saldo de vacaciones por LCT. |
-| Fichaje | todos | Ingreso/egreso por celular (con foto y GPS opcional), reconocimiento facial en tablet de planta, o carga manual del admin. Export CSV de novedades. |
+| Fichaje | todos | Ingreso/egreso por celular (con foto y GPS opcional), reconocimiento facial en tablet de planta, o carga manual del admin. Export CSV de novedades. **Modo planta = kiosco**: al activarlo la tablet queda bloqueada en la pantalla de fichaje con un PIN para salir (los datos del admin que la activó quedan inaccesibles; su sesión en otros dispositivos sigue normal). |
 | Turnos | todos | Horarios asignados vs. fichada real: tardes, salidas anticipadas. |
 | Recibos | todos | Admin sube el PDF por período (individual o **carga masiva**: varios PDFs que se asignan solos por CUIL/DNI del nombre de archivo). El **empleador firma/publica** primero; recién ahí el empleado lo ve y **firma digitalmente**. |
 | Remuneraciones | todos (cada uno lo suyo) | Admin carga bruto/no remunerativo/descuentos; aportes y neto se calculan solos. **Descuentos fijos** por empleado (sindicato, comedor) que se arrastran cada mes y **adelantos** (empleado pide → admin aprueba → se descuenta del período). Empleado ve su evolución, aumentos y aguinaldo estimado. **Exportar para liquidación** (CSV al contador). |

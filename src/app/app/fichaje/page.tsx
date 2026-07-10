@@ -32,6 +32,7 @@ import { Empleado, Fichaje, MetodoFichaje, ModoFichaje } from '@/types/rrhh';
 import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
 import { FichajeManualModal } from '@/components/app/facial/FichajeManualModal';
 import { getTerminalLocal } from '@/lib/terminal';
+import { ActivarKioscoModal } from '@/components/app/fichaje/ActivarKioscoModal';
 
 const metodoLabel: Record<MetodoFichaje, string> = {
   facial_tablet: 'Reconocimiento facial',
@@ -122,7 +123,7 @@ const PanelFichajePropio = ({
       ) : (
         <p className="max-w-sm text-sm text-ink-soft">
           Para fichar necesitás tener tu rostro registrado. Pedíselo a RRHH
-          desde tu legajo personal.
+          desde tu ficha.
         </p>
       )}
     </Panel>
@@ -138,7 +139,7 @@ const FichajePage = () => {
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [miEmpleado, setMiEmpleado] = useState<Empleado | null>(null);
   const [facialAbierto, setFacialAbierto] = useState(false);
-  const [tabletAbierto, setTabletAbierto] = useState(false);
+  const [kioscoAbierto, setKioscoAbierto] = useState(false);
   const [manualAbierto, setManualAbierto] = useState(false);
   const [esTerminal, setEsTerminal] = useState(false);
 
@@ -228,7 +229,7 @@ const FichajePage = () => {
         {!esEmpleado && (
           <div className="flex flex-wrap gap-2">
             {esTerminal && (
-              <Boton variante="negro" onClick={() => setTabletAbierto(true)}>
+              <Boton variante="negro" onClick={() => setKioscoAbierto(true)}>
                 <IconFaceId size={18} />
                 Modo planta
               </Boton>
@@ -282,12 +283,9 @@ const FichajePage = () => {
       )}
 
       {!esEmpleado && (
-        <FichajeFacialModal
-          abierto={tabletAbierto}
-          onCerrar={() => setTabletAbierto(false)}
-          modo="identificar"
-          resolverNombre={nombreEmpleado}
-          onFichado={(marca) => trasFichar(marca)}
+        <ActivarKioscoModal
+          abierto={kioscoAbierto}
+          onCerrar={() => setKioscoAbierto(false)}
         />
       )}
 
