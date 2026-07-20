@@ -12,7 +12,9 @@
  * cambiar con GEMINI_MODEL.
  */
 
-const MODELO = process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite';
+// Alias "latest": siempre apunta al modelo lite vigente, asi no queda
+// obsoleto cuando Google rota versiones (como paso con 2.5-flash-lite).
+const MODELO = process.env.GEMINI_MODEL || 'gemini-flash-lite-latest';
 
 /** Error tipado cuando falta configurar la API key. */
 export class IANoConfigurada extends Error {
