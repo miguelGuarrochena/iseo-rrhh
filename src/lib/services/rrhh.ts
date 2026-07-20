@@ -155,6 +155,10 @@ export const getVacacionesAprobadasMiSector = elegir(
   demo.getVacacionesAprobadasMiSector
 );
 export const crearAusencia = elegir(real.crearAusencia, demo.crearAusencia);
+export const abrirAdjuntoAusencia = elegir(
+  real.abrirAdjuntoAusencia,
+  demo.abrirAdjuntoAusencia
+);
 export const resolverAusencia = elegir(
   real.resolverAusencia,
   demo.resolverAusencia

@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { faqParaRol, faqTextoParaRol } from '@/lib/ayuda';
+import { iaVisible } from '@/lib/entorno';
 import { buscarParrafos } from '@/lib/convenio';
 
 const SOPORTE_WA =
@@ -65,41 +66,43 @@ const AyudaPage = () => {
         </p>
       </div>
 
-      {/* Asistente IA */}
-      <Panel>
-        <h2 className="flex items-center gap-2 text-base font-bold text-ink">
-          <IconSparkles size={18} className="text-brand-600" />
-          Asistente de ayuda
-        </h2>
-        <p className="mt-1 text-sm text-ink-soft">
-          Escribí tu duda y te explico cómo hacerlo en la app.
-        </p>
-        <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <input
-            value={pregunta}
-            onChange={(e) => setPregunta(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && void preguntar(pregunta)}
-            placeholder="Ej. ¿Cómo pido vacaciones?"
-            className="flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
-          />
-          <Boton
-            onClick={() => void preguntar(pregunta)}
-            disabled={consultando || !pregunta.trim()}
-          >
-            {consultando ? 'Consultando…' : 'Preguntar'}
-          </Boton>
-        </div>
-        {errorIA && (
-          <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
-            {errorIA}
+      {/* Asistente IA (se oculta con NEXT_PUBLIC_MOSTRAR_IA=0) */}
+      {iaVisible() && (
+        <Panel>
+          <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+            <IconSparkles size={18} className="text-brand-600" />
+            Asistente de ayuda
+          </h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Escribí tu duda y te explico cómo hacerlo en la app.
           </p>
-        )}
-        {respuesta && (
-          <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-brand-200 bg-brand-50/50 px-4 py-3 text-sm leading-relaxed text-ink">
-            {respuesta}
+          <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+            <input
+              value={pregunta}
+              onChange={(e) => setPregunta(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && void preguntar(pregunta)}
+              placeholder="Ej. ¿Cómo pido vacaciones?"
+              className="flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
+            />
+            <Boton
+              onClick={() => void preguntar(pregunta)}
+              disabled={consultando || !pregunta.trim()}
+            >
+              {consultando ? 'Consultando…' : 'Preguntar'}
+            </Boton>
           </div>
-        )}
-      </Panel>
+          {errorIA && (
+            <p className="mt-4 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
+              {errorIA}
+            </p>
+          )}
+          {respuesta && (
+            <div className="mt-4 whitespace-pre-wrap rounded-2xl border border-brand-200 bg-brand-50/50 px-4 py-3 text-sm leading-relaxed text-ink">
+              {respuesta}
+            </div>
+          )}
+        </Panel>
+      )}
 
       {/* FAQ */}
       <Panel>

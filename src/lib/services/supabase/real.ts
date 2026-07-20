@@ -777,6 +777,11 @@ const usuariosGestores = async (): Promise<string[]> => {
 export const crearAusencia = async (
   datos: NuevaAusencia
 ): Promise<Ausencia> => {
+  // Certificado/comprobante opcional: va al bucket privado de documentos.
+  const adjuntos: string[] = [];
+  if (datos.archivo) {
+    adjuntos.push(await subirDocumentoLegajo(datos.empleadoId, datos.archivo));
+  }
   const { data, error } = await sb()
     .from('ausencias')
     .insert({
@@ -787,6 +792,7 @@ export const crearAusencia = async (
       fecha_hasta: datos.fechaHasta,
       dias: diasEntre(datos.fechaDesde, datos.fechaHasta),
       comentario_empleado: datos.comentario ?? null,
+      adjuntos,
     })
     .select()
     .single();
@@ -813,6 +819,15 @@ export const crearAusencia = async (
   }
 
   return ausencia;
+};
+
+/** URL temporal para ver el certificado adjunto de una ausencia. */
+export const abrirAdjuntoAusencia = async (
+  ausencia: Ausencia
+): Promise<string | null> => {
+  const path = ausencia.adjuntos[0];
+  if (!path) return null;
+  return urlFirmada('documentos', path);
 };
 
 export const resolverAusencia = async (

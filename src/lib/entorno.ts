@@ -13,3 +13,14 @@ export const demoHabilitado = (): boolean => {
   if (flag === 'off') return false;
   return process.env.NODE_ENV !== 'production';
 };
+
+/**
+ * Interruptor de la IA en la interfaz.
+ *
+ * Con NEXT_PUBLIC_MOSTRAR_IA=0 se ocultan los asistentes (Ayuda y
+ * Convenio); el resto de la app funciona exactamente igual. Sin la
+ * variable, la IA se muestra (y si falta la API key de Gemini, avisa
+ * "no disponible" sin romper nada).
+ */
+export const iaVisible = (): boolean =>
+  process.env.NEXT_PUBLIC_MOSTRAR_IA !== '0';

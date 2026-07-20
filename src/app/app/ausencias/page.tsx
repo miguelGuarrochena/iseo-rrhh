@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   IconBeach,
   IconCheck,
+  IconPaperclip,
   IconPlaneDeparture,
   IconPlus,
   IconX,
@@ -28,6 +29,7 @@ import { formatearFecha } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { tipoAusenciaIconos, tipoAusenciaLabels } from '@/lib/etiquetas';
 import {
+  abrirAdjuntoAusencia,
   crearAusencia,
   getAusencias,
   getAusenciasDeEmpleado,
@@ -160,6 +162,7 @@ const AusenciasPage = () => {
     fechaDesde: string;
     fechaHasta: string;
     comentario?: string;
+    archivo?: File;
   }) => {
     if (!usuario.empleadoId) return;
     try {
@@ -174,6 +177,16 @@ const AusenciasPage = () => {
       );
       throw err;
     }
+  };
+
+  const verAdjunto = async (a: Ausencia) => {
+    const url = await abrirAdjuntoAusencia(a);
+    if (url) window.open(url, '_blank', 'noopener');
+    else
+      avisoError(
+        'Adjunto no disponible',
+        'En el modo demo los archivos no se guardan.'
+      );
   };
 
   const resolver = async (id: string, estado: 'aprobada' | 'rechazada') => {
@@ -352,9 +365,31 @@ const AusenciasPage = () => {
               secundario={`${rangoDe(a)}${a.comentarioEmpleado ? ` · "${a.comentarioEmpleado}"` : ''}`}
               extremo={
                 esEmpleado ? (
-                  <EstadoBadge estado={a.estado} />
+                  <div className="flex shrink-0 items-center gap-2">
+                    {a.adjuntos.length > 0 && (
+                      <Boton
+                        variante="secundario"
+                        tamano="sm"
+                        onClick={() => void verAdjunto(a)}
+                      >
+                        <IconPaperclip size={14} />
+                        Certificado
+                      </Boton>
+                    )}
+                    <EstadoBadge estado={a.estado} />
+                  </div>
                 ) : (
                   <div className="flex shrink-0 items-center gap-2">
+                    {a.adjuntos.length > 0 && (
+                      <Boton
+                        variante="secundario"
+                        tamano="sm"
+                        onClick={() => void verAdjunto(a)}
+                      >
+                        <IconPaperclip size={14} />
+                        Certificado
+                      </Boton>
+                    )}
                     <Boton
                       variante="aprobar"
                       tamano="sm"
@@ -396,7 +431,21 @@ const AusenciasPage = () => {
                   : `${nombreEmpleado(a.empleadoId)} — ${tipoAusenciaLabels[a.tipo]}`
               }
               secundario={`${rangoDe(a)}${a.comentarioResolucion ? ` · "${a.comentarioResolucion}"` : ''}`}
-              extremo={<EstadoBadge estado={a.estado} />}
+              extremo={
+                <div className="flex shrink-0 items-center gap-2">
+                  {a.adjuntos.length > 0 && (
+                    <Boton
+                      variante="secundario"
+                      tamano="sm"
+                      onClick={() => void verAdjunto(a)}
+                    >
+                      <IconPaperclip size={14} />
+                      Certificado
+                    </Boton>
+                  )}
+                  <EstadoBadge estado={a.estado} />
+                </div>
+              }
             />
           ))}
         <Paginacion

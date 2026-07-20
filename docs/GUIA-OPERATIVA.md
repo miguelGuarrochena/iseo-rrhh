@@ -39,6 +39,7 @@ Se cargan en **Vercel → Settings → Environment Variables** (producción) y e
 | `SUPABASE_SECRET_KEY` | solo servidor | Clave secreta (`sb_secret_…`) para invitaciones y admin. **Nunca** con prefijo `NEXT_PUBLIC_`. |
 | `GEMINI_API_KEY` | solo servidor | Activa la IA (Ayuda y Convenio). Sin ella, esas funciones avisan "no disponible" y nada se rompe. |
 | `GEMINI_MODEL` | solo servidor | Opcional. Por defecto `gemini-2.5-flash-lite` (el más barato). |
+| `NEXT_PUBLIC_MOSTRAR_IA` | navegador | Con `0`, se ocultan los asistentes de IA (Ayuda y Convenio); el resto de la app funciona igual. Sin la variable, se muestran. |
 | `NEXT_PUBLIC_MOSTRAR_INGRESO` | navegador | Con `0`, la landing oculta "Ingresar" y muestra "Próximamente". Sin la variable, todo visible (estado lanzado). |
 | `NEXT_PUBLIC_SITE_URL` | build | URL canónica del sitio para SEO. |
 

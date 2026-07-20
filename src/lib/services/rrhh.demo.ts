@@ -541,6 +541,8 @@ export interface NuevaAusencia {
   fechaDesde: string;
   fechaHasta: string;
   comentario?: string;
+  /** Certificado o comprobante (opcional). */
+  archivo?: File;
 }
 
 export const crearAusencia = async (
@@ -554,7 +556,7 @@ export const crearAusencia = async (
     fechaHasta: datos.fechaHasta,
     dias: diasEntre(datos.fechaDesde, datos.fechaHasta),
     estado: 'pendiente',
-    adjuntos: [],
+    adjuntos: datos.archivo ? [datos.archivo.name] : [],
     comentarioEmpleado: datos.comentario,
     creadaEn: hoyISO(),
   };
@@ -579,6 +581,12 @@ export const crearAusencia = async (
 
   return simular(nueva);
 };
+
+/** En la demo no hay storage: el adjunto no se puede abrir. */
+export const abrirAdjuntoAusencia = async (
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _ausencia: Ausencia
+): Promise<string | null> => simular(null);
 
 export const resolverAusencia = async (
   ausenciaId: string,

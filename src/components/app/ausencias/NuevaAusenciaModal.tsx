@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
+import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { diasEntre, formatearFecha, hoyISO } from '@/lib/fechas';
@@ -18,6 +19,7 @@ interface NuevaAusenciaModalProps {
     fechaDesde: string;
     fechaHasta: string;
     comentario?: string;
+    archivo?: File;
   }) => Promise<void>;
   vacacionesSector?: Ausencia[];
   nombreEmpleado?: (empleadoId: string) => string;
@@ -37,6 +39,7 @@ export const NuevaAusenciaModal = ({
   const [fechaDesde, setFechaDesde] = useState(hoyISO());
   const [fechaHasta, setFechaHasta] = useState(hoyISO());
   const [comentario, setComentario] = useState('');
+  const [archivo, setArchivo] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
@@ -68,8 +71,10 @@ export const NuevaAusenciaModal = ({
         fechaDesde,
         fechaHasta,
         comentario: comentario.trim() || undefined,
+        archivo: archivo ?? undefined,
       });
       setComentario('');
+      setArchivo(null);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'No pudimos enviar la solicitud.'
@@ -158,10 +163,17 @@ export const NuevaAusenciaModal = ({
           />
         </label>
 
-        <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
-          Si es por enfermedad vas a poder adjuntar el certificado médico
-          (disponible próximamente).
-        </p>
+        <CampoArchivo
+          key={abierto ? 'abierto' : 'cerrado'}
+          etiqueta="Certificado o comprobante (opcional)"
+          accept=".pdf,image/*"
+          onArchivo={setArchivo}
+          ayuda={
+            tipo === 'enfermedad'
+              ? 'Adjuntá el certificado médico en PDF o foto.'
+              : 'PDF o foto que respalde el pedido, si corresponde.'
+          }
+        />
 
         {error && (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
