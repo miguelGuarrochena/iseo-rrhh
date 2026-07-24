@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   IconCalendar,
   IconChevronLeft,
@@ -67,7 +68,8 @@ interface CampoFechaProps {
 /**
  * Campo de fecha propio: se puede tipear con números (dd/mm/aaaa) o
  * elegir del calendario en español. Value y onChange usan ISO
- * "YYYY-MM-DD".
+ * "YYYY-MM-DD". En mobile el calendario abre como overlay (sin scroll
+ * dentro del modal); en desktop queda centrado sobre un fondo tenue.
  */
 export const CampoFecha = ({
   etiqueta,
@@ -81,12 +83,17 @@ export const CampoFecha = ({
 }: CampoFechaProps) => {
   const [abierto, setAbierto] = useState(false);
   const [texto, setTexto] = useState(aCorta(value));
+  const [montado, setMontado] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
 
   const hoy = new Date();
   const base = value ? value.split('-').map(Number) : null;
   const [anio, setAnio] = useState(base ? base[0] : hoy.getFullYear());
   const [mes, setMes] = useState(base ? base[1] - 1 : hoy.getMonth());
+
+  useEffect(() => {
+    setMontado(true);
+  }, []);
 
   // El texto sigue al value (elección en calendario o cambio externo).
   useEffect(() => {
@@ -103,17 +110,17 @@ export const CampoFecha = ({
   }, [abierto, value]);
 
   useEffect(() => {
-    const cerrar = (e: MouseEvent) => {
-      if (!contenedor.current?.contains(e.target as Node)) setAbierto(false);
-    };
+    if (!abierto) return;
     const esc = (e: KeyboardEvent) => e.key === 'Escape' && setAbierto(false);
-    document.addEventListener('mousedown', cerrar);
     document.addEventListener('keydown', esc);
+    // Evita que el fondo del modal scrollee detrás del overlay.
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
     return () => {
-      document.removeEventListener('mousedown', cerrar);
       document.removeEventListener('keydown', esc);
+      document.body.style.overflow = prev;
     };
-  }, []);
+  }, [abierto]);
 
   const { diasEnMes, offset } = useMemo(() => {
     const primerDia = new Date(anio, mes, 1);
@@ -161,6 +168,76 @@ export const CampoFecha = ({
 
   const borde = error ? 'border-red-300' : 'border-line';
 
+  const calendario = (
+    <div
+      role="dialog"
+      aria-label="Elegir fecha"
+      className="w-full max-w-sm rounded-t-2xl border border-line bg-surface p-4 shadow-lift sm:rounded-2xl"
+    >
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => mover(-1)}
+          aria-label="Mes anterior"
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+        >
+          <IconChevronLeft size={16} />
+        </button>
+        <span className="text-sm font-bold text-ink">
+          {MESES[mes]} {anio}
+        </span>
+        <button
+          type="button"
+          onClick={() => mover(1)}
+          aria-label="Mes siguiente"
+          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+        >
+          <IconChevronRight size={16} />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-7 gap-1 text-center">
+        {DIAS.map((d, i) => (
+          <span
+            key={`${d}-${i}`}
+            className="py-1 text-[0.65rem] font-bold uppercase text-ink-soft"
+          >
+            {d}
+          </span>
+        ))}
+        {Array.from({ length: offset }).map((_, i) => (
+          <span key={`v-${i}`} />
+        ))}
+        {Array.from({ length: diasEnMes }).map((_, i) => {
+          const dia = i + 1;
+          const fecha = iso(anio, mes, dia);
+          const activa = value === fecha;
+          const deshabilitada = fueraDeRango(fecha);
+          return (
+            <button
+              key={fecha}
+              type="button"
+              disabled={Boolean(deshabilitada)}
+              onClick={() => {
+                onChange(fecha);
+                setAbierto(false);
+              }}
+              className={`mx-auto flex h-10 w-10 items-center justify-center rounded-full border text-sm font-medium transition-colors ${
+                activa
+                  ? 'border-brand-300 bg-brand-100 font-bold text-brand-800'
+                  : deshabilitada
+                    ? 'cursor-default border-transparent text-ink-soft/30'
+                    : 'cursor-pointer border-transparent text-ink hover:bg-paper'
+              }`}
+            >
+              {dia}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <div
       className="flex flex-col gap-1.5"
@@ -193,78 +270,29 @@ export const CampoFecha = ({
             type="button"
             onClick={() => setAbierto((v) => !v)}
             aria-label="Abrir calendario"
+            aria-expanded={abierto}
             className="shrink-0 cursor-pointer text-ink-soft transition-colors hover:text-brand-700"
           >
             <IconCalendar size={18} stroke={1.8} />
           </button>
         </div>
-
-        {abierto && (
-          <div className="absolute z-50 mt-2 w-[19rem] rounded-2xl border border-line bg-surface p-3 shadow-lift">
-            <div className="mb-3 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => mover(-1)}
-                aria-label="Mes anterior"
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
-              >
-                <IconChevronLeft size={16} />
-              </button>
-              <span className="text-sm font-bold text-ink">
-                {MESES[mes]} {anio}
-              </span>
-              <button
-                type="button"
-                onClick={() => mover(1)}
-                aria-label="Mes siguiente"
-                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
-              >
-                <IconChevronRight size={16} />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-7 gap-1 text-center">
-              {DIAS.map((d, i) => (
-                <span
-                  key={`${d}-${i}`}
-                  className="text-[0.65rem] font-bold uppercase text-ink-soft"
-                >
-                  {d}
-                </span>
-              ))}
-              {Array.from({ length: offset }).map((_, i) => (
-                <span key={`v-${i}`} />
-              ))}
-              {Array.from({ length: diasEnMes }).map((_, i) => {
-                const dia = i + 1;
-                const fecha = iso(anio, mes, dia);
-                const activa = value === fecha;
-                const deshabilitada = fueraDeRango(fecha);
-                return (
-                  <button
-                    key={fecha}
-                    type="button"
-                    disabled={Boolean(deshabilitada)}
-                    onClick={() => {
-                      onChange(fecha);
-                      setAbierto(false);
-                    }}
-                    className={`mx-auto flex h-9 w-9 items-center justify-center rounded-full border text-sm font-medium transition-colors ${
-                      activa
-                        ? 'border-brand-300 bg-brand-100 font-bold text-brand-800'
-                        : deshabilitada
-                          ? 'cursor-default border-transparent text-ink-soft/30'
-                          : 'cursor-pointer border-transparent text-ink hover:bg-paper'
-                    }`}
-                  >
-                    {dia}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </div>
+
+      {montado &&
+        abierto &&
+        createPortal(
+          <div className="fixed inset-0 z-[1000] flex items-end justify-center sm:items-center sm:p-4">
+            <button
+              type="button"
+              aria-label="Cerrar calendario"
+              className="absolute inset-0 cursor-pointer bg-ink/40"
+              onClick={() => setAbierto(false)}
+            />
+            <div className="relative z-10 w-full sm:w-auto">{calendario}</div>
+          </div>,
+          document.body
+        )}
+
       {error && (
         <span className="text-xs font-medium text-red-600">{error}</span>
       )}
