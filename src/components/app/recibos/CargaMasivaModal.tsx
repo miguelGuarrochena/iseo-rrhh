@@ -27,7 +27,7 @@ interface Props {
 const soloDigitos = (s: string) => s.replace(/\D/g, '');
 
 /**
- * Busca a quién pertenece el PDF por el CUIL (o DNI) presente en el
+ * Busca a quién pertenece el PDF por CUIL, legajo o DNI en el
  * nombre del archivo. Ej: "recibo-20-30123456-7-junio.pdf".
  */
 const detectarEmpleado = (
@@ -40,6 +40,11 @@ const detectarEmpleado = (
     return cuil.length >= 10 && digitos.includes(cuil);
   });
   if (porCuil) return porCuil.id;
+  const porLegajo = empleados.find((e) => {
+    const leg = soloDigitos(e.numeroLegajo ?? '');
+    return leg.length >= 1 && digitos.includes(leg);
+  });
+  if (porLegajo) return porLegajo.id;
   const porDni = empleados.find((e) => {
     const dni = soloDigitos(e.dni ?? '');
     return dni.length >= 7 && digitos.includes(dni);
@@ -181,8 +186,8 @@ export const CargaMasivaModal = ({
         </div>
 
         <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
-          Cada PDF se asigna solo si el nombre del archivo contiene el CUIL o
-          DNI del colaborador (ej.{' '}
+          Cada PDF se asigna solo si el nombre del archivo contiene el legajo,
+          CUIL o DNI del colaborador (ej.{' '}
           <span className="font-semibold">20-30123456-7.pdf</span>). Lo que no
           se reconozca lo asignás a mano acá abajo.
         </p>

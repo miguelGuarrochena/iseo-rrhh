@@ -6,15 +6,21 @@
 import {
   Alerta,
   Ausencia,
+  Comunicacion,
+  ComunicacionMensaje,
   ConfigPlataforma,
   Convenio,
+  CupoLicencia,
   DatosEmpresaCliente,
   DescriptorFacial,
+  DocumentoFirma,
+  DocumentoFirmaDestinatario,
   DocumentoLegajo,
   Empleado,
   Empresa,
   EmpresaResumen,
   EventoAgenda,
+  FacturaMonotributo,
   Fichaje,
   FacturacionEmpresa,
   MetricasGlobales,
@@ -30,7 +36,11 @@ import {
   OpcionesFichaje,
   Notificacion,
   NuevaEmpresa,
+  PendientesResumen,
+  SaldoLicencia,
   Terminal,
+  TipoAusencia,
+  TipoComunicacion,
   Turno,
   ReciboSueldo,
   Remuneracion,
@@ -230,6 +240,7 @@ export interface NuevoEmpleado {
   supervisorId?: string;
   // Datos personales opcionales (completables después)
   cuil?: string;
+  numeroLegajo?: string;
   fechaNacimiento?: string;
   estadoCivil?: Empleado['estadoCivil'];
   nivelEstudios?: Empleado['nivelEstudios'];
@@ -543,6 +554,11 @@ export interface NuevaAusencia {
   comentario?: string;
   /** Certificado o comprobante (opcional). */
   archivo?: File;
+  /**
+   * Si true (carga desde Admin/RRHH), queda aprobada de una.
+   * Las solicitudes del empleado siguen pendientes.
+   */
+  aprobarAutomaticamente?: boolean;
 }
 
 export const crearAusencia = async (
@@ -555,29 +571,34 @@ export const crearAusencia = async (
     fechaDesde: datos.fechaDesde,
     fechaHasta: datos.fechaHasta,
     dias: diasEntre(datos.fechaDesde, datos.fechaHasta),
-    estado: 'pendiente',
+    estado: datos.aprobarAutomaticamente ? 'aprobada' : 'pendiente',
     adjuntos: datos.archivo ? [datos.archivo.name] : [],
     comentarioEmpleado: datos.comentario,
     creadaEn: hoyISO(),
+    ...(datos.aprobarAutomaticamente
+      ? { resueltaEn: hoyISO(), comentarioResolucion: 'Carga manual de RRHH' }
+      : {}),
   };
   ausenciasMock.unshift(nueva);
 
-  // Avisar a los gestores que hay una solicitud para resolver.
-  const empleado = empleadosMock.find((e) => e.id === datos.empleadoId);
-  usuariosMock
-    .filter((u) => u.rol === 'admin_rrhh' || u.rol === 'supervisor')
-    .forEach((u) =>
-      notificacionesMock.unshift({
-        id: `not-${Date.now()}-${u.id}`,
-        usuarioId: u.id,
-        tipo: 'ausencia_solicitada',
-        titulo: 'Nueva solicitud de ausencia',
-        cuerpo: `${empleado ? `${empleado.nombre} ${empleado.apellido}` : 'Un colaborador'} pidió ${nueva.dias} días.`,
-        link: '/ausencias',
-        leida: false,
-        creadaEn: new Date().toISOString(),
-      })
-    );
+  if (!datos.aprobarAutomaticamente) {
+    // Avisar a los gestores que hay una solicitud para resolver.
+    const empleado = empleadosMock.find((e) => e.id === datos.empleadoId);
+    usuariosMock
+      .filter((u) => u.rol === 'admin_rrhh' || u.rol === 'supervisor')
+      .forEach((u) =>
+        notificacionesMock.unshift({
+          id: `not-${Date.now()}-${u.id}`,
+          usuarioId: u.id,
+          tipo: 'ausencia_solicitada',
+          titulo: 'Nueva solicitud de ausencia',
+          cuerpo: `${empleado ? `${empleado.nombre} ${empleado.apellido}` : 'Un colaborador'} pidió ${nueva.dias} días.`,
+          link: '/ausencias',
+          leida: false,
+          creadaEn: new Date().toISOString(),
+        })
+      );
+  }
 
   return simular(nueva);
 };
@@ -1178,21 +1199,6 @@ export const getDescuentosRecurrentes = async (
 ): Promise<DescuentoRecurrente[]> =>
   simular(descuentosRecurrentesMock.filter((d) => d.empleadoId === empleadoId));
 
-export const crearDescuentoRecurrente = async (
-  empleadoId: string,
-  concepto: string,
-  monto: number
-): Promise<DescuentoRecurrente> => {
-  const nuevo: DescuentoRecurrente = {
-    id: `dsc-${Date.now()}`,
-    empleadoId,
-    concepto,
-    monto,
-  };
-  descuentosRecurrentesMock.push(nuevo);
-  return simular(nuevo);
-};
-
 export const eliminarDescuentoRecurrente = async (
   id: string
 ): Promise<void> => {
@@ -1378,5 +1384,292 @@ export const getResumenFinanzas = async (
     empresasAlDia: cobrables.filter((f) => f.alDia).length,
     empresasVencidas: cobrables.filter((f) => !f.alDia).length,
     facturacion,
+  });
+};
+
+// ---------- Extensiones features cliente (demo) ----------
+
+const facturasMonoMock: FacturaMonotributo[] = [];
+const cuposLicenciaMock: CupoLicencia[] = [];
+const comunicacionesMock: Comunicacion[] = [];
+const mensajesComMock: ComunicacionMensaje[] = [];
+const docsFirmaMock: DocumentoFirma[] = [];
+const docsFirmaDestMock: DocumentoFirmaDestinatario[] = [];
+
+export const eliminarRecibo = async (reciboId: string): Promise<void> => {
+  const i = recibosMock.findIndex((r) => r.id === reciboId);
+  if (i >= 0) recibosMock.splice(i, 1);
+  return simular(undefined);
+};
+
+export const eliminarRemuneracion = async (id: string): Promise<void> => {
+  const i = remuneracionesMock.findIndex((r) => r.id === id);
+  if (i >= 0) remuneracionesMock.splice(i, 1);
+  return simular(undefined);
+};
+
+export const crearDescuentoRecurrente = async (
+  empleadoId: string,
+  concepto: string,
+  monto: number,
+  modo: 'monto' | 'porcentaje' = 'monto',
+  porcentaje?: number
+): Promise<DescuentoRecurrente> => {
+  const nuevo: DescuentoRecurrente = {
+    id: `dsc-${Date.now()}`,
+    empleadoId,
+    concepto,
+    monto: modo === 'monto' ? monto : 0,
+    modo,
+    porcentaje: modo === 'porcentaje' ? (porcentaje ?? monto) : undefined,
+  };
+  descuentosRecurrentesMock.push(nuevo);
+  return simular(nuevo);
+};
+
+export const getFacturasMonotributo = async (
+  empleadoId: string
+): Promise<FacturaMonotributo[]> =>
+  simular(facturasMonoMock.filter((f) => f.empleadoId === empleadoId));
+
+export const cargarFacturaMonotributo = async (
+  empleadoId: string,
+  periodo: string,
+  monto: number,
+  _archivo?: File
+): Promise<FacturaMonotributo> => {
+  const existente = facturasMonoMock.find(
+    (f) => f.empleadoId === empleadoId && f.periodo === periodo
+  );
+  if (existente) {
+    existente.monto = monto;
+    return simular(existente);
+  }
+  const nueva: FacturaMonotributo = {
+    id: `fm-${Date.now()}`,
+    empleadoId,
+    periodo,
+    monto,
+    creadoEn: hoyISO(),
+  };
+  facturasMonoMock.push(nueva);
+  return simular(nueva);
+};
+
+export const eliminarFacturaMonotributo = async (id: string): Promise<void> => {
+  const i = facturasMonoMock.findIndex((f) => f.id === id);
+  if (i >= 0) facturasMonoMock.splice(i, 1);
+  return simular(undefined);
+};
+
+export const getCuposLicencia = async (): Promise<CupoLicencia[]> =>
+  simular([...cuposLicenciaMock]);
+
+export const guardarCupoLicencia = async (
+  tipo: TipoAusencia,
+  diasAnuales: number
+): Promise<CupoLicencia> => {
+  const existente = cuposLicenciaMock.find((c) => c.tipo === tipo);
+  if (existente) {
+    existente.diasAnuales = diasAnuales;
+    return simular(existente);
+  }
+  const nuevo: CupoLicencia = {
+    id: `cupo-${Date.now()}`,
+    empresaId: empresaDemo(),
+    tipo,
+    diasAnuales,
+  };
+  cuposLicenciaMock.push(nuevo);
+  return simular(nuevo);
+};
+
+export const getSaldosLicencia = async (
+  empleadoId: string,
+  anio: number
+): Promise<SaldoLicencia[]> => {
+  const ausencias = ausenciasMock.filter((a) => a.empleadoId === empleadoId);
+  return simular(
+    cuposLicenciaMock.map((c) => {
+      const usados = ausencias
+        .filter(
+          (a) =>
+            a.tipo === c.tipo &&
+            a.estado === 'aprobada' &&
+            a.fechaDesde.startsWith(String(anio))
+        )
+        .reduce((acc, a) => acc + a.dias, 0);
+      return {
+        tipo: c.tipo,
+        diasAnuales: c.diasAnuales,
+        diasUtilizados: usados,
+        diasDisponibles: Math.max(0, c.diasAnuales - usados),
+      };
+    })
+  );
+};
+
+export const getComunicaciones = async (): Promise<Comunicacion[]> =>
+  simular(
+    comunicacionesMock
+      .filter((c) => c.empresaId === empresaDemo())
+      .sort((a, b) => b.actualizadoEn.localeCompare(a.actualizadoEn))
+  );
+
+export const getComunicacionesDeEmpleado = async (
+  empleadoId: string
+): Promise<Comunicacion[]> =>
+  simular(comunicacionesMock.filter((c) => c.empleadoId === empleadoId));
+
+export const crearComunicacion = async (datos: {
+  empleadoId: string;
+  tipo: TipoComunicacion;
+  asunto: string;
+  cuerpo: string;
+}): Promise<Comunicacion> => {
+  const nueva: Comunicacion = {
+    id: `com-${Date.now()}`,
+    empresaId: empresaDemo(),
+    empleadoId: datos.empleadoId,
+    autorId: 'u-demo',
+    tipo: datos.tipo,
+    asunto: datos.asunto,
+    cuerpo: datos.cuerpo,
+    estado: 'abierta',
+    creadoEn: hoyISO(),
+    actualizadoEn: hoyISO(),
+  };
+  comunicacionesMock.unshift(nueva);
+  return simular(nueva);
+};
+
+export const getMensajesComunicacion = async (
+  comunicacionId: string
+): Promise<ComunicacionMensaje[]> =>
+  simular(mensajesComMock.filter((m) => m.comunicacionId === comunicacionId));
+
+export const responderComunicacion = async (
+  comunicacionId: string,
+  cuerpo: string
+): Promise<ComunicacionMensaje> => {
+  const msg: ComunicacionMensaje = {
+    id: `msg-${Date.now()}`,
+    comunicacionId,
+    autorId: 'u-demo',
+    cuerpo,
+    creadoEn: new Date().toISOString(),
+  };
+  mensajesComMock.push(msg);
+  const com = comunicacionesMock.find((c) => c.id === comunicacionId);
+  if (com) {
+    com.estado = 'en_curso';
+    com.actualizadoEn = hoyISO();
+  }
+  return simular(msg);
+};
+
+export const cerrarComunicacion = async (
+  comunicacionId: string
+): Promise<void> => {
+  const com = comunicacionesMock.find((c) => c.id === comunicacionId);
+  if (com) {
+    com.estado = 'cerrada';
+    com.actualizadoEn = hoyISO();
+  }
+  return simular(undefined);
+};
+
+export const getDocumentosFirma = async (): Promise<
+  (DocumentoFirma & { pendientes: number; firmados: number })[]
+> =>
+  simular(
+    docsFirmaMock
+      .filter((d) => d.empresaId === empresaDemo())
+      .map((d) => {
+        const dest = docsFirmaDestMock.filter((x) => x.documentoId === d.id);
+        return {
+          ...d,
+          firmados: dest.filter((x) => x.firmadoEn).length,
+          pendientes: dest.filter((x) => !x.firmadoEn).length,
+        };
+      })
+  );
+
+export const getDocumentosFirmaPendientes = async (
+  empleadoId: string
+): Promise<(DocumentoFirma & { destinatarioId: string })[]> => {
+  const dest = docsFirmaDestMock.filter(
+    (d) => d.empleadoId === empleadoId && !d.firmadoEn
+  );
+  return simular(
+    dest
+      .map((d) => {
+        const doc = docsFirmaMock.find((x) => x.id === d.documentoId);
+        return doc ? { ...doc, destinatarioId: d.id } : null;
+      })
+      .filter((x): x is DocumentoFirma & { destinatarioId: string } => !!x)
+  );
+};
+
+export const crearDocumentoFirma = async (datos: {
+  titulo: string;
+  descripcion?: string;
+  archivo: File;
+  empleadoIds: string[];
+}): Promise<DocumentoFirma> => {
+  const doc: DocumentoFirma = {
+    id: `df-${Date.now()}`,
+    empresaId: empresaDemo(),
+    titulo: datos.titulo,
+    descripcion: datos.descripcion,
+    archivoUrl: datos.archivo.name,
+    creadoEn: hoyISO(),
+  };
+  docsFirmaMock.unshift(doc);
+  datos.empleadoIds.forEach((empleadoId) => {
+    docsFirmaDestMock.push({
+      id: `dfd-${Date.now()}-${empleadoId}`,
+      documentoId: doc.id,
+      empleadoId,
+    });
+  });
+  return simular(doc);
+};
+
+export const firmarDocumento = async (
+  destinatarioId: string
+): Promise<void> => {
+  const d = docsFirmaDestMock.find((x) => x.id === destinatarioId);
+  if (d) d.firmadoEn = hoyISO();
+  return simular(undefined);
+};
+
+export const abrirDocumentoFirma = async (
+  _doc: DocumentoFirma
+): Promise<string> => simular('#');
+
+export const getPendientesResumen = async (): Promise<PendientesResumen> => {
+  const recibosPorFirmar = recibosMock.filter(
+    (r) => r.estadoFirma === 'pendiente' && r.firmadoEmpleadorEn
+  ).length;
+  const ausenciasPorResolver = ausenciasMock.filter(
+    (a) => a.estado === 'pendiente'
+  ).length;
+  const comunicacionesAbiertas = comunicacionesMock.filter(
+    (c) => c.estado !== 'cerrada'
+  ).length;
+  const documentosPorFirmar = docsFirmaDestMock.filter(
+    (d) => !d.firmadoEn
+  ).length;
+  return simular({
+    recibosPorFirmar,
+    ausenciasPorResolver,
+    comunicacionesAbiertas,
+    documentosPorFirmar,
+    total:
+      recibosPorFirmar +
+      ausenciasPorResolver +
+      comunicacionesAbiertas +
+      documentosPorFirmar,
   });
 };

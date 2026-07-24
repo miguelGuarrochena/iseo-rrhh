@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo } from '@/components/app/ui/Campo';
+import { Campo, CampoSelect } from '@/components/app/ui/Campo';
 import {
   crearDescuentoRecurrente,
   eliminarDescuentoRecurrente,
@@ -23,6 +23,7 @@ interface Props {
 /**
  * Descuentos fijos del empleado (sindicato, comedor, etc.): quedan
  * cargados una vez y se arrastran como sugerencia en cada período.
+ * Pueden ser monto fijo o porcentaje del bruto.
  */
 export const DescuentosFijos = ({
   empleadoId,
@@ -33,6 +34,7 @@ export const DescuentosFijos = ({
   const [agregando, setAgregando] = useState(false);
   const [concepto, setConcepto] = useState('');
   const [monto, setMonto] = useState('');
+  const [modo, setModo] = useState<'monto' | 'porcentaje'>('monto');
   const [guardando, setGuardando] = useState(false);
 
   const cargar = useCallback(() => {
@@ -41,18 +43,39 @@ export const DescuentosFijos = ({
 
   useEffect(cargar, [cargar]);
 
+  const textoValor = (d: DescuentoRecurrente) =>
+    d.modo === 'porcentaje'
+      ? `${d.porcentaje ?? 0}%`
+      : formatearPesos(d.monto);
+
   const agregar = async () => {
     const m = Number(monto);
     if (!concepto.trim() || !m || m <= 0) {
-      avisoError('Completá concepto y monto', 'El monto debe ser mayor a 0.');
+      avisoError(
+        'Completá concepto y valor',
+        modo === 'porcentaje'
+          ? 'El porcentaje debe ser mayor a 0.'
+          : 'El monto debe ser mayor a 0.'
+      );
+      return;
+    }
+    if (modo === 'porcentaje' && m > 100) {
+      avisoError('Porcentaje inválido', 'No puede superar el 100%.');
       return;
     }
     setGuardando(true);
     try {
-      await crearDescuentoRecurrente(empleadoId, concepto.trim(), m);
+      await crearDescuentoRecurrente(
+        empleadoId,
+        concepto.trim(),
+        modo === 'monto' ? m : 0,
+        modo,
+        modo === 'porcentaje' ? m : undefined
+      );
       avisoExito('Descuento fijo agregado');
       setConcepto('');
       setMonto('');
+      setModo('monto');
       setAgregando(false);
       cargar();
       onCambio?.();
@@ -90,8 +113,8 @@ export const DescuentosFijos = ({
         <div>
           <p className="text-sm font-bold text-ink">Descuentos fijos</p>
           <p className="text-xs text-ink-soft">
-            Sindicato, comedor, etc. Quedan guardados y entran solos como
-            descuento en cada liquidación.
+            Sindicato, comedor, etc. Monto fijo o % del bruto; entran solos en
+            cada liquidación.
           </p>
         </div>
         {puedeEditar && !agregando && (
@@ -114,7 +137,7 @@ export const DescuentosFijos = ({
               key={d.id}
               className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink"
             >
-              {d.concepto} · {formatearPesos(d.monto)}
+              {d.concepto} · {textoValor(d)}
               {puedeEditar && (
                 <button
                   type="button"
@@ -141,8 +164,19 @@ export const DescuentosFijos = ({
             />
           </div>
           <div className="w-36">
+            <CampoSelect
+              etiqueta="Tipo"
+              value={modo}
+              onChange={(v) => setModo(v as 'monto' | 'porcentaje')}
+              opciones={[
+                { valor: 'monto', etiqueta: 'Monto ($)' },
+                { valor: 'porcentaje', etiqueta: 'Porcentaje (%)' },
+              ]}
+            />
+          </div>
+          <div className="w-28">
             <Campo
-              etiqueta="Monto"
+              etiqueta={modo === 'porcentaje' ? 'Porcentaje' : 'Monto'}
               type="number"
               value={monto}
               onChange={(e) => setMonto(e.target.value)}

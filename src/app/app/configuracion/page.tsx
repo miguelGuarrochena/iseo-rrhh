@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
 import { Terminales } from '@/components/app/configuracion/Terminales';
+import { CuposLicenciaPanel } from '@/components/app/configuracion/CuposLicenciaPanel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { ConfigPlataformaForm } from '@/components/app/configuracion/ConfigPlataformaForm';
@@ -276,6 +277,32 @@ const ConfiguracionPage = () => {
         <Panel>
           <Terminales />
         </Panel>
+
+        <Panel>
+          <h2 className="text-base font-bold text-ink">Vacaciones</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Por defecto se cuentan días corridos (LCT). Algunas empresas
+            otorgan días hábiles.
+          </p>
+          <label className="mt-4 flex cursor-pointer items-center gap-3">
+            <input
+              type="checkbox"
+              checked={Boolean(config.vacacionesDiasHabiles)}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  vacacionesDiasHabiles: e.target.checked,
+                })
+              }
+              className="h-4 w-4"
+            />
+            <span className="text-sm font-semibold text-ink">
+              Contar vacaciones en días hábiles (lun–vie)
+            </span>
+          </label>
+        </Panel>
+
+        <CuposLicenciaPanel />
 
         <Panel>
           <h2 className="text-base font-bold text-ink">Alertas</h2>

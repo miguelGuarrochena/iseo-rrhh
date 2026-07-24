@@ -73,6 +73,7 @@ export const aEmpleado = (f: Fila): Empleado => ({
   apellido: f.apellido,
   dni: f.dni,
   cuil: f.cuil ?? '',
+  numeroLegajo: f.numero_legajo ?? undefined,
   fechaNacimiento: f.fecha_nacimiento ?? '',
   estadoCivil: f.estado_civil,
   nivelEstudios: f.nivel_estudios,
@@ -201,6 +202,8 @@ export const aDescuentoRecurrente = (f: Fila): DescuentoRecurrente => ({
   empleadoId: f.empleado_id,
   concepto: f.concepto,
   monto: Number(f.monto),
+  modo: (f.modo as DescuentoRecurrente['modo']) ?? 'monto',
+  porcentaje: f.porcentaje != null ? Number(f.porcentaje) : undefined,
 });
 
 export const aAdelanto = (f: Fila): Adelanto => ({

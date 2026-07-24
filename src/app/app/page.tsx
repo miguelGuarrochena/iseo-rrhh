@@ -47,6 +47,8 @@ import {
   VacacionSector,
 } from '@/types/rrhh';
 
+import { tipoAusenciaLabels } from '@/lib/etiquetas';
+
 const ANIO_ACTUAL = new Date().getFullYear();
 
 const formatearFecha = (iso: string): string =>
@@ -55,14 +57,7 @@ const formatearFecha = (iso: string): string =>
     month: 'short',
   });
 
-const tipoAusencia: Record<Ausencia['tipo'], string> = {
-  vacaciones: 'Vacaciones',
-  enfermedad: 'Enfermedad',
-  estudio: 'Estudio',
-  mudanza: 'Mudanza',
-  fallecimiento: 'Fallecimiento',
-  especial: 'Licencia especial',
-};
+const tipoAusencia = tipoAusenciaLabels;
 
 const DashboardPage = () => {
   const { usuario, rolEfectivo, entrarAEmpresa } = useAuth();

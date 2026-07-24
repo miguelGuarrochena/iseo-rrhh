@@ -5,12 +5,14 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   IconBeach,
   IconCheck,
+  IconDownload,
   IconPaperclip,
   IconPlaneDeparture,
   IconPlus,
   IconX,
 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
+import * as XLSX from 'xlsx';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
@@ -25,7 +27,7 @@ import {
   paginar,
   totalPaginasDe,
 } from '@/components/app/ui/Paginacion';
-import { formatearFecha } from '@/lib/fechas';
+import { formatearFecha, hoyISO } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { tipoAusenciaIconos, tipoAusenciaLabels } from '@/lib/etiquetas';
 import {
@@ -158,25 +160,59 @@ const AusenciasPage = () => {
     : undefined;
 
   const crear = async (datos: {
+    empleadoId?: string;
     tipo: TipoAusencia;
     fechaDesde: string;
     fechaHasta: string;
     comentario?: string;
     archivo?: File;
+    aprobarAutomaticamente?: boolean;
   }) => {
-    if (!usuario.empleadoId) return;
+    const empleadoId = datos.empleadoId ?? usuario.empleadoId;
+    if (!empleadoId) return;
     try {
-      await crearAusencia({ empleadoId: usuario.empleadoId, ...datos });
-      avisoExito('Solicitud enviada', 'Te avisamos cuando la resuelvan.');
+      await crearAusencia({
+        empleadoId,
+        tipo: datos.tipo,
+        fechaDesde: datos.fechaDesde,
+        fechaHasta: datos.fechaHasta,
+        comentario: datos.comentario,
+        archivo: datos.archivo,
+        aprobarAutomaticamente: datos.aprobarAutomaticamente,
+      });
+      avisoExito(
+        datos.aprobarAutomaticamente
+          ? 'Ausencia cargada'
+          : 'Solicitud enviada',
+        datos.aprobarAutomaticamente
+          ? 'Quedó registrada y aprobada.'
+          : 'Te avisamos cuando la resuelvan.'
+      );
       close();
       cargar();
     } catch (err) {
       avisoError(
-        'No pudimos enviar la solicitud',
+        'No pudimos guardar',
         err instanceof Error ? err.message : undefined
       );
       throw err;
     }
+  };
+
+  const exportarExcel = () => {
+    const filas = filtradas.map((a) => ({
+      Empleado: nombreEmpleado(a.empleadoId),
+      Tipo: tipoAusenciaLabels[a.tipo],
+      Desde: a.fechaDesde,
+      Hasta: a.fechaHasta,
+      Días: a.dias,
+      Estado: a.estado,
+      Comentario: a.comentarioEmpleado ?? '',
+    }));
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, 'Ausencias');
+    XLSX.writeFile(libro, `ausencias-${hoyISO()}.xlsx`);
   };
 
   const verAdjunto = async (a: Ausencia) => {
@@ -219,15 +255,21 @@ const AusenciasPage = () => {
           <p className="mt-1 text-sm text-ink-soft">
             {esEmpleado
               ? 'Tus vacaciones, licencias y solicitudes.'
-              : 'Solicitudes del equipo: aprobá o rechazá con un click.'}
+              : 'Solicitudes del equipo: cargá ausencias, aprobá o exportá el historial.'}
           </p>
         </div>
-        {esEmpleado && (
+        <div className="flex flex-wrap gap-2">
+          {!esEmpleado && (
+            <Boton variante="secundario" onClick={exportarExcel}>
+              <IconDownload size={18} />
+              Exportar Excel
+            </Boton>
+          )}
           <Boton variante="negro" onClick={open}>
             <IconPlus size={18} />
-            Nueva solicitud
+            {esEmpleado ? 'Nueva solicitud' : 'Cargar ausencia'}
           </Boton>
-        )}
+        </div>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -461,6 +503,8 @@ const AusenciasPage = () => {
         onCrear={crear}
         vacacionesSector={vacacionesSector}
         nombreEmpleado={nombreEmpleado}
+        modoAdmin={!esEmpleado}
+        empleados={empleados}
       />
     </div>
   );

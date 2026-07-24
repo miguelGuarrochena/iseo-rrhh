@@ -145,12 +145,21 @@ export const RemuneracionModal = ({
 
   /** Descuentos que entran solos: fijos + adelantos aprobados del período. */
   const automaticos = useMemo(() => {
+    const brutoNum = num(bruto);
     const partes: { etiqueta: string; detalle: string; monto: number }[] =
-      recurrentes.map((d) => ({
-        etiqueta: d.concepto,
-        detalle: 'descuento fijo',
-        monto: d.monto,
-      }));
+      recurrentes.map((d) => {
+        const esPct = d.modo === 'porcentaje';
+        const monto = esPct
+          ? Math.round(brutoNum * ((d.porcentaje ?? 0) / 100) * 100) / 100
+          : d.monto;
+        return {
+          etiqueta: d.concepto,
+          detalle: esPct
+            ? `descuento fijo ${d.porcentaje}%`
+            : 'descuento fijo',
+          monto,
+        };
+      });
     adelantos
       .filter((a) => a.estado === 'aprobado' && a.periodo === periodo)
       .forEach((a) =>
@@ -161,7 +170,7 @@ export const RemuneracionModal = ({
         })
       );
     return { partes, total: partes.reduce((acc, p) => acc + p.monto, 0) };
-  }, [recurrentes, adelantos, periodo]);
+  }, [recurrentes, adelantos, periodo, bruto]);
 
   // Al editar, lo guardado que exceda a los automáticos es el adicional.
   useEffect(() => {
@@ -190,8 +199,8 @@ export const RemuneracionModal = ({
       setError('El período es obligatorio.');
       return;
     }
-    if (num(bruto) <= 0) {
-      setError('El sueldo bruto debe ser mayor a cero.');
+    if (num(bruto) <= 0 && num(noRem) <= 0) {
+      setError('Informá al menos el bruto o un concepto no remunerativo.');
       return;
     }
     if (num(noRem) < 0 || num(adicional) < 0) {
@@ -270,8 +279,8 @@ export const RemuneracionModal = ({
               value={bruto}
               onChange={(e) => setBruto(e.target.value)}
               placeholder="0"
-              ayuda="Base de aportes y cargas."
-              error={error?.includes('bruto') ? error : undefined}
+              ayuda="Podés dejarlo en 0 si solo cargás no remunerativo."
+              error={error?.includes('bruto') || error?.includes('no remunerativo') ? error : undefined}
             />
             <Campo
               etiqueta="No remunerativo (opcional)"
@@ -376,7 +385,9 @@ export const RemuneracionModal = ({
           </p>
         </div>
 
-        {error && !error.includes('bruto') && (
+        {error &&
+          !error.includes('bruto') &&
+          !error.includes('no remunerativo') && (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
             {error}
           </p>
@@ -389,7 +400,11 @@ export const RemuneracionModal = ({
           <Boton
             className="flex-1"
             onClick={() => void guardar()}
-            disabled={guardando || num(bruto) <= 0 || !empleadoActual}
+            disabled={
+              guardando ||
+              (num(bruto) <= 0 && num(noRem) <= 0) ||
+              !empleadoActual
+            }
           >
             {guardando ? 'Guardando…' : 'Guardar'}
           </Boton>

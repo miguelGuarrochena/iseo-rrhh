@@ -330,3 +330,82 @@ export const actualizarAbonoEmpresa = elegir(
   real.actualizarAbonoEmpresa,
   demo.actualizarAbonoEmpresa
 );
+
+// ---------- Features cliente ----------
+export const eliminarRecibo = elegir(real.eliminarRecibo, demo.eliminarRecibo);
+export const eliminarRemuneracion = elegir(
+  real.eliminarRemuneracion,
+  demo.eliminarRemuneracion
+);
+export const getFacturasMonotributo = elegir(
+  real.getFacturasMonotributo,
+  demo.getFacturasMonotributo
+);
+export const cargarFacturaMonotributo = elegir(
+  real.cargarFacturaMonotributo,
+  demo.cargarFacturaMonotributo
+);
+export const eliminarFacturaMonotributo = elegir(
+  real.eliminarFacturaMonotributo,
+  demo.eliminarFacturaMonotributo
+);
+export const getCuposLicencia = elegir(
+  real.getCuposLicencia,
+  demo.getCuposLicencia
+);
+export const guardarCupoLicencia = elegir(
+  real.guardarCupoLicencia,
+  demo.guardarCupoLicencia
+);
+export const getSaldosLicencia = elegir(
+  real.getSaldosLicencia,
+  demo.getSaldosLicencia
+);
+export const getComunicaciones = elegir(
+  real.getComunicaciones,
+  demo.getComunicaciones
+);
+export const getComunicacionesDeEmpleado = elegir(
+  real.getComunicacionesDeEmpleado,
+  demo.getComunicacionesDeEmpleado
+);
+export const crearComunicacion = elegir(
+  real.crearComunicacion,
+  demo.crearComunicacion
+);
+export const getMensajesComunicacion = elegir(
+  real.getMensajesComunicacion,
+  demo.getMensajesComunicacion
+);
+export const responderComunicacion = elegir(
+  real.responderComunicacion,
+  demo.responderComunicacion
+);
+export const cerrarComunicacion = elegir(
+  real.cerrarComunicacion,
+  demo.cerrarComunicacion
+);
+export const getDocumentosFirma = elegir(
+  real.getDocumentosFirma,
+  demo.getDocumentosFirma
+);
+export const getDocumentosFirmaPendientes = elegir(
+  real.getDocumentosFirmaPendientes,
+  demo.getDocumentosFirmaPendientes
+);
+export const crearDocumentoFirma = elegir(
+  real.crearDocumentoFirma,
+  demo.crearDocumentoFirma
+);
+export const firmarDocumento = elegir(
+  real.firmarDocumento,
+  demo.firmarDocumento
+);
+export const abrirDocumentoFirma = elegir(
+  real.abrirDocumentoFirma,
+  demo.abrirDocumentoFirma
+);
+export const getPendientesResumen = elegir(
+  real.getPendientesResumen,
+  demo.getPendientesResumen
+);

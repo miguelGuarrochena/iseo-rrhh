@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
@@ -8,21 +8,26 @@ import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { diasEntre, formatearFecha, hoyISO } from '@/lib/fechas';
-import { tipoAusenciaLabels } from '@/lib/etiquetas';
-import { Ausencia, TipoAusencia } from '@/types/rrhh';
+import { TIPOS_AUSENCIA_JORNADA, tipoAusenciaLabels } from '@/lib/etiquetas';
+import { Ausencia, Empleado, TipoAusencia } from '@/types/rrhh';
 
 interface NuevaAusenciaModalProps {
   abierto: boolean;
   onCerrar: () => void;
   onCrear: (datos: {
+    empleadoId?: string;
     tipo: TipoAusencia;
     fechaDesde: string;
     fechaHasta: string;
     comentario?: string;
     archivo?: File;
+    aprobarAutomaticamente?: boolean;
   }) => Promise<void>;
   vacacionesSector?: Ausencia[];
   nombreEmpleado?: (empleadoId: string) => string;
+  /** Carga desde Admin/RRHH: elige colaborador y queda aprobada. */
+  modoAdmin?: boolean;
+  empleados?: Empleado[];
 }
 
 const campoClase =
@@ -34,7 +39,10 @@ export const NuevaAusenciaModal = ({
   onCrear,
   vacacionesSector = [],
   nombreEmpleado,
+  modoAdmin = false,
+  empleados = [],
 }: NuevaAusenciaModalProps) => {
+  const [empleadoId, setEmpleadoId] = useState('');
   const [tipo, setTipo] = useState<TipoAusencia>('vacaciones');
   const [fechaDesde, setFechaDesde] = useState(hoyISO());
   const [fechaHasta, setFechaHasta] = useState(hoyISO());
@@ -42,6 +50,18 @@ export const NuevaAusenciaModal = ({
   const [archivo, setArchivo] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+
+  useEffect(() => {
+    if (abierto) {
+      setEmpleadoId('');
+      setTipo('vacaciones');
+      setFechaDesde(hoyISO());
+      setFechaHasta(hoyISO());
+      setComentario('');
+      setArchivo(null);
+      setError(null);
+    }
+  }, [abierto]);
 
   const dias = useMemo(
     () => diasEntre(fechaDesde, fechaHasta),
@@ -59,6 +79,10 @@ export const NuevaAusenciaModal = ({
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    if (modoAdmin && !empleadoId) {
+      setError('Elegí el colaborador.');
+      return;
+    }
     if (dias < 1) {
       setError('La fecha de fin no puede ser anterior a la de inicio.');
       return;
@@ -67,17 +91,19 @@ export const NuevaAusenciaModal = ({
     setEnviando(true);
     try {
       await onCrear({
+        empleadoId: modoAdmin ? empleadoId : undefined,
         tipo,
         fechaDesde,
         fechaHasta,
         comentario: comentario.trim() || undefined,
         archivo: archivo ?? undefined,
+        aprobarAutomaticamente: modoAdmin,
       });
       setComentario('');
       setArchivo(null);
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'No pudimos enviar la solicitud.'
+        err instanceof Error ? err.message : 'No pudimos guardar la ausencia.'
       );
     } finally {
       setEnviando(false);
@@ -88,18 +114,41 @@ export const NuevaAusenciaModal = ({
     <Modal
       opened={abierto}
       onClose={onCerrar}
-      title="Nueva solicitud de ausencia"
+      title={modoAdmin ? 'Cargar ausencia' : 'Nueva solicitud de ausencia'}
       radius="lg"
       centered
       styles={{ title: { fontWeight: 800 } }}
     >
       <form onSubmit={onSubmit} className="flex flex-col gap-3.5">
+        {modoAdmin && (
+          <CampoSelect
+            etiqueta="Colaborador"
+            value={empleadoId}
+            onChange={setEmpleadoId}
+            opciones={[
+              { valor: '', etiqueta: 'Elegí…' },
+              ...empleados.map((e) => ({
+                valor: e.id,
+                etiqueta: `${e.apellido}, ${e.nombre}`,
+              })),
+            ]}
+          />
+        )}
+
         <CampoSelect
           etiqueta="Tipo"
           value={tipo}
           onChange={(v) => setTipo(v as TipoAusencia)}
           opciones={aOpciones(tipoAusenciaLabels)}
         />
+
+        {TIPOS_AUSENCIA_JORNADA.includes(tipo) && (
+          <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
+            Entrada tarde y salida anticipada también se detectan solas en{' '}
+            <strong className="text-ink">Turnos</strong> según el fichaje. Acá
+            podés registrarlas a mano cuando haga falta.
+          </p>
+        )}
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <CampoFecha
@@ -158,7 +207,11 @@ export const NuevaAusenciaModal = ({
             value={comentario}
             onChange={(e) => setComentario(e.target.value)}
             rows={2}
-            placeholder="Motivo o detalle para tu supervisor"
+            placeholder={
+              modoAdmin
+                ? 'Motivo o detalle interno'
+                : 'Motivo o detalle para tu supervisor'
+            }
             className={campoClase}
           />
         </label>
@@ -186,7 +239,11 @@ export const NuevaAusenciaModal = ({
           disabled={enviando}
           className="mt-1 py-3 text-base"
         >
-          {enviando ? 'Enviando…' : 'Enviar solicitud'}
+          {enviando
+            ? 'Guardando…'
+            : modoAdmin
+              ? 'Guardar ausencia'
+              : 'Enviar solicitud'}
         </Boton>
       </form>
     </Modal>

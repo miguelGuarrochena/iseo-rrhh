@@ -7,16 +7,22 @@ import {
   Adelanto,
   Alerta,
   Ausencia,
+  Comunicacion,
+  ComunicacionMensaje,
   ConfigPlataforma,
   Convenio,
+  CupoLicencia,
   DatosEmpresaCliente,
   DescriptorFacial,
   DescuentoRecurrente,
+  DocumentoFirma,
   DocumentoLegajo,
   Empleado,
   Empresa,
   EmpresaResumen,
+  EstadoComunicacion,
   EventoAgenda,
+  FacturaMonotributo,
   Fichaje,
   FacturacionEmpresa,
   MetricasGlobales,
@@ -29,11 +35,15 @@ import {
   NuevaRemuneracion,
   NuevoConvenio,
   OpcionesFichaje,
+  PendientesResumen,
   ReciboSueldo,
   Remuneracion,
   NuevoTurno,
   ResumenControl,
+  SaldoLicencia,
   SaldoVacaciones,
+  TipoAusencia,
+  TipoComunicacion,
   Terminal,
   Turno,
   Usuario,
@@ -51,7 +61,7 @@ import type {
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
-import { diasEntre, hoyISO } from '@/lib/fechas';
+import { diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
 import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import {
@@ -315,6 +325,7 @@ const EMPLEADO_SELECT_SIN_BIOMETRIA = `
   apellido,
   dni,
   cuil,
+  numero_legajo,
   fecha_nacimiento,
   estado_civil,
   nivel_estudios,
@@ -418,6 +429,7 @@ export const crearEmpleado = async (
       apellido: datos.apellido,
       dni: datos.dni,
       cuil: datos.cuil ?? '',
+      numero_legajo: datos.numeroLegajo || null,
       fecha_nacimiento: datos.fechaNacimiento || null,
       estado_civil: datos.estadoCivil ?? 'soltero',
       nivel_estudios: datos.nivelEstudios ?? 'secundario',
@@ -461,6 +473,7 @@ export const actualizarEmpleado = async (
     apellido: 'apellido',
     dni: 'dni',
     cuil: 'cuil',
+    numeroLegajo: 'numero_legajo',
     fechaNacimiento: 'fecha_nacimiento',
     estadoCivil: 'estado_civil',
     nivelEstudios: 'nivel_estudios',
@@ -782,6 +795,20 @@ export const crearAusencia = async (
   if (datos.archivo) {
     adjuntos.push(await subirDocumentoLegajo(datos.empleadoId, datos.archivo));
   }
+  const uid = useAuthStore.getState().usuario?.id ?? null;
+  const aprobar = Boolean(datos.aprobarAutomaticamente);
+  let dias = diasEntre(datos.fechaDesde, datos.fechaHasta);
+  try {
+    const empresa = await getEmpresa();
+    dias = diasAusencia(
+      datos.fechaDesde,
+      datos.fechaHasta,
+      datos.tipo,
+      empresa.config.vacacionesDiasHabiles
+    );
+  } catch {
+    // si falla, queda el conteo corrido
+  }
   const { data, error } = await sb()
     .from('ausencias')
     .insert({
@@ -790,32 +817,42 @@ export const crearAusencia = async (
       tipo: datos.tipo,
       fecha_desde: datos.fechaDesde,
       fecha_hasta: datos.fechaHasta,
-      dias: diasEntre(datos.fechaDesde, datos.fechaHasta),
+      dias,
       comentario_empleado: datos.comentario ?? null,
       adjuntos,
+      ...(aprobar
+        ? {
+            estado: 'aprobada',
+            resuelta_por: uid,
+            comentario_resolucion: 'Carga manual de RRHH',
+            resuelta_en: new Date().toISOString(),
+          }
+        : {}),
     })
     .select()
     .single();
   const ausencia = aAusencia(oFalla(data, error));
 
-  // Avisar a los gestores que hay una solicitud para resolver.
-  try {
-    const [gestores, empleado] = await Promise.all([
-      usuariosGestores(),
-      getEmpleado(datos.empleadoId),
-    ]);
-    const quien = empleado
-      ? `${empleado.nombre} ${empleado.apellido}`
-      : 'Un colaborador';
-    await notificarUsuarios(
-      gestores,
-      'ausencia_solicitada',
-      'Nueva solicitud de ausencia',
-      `${quien} pidió ${tipoAusenciaLabels[datos.tipo].toLowerCase()} (${ausencia.dias} días).`,
-      '/ausencias'
-    );
-  } catch {
-    // La notificación nunca bloquea la solicitud.
+  if (!aprobar) {
+    // Avisar a los gestores que hay una solicitud para resolver.
+    try {
+      const [gestores, empleado] = await Promise.all([
+        usuariosGestores(),
+        getEmpleado(datos.empleadoId),
+      ]);
+      const quien = empleado
+        ? `${empleado.nombre} ${empleado.apellido}`
+        : 'Un colaborador';
+      await notificarUsuarios(
+        gestores,
+        'ausencia_solicitada',
+        'Nueva solicitud de ausencia',
+        `${quien} pidió ${tipoAusenciaLabels[datos.tipo].toLowerCase()} (${ausencia.dias} días).`,
+        '/ausencias'
+      );
+    } catch {
+      // La notificación nunca bloquea la solicitud.
+    }
   }
 
   return ausencia;
@@ -1475,33 +1512,42 @@ export const getAlertas = async (): Promise<Alerta[]> => {
 // ---------- Agenda ----------
 
 export const getEventosProximos = async (): Promise<EventoAgenda[]> => {
-  const [{ data, error }, empleados] = await Promise.all([
+  const [{ data, error }, { data: cumplesRaw }] = await Promise.all([
     sb()
       .from('eventos_agenda')
       .select('*')
       .eq('empresa_id', empresaId())
       .gte('fecha', hoyISO())
       .order('fecha'),
-    getEmpleados(),
+    // Cumpleaños de toda la empresa (RPC security definer: el empleado
+    // no ve fichas ajenas, pero sí puede ver nombre + fecha de nacimiento).
+    sb().rpc('cumples_de_empresa'),
   ]);
 
-  // Cumpleaños derivados de las fichas (próximos 90 días)
   const hoy = new Date();
-  const cumples: EventoAgenda[] = empleados
-    .filter((e) => e.fechaNacimiento)
-    .map((e) => {
-      const [, mes, dia] = e.fechaNacimiento.split('-').map(Number);
-      const fecha = new Date(hoy.getFullYear(), mes - 1, dia);
-      if (fecha < hoy) fecha.setFullYear(fecha.getFullYear() + 1);
-      return {
-        id: `cumple-${e.id}`,
-        empresaId: e.empresaId,
-        tipo: 'cumpleanios' as const,
-        titulo: `Cumpleaños de ${e.nombre} ${e.apellido}`,
-        fecha: `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`,
-      };
-    })
-    .filter((c) => diasEntre(hoyISO(), c.fecha) <= 90);
+  const eid = empresaId();
+  const cumples: EventoAgenda[] = (cumplesRaw ?? [])
+    .filter((e: { fecha_nacimiento?: string }) => e.fecha_nacimiento)
+    .map(
+      (e: {
+        empleado_id: string;
+        nombre: string;
+        apellido: string;
+        fecha_nacimiento: string;
+      }) => {
+        const [, mes, dia] = e.fecha_nacimiento.split('-').map(Number);
+        const fecha = new Date(hoy.getFullYear(), mes - 1, dia);
+        if (fecha < hoy) fecha.setFullYear(fecha.getFullYear() + 1);
+        return {
+          id: `cumple-${e.empleado_id}`,
+          empresaId: eid,
+          tipo: 'cumpleanios' as const,
+          titulo: `Cumpleaños de ${e.nombre} ${e.apellido}`,
+          fecha: `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`,
+        };
+      }
+    )
+    .filter((c: EventoAgenda) => diasEntre(hoyISO(), c.fecha) <= 90);
 
   return [...oFalla(data, error).map(aEvento), ...cumples].sort((a, b) =>
     a.fecha.localeCompare(b.fecha)
@@ -1724,7 +1770,9 @@ export const getDescuentosRecurrentes = async (
 export const crearDescuentoRecurrente = async (
   empleadoId: string,
   concepto: string,
-  monto: number
+  monto: number,
+  modo: 'monto' | 'porcentaje' = 'monto',
+  porcentaje?: number
 ): Promise<DescuentoRecurrente> => {
   const { data, error } = await sb()
     .from('descuentos_recurrentes')
@@ -1732,7 +1780,9 @@ export const crearDescuentoRecurrente = async (
       empresa_id: empresaId(),
       empleado_id: empleadoId,
       concepto,
-      monto,
+      monto: modo === 'monto' ? monto : 0,
+      modo,
+      porcentaje: modo === 'porcentaje' ? (porcentaje ?? monto) : null,
     })
     .select()
     .single();
@@ -2016,3 +2066,464 @@ export const getResumenFinanzas = async (
     facturacion,
   };
 };
+
+// ---------- Eliminar recibos / remuneraciones ----------
+
+export const eliminarRecibo = async (reciboId: string): Promise<void> => {
+  const { error } = await sb().from('recibos').delete().eq('id', reciboId);
+  if (error) throw new Error(error.message);
+  await registrarAuditoria('eliminar', 'recibo', reciboId);
+};
+
+export const eliminarRemuneracion = async (id: string): Promise<void> => {
+  const { error } = await sb().from('remuneraciones').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+  await registrarAuditoria('eliminar', 'remuneracion', id);
+};
+
+// ---------- Monotributo ----------
+
+export const getFacturasMonotributo = async (
+  empleadoId: string
+): Promise<FacturaMonotributo[]> => {
+  const { data, error } = await sb()
+    .from('facturas_monotributo')
+    .select('*')
+    .eq('empleado_id', empleadoId)
+    .order('periodo', { ascending: false });
+  return oFalla(data, error).map(
+    (f): FacturaMonotributo => ({
+      id: f.id,
+      empleadoId: f.empleado_id,
+      periodo: f.periodo,
+      monto: Number(f.monto),
+      archivoUrl: f.archivo_url ?? undefined,
+      creadoEn: String(f.creado_en).slice(0, 10),
+    })
+  );
+};
+
+export const cargarFacturaMonotributo = async (
+  empleadoId: string,
+  periodo: string,
+  monto: number,
+  archivo?: File
+): Promise<FacturaMonotributo> => {
+  let archivoUrl: string | null = null;
+  if (archivo) {
+    archivoUrl = await subirDocumentoLegajo(empleadoId, archivo);
+  }
+  const { data, error } = await sb()
+    .from('facturas_monotributo')
+    .upsert(
+      {
+        empresa_id: empresaId(),
+        empleado_id: empleadoId,
+        periodo,
+        monto,
+        archivo_url: archivoUrl,
+      },
+      { onConflict: 'empleado_id,periodo' }
+    )
+    .select()
+    .single();
+  const f = oFalla(data, error);
+  return {
+    id: f.id,
+    empleadoId: f.empleado_id,
+    periodo: f.periodo,
+    monto: Number(f.monto),
+    archivoUrl: f.archivo_url ?? undefined,
+    creadoEn: String(f.creado_en).slice(0, 10),
+  };
+};
+
+export const eliminarFacturaMonotributo = async (id: string): Promise<void> => {
+  const { error } = await sb()
+    .from('facturas_monotributo')
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error(error.message);
+};
+
+// ---------- Cupos de licencia ----------
+
+export const getCuposLicencia = async (): Promise<CupoLicencia[]> => {
+  const { data, error } = await sb()
+    .from('cupos_licencia')
+    .select('*')
+    .eq('empresa_id', empresaId());
+  return oFalla(data, error).map(
+    (f): CupoLicencia => ({
+      id: f.id,
+      empresaId: f.empresa_id,
+      tipo: f.tipo,
+      diasAnuales: Number(f.dias_anuales),
+    })
+  );
+};
+
+export const guardarCupoLicencia = async (
+  tipo: TipoAusencia,
+  diasAnuales: number
+): Promise<CupoLicencia> => {
+  const { data, error } = await sb()
+    .from('cupos_licencia')
+    .upsert(
+      {
+        empresa_id: empresaId(),
+        tipo,
+        dias_anuales: diasAnuales,
+      },
+      { onConflict: 'empresa_id,tipo' }
+    )
+    .select()
+    .single();
+  const f = oFalla(data, error);
+  return {
+    id: f.id,
+    empresaId: f.empresa_id,
+    tipo: f.tipo,
+    diasAnuales: Number(f.dias_anuales),
+  };
+};
+
+export const getSaldosLicencia = async (
+  empleadoId: string,
+  anio: number
+): Promise<SaldoLicencia[]> => {
+  const [cupos, ausencias] = await Promise.all([
+    getCuposLicencia(),
+    getAusenciasDeEmpleado(empleadoId),
+  ]);
+  return cupos.map((c) => {
+    const usados = ausencias
+      .filter(
+        (a) =>
+          a.tipo === c.tipo &&
+          a.estado === 'aprobada' &&
+          a.fechaDesde.startsWith(String(anio))
+      )
+      .reduce((acc, a) => acc + a.dias, 0);
+    return {
+      tipo: c.tipo,
+      diasAnuales: c.diasAnuales,
+      diasUtilizados: usados,
+      diasDisponibles: Math.max(0, c.diasAnuales - usados),
+    };
+  });
+};
+
+// ---------- Comunicaciones ----------
+
+export const getComunicaciones = async (): Promise<Comunicacion[]> => {
+  const { data, error } = await sb()
+    .from('comunicaciones')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .order('actualizado_en', { ascending: false });
+  return oFalla(data, error).map(aComunicacion);
+};
+
+export const getComunicacionesDeEmpleado = async (
+  empleadoId: string
+): Promise<Comunicacion[]> => {
+  const { data, error } = await sb()
+    .from('comunicaciones')
+    .select('*')
+    .eq('empleado_id', empleadoId)
+    .order('actualizado_en', { ascending: false });
+  return oFalla(data, error).map(aComunicacion);
+};
+
+export const crearComunicacion = async (datos: {
+  empleadoId: string;
+  tipo: TipoComunicacion;
+  asunto: string;
+  cuerpo: string;
+}): Promise<Comunicacion> => {
+  const uid = useAuthStore.getState().usuario?.id;
+  if (!uid) throw new Error('Sin sesión.');
+  const { data, error } = await sb()
+    .from('comunicaciones')
+    .insert({
+      empresa_id: empresaId(),
+      empleado_id: datos.empleadoId,
+      autor_id: uid,
+      tipo: datos.tipo,
+      asunto: datos.asunto,
+      cuerpo: datos.cuerpo,
+    })
+    .select()
+    .single();
+  const com = aComunicacion(oFalla(data, error));
+  try {
+    const gestores = await usuariosGestores();
+    await notificarUsuarios(
+      gestores,
+      'comunicacion',
+      `Nuevo ${datos.tipo}`,
+      datos.asunto,
+      '/comunicaciones'
+    );
+  } catch {
+    // no bloquea
+  }
+  return com;
+};
+
+export const getMensajesComunicacion = async (
+  comunicacionId: string
+): Promise<ComunicacionMensaje[]> => {
+  const { data, error } = await sb()
+    .from('comunicacion_mensajes')
+    .select('*')
+    .eq('comunicacion_id', comunicacionId)
+    .order('creado_en');
+  return oFalla(data, error).map(aMensajeComunicacion);
+};
+
+export const responderComunicacion = async (
+  comunicacionId: string,
+  cuerpo: string
+): Promise<ComunicacionMensaje> => {
+  const uid = useAuthStore.getState().usuario?.id;
+  if (!uid) throw new Error('Sin sesión.');
+  const { data, error } = await sb()
+    .from('comunicacion_mensajes')
+    .insert({
+      comunicacion_id: comunicacionId,
+      autor_id: uid,
+      cuerpo,
+    })
+    .select()
+    .single();
+  await sb()
+    .from('comunicaciones')
+    .update({
+      estado: 'en_curso',
+      actualizado_en: new Date().toISOString(),
+    })
+    .eq('id', comunicacionId);
+  return aMensajeComunicacion(oFalla(data, error));
+};
+
+export const cerrarComunicacion = async (
+  comunicacionId: string
+): Promise<void> => {
+  const { error } = await sb()
+    .from('comunicaciones')
+    .update({
+      estado: 'cerrada',
+      actualizado_en: new Date().toISOString(),
+    })
+    .eq('id', comunicacionId);
+  if (error) throw new Error(error.message);
+};
+
+// ---------- Documentos para firma ----------
+
+export const getDocumentosFirma = async (): Promise<
+  (DocumentoFirma & { pendientes: number; firmados: number })[]
+> => {
+  const { data, error } = await sb()
+    .from('documentos_firma')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .order('creado_en', { ascending: false });
+  const docs = oFalla(data, error).map(aDocumentoFirma);
+  const conStats = await Promise.all(
+    docs.map(async (d) => {
+      const { data: dest } = await sb()
+        .from('documento_firma_destinatarios')
+        .select('firmado_en')
+        .eq('documento_id', d.id);
+      const lista = dest ?? [];
+      return {
+        ...d,
+        firmados: lista.filter((x) => x.firmado_en).length,
+        pendientes: lista.filter((x) => !x.firmado_en).length,
+      };
+    })
+  );
+  return conStats;
+};
+
+export const getDocumentosFirmaPendientes = async (
+  empleadoId: string
+): Promise<(DocumentoFirma & { destinatarioId: string })[]> => {
+  const { data, error } = await sb()
+    .from('documento_firma_destinatarios')
+    .select('id, documento_id, documentos_firma(*)')
+    .eq('empleado_id', empleadoId)
+    .is('firmado_en', null);
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .filter((r) => r.documentos_firma)
+    .map((r) => {
+      const raw = r.documentos_firma as unknown;
+      const doc = Array.isArray(raw) ? raw[0] : raw;
+      return {
+        ...aDocumentoFirma(doc as Record<string, unknown>),
+        destinatarioId: r.id as string,
+      };
+    });
+};
+
+export const crearDocumentoFirma = async (datos: {
+  titulo: string;
+  descripcion?: string;
+  archivo: File;
+  empleadoIds: string[];
+}): Promise<DocumentoFirma> => {
+  const path = await subirDocumentoLegajo('firma-docs', datos.archivo);
+  const uid = useAuthStore.getState().usuario?.id ?? null;
+  const { data, error } = await sb()
+    .from('documentos_firma')
+    .insert({
+      empresa_id: empresaId(),
+      titulo: datos.titulo,
+      descripcion: datos.descripcion ?? null,
+      archivo_url: path,
+      creado_por: uid,
+    })
+    .select()
+    .single();
+  const doc = aDocumentoFirma(oFalla(data, error));
+  if (datos.empleadoIds.length > 0) {
+    await sb()
+      .from('documento_firma_destinatarios')
+      .insert(
+        datos.empleadoIds.map((empleadoId) => ({
+          documento_id: doc.id,
+          empleado_id: empleadoId,
+        }))
+      );
+    // Notificar a usuarios vinculados
+    try {
+      const { data: usuarios } = await sb()
+        .from('usuarios')
+        .select('id')
+        .in('empleado_id', datos.empleadoIds);
+      if (usuarios?.length) {
+        await notificarUsuarios(
+          usuarios.map((u) => u.id),
+          'documento_firma',
+          'Documento para firmar',
+          datos.titulo,
+          '/documentos-firma'
+        );
+      }
+    } catch {
+      // no bloquea
+    }
+  }
+  return doc;
+};
+
+export const firmarDocumento = async (
+  destinatarioId: string
+): Promise<void> => {
+  const { error } = await sb()
+    .from('documento_firma_destinatarios')
+    .update({ firmado_en: new Date().toISOString() })
+    .eq('id', destinatarioId);
+  if (error) throw new Error(error.message);
+};
+
+export const abrirDocumentoFirma = async (
+  doc: DocumentoFirma
+): Promise<string> => urlFirmada('documentos', doc.archivoUrl);
+
+// ---------- Pendientes (badges) ----------
+
+export const getPendientesResumen = async (): Promise<PendientesResumen> => {
+  const usuario = useAuthStore.getState().usuario;
+  if (!usuario) {
+    return {
+      recibosPorFirmar: 0,
+      ausenciasPorResolver: 0,
+      comunicacionesAbiertas: 0,
+      documentosPorFirmar: 0,
+      total: 0,
+    };
+  }
+  const rol = usuario.rol;
+  const esGestor = rol === 'admin_rrhh' || rol === 'supervisor' || rol === 'superadmin';
+
+  let recibosPorFirmar = 0;
+  let ausenciasPorResolver = 0;
+  let comunicacionesAbiertas = 0;
+  let documentosPorFirmar = 0;
+
+  if (usuario.empleadoId) {
+    const [recibos, docs] = await Promise.all([
+      getRecibos(usuario.empleadoId),
+      getDocumentosFirmaPendientes(usuario.empleadoId),
+    ]);
+    recibosPorFirmar = recibos.filter(
+      (r) => r.estadoFirma === 'pendiente' && r.firmadoEmpleadorEn
+    ).length;
+    documentosPorFirmar = docs.length;
+  }
+
+  if (esGestor) {
+    const [ausencias, coms] = await Promise.all([
+      getAusenciasPendientes(),
+      getComunicaciones(),
+    ]);
+    ausenciasPorResolver = ausencias.length;
+    comunicacionesAbiertas = coms.filter((c) => c.estado !== 'cerrada').length;
+  } else if (usuario.empleadoId) {
+    const coms = await getComunicacionesDeEmpleado(usuario.empleadoId);
+    comunicacionesAbiertas = coms.filter((c) => c.estado !== 'cerrada').length;
+  }
+
+  const total =
+    recibosPorFirmar +
+    ausenciasPorResolver +
+    comunicacionesAbiertas +
+    documentosPorFirmar;
+
+  return {
+    recibosPorFirmar,
+    ausenciasPorResolver,
+    comunicacionesAbiertas,
+    documentosPorFirmar,
+    total,
+  };
+};
+
+const aComunicacion = (f: Record<string, unknown>): Comunicacion => ({
+  id: f.id as string,
+  empresaId: f.empresa_id as string,
+  empleadoId: f.empleado_id as string,
+  autorId: f.autor_id as string,
+  tipo: f.tipo as TipoComunicacion,
+  asunto: f.asunto as string,
+  cuerpo: (f.cuerpo as string) ?? '',
+  estado: f.estado as EstadoComunicacion,
+  creadoEn: String(f.creado_en).slice(0, 10),
+  actualizadoEn: String(f.actualizado_en).slice(0, 10),
+});
+
+const aMensajeComunicacion = (
+  f: Record<string, unknown>
+): ComunicacionMensaje => ({
+  id: f.id as string,
+  comunicacionId: f.comunicacion_id as string,
+  autorId: f.autor_id as string,
+  cuerpo: f.cuerpo as string,
+  creadoEn: String(f.creado_en),
+});
+
+const aDocumentoFirma = (f: Record<string, unknown>): DocumentoFirma => ({
+  id: f.id as string,
+  empresaId: f.empresa_id as string,
+  titulo: f.titulo as string,
+  descripcion: (f.descripcion as string) ?? undefined,
+  archivoUrl: f.archivo_url as string,
+  creadoPor: (f.creado_por as string) ?? undefined,
+  creadoEn: String(f.creado_en).slice(0, 10),
+});
+

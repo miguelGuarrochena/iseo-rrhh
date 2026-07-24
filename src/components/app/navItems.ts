@@ -7,10 +7,12 @@ import {
   IconChartBar,
   IconClockCheck,
   IconFileCertificate,
+  IconFileCheck,
   IconGavel,
   IconHome,
   IconId,
   IconLifebuoy,
+  IconMessages,
   IconPlaneDeparture,
   IconReportMoney,
   IconSettings,
@@ -25,6 +27,12 @@ export interface NavItem {
   href: string;
   icono: Icon;
   roles: Rol[];
+  /** Clave para badge de pendientes (opcional). */
+  badgeKey?:
+    | 'recibosPorFirmar'
+    | 'ausenciasPorResolver'
+    | 'comunicacionesAbiertas'
+    | 'documentosPorFirmar';
 }
 
 const OPERATIVOS: Rol[] = ['admin_rrhh', 'supervisor', 'empleado'];
@@ -66,6 +74,7 @@ export const navItems: NavItem[] = [
     href: '/ausencias',
     icono: IconPlaneDeparture,
     roles: OPERATIVOS,
+    badgeKey: 'ausenciasPorResolver',
   },
   {
     etiqueta: 'Fichaje',
@@ -84,6 +93,7 @@ export const navItems: NavItem[] = [
     href: '/recibos',
     icono: IconFileCertificate,
     roles: OPERATIVOS,
+    badgeKey: 'recibosPorFirmar',
   },
   {
     etiqueta: 'Remuneraciones',
@@ -96,6 +106,20 @@ export const navItems: NavItem[] = [
     href: '/agenda',
     icono: IconCalendarEvent,
     roles: OPERATIVOS,
+  },
+  {
+    etiqueta: 'Comunicaciones',
+    href: '/comunicaciones',
+    icono: IconMessages,
+    roles: OPERATIVOS,
+    badgeKey: 'comunicacionesAbiertas',
+  },
+  {
+    etiqueta: 'A firmar',
+    href: '/documentos-firma',
+    icono: IconFileCheck,
+    roles: OPERATIVOS,
+    badgeKey: 'documentosPorFirmar',
   },
   {
     etiqueta: 'Organigrama',

@@ -42,6 +42,11 @@ export interface ConfigEmpresa {
   horaEntrada: string; // "08:00"
   horaSalida: string; // "17:00"
   diasAvisoVencimiento: number; // default 30
+  /**
+   * Si true, las vacaciones se cuentan en días hábiles (lun–vie).
+   * Por defecto false = días corridos (LCT).
+   */
+  vacacionesDiasHabiles?: boolean;
 }
 
 export type EstadoEmpresa = 'activa' | 'suspendida';
@@ -177,6 +182,8 @@ export interface Empleado {
   apellido: string;
   dni: string;
   cuil: string;
+  /** Número de legajo interno (opcional; sirve para matching de recibos). */
+  numeroLegajo?: string;
   fechaNacimiento: string;
   estadoCivil: EstadoCivil;
   nivelEstudios: NivelEstudios;
@@ -280,7 +287,22 @@ export interface DescuentoRecurrente {
   id: string;
   empleadoId: string;
   concepto: string;
+  /** Monto fijo en $ (si modo === 'monto'). */
   monto: number;
+  /** 'monto' = $ fijo; 'porcentaje' = % del bruto. */
+  modo?: 'monto' | 'porcentaje';
+  /** Porcentaje del bruto (si modo === 'porcentaje'). */
+  porcentaje?: number;
+}
+
+/** Factura / cuota de monotributo cargada como costo laboral. */
+export interface FacturaMonotributo {
+  id: string;
+  empleadoId: string;
+  periodo: string;
+  monto: number;
+  archivoUrl?: string;
+  creadoEn: string;
 }
 
 export type EstadoAdelanto = 'pendiente' | 'aprobado' | 'rechazado';
@@ -319,7 +341,39 @@ export type TipoAusencia =
   | 'estudio'
   | 'mudanza'
   | 'fallecimiento'
-  | 'especial';
+  | 'especial'
+  | 'entrada_tarde'
+  | 'salida_anticipada'
+  | 'salida_intermedia'
+  | 'home_office'
+  | 'casamiento'
+  | 'donacion_sangre'
+  | 'examenes';
+
+/** Tipos de licencia legal con cupo anual configurable. */
+export const TIPOS_LICENCIA_CON_CUPO: TipoAusencia[] = [
+  'mudanza',
+  'casamiento',
+  'donacion_sangre',
+  'examenes',
+  'fallecimiento',
+  'estudio',
+  'especial',
+];
+
+export interface CupoLicencia {
+  id: string;
+  empresaId: string;
+  tipo: TipoAusencia;
+  diasAnuales: number;
+}
+
+export interface SaldoLicencia {
+  tipo: TipoAusencia;
+  diasAnuales: number;
+  diasUtilizados: number;
+  diasDisponibles: number;
+}
 
 export type EstadoAusencia = 'pendiente' | 'aprobada' | 'rechazada';
 
@@ -589,10 +643,66 @@ export interface Notificacion {
     | 'adelanto_resuelto'
     | 'vencimiento'
     | 'evento'
+    | 'comunicacion'
+    | 'documento_firma'
     | 'general';
   titulo: string;
   cuerpo: string;
   link?: string;
   leida: boolean;
   creadaEn: string;
+}
+
+// ---------- Comunicaciones (consultas / reclamos / pedidos) ----------
+
+export type TipoComunicacion = 'consulta' | 'reclamo' | 'pedido';
+export type EstadoComunicacion = 'abierta' | 'en_curso' | 'cerrada';
+
+export interface Comunicacion {
+  id: string;
+  empresaId: string;
+  empleadoId: string;
+  autorId: string;
+  tipo: TipoComunicacion;
+  asunto: string;
+  cuerpo: string;
+  estado: EstadoComunicacion;
+  creadoEn: string;
+  actualizadoEn: string;
+}
+
+export interface ComunicacionMensaje {
+  id: string;
+  comunicacionId: string;
+  autorId: string;
+  cuerpo: string;
+  creadoEn: string;
+}
+
+// ---------- Documentos para firma digital ----------
+
+export interface DocumentoFirma {
+  id: string;
+  empresaId: string;
+  titulo: string;
+  descripcion?: string;
+  archivoUrl: string;
+  creadoPor?: string;
+  creadoEn: string;
+}
+
+export interface DocumentoFirmaDestinatario {
+  id: string;
+  documentoId: string;
+  empleadoId: string;
+  firmadoEn?: string;
+}
+
+/** Contadores de acciones pendientes (para badges). */
+export interface PendientesResumen {
+  recibosPorFirmar: number;
+  ausenciasPorResolver: number;
+  comunicacionesAbiertas: number;
+  documentosPorFirmar: number;
+  total: number;
 }

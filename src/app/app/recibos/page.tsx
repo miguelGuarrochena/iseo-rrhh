@@ -6,6 +6,7 @@ import {
   IconFiles,
   IconSignature,
   IconEye,
+  IconTrash,
   IconUpload,
   IconWritingSign,
 } from '@tabler/icons-react';
@@ -23,6 +24,7 @@ import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   abrirRecibo,
   cargarRecibo,
+  eliminarRecibo,
   firmarRecibo,
   firmarReciboEmpleador,
   getEmpleados,
@@ -169,11 +171,33 @@ const RecibosPage = () => {
       cargar();
     } catch (err) {
       avisoError(
-        'No pudimos publicarlo',
+        'No pudimos publicar',
         err instanceof Error ? err.message : undefined
       );
     }
     setPublicando(false);
+  };
+
+  const borrarRecibo = async (r: ReciboSueldo) => {
+    if (
+      !window.confirm(
+        `¿Eliminar el recibo de ${formatearPeriodo(r.periodo)}${
+          esEmpleado ? '' : ` de ${nombreEmpleado(r.empleadoId)}`
+        }? Esta acción no se puede deshacer.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await eliminarRecibo(r.id);
+      avisoExito('Recibo eliminado');
+      cargar();
+    } catch (err) {
+      avisoError(
+        'No pudimos eliminar el recibo',
+        err instanceof Error ? err.message : undefined
+      );
+    }
   };
 
   const publicarTodos = async (lista: ReciboSueldo[]) => {
@@ -299,6 +323,15 @@ const RecibosPage = () => {
                       <IconWritingSign size={14} />
                       Firmar y publicar
                     </Boton>
+                    {rolEfectivo === 'admin_rrhh' && (
+                      <Boton
+                        variante="rechazar"
+                        tamano="sm"
+                        onClick={() => void borrarRecibo(r)}
+                      >
+                        <IconTrash size={14} />
+                      </Boton>
+                    )}
                   </div>
                 }
               />
@@ -346,6 +379,16 @@ const RecibosPage = () => {
                         Firmar
                       </Boton>
                     )}
+                    {rolEfectivo === 'admin_rrhh' && (
+                      <Boton
+                        variante="rechazar"
+                        tamano="sm"
+                        onClick={() => void borrarRecibo(r)}
+                        aria-label="Eliminar recibo"
+                      >
+                        <IconTrash size={14} />
+                      </Boton>
+                    )}
                   </div>
                 }
               />
@@ -382,6 +425,15 @@ const RecibosPage = () => {
                       <IconEye size={14} />
                       Ver
                     </Boton>
+                    {rolEfectivo === 'admin_rrhh' && (
+                      <Boton
+                        variante="rechazar"
+                        tamano="sm"
+                        onClick={() => void borrarRecibo(r)}
+                      >
+                        <IconTrash size={14} />
+                      </Boton>
+                    )}
                   </div>
                 }
               />

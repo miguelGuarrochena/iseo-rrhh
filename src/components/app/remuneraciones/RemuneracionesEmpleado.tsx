@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { IconPlus, IconReportMoney } from '@tabler/icons-react';
+import { IconPlus, IconReportMoney, IconTrash } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { RemuneracionModal } from './RemuneracionModal';
-import { getRemuneraciones } from '@/lib/services/rrhh';
+import { eliminarRemuneracion, getRemuneraciones } from '@/lib/services/rrhh';
+import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
 import { formatearPeriodo } from '@/lib/fechas';
 import { Remuneracion } from '@/types/rrhh';
@@ -47,6 +48,27 @@ export const RemuneracionesEmpleado = ({
     setModal(true);
   };
 
+  const borrar = async (r: Remuneracion, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (
+      !window.confirm(
+        `¿Eliminar la remuneración de ${formatearPeriodo(r.periodo)}?`
+      )
+    ) {
+      return;
+    }
+    try {
+      await eliminarRemuneracion(r.id);
+      avisoExito('Remuneración eliminada');
+      cargar();
+    } catch (err) {
+      avisoError(
+        'No pudimos eliminarla',
+        err instanceof Error ? err.message : undefined
+      );
+    }
+  };
+
   return (
     <Panel>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -78,6 +100,7 @@ export const RemuneracionesEmpleado = ({
                 <th className="pb-2 pr-4 text-right">Aportes</th>
                 <th className="pb-2 pr-4 text-right">Neto</th>
                 <th className="pb-2">Convenio</th>
+                {puedeEditar && <th className="pb-2" />}
               </tr>
             </thead>
             <tbody>
@@ -102,6 +125,18 @@ export const RemuneracionesEmpleado = ({
                     {formatearPesos(r.montoNeto)}
                   </td>
                   <td className="py-2.5 text-ink-soft">{r.convenio || '—'}</td>
+                  {puedeEditar && (
+                    <td className="py-2.5 text-right">
+                      <button
+                        type="button"
+                        onClick={(e) => void borrar(r, e)}
+                        aria-label="Eliminar"
+                        className="cursor-pointer rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600"
+                      >
+                        <IconTrash size={16} />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

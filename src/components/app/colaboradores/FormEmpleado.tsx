@@ -81,6 +81,7 @@ const desdeEmpleado = (e: Empleado): DatosEmpleado => ({
   apellido: e.apellido,
   dni: e.dni,
   cuil: e.cuil || undefined,
+  numeroLegajo: e.numeroLegajo || undefined,
   fechaNacimiento: e.fechaNacimiento || undefined,
   estadoCivil: e.estadoCivil,
   nivelEstudios: e.nivelEstudios,
@@ -319,6 +320,12 @@ export const FormEmpleado = ({
             onChange={(e) => set('cuil')(e.target.value)}
             placeholder="20-30123456-5"
             error={errores.cuil}
+          />
+          <Campo
+            etiqueta="Nº de legajo"
+            value={datos.numeroLegajo ?? ''}
+            onChange={(e) => set('numeroLegajo')(e.target.value)}
+            placeholder="Opcional — para matching de recibos"
           />
           <CampoFecha
             etiqueta="Fecha de nacimiento"

@@ -25,6 +25,7 @@ import { Panel } from '@/components/app/Panel';
 import { EnrolamientoFacial } from '@/components/app/facial/EnrolamientoFacial';
 import { NotasInternas } from '@/components/app/colaboradores/NotasInternas';
 import { RemuneracionesEmpleado } from '@/components/app/remuneraciones/RemuneracionesEmpleado';
+import { MonotributoPanel } from '@/components/app/remuneraciones/MonotributoPanel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
@@ -380,6 +381,16 @@ const FichaColaboradorPage = () => {
           puedeEditar={esAdmin}
           convenioEmpleado={empleado.convenio}
         />
+
+        {empleado.modalidadContratacion === 'monotributista' && (
+          <Panel>
+            <h2 className="text-base font-bold text-ink">Costo monotributo</h2>
+            <MonotributoPanel
+              empleadoId={empleado.id}
+              puedeEditar={esAdmin}
+            />
+          </Panel>
+        )}
 
         {esAdmin && (
           <Panel>
