@@ -198,7 +198,11 @@ const ComunicacionesPage = () => {
                   </p>
                 </div>
                 {!esEmpleado && seleccion.estado !== 'cerrada' && (
-                  <Boton variante="secundario" tamano="sm" onClick={() => void cerrar()}>
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    onClick={() => void cerrar()}
+                  >
                     Cerrar
                   </Boton>
                 )}

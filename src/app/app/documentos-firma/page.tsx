@@ -159,7 +159,10 @@ const DocumentosFirmaPage = () => {
                   >
                     Ver PDF
                   </Boton>
-                  <Boton tamano="sm" onClick={() => void firmar(d.destinatarioId)}>
+                  <Boton
+                    tamano="sm"
+                    onClick={() => void firmar(d.destinatarioId)}
+                  >
                     <IconSignature size={14} />
                     Firmar
                   </Boton>

@@ -44,9 +44,7 @@ export const DescuentosFijos = ({
   useEffect(cargar, [cargar]);
 
   const textoValor = (d: DescuentoRecurrente) =>
-    d.modo === 'porcentaje'
-      ? `${d.porcentaje ?? 0}%`
-      : formatearPesos(d.monto);
+    d.modo === 'porcentaje' ? `${d.porcentaje ?? 0}%` : formatearPesos(d.monto);
 
   const agregar = async () => {
     const m = Number(monto);

@@ -68,7 +68,9 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
   };
 
   const quitar = async (f: FacturaMonotributo) => {
-    if (!window.confirm(`¿Eliminar la factura de ${formatearPeriodo(f.periodo)}?`))
+    if (
+      !window.confirm(`¿Eliminar la factura de ${formatearPeriodo(f.periodo)}?`)
+    )
       return;
     try {
       await eliminarFacturaMonotributo(f.id);
@@ -132,7 +134,11 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
       {agregando && (
         <div className="mt-3 flex flex-col gap-2">
           <div className="grid gap-2 sm:grid-cols-2">
-            <CampoMes etiqueta="Período" value={periodo} onChange={setPeriodo} />
+            <CampoMes
+              etiqueta="Período"
+              value={periodo}
+              onChange={setPeriodo}
+            />
             <Campo
               etiqueta="Monto"
               type="number"
@@ -147,7 +153,11 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
             onArchivo={setArchivo}
           />
           <div className="flex gap-2">
-            <Boton tamano="sm" onClick={() => void guardar()} disabled={guardando}>
+            <Boton
+              tamano="sm"
+              onClick={() => void guardar()}
+              disabled={guardando}
+            >
               {guardando ? 'Guardando…' : 'Guardar'}
             </Boton>
             <Boton

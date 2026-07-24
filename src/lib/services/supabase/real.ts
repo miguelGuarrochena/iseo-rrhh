@@ -2449,7 +2449,8 @@ export const getPendientesResumen = async (): Promise<PendientesResumen> => {
     };
   }
   const rol = usuario.rol;
-  const esGestor = rol === 'admin_rrhh' || rol === 'supervisor' || rol === 'superadmin';
+  const esGestor =
+    rol === 'admin_rrhh' || rol === 'supervisor' || rol === 'superadmin';
 
   let recibosPorFirmar = 0;
   let ausenciasPorResolver = 0;
@@ -2526,4 +2527,3 @@ const aDocumentoFirma = (f: Record<string, unknown>): DocumentoFirma => ({
   creadoPor: (f.creado_por as string) ?? undefined,
   creadoEn: String(f.creado_en).slice(0, 10),
 });
-

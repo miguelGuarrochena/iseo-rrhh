@@ -5,11 +5,12 @@ import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { avisoError, avisoExito } from '@/lib/avisos';
+import { getCuposLicencia, guardarCupoLicencia } from '@/lib/services/rrhh';
 import {
-  getCuposLicencia,
-  guardarCupoLicencia,
-} from '@/lib/services/rrhh';
-import { CupoLicencia, TIPOS_LICENCIA_CON_CUPO, TipoAusencia } from '@/types/rrhh';
+  CupoLicencia,
+  TIPOS_LICENCIA_CON_CUPO,
+  TipoAusencia,
+} from '@/types/rrhh';
 
 /**
  * Cupos anuales de licencias legales (mudanza, casamiento, etc.).

@@ -1436,6 +1436,7 @@ export const cargarFacturaMonotributo = async (
   empleadoId: string,
   periodo: string,
   monto: number,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _archivo?: File
 ): Promise<FacturaMonotributo> => {
   const existente = facturasMonoMock.find(
@@ -1645,6 +1646,7 @@ export const firmarDocumento = async (
 };
 
 export const abrirDocumentoFirma = async (
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _doc: DocumentoFirma
 ): Promise<string> => simular('#');
 

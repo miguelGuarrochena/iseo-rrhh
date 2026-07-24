@@ -51,7 +51,9 @@ export const Sidebar = () => {
 
   useEffect(() => {
     if (!usuario) return;
-    void getPendientesResumen().then(setPendientes).catch(() => undefined);
+    void getPendientesResumen()
+      .then(setPendientes)
+      .catch(() => undefined);
   }, [usuario]);
 
   if (!usuario || !rolEfectivo) return null;

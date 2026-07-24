@@ -33,9 +33,13 @@ export const BottomNav = () => {
 
   useEffect(() => {
     if (!usuario) return;
-    void getPendientesResumen().then(setPendientes).catch(() => undefined);
+    void getPendientesResumen()
+      .then(setPendientes)
+      .catch(() => undefined);
     const id = window.setInterval(() => {
-      void getPendientesResumen().then(setPendientes).catch(() => undefined);
+      void getPendientesResumen()
+        .then(setPendientes)
+        .catch(() => undefined);
     }, 60_000);
     return () => window.clearInterval(id);
   }, [usuario]);

@@ -154,9 +154,7 @@ export const RemuneracionModal = ({
           : d.monto;
         return {
           etiqueta: d.concepto,
-          detalle: esPct
-            ? `descuento fijo ${d.porcentaje}%`
-            : 'descuento fijo',
+          detalle: esPct ? `descuento fijo ${d.porcentaje}%` : 'descuento fijo',
           monto,
         };
       });
@@ -280,7 +278,11 @@ export const RemuneracionModal = ({
               onChange={(e) => setBruto(e.target.value)}
               placeholder="0"
               ayuda="Podés dejarlo en 0 si solo cargás no remunerativo."
-              error={error?.includes('bruto') || error?.includes('no remunerativo') ? error : undefined}
+              error={
+                error?.includes('bruto') || error?.includes('no remunerativo')
+                  ? error
+                  : undefined
+              }
             />
             <Campo
               etiqueta="No remunerativo (opcional)"
@@ -388,10 +390,10 @@ export const RemuneracionModal = ({
         {error &&
           !error.includes('bruto') &&
           !error.includes('no remunerativo') && (
-          <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
-          </p>
-        )}
+            <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </p>
+          )}
 
         <div className="flex gap-2">
           <Boton variante="secundario" className="flex-1" onClick={onCerrar}>

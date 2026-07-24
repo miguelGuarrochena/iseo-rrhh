@@ -385,10 +385,7 @@ const FichaColaboradorPage = () => {
         {empleado.modalidadContratacion === 'monotributista' && (
           <Panel>
             <h2 className="text-base font-bold text-ink">Costo monotributo</h2>
-            <MonotributoPanel
-              empleadoId={empleado.id}
-              puedeEditar={esAdmin}
-            />
+            <MonotributoPanel empleadoId={empleado.id} puedeEditar={esAdmin} />
           </Panel>
         )}
 

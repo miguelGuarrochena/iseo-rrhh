@@ -181,9 +181,7 @@ const AusenciasPage = () => {
         aprobarAutomaticamente: datos.aprobarAutomaticamente,
       });
       avisoExito(
-        datos.aprobarAutomaticamente
-          ? 'Ausencia cargada'
-          : 'Solicitud enviada',
+        datos.aprobarAutomaticamente ? 'Ausencia cargada' : 'Solicitud enviada',
         datos.aprobarAutomaticamente
           ? 'Quedó registrada y aprobada.'
           : 'Te avisamos cuando la resuelvan.'
