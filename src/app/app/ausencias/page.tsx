@@ -12,7 +12,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
-import * as XLSX from 'xlsx';
+import { descargarComoXlsx } from '@/lib/planillas';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
@@ -197,7 +197,7 @@ const AusenciasPage = () => {
     }
   };
 
-  const exportarExcel = () => {
+  const exportarExcel = async () => {
     const filas = filtradas.map((a) => ({
       Empleado: nombreEmpleado(a.empleadoId),
       Tipo: tipoAusenciaLabels[a.tipo],
@@ -207,10 +207,7 @@ const AusenciasPage = () => {
       Estado: a.estado,
       Comentario: a.comentarioEmpleado ?? '',
     }));
-    const hoja = XLSX.utils.json_to_sheet(filas);
-    const libro = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(libro, hoja, 'Ausencias');
-    XLSX.writeFile(libro, `ausencias-${hoyISO()}.xlsx`);
+    await descargarComoXlsx(filas, 'Ausencias', `ausencias-${hoyISO()}.xlsx`);
   };
 
   const verAdjunto = async (a: Ausencia) => {
@@ -258,7 +255,7 @@ const AusenciasPage = () => {
         </div>
         <div className="flex flex-wrap gap-2">
           {!esEmpleado && (
-            <Boton variante="secundario" onClick={exportarExcel}>
+            <Boton variante="secundario" onClick={() => void exportarExcel()}>
               <IconDownload size={18} />
               Exportar Excel
             </Boton>

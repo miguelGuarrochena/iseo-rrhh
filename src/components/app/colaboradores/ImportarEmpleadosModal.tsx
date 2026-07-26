@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import * as XLSX from 'xlsx';
 import { Modal } from '@mantine/core';
 import {
   IconCheck,
@@ -14,6 +13,7 @@ import { Selector } from '@/components/app/ui/Selector';
 import { hoyISO } from '@/lib/fechas';
 import { validarCuit, validarDni, validarEmail } from '@/lib/validaciones';
 import { crearEmpleado } from '@/lib/services/rrhh';
+import { ArchivoNoSoportado, leerFilasDeArchivo } from '@/lib/planillas';
 
 /** Campos importables y sus alias típicos en los Excel de las PyMEs. */
 const CAMPOS: { clave: string; etiqueta: string; alias: string[] }[] = [
@@ -155,13 +155,7 @@ export const ImportarEmpleadosModal = ({
       return;
     }
     try {
-      const libro = XLSX.read(await archivo.arrayBuffer(), {
-        cellDates: true,
-      });
-      const hoja = libro.Sheets[libro.SheetNames[0]];
-      const datos = XLSX.utils.sheet_to_json<Record<string, unknown>>(hoja, {
-        defval: '',
-      });
+      const datos = await leerFilasDeArchivo(archivo);
       if (datos.length === 0) {
         setError('El archivo no tiene filas con datos.');
         return;
@@ -179,8 +173,12 @@ export const ImportarEmpleadosModal = ({
       setColumnas(cols);
       setFilas(datos);
       setMapeo(auto);
-    } catch {
-      setError('No pudimos leer el archivo. Probá con .xlsx o .csv.');
+    } catch (e) {
+      setError(
+        e instanceof ArchivoNoSoportado
+          ? e.message
+          : 'No pudimos leer el archivo. Probá con .xlsx o .csv.'
+      );
     }
   };
 
@@ -287,14 +285,14 @@ export const ImportarEmpleadosModal = ({
                 className="text-brand-600"
               />
               <span className="text-sm font-semibold text-ink">
-                Elegir archivo (.xlsx, .xls o .csv)
+                Elegir archivo (.xlsx o .csv)
               </span>
               <span className="text-xs text-ink-soft">
                 Mínimo necesario: nombre, apellido y DNI
               </span>
               <input
                 type="file"
-                accept=".xlsx,.xls,.csv"
+                accept=".xlsx,.csv"
                 className="hidden"
                 onChange={(e) => {
                   const archivo = e.target.files?.[0];
