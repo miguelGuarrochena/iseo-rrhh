@@ -11,6 +11,8 @@ interface CampoArchivoProps {
   ayuda?: string;
   error?: string;
   textoBoton?: string;
+  /** Tamaño máximo en MB (default 20). Rechaza el archivo antes de subirlo. */
+  maxSizeMB?: number;
 }
 
 /**
@@ -25,28 +27,41 @@ export const CampoArchivo = ({
   ayuda,
   error,
   textoBoton = 'Elegir archivo',
+  maxSizeMB = 20,
 }: CampoArchivoProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [nombre, setNombre] = useState<string | null>(null);
+  const [errorTamano, setErrorTamano] = useState<string | null>(null);
 
   const elegir = (e: ChangeEvent<HTMLInputElement>) => {
     const archivo = e.target.files?.[0] ?? null;
+    if (archivo && archivo.size > maxSizeMB * 1024 * 1024) {
+      setErrorTamano(`El archivo pesa demasiado (máximo ${maxSizeMB}MB).`);
+      setNombre(null);
+      onArchivo(null);
+      if (inputRef.current) inputRef.current.value = '';
+      return;
+    }
+    setErrorTamano(null);
     setNombre(archivo?.name ?? null);
     onArchivo(archivo);
   };
 
   const limpiar = () => {
     setNombre(null);
+    setErrorTamano(null);
     onArchivo(null);
     if (inputRef.current) inputRef.current.value = '';
   };
+
+  const errorAMostrar = errorTamano ?? error;
 
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-semibold text-ink">{etiqueta}</span>
       <div
         className={`flex items-center gap-3 rounded-xl border bg-surface px-3 py-2.5 ${
-          error ? 'border-red-300' : 'border-line'
+          errorAMostrar ? 'border-red-300' : 'border-line'
         }`}
       >
         <Boton
@@ -79,10 +94,12 @@ export const CampoArchivo = ({
           onChange={elegir}
         />
       </div>
-      {error && (
-        <span className="text-xs font-medium text-red-600">{error}</span>
+      {errorAMostrar && (
+        <span className="text-xs font-medium text-red-600">
+          {errorAMostrar}
+        </span>
       )}
-      {!error && ayuda && (
+      {!errorAMostrar && ayuda && (
         <span className="text-xs text-ink-soft">{ayuda}</span>
       )}
     </div>

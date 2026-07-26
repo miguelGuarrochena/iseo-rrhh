@@ -74,6 +74,11 @@ const CAMPOS: { clave: string; etiqueta: string; alias: string[] }[] = [
 
 const IGNORAR = '__ignorar__';
 
+/** Tamaño máximo del Excel/CSV a importar (evita colgar la pestaña con
+ * archivos gigantes; una nómina razonable pesa muchísimo menos). */
+const MAX_MB = 10;
+const MAX_BYTES = MAX_MB * 1024 * 1024;
+
 const normalizar = (s: string): string =>
   s
     .toLowerCase()
@@ -145,6 +150,10 @@ export const ImportarEmpleadosModal = ({
   const leerArchivo = async (archivo: File) => {
     setError(null);
     setResultado(null);
+    if (archivo.size > MAX_BYTES) {
+      setError(`El archivo pesa demasiado (máximo ${MAX_MB}MB).`);
+      return;
+    }
     try {
       const libro = XLSX.read(await archivo.arrayBuffer(), {
         cellDates: true,

@@ -1,12 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { consultarGemini, IANoConfigurada } from '@/lib/ia/gemini';
+import { usuarioDesdeToken } from '@/lib/api/autenticar';
+import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 
 /**
  * Asistente de ayuda de ISEO RH. Responde dudas de uso de la app basándose
  * en la base de conocimiento (FAQ) que el cliente envía como contexto.
  * La API key de Gemini vive solo en el servidor (ver src/lib/ia/gemini.ts).
+ *
+ * Requiere sesión (consume la API de Gemini, que tiene costo) y tiene un
+ * límite de uso por usuario para evitar abuso.
  */
 export async function POST(req: NextRequest) {
+  const usuario = await usuarioDesdeToken(req);
+  if (!usuario) {
+    return NextResponse.json({ error: 'Sin sesión.' }, { status: 401 });
+  }
+  if (!dentroDelLimite(`ayuda:${usuario.id}`)) {
+    return NextResponse.json(
+      { error: 'Hiciste demasiadas consultas seguidas. Esperá un minuto.' },
+      { status: 429 }
+    );
+  }
+
   let pregunta = '';
   let contexto = '';
   let rol = '';

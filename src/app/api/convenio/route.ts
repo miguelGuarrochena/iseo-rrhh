@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { consultarGemini, IANoConfigurada } from '@/lib/ia/gemini';
+import { usuarioDesdeToken } from '@/lib/api/autenticar';
+import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 
 /**
  * Asistente del convenio colectivo. Recibe la pregunta y el contexto
@@ -7,8 +9,20 @@ import { consultarGemini, IANoConfigurada } from '@/lib/ia/gemini';
  * con IA basándose únicamente en ese texto.
  *
  * La API key de Gemini vive solo en el servidor (ver src/lib/ia/gemini.ts).
+ * Requiere sesión y tiene un límite de uso por usuario para evitar abuso.
  */
 export async function POST(req: NextRequest) {
+  const usuario = await usuarioDesdeToken(req);
+  if (!usuario) {
+    return NextResponse.json({ error: 'Sin sesión.' }, { status: 401 });
+  }
+  if (!dentroDelLimite(`convenio:${usuario.id}`)) {
+    return NextResponse.json(
+      { error: 'Hiciste demasiadas consultas seguidas. Esperá un minuto.' },
+      { status: 429 }
+    );
+  }
+
   let pregunta = '';
   let contexto = '';
   try {

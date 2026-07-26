@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Landing page for Talento+ HR SaaS platform",
   "private": true,
+  "packageManager": "npm@10.9.2",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -26,7 +27,7 @@
     "d3": "^7.9.0",
     "d3-org-chart": "^3.1.1",
     "framer-motion": "^10.16.16",
-    "next": "^14.2.23",
+    "next": "^14.2.35",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "server-only": "^0.0.1",

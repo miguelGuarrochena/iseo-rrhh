@@ -25,6 +25,7 @@ import {
 import { buscarParrafos } from '@/lib/convenio';
 import { iaVisible } from '@/lib/entorno';
 import { formatearFecha } from '@/lib/fechas';
+import { fetchProtegido } from '@/lib/api/fetchProtegido';
 import { Convenio } from '@/types/rrhh';
 
 const EjemplosPreguntas = [
@@ -134,9 +135,8 @@ const DetalleConvenio = ({ convenio }: { convenio: Convenio }) => {
     // Recuperación local: mandamos solo los artículos relevantes como contexto.
     const contexto = buscarParrafos(convenio.contenido, texto, 6).join('\n\n');
     try {
-      const res = await fetch('/api/convenio', {
+      const res = await fetchProtegido('/api/convenio', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pregunta: texto, contexto }),
       });
       const data = await res.json();

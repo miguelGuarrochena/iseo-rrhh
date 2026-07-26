@@ -7,6 +7,25 @@ import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId } from '@/lib/auth/store';
 
 const UNA_HORA = 60 * 60;
+const MB = 1024 * 1024;
+
+/** Tamaño máximo por bucket (evita subidas gigantes que cuelguen al usuario
+ * o infracen costo/espacio de storage sin querer). */
+const LIMITE_POR_BUCKET: Record<string, number> = {
+  logos: 5 * MB,
+  fotos: 8 * MB,
+  documentos: 20 * MB,
+  'recibos-pdf': 20 * MB,
+};
+
+const validarTamano = (bucket: string, archivo: Blob) => {
+  const limite = LIMITE_POR_BUCKET[bucket] ?? 20 * MB;
+  if (archivo.size > limite) {
+    throw new Error(
+      `El archivo pesa demasiado (máximo ${Math.round(limite / MB)}MB).`
+    );
+  }
+};
 
 const empresaId = (): string => {
   const id = empresaOperativaId();
@@ -29,6 +48,7 @@ const subir = async (
   archivo: Blob,
   contentType?: string
 ): Promise<string> => {
+  validarTamano(bucket, archivo);
   const { error } = await supabase()
     .storage.from(bucket)
     .upload(path, archivo, { upsert: true, contentType });

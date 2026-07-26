@@ -26,6 +26,10 @@ interface Props {
 
 const soloDigitos = (s: string) => s.replace(/\D/g, '');
 
+/** Tamaño máximo por PDF: un recibo de sueldo no debería superar esto. */
+const MAX_MB = 15;
+const MAX_BYTES = MAX_MB * 1024 * 1024;
+
 /**
  * Busca a quién pertenece el PDF por CUIL, legajo o DNI en el
  * nombre del archivo. Ej: "recibo-20-30123456-7-junio.pdf".
@@ -67,6 +71,7 @@ export const CargaMasivaModal = ({
   const [filas, setFilas] = useState<Fila[]>([]);
   const [publicar, setPublicar] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
+  const [ignorados, setIgnorados] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const opciones = [
@@ -79,13 +84,16 @@ export const CargaMasivaModal = ({
 
   const elegirArchivos = (lista: FileList | null) => {
     if (!lista) return;
-    const nuevas: Fila[] = Array.from(lista)
-      .filter((a) => a.type === 'application/pdf' || a.name.endsWith('.pdf'))
-      .map((archivo) => ({
-        archivo,
-        empleadoId: detectarEmpleado(archivo.name, empleados),
-        estado: 'listo' as const,
-      }));
+    const pdfs = Array.from(lista).filter(
+      (a) => a.type === 'application/pdf' || a.name.endsWith('.pdf')
+    );
+    const dentroDeLimite = pdfs.filter((a) => a.size <= MAX_BYTES);
+    setIgnorados(pdfs.length - dentroDeLimite.length);
+    const nuevas: Fila[] = dentroDeLimite.map((archivo) => ({
+      archivo,
+      empleadoId: detectarEmpleado(archivo.name, empleados),
+      estado: 'listo' as const,
+    }));
     setFilas((prev) => [...prev, ...nuevas]);
     if (inputRef.current) inputRef.current.value = '';
   };
@@ -189,8 +197,17 @@ export const CargaMasivaModal = ({
           Cada PDF se asigna solo si el nombre del archivo contiene el legajo,
           CUIL o DNI del colaborador (ej.{' '}
           <span className="font-semibold">20-30123456-7.pdf</span>). Lo que no
-          se reconozca lo asignás a mano acá abajo.
+          se reconozca lo asignás a mano acá abajo. Máximo {MAX_MB}MB por
+          archivo.
         </p>
+
+        {ignorados > 0 && (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">
+            {ignorados} archivo{ignorados === 1 ? '' : 's'} no se{' '}
+            {ignorados === 1 ? 'agregó' : 'agregaron'} por superar los {MAX_MB}
+            MB.
+          </p>
+        )}
 
         {filas.length > 0 && (
           <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">

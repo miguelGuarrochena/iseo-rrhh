@@ -13,6 +13,7 @@ import { Boton } from '@/components/app/ui/Boton';
 import { faqParaRol, faqTextoParaRol } from '@/lib/ayuda';
 import { iaVisible } from '@/lib/entorno';
 import { buscarParrafos } from '@/lib/convenio';
+import { fetchProtegido } from '@/lib/api/fetchProtegido';
 
 const SOPORTE_WA =
   'https://wa.me/5491154018969?text=Hola%2C%20necesito%20ayuda%20con%20ISEO%20RH.';
@@ -39,9 +40,8 @@ const AyudaPage = () => {
     const guia = faqTextoParaRol(rol);
     const contexto = buscarParrafos(guia, texto, 6).join('\n\n') || guia;
     try {
-      const res = await fetch('/api/ayuda', {
+      const res = await fetchProtegido('/api/ayuda', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pregunta: texto, contexto, rol }),
       });
       const data = await res.json();
