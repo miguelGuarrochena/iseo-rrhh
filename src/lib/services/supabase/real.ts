@@ -58,6 +58,7 @@ import type {
   NuevoEvento,
   NuevoUsuario,
 } from '@/lib/services/rrhh.demo';
+import { mensajeDeErrorDb } from '@/lib/erroresDb';
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
@@ -102,7 +103,8 @@ const empresaId = (): string => {
 };
 
 const oFalla = <T>(data: T | null, error: { message: string } | null): T => {
-  if (error) throw new Error(error.message);
+  // Los errores crudos de Postgres se traducen antes de llegar a la UI.
+  if (error) throw new Error(mensajeDeErrorDb(error.message));
   if (data === null) throw new Error('Sin datos.');
   return data;
 };
@@ -1512,20 +1514,26 @@ export const getAlertas = async (): Promise<Alerta[]> => {
 // ---------- Agenda ----------
 
 export const getEventosProximos = async (): Promise<EventoAgenda[]> => {
+  const eid = empresaId();
   const [{ data, error }, { data: cumplesRaw }] = await Promise.all([
     sb()
       .from('eventos_agenda')
       .select('*')
-      .eq('empresa_id', empresaId())
+      .eq('empresa_id', eid)
       .gte('fecha', hoyISO())
       .order('fecha'),
     // Cumpleaños de toda la empresa (RPC security definer: el empleado
     // no ve fichas ajenas, pero sí puede ver nombre + fecha de nacimiento).
-    sb().rpc('cumples_de_empresa'),
+    // Se pasa la empresa que se está mirando: un superadmin no tiene
+    // empresa propia y sin esto la función no devolvía ninguna fila.
+    sb().rpc('cumples_de_empresa', { p_empresa: eid }),
   ]);
 
-  const hoy = new Date();
-  const eid = empresaId();
+  // Medianoche de hoy: si se compara contra `new Date()` (con hora), el
+  // cumpleaños de hoy queda "en el pasado" y se corre al año que viene,
+  // así que justo el día no aparecía en Eventos.
+  const ahora = new Date();
+  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
   const cumples: EventoAgenda[] = (cumplesRaw ?? [])
     .filter((e: { fecha_nacimiento?: string }) => e.fecha_nacimiento)
     .map(

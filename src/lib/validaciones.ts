@@ -15,17 +15,32 @@ export const validarEmail = (valor: string): string | null => {
     : 'El email no tiene un formato válido.';
 };
 
+/** Deja solo los dígitos: tolera puntos, guiones, espacios y barras. */
+export const soloDigitosDoc = (valor: string): string =>
+  valor.replace(/\D/g, '');
+
+/**
+ * Normaliza un CUIT/CUIL a sus 11 dígitos. Los Excel de las PyMEs traen
+ * guiones, puntos, espacios o una mezcla de los tres según quién cargó
+ * la fila; se guarda siempre el mismo formato para poder compararlos.
+ */
+export const normalizarCuit = (valor: string): string => soloDigitosDoc(valor);
+
 export const validarDni = (valor: string): string | null => {
   if (!valor.trim()) return null;
-  return /^\d{7,8}$/.test(valor.replace(/\./g, ''))
+  return /^\d{7,8}$/.test(soloDigitosDoc(valor))
     ? null
     : 'El DNI debe tener 7 u 8 números.';
 };
 
-/** CUIT/CUIL con dígito verificador (módulo 11). Acepta con o sin guiones. */
+/**
+ * CUIT/CUIL con dígito verificador (módulo 11). Tolera cualquier
+ * separador (guiones, puntos, espacios) porque los Excel de las PyMEs
+ * vienen con los tres mezclados.
+ */
 export const validarCuit = (valor: string): string | null => {
   if (!valor.trim()) return null;
-  const digitos = valor.replace(/[-\s]/g, '');
+  const digitos = normalizarCuit(valor);
   if (!/^\d{11}$/.test(digitos)) {
     return 'El CUIT/CUIL debe tener 11 números (ej: 30-12345678-9).';
   }

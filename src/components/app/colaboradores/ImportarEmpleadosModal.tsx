@@ -10,8 +10,14 @@ import {
 } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { Selector } from '@/components/app/ui/Selector';
-import { hoyISO } from '@/lib/fechas';
-import { validarCuit, validarDni, validarEmail } from '@/lib/validaciones';
+import { expandirAnio, hoyISO } from '@/lib/fechas';
+import {
+  normalizarCuit,
+  soloDigitosDoc,
+  validarCuit,
+  validarDni,
+  validarEmail,
+} from '@/lib/validaciones';
 import { crearEmpleado } from '@/lib/services/rrhh';
 import { ArchivoNoSoportado, leerFilasDeArchivo } from '@/lib/planillas';
 
@@ -97,7 +103,8 @@ const aFechaISO = (valor: unknown): string => {
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
   const m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
   if (m) {
-    const anio = m[3].length === 2 ? `20${m[3]}` : m[3];
+    // "85" en una fecha de nacimiento es 1985, no 2085.
+    const anio = m[3].length === 2 ? String(expandirAnio(Number(m[3]))) : m[3];
     return `${anio}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
   }
   return '';
@@ -131,7 +138,7 @@ export const ImportarEmpleadosModal = ({
   const [importando, setImportando] = useState(false);
   const [resultado, setResultado] = useState<{
     ok: number;
-    fallas: number;
+    fallas: { quien: string; motivo: string }[];
   } | null>(null);
 
   const reiniciar = () => {
@@ -185,6 +192,7 @@ export const ImportarEmpleadosModal = ({
   /** Filas convertidas al modelo + validación por fila. */
   const preparadas: FilaImporte[] = useMemo(() => {
     if (filas.length === 0) return [];
+    const vistos = new Set<string>();
     return filas.map((fila) => {
       const datos: Record<string, string> = {};
       columnas.forEach((col) => {
@@ -196,11 +204,19 @@ export const ImportarEmpleadosModal = ({
           : String(bruto ?? '').trim();
         if (valor) datos[campo] = valor;
       });
+      // DNI y CUIL se guardan ya normalizados: los Excel traen puntos,
+      // guiones y espacios mezclados y así se comparan sin sorpresas.
+      if (datos.dni) datos.dni = soloDigitosDoc(datos.dni);
+      if (datos.cuil) datos.cuil = normalizarCuit(datos.cuil);
+
       const errores: string[] = [];
       if (!datos.nombre) errores.push('falta nombre');
       if (!datos.apellido) errores.push('falta apellido');
       if (!datos.dni) errores.push('falta DNI');
       else if (validarDni(datos.dni)) errores.push('DNI inválido');
+      else if (vistos.has(datos.dni))
+        errores.push('DNI repetido en el archivo');
+      else vistos.add(datos.dni);
       if (datos.cuil && validarCuit(datos.cuil)) errores.push('CUIL inválido');
       if (datos.email && validarEmail(datos.email))
         errores.push('email inválido');
@@ -214,7 +230,7 @@ export const ImportarEmpleadosModal = ({
   const importar = async () => {
     setImportando(true);
     let ok = 0;
-    let fallas = 0;
+    const fallas: { quien: string; motivo: string }[] = [];
     for (const fila of validas) {
       try {
         await crearEmpleado({
@@ -236,8 +252,14 @@ export const ImportarEmpleadosModal = ({
           art: fila.datos.art,
         });
         ok += 1;
-      } catch {
-        fallas += 1;
+      } catch (e) {
+        // Se guarda el motivo real de cada fila: sin esto, el importador
+        // decía solo "N fallaron" y no había manera de saber por qué.
+        fallas.push({
+          quien: `${fila.datos.apellido ?? '¿?'}, ${fila.datos.nombre ?? '¿?'} (DNI ${fila.datos.dni ?? '—'})`,
+          motivo:
+            e instanceof Error ? e.message : 'No pudimos crear el colaborador.',
+        });
       }
     }
     setImportando(false);
@@ -260,9 +282,29 @@ export const ImportarEmpleadosModal = ({
           <>
             <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
               Se importaron {resultado.ok} colaboradores.
-              {resultado.fallas > 0 &&
-                ` ${resultado.fallas} fallaron (¿DNI repetido?).`}
             </p>
+            {resultado.fallas.length > 0 && (
+              <div className="rounded-xl bg-red-50 px-4 py-3">
+                <p className="text-sm font-bold text-red-800">
+                  {resultado.fallas.length}{' '}
+                  {resultado.fallas.length === 1
+                    ? 'fila no se pudo importar'
+                    : 'filas no se pudieron importar'}
+                  :
+                </p>
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {resultado.fallas.map((f, i) => (
+                    <li
+                      key={i}
+                      className="text-xs leading-relaxed text-red-700"
+                    >
+                      <strong className="font-semibold">{f.quien}</strong> —{' '}
+                      {f.motivo}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <p className="text-sm text-ink-soft">
               Los datos que falten (foto, contacto de emergencia, CBU…) se
               completan entrando a cada ficha con &quot;Editar&quot;.

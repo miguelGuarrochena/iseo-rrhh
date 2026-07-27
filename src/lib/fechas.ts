@@ -1,3 +1,13 @@
+/**
+ * Expande un año de dos dígitos a cuatro. Ventana móvil: hasta 10 años
+ * en el futuro se toma como 20xx; de ahí para atrás, 19xx. Así "85" es
+ * 1985 (fecha de nacimiento) y "27" es 2027 (fin de contrato).
+ */
+export const expandirAnio = (yy: number, hoy = new Date()): number => {
+  const corte = (hoy.getFullYear() % 100) + 10;
+  return yy <= corte ? 2000 + yy : 1900 + yy;
+};
+
 /** Días entre dos fechas ISO, incluyendo ambos extremos (días corridos). */
 export const diasEntre = (desde: string, hasta: string): number => {
   const d = new Date(`${desde}T00:00:00`);
@@ -43,7 +53,17 @@ export const formatearFecha = (iso: string): string =>
     month: 'short',
   });
 
-export const hoyISO = (): string => new Date().toISOString().slice(0, 10);
+/**
+ * Fecha de hoy en horario local (YYYY-MM-DD). Ojo: `toISOString()` da
+ * UTC, así que en Argentina (UTC-3) después de las 21:00 devolvía el día
+ * siguiente y los eventos de hoy quedaban fuera de los listados.
+ */
+export const hoyISO = (): string => {
+  const d = new Date();
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mes}-${dia}`;
+};
 
 const MESES = [
   'Enero',

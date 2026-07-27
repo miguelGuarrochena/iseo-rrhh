@@ -7,6 +7,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
 } from '@tabler/icons-react';
+import { expandirAnio } from '@/lib/fechas';
 
 const MESES = [
   'Enero',
@@ -39,15 +40,24 @@ const aCorta = (valor: string): string => {
  * Parsea una fecha tipeada con números: "2/7/2026", "02/07/2026",
  * "02-07-26", "02.07.2026" → ISO "2026-07-02". Devuelve null si no es
  * una fecha real.
+ *
+ * `soloAnioCompleto` exige los 4 dígitos del año. Se usa mientras la
+ * persona tipea: si aceptáramos el año corto, al escribir "05/03/19"
+ * (camino a 1985) el campo se cerraría solo en 2019 y se reescribiría
+ * el texto, dejando imposible llegar a un año de los 1900.
  */
-export const parsearFechaTipeada = (texto: string): string | null => {
-  const m = texto
-    .trim()
-    .match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/);
+export const parsearFechaTipeada = (
+  texto: string,
+  soloAnioCompleto = false
+): string | null => {
+  const patron = soloAnioCompleto
+    ? /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})$/
+    : /^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2}|\d{4})$/;
+  const m = texto.trim().match(patron);
   if (!m) return null;
   const dia = Number(m[1]);
   const mes = Number(m[2]);
-  const anio = m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3]);
+  const anio = m[3].length === 2 ? expandirAnio(Number(m[3])) : Number(m[3]);
   if (mes < 1 || mes > 12 || dia < 1) return null;
   if (dia > new Date(anio, mes, 0).getDate()) return null;
   return iso(anio, mes - 1, dia);
@@ -139,15 +149,21 @@ export const CampoFecha = ({
   const fueraDeRango = (fecha: string) =>
     (min && fecha < min) || (max && fecha > max);
 
-  /** Al tipear: si lo escrito ya es una fecha válida, se toma. */
+  /**
+   * Al tipear: se toma la fecha solo cuando el año está completo (4
+   * dígitos). Con año corto habría que reescribir el texto en medio de
+   * la escritura y no se podría tipear un año de los 1900.
+   */
   const alTipear = (t: string) => {
     setTexto(t);
     if (t.trim() === '') {
       if (value) onChange('');
       return;
     }
-    const parseada = parsearFechaTipeada(t);
-    if (parseada && !fueraDeRango(parseada)) onChange(parseada);
+    const parseada = parsearFechaTipeada(t, true);
+    if (parseada && parseada !== value && !fueraDeRango(parseada)) {
+      onChange(parseada);
+    }
   };
 
   /** Al salir del campo: normaliza o revierte si quedó a medias. */
