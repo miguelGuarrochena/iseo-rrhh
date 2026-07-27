@@ -283,57 +283,41 @@ export const CargaMasivaModal = ({
           void elegirArchivos(e.dataTransfer.files);
         }}
       >
-        <div className="grid gap-3.5 sm:grid-cols-2">
-          <CampoMes
-            etiqueta="Período *"
-            value={periodo}
-            onChange={setPeriodo}
-          />
-          <div className="flex items-end">
-            <Boton
-              variante="secundario"
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="w-full"
-            >
-              <IconFileUpload size={16} />
-              Elegir PDFs…
-            </Boton>
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".pdf,application/pdf"
-              multiple
-              className="hidden"
-              onChange={(e) => void elegirArchivos(e.target.files)}
-            />
-          </div>
-        </div>
+        <CampoMes etiqueta="Período *" value={periodo} onChange={setPeriodo} />
 
-        <p
-          className={`rounded-xl border border-dashed px-4 py-3 text-xs transition-colors ${
+        {/* La zona de drop es lo primero que hay que entender, así que
+            lleva el peso visual: ícono, una línea, y el detalle chico
+            abajo. El texto largo de antes nadie lo leía. */}
+        <label
+          className={`flex cursor-pointer flex-col items-center gap-2 rounded-2xl border border-dashed px-6 py-8 text-center transition-colors ${
             arrastrando
-              ? 'border-brand-400 bg-brand-50 text-brand-900'
-              : 'border-transparent bg-paper text-ink-soft'
+              ? 'border-brand-400 bg-brand-50'
+              : 'border-line bg-paper/60 hover:border-brand-300'
           }`}
         >
-          {arrastrando ? (
-            <span className="font-semibold">
-              Soltá acá los PDF y los leemos.
-            </span>
-          ) : (
-            <>
-              <span className="font-semibold text-ink">
-                Arrastrá los PDF acá
-              </span>{' '}
-              o elegilos con el botón, como te los da el sistema de sueldos: uno
-              por persona o el archivo con toda la nómina junta, da igual.
-              Leemos el CUIL impreso adentro de cada recibo para saber de quién
-              es, y si viene todo en un archivo lo cortamos solos. Lo que no
-              podamos leer con certeza queda sin asignar, para que no le llegue
-              a quien no corresponde. Máximo {MAX_MB}MB por archivo.
-            </>
-          )}
+          <IconFileUpload size={34} stroke={1.5} className="text-brand-600" />
+          <span className="text-sm font-semibold text-ink">
+            {arrastrando
+              ? 'Soltá los PDF acá'
+              : 'Arrastrá los PDF o hacé clic para elegirlos'}
+          </span>
+          <span className="text-xs text-ink-soft">
+            Uno por persona o la nómina completa · máx. {MAX_MB}MB c/u
+          </span>
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,application/pdf"
+            multiple
+            className="hidden"
+            onChange={(e) => void elegirArchivos(e.target.files)}
+          />
+        </label>
+
+        <p className="text-xs leading-relaxed text-ink-soft">
+          Leemos el CUIL impreso en cada recibo para saber de quién es. Si
+          vienen varios en un mismo archivo, lo cortamos. Lo que no podamos leer
+          con certeza queda sin asignar.
         </p>
 
         {analizando && (

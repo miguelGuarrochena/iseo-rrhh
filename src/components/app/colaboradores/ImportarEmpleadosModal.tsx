@@ -316,11 +316,6 @@ export const ImportarEmpleadosModal = ({
           </>
         ) : filas.length === 0 ? (
           <>
-            <p className="text-sm leading-relaxed text-ink-soft">
-              Subí el Excel o CSV que ya usa la empresa (una fila por persona).
-              Reconocemos las columnas por su nombre y lo que falte se completa
-              después en cada ficha.
-            </p>
             <label
               onDragOver={(e) => {
                 // Sin cancelar dragover, el navegador abre el Excel.
@@ -352,10 +347,10 @@ export const ImportarEmpleadosModal = ({
               <span className="text-sm font-semibold text-ink">
                 {arrastrando
                   ? 'Soltá el archivo acá'
-                  : 'Arrastrá el archivo o hacé clic para elegirlo'}
+                  : 'Arrastrá el Excel o hacé clic para elegirlo'}
               </span>
               <span className="text-xs text-ink-soft">
-                .xlsx o .csv · mínimo necesario: nombre, apellido y DNI
+                .xlsx o .csv · una fila por persona
               </span>
               <input
                 type="file"
@@ -367,6 +362,11 @@ export const ImportarEmpleadosModal = ({
                 }}
               />
             </label>
+
+            <p className="text-xs leading-relaxed text-ink-soft">
+              Reconocemos las columnas por su nombre. Alcanza con nombre,
+              apellido y DNI; lo que falte se completa después en cada ficha.
+            </p>
             {error && (
               <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
                 {error}

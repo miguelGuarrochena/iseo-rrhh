@@ -114,10 +114,12 @@ export const CampoArchivo = ({
           <IconPaperclip size={14} />
           {textoBoton}
         </Boton>
-        <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
-          {arrastrando
-            ? 'Soltalo acá'
-            : (nombre ?? 'Ningún archivo, o arrastralo acá')}
+        <span
+          className={`min-w-0 flex-1 truncate text-sm ${
+            arrastrando ? 'font-semibold text-brand-800' : 'text-ink-soft'
+          }`}
+        >
+          {arrastrando ? 'Soltalo acá' : (nombre ?? 'o arrastralo acá')}
         </span>
         {nombre && (
           <button
