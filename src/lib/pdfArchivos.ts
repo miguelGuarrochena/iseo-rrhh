@@ -12,6 +12,7 @@
 import {
   CandidatoRecibo,
   MotivoSinDueno,
+  PistaTramo,
   TipoDeArchivo,
   TramoRecibo,
   agruparPorDueno,
@@ -103,7 +104,18 @@ export interface ParteRecibo {
   archivo: File;
   paginas: number;
   motivo?: MotivoSinDueno;
+  /** De quién parece ser, cuando no se pudo atribuir. */
+  pista?: PistaTramo;
 }
+
+/** Nombre de archivo legible: sin espacios, acentos ni caracteres raros. */
+const aNombreDeArchivo = (texto: string): string =>
+  texto
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
 
 /**
  * Corta el PDF en uno por tramo. Cada archivo resultante contiene sólo
@@ -126,14 +138,21 @@ export const partirPorTramo = async (
   const base = archivo.name.replace(/\.pdf$/i, '');
 
   const salida: ParteRecibo[] = [];
-  for (const [i, tramo] of tramos.entries()) {
+  for (const tramo of tramos) {
     const nuevo = await PDFDocument.create();
     const copiadas = await nuevo.copyPages(original, tramo.paginas);
     copiadas.forEach((p) => nuevo.addPage(p));
     const bytes = await nuevo.save();
+
+    // El nombre tiene que decir de quién es. Si no lo sabemos pero
+    // leímos el nombre impreso, se usa ese; recién en última instancia
+    // se cae a "pagina-N", que al menos ubica dónde estaba en el original.
     const nombre = tramo.empleadoId
       ? `${nombreDe(tramo.empleadoId)}.pdf`
-      : `${base}-sin-identificar-${i + 1}.pdf`;
+      : tramo.pista?.nombre
+        ? `${aNombreDeArchivo(tramo.pista.nombre)}.pdf`
+        : `${base}-pagina-${tramo.paginas[0] + 1}.pdf`;
+
     salida.push({
       empleadoId: tramo.empleadoId ?? '',
       archivo: new File([new Uint8Array(bytes)], nombre, {
@@ -141,6 +160,7 @@ export const partirPorTramo = async (
       }),
       paginas: tramo.paginas.length,
       motivo: tramo.motivo,
+      pista: tramo.pista,
     });
   }
   return salida;

@@ -4,6 +4,7 @@ import {
   cuilsEnTexto,
   dnisEnTexto,
   duenoDePagina,
+  nombreEnTexto,
 } from '@/lib/recibosPdf';
 
 const ana = { id: 'ana', dni: '25123456', cuil: '27-25123456-4' };
@@ -64,6 +65,47 @@ describe('dnisEnTexto', () => {
     ['Total: 12.345.678', ['12345678']],
   ])('en "%s" encuentra %j', (texto, esperado) => {
     expect(dnisEnTexto(texto)).toEqual(esperado);
+  });
+});
+
+// Sin esto, una página que no se puede atribuir sólo dice "sin
+// identificar" y RRHH tiene que abrir el PDF para saber de quién es.
+describe('nombreEnTexto', () => {
+  it.each([
+    ['Apellido y Nombre: ARAGON, ANA  CUIL 27-25123456-4', 'ARAGON, ANA'],
+    ['Apellido y Nombres: ESPONJA, BOB DNI 25.123.456', 'ESPONJA, BOB'],
+    ['Nombre y Apellido: Ana Aragon   Legajo 12', 'Ana Aragon'],
+    ['Empleado: FLANDERS, NED   Categoria: Operario', 'FLANDERS, NED'],
+    ['Trabajador: SOSA, CORA  Periodo 11/2025', 'SOSA, CORA'],
+  ])('lee el nombre de "%s"', (texto, esperado) => {
+    expect(nombreEnTexto(texto)).toBe(esperado);
+  });
+
+  it('devuelve null si no hay etiqueta reconocible', () => {
+    expect(nombreEnTexto('RECIBO DE HABERES Periodo 11/2025')).toBeNull();
+  });
+
+  it('descarta capturas que son solo números', () => {
+    expect(nombreEnTexto('Nombre: 12345')).toBeNull();
+  });
+});
+
+describe('pistas de los tramos sin dueño', () => {
+  it('guarda el nombre y el documento que no matcheó', () => {
+    const pagina = recibo('FANTASMA, FULANO', '20-44555666-7', '44.555.666');
+    const [tramo] = agruparPorDueno([pagina], equipo, CUIT_EMPRESA);
+    expect(tramo.empleadoId).toBeNull();
+    expect(tramo.pista?.nombre).toBe('FANTASMA, FULANO');
+    expect(tramo.pista?.documentos).toContain('20445556667');
+  });
+
+  it('el duplicado completa el nombre si la primera hoja no lo traía', () => {
+    const paginas = [
+      'CUIL 20-44555666-7',
+      'Apellido y Nombre: FANTASMA, FULANO  DUPLICADO',
+    ];
+    const [tramo] = agruparPorDueno(paginas, equipo, CUIT_EMPRESA);
+    expect(tramo.pista?.nombre).toBe('FANTASMA, FULANO');
   });
 });
 

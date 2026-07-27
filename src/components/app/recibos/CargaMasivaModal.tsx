@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Modal } from '@mantine/core';
-import { IconFileUpload, IconTrash } from '@tabler/icons-react';
+import { IconEye, IconFileUpload, IconTrash } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
@@ -14,10 +14,19 @@ import {
   idsDuplicados,
 } from '@/lib/asignarRecibos';
 import { analizarPdf, partirPorTramo } from '@/lib/pdfArchivos';
+import { PistaTramo } from '@/lib/recibosPdf';
 import { Empleado } from '@/types/rrhh';
 
 interface Fila {
+  /** Estable: la lista se reordena y el nombre se puede editar. */
+  id: string;
   archivo: File;
+  /**
+   * Nombre que se muestra y se puede editar. Es sólo una etiqueta para
+   * revisar la lista: el recibo se guarda por empleado y período, no por
+   * nombre de archivo.
+   */
+  nombre: string;
   empleadoId: string;
   estado: 'listo' | 'subido' | 'error';
   detalle?: string;
@@ -28,6 +37,8 @@ interface Fila {
   /** De qué archivo salió, cuando vino de partir una nómina. */
   vieneDe?: string;
   paginas?: number;
+  /** Nombre y documentos leídos del PDF cuando no se supo de quién es. */
+  pista?: PistaTramo;
 }
 
 interface Props {
@@ -84,6 +95,13 @@ export const CargaMasivaModal = ({
     })),
   ];
 
+  const sinExt = (n: string) => n.replace(/\.pdf$/i, '');
+
+  const nuevoId = () =>
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random()}`;
+
   const nombreArchivoDe = (id: string): string => {
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.apellido}-${e.nombre}`.replace(/\s+/g, '') : id;
@@ -104,7 +122,9 @@ export const CargaMasivaModal = ({
       const a = asignarPorNombre(archivo.name, empleados);
       return [
         {
+          id: nuevoId(),
           archivo,
+          nombre: sinExt(archivo.name),
           empleadoId: a.empleadoId,
           estado: 'listo',
           motivo: a.por === null ? a.motivo : undefined,
@@ -117,7 +137,9 @@ export const CargaMasivaModal = ({
     if (analisis.clase.tipo === 'individual') {
       return [
         {
+          id: nuevoId(),
           archivo,
+          nombre: nombreArchivoDe(analisis.clase.empleadoId),
           empleadoId: analisis.clase.empleadoId,
           estado: 'listo',
           lectura: 'ok',
@@ -136,7 +158,9 @@ export const CargaMasivaModal = ({
         nombreArchivoDe
       );
       return partes.map((p) => ({
+        id: nuevoId(),
         archivo: p.archivo,
+        nombre: sinExt(p.archivo.name),
         empleadoId: p.empleadoId,
         estado: 'listo' as const,
         lectura: p.empleadoId ? ('ok' as const) : ('desconocido' as const),
@@ -145,6 +169,7 @@ export const CargaMasivaModal = ({
           : ('sin_coincidencia' as MotivoSinAsignar),
         paginas: p.paginas,
         vieneDe: archivo.name,
+        pista: p.pista,
       }));
     }
 
@@ -153,7 +178,9 @@ export const CargaMasivaModal = ({
     const a = asignarPorNombre(archivo.name, empleados);
     return [
       {
+        id: nuevoId(),
         archivo,
+        nombre: sinExt(archivo.name),
         empleadoId: a.empleadoId,
         estado: 'listo',
         motivo: a.por === null ? a.motivo : undefined,
@@ -182,10 +209,35 @@ export const CargaMasivaModal = ({
     setAnalizando(false);
   };
 
+  /**
+   * Al elegir el colaborador se renombra el archivo con su nombre. El
+   * nombre no cambia dónde se guarda el recibo (eso va por empleado y
+   * período), pero es lo único que RRHH ve en la lista mientras revisa.
+   */
   const asignar = (i: number, empleadoId: string) =>
     setFilas((prev) =>
-      prev.map((f, j) => (j === i ? { ...f, empleadoId } : f))
+      prev.map((f, j) =>
+        j === i
+          ? {
+              ...f,
+              empleadoId,
+              // Al elegir a la persona, el nombre pasa a ser el de ella.
+              nombre: empleadoId ? nombreArchivoDe(empleadoId) : f.nombre,
+            }
+          : f
+      )
     );
+
+  const renombrar = (i: number, nombre: string) =>
+    setFilas((prev) => prev.map((f, j) => (j === i ? { ...f, nombre } : f)));
+
+  /** Abre el recorte en otra pestaña para ver de quién es. */
+  const ver = (f: Fila) => {
+    const url = URL.createObjectURL(f.archivo);
+    window.open(url, '_blank', 'noopener');
+    // Se libera después: si se revoca ya, la pestaña queda en blanco.
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  };
 
   const quitar = (i: number) =>
     setFilas((prev) => prev.filter((_, j) => j !== i));
@@ -362,26 +414,42 @@ export const CargaMasivaModal = ({
           <div className="flex max-h-72 flex-col gap-2 overflow-y-auto pr-1">
             {filas.map((f, i) => (
               <div
-                key={`${f.archivo.name}-${i}`}
+                key={f.id}
                 className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5"
               >
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-ink">
-                    {f.archivo.name}
+                  {/* El nombre es editable: se escribe encima y listo. */}
+                  <input
+                    value={f.nombre}
+                    onChange={(e) => renombrar(i, e.target.value)}
+                    aria-label="Nombre del archivo"
+                    disabled={f.estado === 'subido'}
+                    className="w-full truncate rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-sm font-semibold text-ink outline-none transition-colors hover:border-line focus:border-brand-600 focus:bg-surface disabled:hover:border-transparent"
+                  />
+                  <span className="mt-0.5 block px-1.5 text-xs text-ink-soft">
+                    {/* Lo más útil primero: de quién parece ser. */}
+                    {!f.empleadoId && f.pista?.nombre ? (
+                      <>
+                        El recibo dice{' '}
+                        <strong className="font-semibold text-ink">
+                          {f.pista.nombre}
+                        </strong>
+                        {f.pista.documentos[0]
+                          ? ` · ${f.pista.documentos[0]}, que no está en el sistema`
+                          : ''}
+                      </>
+                    ) : !f.empleadoId && f.pista?.documentos[0] ? (
+                      `Leímos ${f.pista.documentos[0]}, que no es de nadie cargado`
+                    ) : f.lectura === 'ilegible' ? (
+                      'No pudimos leer el texto del PDF (¿está escaneado?)'
+                    ) : f.vieneDe ? (
+                      `${f.paginas} ${f.paginas === 1 ? 'página' : 'páginas'} de ${f.vieneDe}`
+                    ) : f.lectura === 'ok' ? (
+                      'Identificado por el CUIL impreso en el recibo'
+                    ) : (
+                      'Asignalo a mano'
+                    )}
                   </span>
-                  {(f.vieneDe || f.lectura) && (
-                    <span className="block truncate text-xs text-ink-soft">
-                      {f.vieneDe && f.empleadoId
-                        ? `Recortado de ${f.vieneDe}`
-                        : f.vieneDe
-                          ? `${f.paginas} ${f.paginas === 1 ? 'página recortada' : 'páginas recortadas'} de ${f.vieneDe}, sin colaborador reconocido`
-                          : f.lectura === 'ok'
-                            ? 'Identificado por el CUIL impreso en el recibo'
-                            : f.lectura === 'ilegible'
-                              ? 'No pudimos leer el texto del PDF (¿está escaneado?)'
-                              : 'No reconocimos a nadie de la empresa adentro'}
-                    </span>
-                  )}
                 </span>
                 <div className="w-full sm:w-56">
                   <CampoSelect
@@ -424,12 +492,21 @@ export const CargaMasivaModal = ({
                     Listo
                   </span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => ver(f)}
+                  aria-label={`Ver ${f.nombre}`}
+                  title="Abrir el PDF para ver de quién es"
+                  className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-paper hover:text-ink sm:h-9 sm:w-9"
+                >
+                  <IconEye size={16} />
+                </button>
                 {f.estado !== 'subido' && (
                   <button
                     type="button"
                     onClick={() => quitar(i)}
                     aria-label="Quitar archivo"
-                    className="cursor-pointer text-ink-soft transition-colors hover:text-red-600"
+                    className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600 sm:h-9 sm:w-9"
                   >
                     <IconTrash size={16} />
                   </button>

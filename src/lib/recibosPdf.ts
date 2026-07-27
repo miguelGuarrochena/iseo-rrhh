@@ -63,6 +63,32 @@ export const dnisEnTexto = (texto: string): string[] => {
   return [...encontrados];
 };
 
+/**
+ * Etiquetas con las que los sistemas de sueldos rotulan a la persona.
+ * Se corta en dos espacios seguidos o en la etiqueta siguiente, porque
+ * el texto extraído del PDF viene todo en una línea.
+ */
+const RE_NOMBRE =
+  /(?:apellido\s*y\s*nombres?|apellido\/nombre|nombre\s*y\s*apellido|empleado|trabajador|nombre)\s*[:\-]\s*([^:]{3,60}?)(?:\s{2,}|\s+(?:cuil|cuit|dni|documento|legajo|categor|secci|fecha|ingreso|periodo|período)\b|$)/i;
+
+/**
+ * Nombre de la persona tal como figura impreso, si se puede leer.
+ *
+ * Sirve para que RRHH sepa de quién es una página que no pudimos
+ * atribuir: sin esto sólo ve "sin identificar" y tiene que abrir el PDF.
+ */
+export const nombreEnTexto = (texto: string): string | null => {
+  const m = texto.match(RE_NOMBRE);
+  if (!m) return null;
+  const limpio = m[1]
+    .replace(/\s+/g, ' ')
+    .replace(/[.,;]+$/, '')
+    .trim();
+  // Descarta capturas que son sólo números o quedaron demasiado cortas.
+  if (limpio.length < 3 || !/[a-záéíóúñ]/i.test(limpio)) return null;
+  return limpio;
+};
+
 export type MotivoSinDueno =
   | 'sin_documento' // no se leyó ningún CUIL/DNI (¿PDF escaneado?)
   | 'desconocido' // se leyó un documento, pero no es de nadie de la empresa
@@ -129,12 +155,25 @@ export const duenoDePagina = (
   return { ok: false, motivo: 'desconocido' };
 };
 
+/**
+ * Lo que se pudo leer de un tramo que no se supo atribuir. Es lo que le
+ * permite a RRHH resolverlo sin abrir el PDF.
+ */
+export interface PistaTramo {
+  /** Nombre impreso en el recibo, si se pudo leer. */
+  nombre?: string;
+  /** CUIL/DNI encontrados que no son de nadie cargado en el sistema. */
+  documentos: string[];
+}
+
 /** Un tramo de páginas contiguas que pertenecen a la misma persona. */
 export interface TramoRecibo {
   empleadoId: string | null;
   /** Índices de página, base 0, en el orden del PDF original. */
   paginas: number[];
   motivo?: MotivoSinDueno;
+  /** Sólo para los tramos sin dueño: de quién parece ser. */
+  pista?: PistaTramo;
 }
 
 /**
@@ -175,10 +214,30 @@ export const agruparPorDueno = (
     // duplicado, que muchas veces no vuelve a imprimir el CUIL.
     if (dueno.motivo === 'sin_documento' && ultimo) {
       ultimo.paginas.push(i);
+      // El duplicado sí suele repetir el nombre: si el tramo quedó sin
+      // dueño y todavía no sabíamos de quién era, sirve como pista.
+      if (ultimo.pista && !ultimo.pista.nombre) {
+        ultimo.pista.nombre = nombreEnTexto(texto) ?? undefined;
+      }
       return;
     }
 
-    tramos.push({ empleadoId: null, paginas: [i], motivo: dueno.motivo });
+    // Sin dueño: se guarda lo que se haya podido leer para mostrarlo.
+    const cuitEmpresa = soloDigitosDoc(cuitEmpleador ?? '');
+    tramos.push({
+      empleadoId: null,
+      paginas: [i],
+      motivo: dueno.motivo,
+      pista: {
+        nombre: nombreEnTexto(texto) ?? undefined,
+        documentos: [
+          ...cuilsEnTexto(texto).filter((c) => c !== cuitEmpresa),
+          ...dnisEnTexto(texto).filter(
+            (d) => !cuitEmpresa || !cuitEmpresa.includes(d)
+          ),
+        ],
+      },
+    });
   });
 
   return tramos;
