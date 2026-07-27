@@ -179,6 +179,26 @@ describe('clasificarArchivo', () => {
     const t = agruparPorDueno(['CUIL 20-11111111-2'], equipo, CUIT_EMPRESA);
     expect(clasificarArchivo(t)).toEqual({ tipo: 'desconocido' });
   });
+
+  // Este apareció probando en el navegador con un PDF de tres personas
+  // donde sólo una tenía el CUIL cargado. Se clasificaba como individual
+  // y las páginas de los otros dos viajaban pegadas a su recibo.
+  it('una persona reconocida + páginas ajenas NO es individual', () => {
+    const t = agruparPorDueno(
+      [pagAna, 'CUIL 20-44555666-7 FANTASMA, FULANO'],
+      equipo,
+      CUIT_EMPRESA
+    );
+    expect(clasificarArchivo(t)).toEqual({ tipo: 'consolidado', personas: 1 });
+  });
+
+  it('sigue siendo individual si todas las páginas son de esa persona', () => {
+    const t = agruparPorDueno([pagAna, 'DUPLICADO'], equipo, CUIT_EMPRESA);
+    expect(clasificarArchivo(t)).toEqual({
+      tipo: 'individual',
+      empleadoId: 'ana',
+    });
+  });
 });
 
 // Casos que aparecieron al probar contra PDFs generados de verdad, no

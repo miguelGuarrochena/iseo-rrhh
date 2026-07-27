@@ -338,11 +338,12 @@ export const CargaMasivaModal = ({
           <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs text-emerald-900">
             <span className="font-bold">
               {nominasPartidas.size === 1
-                ? 'Detectamos un archivo con la nómina completa.'
-                : `Detectamos ${nominasPartidas.size} archivos con la nómina completa.`}
+                ? 'Detectamos un archivo con recibos de más de una persona.'
+                : `Detectamos ${nominasPartidas.size} archivos con recibos de más de una persona.`}
             </span>{' '}
-            Lo cortamos en {partidos} recibos, uno por persona, así cada una ve
-            solo el suyo.
+            {partidos === 1
+              ? 'Recortamos el recibo de quien pudimos identificar; el resto de las páginas queda sin subir.'
+              : `Lo cortamos en ${partidos} recibos, uno por persona, así cada una ve solo el suyo.`}
           </p>
         )}
 

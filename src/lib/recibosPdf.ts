@@ -193,14 +193,24 @@ export type TipoDeArchivo =
 /**
  * Qué clase de archivo nos dieron. Es la pregunta que la pantalla
  * necesita responder antes de dejar subir nada.
+ *
+ * Un archivo es `individual` sólo si **todas** sus páginas son de la
+ * misma persona. Alcanza con que haya un tramo sin dueño para tratarlo
+ * como consolidado y cortarlo: si no, esas páginas viajarían pegadas al
+ * recibo de quien sí reconocimos, y esa persona terminaría viendo el
+ * sueldo de un compañero que el sistema no supo identificar. Es el caso
+ * exacto que apareció al probar con un PDF de tres personas donde sólo
+ * una tenía el CUIL cargado en su ficha.
  */
 export const clasificarArchivo = (tramos: TramoRecibo[]): TipoDeArchivo => {
   const personas = new Set(
     tramos.map((t) => t.empleadoId).filter((x): x is string => Boolean(x))
   );
+  const hayPaginasSinDuenio = tramos.some((t) => !t.empleadoId);
 
-  if (personas.size > 1)
+  if (personas.size > 1 || (personas.size === 1 && hayPaginasSinDuenio)) {
     return { tipo: 'consolidado', personas: personas.size };
+  }
   if (personas.size === 1) {
     return { tipo: 'individual', empleadoId: [...personas][0] };
   }
