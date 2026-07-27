@@ -62,6 +62,17 @@ const RecibosPage = () => {
   // preguntar "¿y esto qué firmó en su momento?".
   const [archivados, setArchivados] = useState<ReciboSueldo[]>([]);
   const [versionesDe, setVersionesDe] = useState<ReciboSueldo | null>(null);
+  // Copia que sobrevive al cierre: si el contenido se leyera de
+  // `versionesDe`, al cerrar se vaciaría de golpe y durante la animación
+  // de salida se vería un cuadro con el título y nada adentro.
+  const [versionesTexto, setVersionesTexto] = useState<ReciboSueldo | null>(
+    null
+  );
+
+  const abrirVersiones = (r: ReciboSueldo) => {
+    setVersionesTexto(r);
+    setVersionesDe(r);
+  };
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [aFirmar, setAFirmar] = useState<ReciboSueldo | null>(null);
   const [firmando, setFirmando] = useState(false);
@@ -157,7 +168,7 @@ const RecibosPage = () => {
       <Boton
         variante="secundario"
         tamano="sm"
-        onClick={() => setVersionesDe(r)}
+        onClick={() => abrirVersiones(r)}
         aria-label={`Ver versiones anteriores del recibo de ${formatearPeriodo(r.periodo)}`}
       >
         <IconHistory size={14} />
@@ -278,9 +289,11 @@ const RecibosPage = () => {
       detalle: `Vas a eliminar el recibo de ${formatearPeriodo(r.periodo)}${
         esEmpleado ? '' : ` de ${nombreEmpleado(r.empleadoId)}`
       }.${
-        previas.length > 0
-          ? ` Se borran también las ${previas.length} versión${previas.length === 1 ? '' : 'es'} anterior${previas.length === 1 ? '' : 'es'}, con sus firmas.`
-          : ''
+        previas.length === 0
+          ? ''
+          : previas.length === 1
+            ? ' Se borra también la versión anterior, con su firma.'
+            : ` Se borran también las ${previas.length} versiones anteriores, con sus firmas.`
       } Esta acción no se puede deshacer.`,
       confirmar: 'Eliminar',
       peligrosa: true,
@@ -700,18 +713,20 @@ const RecibosPage = () => {
         centered
         styles={{ title: { fontWeight: 800 } }}
       >
-        {versionesDe && (
+        {versionesTexto && (
           <div className="flex flex-col gap-3">
             <p className="text-sm leading-relaxed text-ink-soft">
-              {esEmpleado ? '' : `${nombreEmpleado(versionesDe.empleadoId)} — `}
+              {esEmpleado
+                ? ''
+                : `${nombreEmpleado(versionesTexto.empleadoId)} — `}
               <strong className="text-ink">
-                {tipoReciboLabels[versionesDe.tipo]} de{' '}
-                {formatearPeriodo(versionesDe.periodo)}
+                {tipoReciboLabels[versionesTexto.tipo]} de{' '}
+                {formatearPeriodo(versionesTexto.periodo)}
               </strong>
               . Cada versión guarda el PDF y la firma tal como estaban cuando se
               la reemplazó.
             </p>
-            {versionesPrevias(versionesDe).map((v, i, arr) => (
+            {versionesPrevias(versionesTexto).map((v, i, arr) => (
               <div
                 key={v.id}
                 className="flex flex-col gap-2 rounded-xl border border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
@@ -740,7 +755,7 @@ const RecibosPage = () => {
               </div>
             ))}
             <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
-              La versión {versionesPrevias(versionesDe).length + 1} es la
+              La versión {versionesPrevias(versionesTexto).length + 1} es la
               vigente, la que figura en la lista.
             </p>
           </div>
