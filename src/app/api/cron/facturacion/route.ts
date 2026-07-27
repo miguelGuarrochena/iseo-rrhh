@@ -15,14 +15,15 @@ import { formatearPesos } from '@/lib/formato';
  * Vencimiento: día del mes DIA_VENCIMIENTO_FACTURACION (default 10).
  * Aviso previo: DIAS_AVISO_PREVIO días antes (default 3).
  *
- * Seguridad: si CRON_SECRET está seteada, exige "Authorization: Bearer …".
+ * Seguridad: exige CRON_SECRET y "Authorization: Bearer …".
+ * Si falta el secret en el entorno, responde 401 (fail closed).
  */
 export const POST = (req: Request) => procesar(req);
 export const GET = (req: Request) => procesar(req);
 
 const procesar = async (req: Request) => {
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get('authorization') !== `Bearer ${secret}`) {
+  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
   }
 

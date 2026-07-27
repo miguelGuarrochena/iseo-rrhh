@@ -3,6 +3,10 @@ import { consultarGemini, IANoConfigurada } from '@/lib/ia/gemini';
 import { usuarioDesdeToken } from '@/lib/api/autenticar';
 import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 
+/** Tope de contexto que aceptamos del cliente (anti abuso / costo). */
+const MAX_CONTEXTO = 12_000;
+const MAX_PREGUNTA = 1_000;
+
 /**
  * Asistente del convenio colectivo. Recibe la pregunta y el contexto
  * (párrafos relevantes que el cliente ya recuperó del convenio) y responde
@@ -27,8 +31,12 @@ export async function POST(req: NextRequest) {
   let contexto = '';
   try {
     const body = await req.json();
-    pregunta = String(body?.pregunta ?? '').trim();
-    contexto = String(body?.contexto ?? '').trim();
+    pregunta = String(body?.pregunta ?? '')
+      .trim()
+      .slice(0, MAX_PREGUNTA);
+    contexto = String(body?.contexto ?? '')
+      .trim()
+      .slice(0, MAX_CONTEXTO);
   } catch {
     return NextResponse.json({ error: 'Cuerpo inválido.' }, { status: 400 });
   }

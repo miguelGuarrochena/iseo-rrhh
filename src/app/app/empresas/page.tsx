@@ -32,6 +32,12 @@ const EmpresasPage = () => {
 
   useEffect(cargar, [cargar]);
 
+  useEffect(() => {
+    if (usuario && usuario.rol !== 'superadmin') {
+      router.replace('/');
+    }
+  }, [usuario, router]);
+
   const filtradas = empresas.filter(({ empresa }) => {
     if (estado && empresa.estado !== estado) return false;
     const q = busqueda.trim().toLowerCase();
@@ -41,12 +47,8 @@ const EmpresasPage = () => {
       .includes(q);
   });
 
-  if (usuario?.rol !== 'superadmin') {
-    return (
-      <p className="text-sm text-ink-soft">
-        No tenés permisos para ver esta sección.
-      </p>
-    );
+  if (!usuario || usuario.rol !== 'superadmin') {
+    return null;
   }
 
   const crear = async (datos: NuevaEmpresa) => {

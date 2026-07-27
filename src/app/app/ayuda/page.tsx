@@ -42,7 +42,7 @@ const AyudaPage = () => {
     try {
       const res = await fetchProtegido('/api/ayuda', {
         method: 'POST',
-        body: JSON.stringify({ pregunta: texto, contexto, rol }),
+        body: JSON.stringify({ pregunta: texto, contexto }),
       });
       const data = await res.json();
       if (!res.ok) {

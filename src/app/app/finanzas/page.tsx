@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   IconAlertTriangle,
   IconCash,
@@ -68,6 +69,7 @@ const ultimosPeriodos = (): string[] => {
 
 const FinanzasPage = () => {
   const { usuario } = useAuth();
+  const router = useRouter();
   const [periodo, setPeriodo] = useState(periodoActual);
   const [resumen, setResumen] = useState<ResumenFinanzas | null>(null);
   const [movimientos, setMovimientos] = useState<MovimientoFinanciero[]>([]);
@@ -91,14 +93,13 @@ const FinanzasPage = () => {
     );
   }, []);
 
-  if (!usuario) return null;
-  if (usuario.rol !== 'superadmin') {
-    return (
-      <p className="text-sm text-ink-soft">
-        No tenés permisos para ver esta sección.
-      </p>
-    );
-  }
+  useEffect(() => {
+    if (usuario && usuario.rol !== 'superadmin') {
+      router.replace('/');
+    }
+  }, [usuario, router]);
+
+  if (!usuario || usuario.rol !== 'superadmin') return null;
 
   const ingresos = movimientos.filter((m) => m.tipo === 'ingreso');
   const gastos = movimientos.filter((m) => m.tipo === 'gasto');

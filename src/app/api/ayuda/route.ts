@@ -3,13 +3,18 @@ import { consultarGemini, IANoConfigurada } from '@/lib/ia/gemini';
 import { usuarioDesdeToken } from '@/lib/api/autenticar';
 import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 
+/** Tope de contexto que aceptamos del cliente (anti abuso / costo). */
+const MAX_CONTEXTO = 12_000;
+const MAX_PREGUNTA = 1_000;
+
 /**
  * Asistente de ayuda de ISEO RH. Responde dudas de uso de la app basándose
  * en la base de conocimiento (FAQ) que el cliente envía como contexto.
  * La API key de Gemini vive solo en el servidor (ver src/lib/ia/gemini.ts).
  *
  * Requiere sesión (consume la API de Gemini, que tiene costo) y tiene un
- * límite de uso por usuario para evitar abuso.
+ * límite de uso por usuario para evitar abuso. El rol se toma de la sesión,
+ * no del body.
  */
 export async function POST(req: NextRequest) {
   const usuario = await usuarioDesdeToken(req);
@@ -25,12 +30,14 @@ export async function POST(req: NextRequest) {
 
   let pregunta = '';
   let contexto = '';
-  let rol = '';
   try {
     const body = await req.json();
-    pregunta = String(body?.pregunta ?? '').trim();
-    contexto = String(body?.contexto ?? '').trim();
-    rol = String(body?.rol ?? '').trim();
+    pregunta = String(body?.pregunta ?? '')
+      .trim()
+      .slice(0, MAX_PREGUNTA);
+    contexto = String(body?.contexto ?? '')
+      .trim()
+      .slice(0, MAX_CONTEXTO);
   } catch {
     return NextResponse.json({ error: 'Cuerpo inválido.' }, { status: 400 });
   }
@@ -45,7 +52,7 @@ export async function POST(req: NextRequest) {
     'Respondé SOLO sobre cómo usar la aplicación, basándote en la siguiente',
     'guía. Si la pregunta no está cubierta, decilo y sugerí contactar a RRHH o',
     'a soporte. Sé breve, claro y en español rioplatense.',
-    rol ? `\nRol de quien pregunta: ${rol}.` : '',
+    usuario.rol ? `\nRol de quien pregunta: ${usuario.rol}.` : '',
     '',
     '=== GUÍA DE AYUDA ===',
     contexto || '(sin guía)',
