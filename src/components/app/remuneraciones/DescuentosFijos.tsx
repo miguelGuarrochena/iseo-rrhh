@@ -152,8 +152,8 @@ export const DescuentosFijos = ({
       )}
 
       {agregando && (
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <div className="min-w-40 flex-1">
+        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="w-full sm:min-w-40 sm:flex-1">
             <Campo
               etiqueta="Concepto"
               value={concepto}
@@ -161,7 +161,7 @@ export const DescuentosFijos = ({
               placeholder="Sindicato"
             />
           </div>
-          <div className="w-36">
+          <div className="w-full sm:w-36">
             <CampoSelect
               etiqueta="Tipo"
               value={modo}
@@ -172,7 +172,7 @@ export const DescuentosFijos = ({
               ]}
             />
           </div>
-          <div className="w-28">
+          <div className="w-full sm:w-28">
             <Campo
               etiqueta={modo === 'porcentaje' ? 'Porcentaje' : 'Monto'}
               type="number"

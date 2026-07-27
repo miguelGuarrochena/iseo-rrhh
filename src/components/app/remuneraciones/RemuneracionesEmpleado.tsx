@@ -94,7 +94,7 @@ export const RemuneracionesEmpleado = ({
         </p>
       ) : (
         <div className="mt-4 overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[38rem] text-sm">
             <thead>
               <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wider text-ink-soft">
                 <th className="pb-2 pr-4">Período</th>
@@ -133,7 +133,7 @@ export const RemuneracionesEmpleado = ({
                         type="button"
                         onClick={(e) => void borrar(r, e)}
                         aria-label="Eliminar"
-                        className="cursor-pointer rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600"
+                        className="cursor-pointer rounded-lg inline-flex h-11 w-11 items-center justify-center sm:h-9 sm:w-9 text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600"
                       >
                         <IconTrash size={16} />
                       </button>

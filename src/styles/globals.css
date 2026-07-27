@@ -5,8 +5,14 @@
 :root {
   --font-jakarta: var(
     --font-jakarta-next,
-    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif
+    'Plus Jakarta Sans',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif
   );
   --paper: #f1f4fa;
   --ink: #2f2e3a;
@@ -302,4 +308,50 @@ section[id] {
 /* Línea/decoración de subrayado del acento. */
 .text-balance {
   text-wrap: balance;
+}
+
+/* ------------------------------------------------------------------
+   Modales en pantalla chica
+
+   Los 28 modales de la app usan el default de Mantine: centrado, con
+   márgenes y alto máximo. En un teléfono eso deja el contenido metido
+   en una cajita con poco aire, y en los modales largos (carga masiva de
+   recibos, alta de colaborador) el botón de acción queda fuera de vista
+   sin que se note que hay que scrollear.
+
+   Debajo de 640px se los lleva al borde inferior, ocupando el ancho
+   completo y hasta el 90% del alto: el patrón de "hoja" que la gente ya
+   conoce del sistema operativo, con el contenido scrolleando adentro.
+   ------------------------------------------------------------------ */
+@media (max-width: 639px) {
+  .app-scope .mantine-Modal-inner,
+  body:has(.app-scope) .mantine-Modal-inner {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .app-scope .mantine-Modal-content,
+  body:has(.app-scope) .mantine-Modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90dvh;
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+
+  /* El encabezado queda fijo para no perder el título ni la X al
+     scrollear un formulario largo. */
+  .app-scope .mantine-Modal-header,
+  body:has(.app-scope) .mantine-Modal-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  /* Aire extra abajo: la barra de navegación inferior y la barra del
+     navegador se comen los últimos píxeles. */
+  .app-scope .mantine-Modal-body,
+  body:has(.app-scope) .mantine-Modal-body {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
 }

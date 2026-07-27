@@ -304,7 +304,7 @@ const FichajePage = () => {
 
       {!esEmpleado && (
         <>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <StatCard
               etiqueta="Presentes"
               valor={`${idsQueFicharon.size}/${empleados.length || '—'}`}

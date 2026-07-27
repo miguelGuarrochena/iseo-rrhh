@@ -128,7 +128,7 @@ export const ListaItem = ({
       </div>
       {extremo && (
         <div
-          className="flex shrink-0 items-center justify-end"
+          className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end"
           onClick={(e) => {
             // Si el extremo tiene controles (botones, selects), su click
             // no debe disparar la navegación de la fila.

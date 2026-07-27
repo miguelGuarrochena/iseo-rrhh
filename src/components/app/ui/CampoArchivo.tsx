@@ -126,7 +126,7 @@ export const CampoArchivo = ({
             type="button"
             onClick={limpiar}
             aria-label="Quitar archivo"
-            className="shrink-0 cursor-pointer rounded-lg border-0 bg-transparent p-1 text-ink-soft transition-colors hover:text-ink"
+            className="shrink-0 cursor-pointer rounded-lg border-0 bg-transparent inline-flex h-11 w-11 items-center justify-center sm:h-9 sm:w-9 text-ink-soft transition-colors hover:text-ink"
           >
             <IconX size={16} />
           </button>

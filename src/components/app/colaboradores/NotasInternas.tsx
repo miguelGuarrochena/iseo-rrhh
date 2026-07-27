@@ -139,7 +139,7 @@ export const NotasInternas = ({ empleadoId }: NotasInternasProps) => {
                 type="button"
                 onClick={() => void quitar(n.id)}
                 aria-label="Eliminar nota"
-                className="shrink-0 cursor-pointer rounded-lg border-0 bg-transparent p-1 text-ink-soft transition-colors hover:text-red-600"
+                className="shrink-0 cursor-pointer rounded-lg border-0 bg-transparent inline-flex h-11 w-11 items-center justify-center sm:h-9 sm:w-9 text-ink-soft transition-colors hover:text-red-600"
               >
                 <IconTrash size={16} />
               </button>

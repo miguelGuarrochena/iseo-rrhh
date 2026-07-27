@@ -106,7 +106,7 @@ export const Selector = ({
       </button>
 
       {abierto && (
-        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-64 min-w-max overflow-y-auto rounded-xl border border-line bg-surface py-1.5">
+        <div className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-64 min-w-max max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-line bg-surface py-1.5">
           {opciones.map((o, i) => {
             const elegida = o.valor === valor;
             return (

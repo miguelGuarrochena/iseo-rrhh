@@ -20,9 +20,14 @@ interface BotonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const base =
   'inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border-0 font-semibold transition-all duration-300 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0';
 
+/**
+ * En mobile se fuerza una altura mínima cómoda para el pulgar (44px en
+ * `md`, 40px en `sm`; el mínimo que recomiendan Apple y Google es 44).
+ * Desde `sm:` se vuelve a la altura natural, que con mouse se ve mejor.
+ */
 const tamanos: Record<Tamano, string> = {
-  md: 'px-5 py-2.5 text-[0.95rem]',
-  sm: 'px-3.5 py-1.5 text-xs',
+  md: 'min-h-11 px-5 py-2.5 text-[0.95rem] sm:min-h-0',
+  sm: 'min-h-10 px-3.5 py-1.5 text-xs sm:min-h-0',
 };
 
 /**

@@ -409,7 +409,7 @@ const VistaAdmin = () => {
           </div>
         ) : (
           <div className="mt-4 overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[34rem] text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wider text-ink-soft">
                   <th className="pb-2.5 pr-4">Colaborador</th>

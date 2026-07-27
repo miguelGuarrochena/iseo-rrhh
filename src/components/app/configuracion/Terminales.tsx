@@ -122,7 +122,7 @@ export const Terminales = () => {
                 type="button"
                 onClick={() => void quitar(t)}
                 aria-label="Quitar terminal"
-                className="shrink-0 cursor-pointer rounded-lg border-0 bg-transparent p-1 text-ink-soft transition-colors hover:text-red-600"
+                className="shrink-0 cursor-pointer rounded-lg border-0 bg-transparent inline-flex h-11 w-11 items-center justify-center sm:h-9 sm:w-9 text-ink-soft transition-colors hover:text-red-600"
               >
                 <IconTrash size={16} />
               </button>
