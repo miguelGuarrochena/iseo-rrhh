@@ -16,7 +16,8 @@ import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Panel } from '@/components/app/Panel';
 import { MiniCalendario } from '@/components/app/agenda/MiniCalendario';
 import { Boton } from '@/components/app/ui/Boton';
-import { CampoSelect } from '@/components/app/ui/Campo';
+import { Campo, CampoSelect, CampoTextarea } from '@/components/app/ui/Campo';
+import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones, Selector } from '@/components/app/ui/Selector';
 import { formatearFecha, hoyISO } from '@/lib/fechas';
@@ -37,9 +38,6 @@ const tipoEventoIconos: Record<TipoEvento, Icon> = {
   vencimiento: IconAlertTriangle,
 };
 
-const campoClase =
-  'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600';
-
 const AgendaPage = () => {
   const { usuario, rolEfectivo } = useAuth();
   const puedeCrear =
@@ -55,6 +53,7 @@ const AgendaPage = () => {
   const [descripcion, setDescripcion] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errores, setErrores] = useState<Record<string, string>>({});
 
   const cargar = useCallback(() => {
     void getEventosProximos().then(setEventos);
@@ -73,10 +72,14 @@ const AgendaPage = () => {
 
   const crear = async (e: FormEvent) => {
     e.preventDefault();
-    if (!titulo.trim()) {
-      setError('El título es obligatorio.');
-      return;
-    }
+    const nuevos = juntarErrores({
+      titulo: validarRequerido(titulo, 'El título'),
+      // Un evento sin fecha no se puede agendar, y el campo se puede
+      // vaciar a mano; antes se guardaba con fecha vacía.
+      fecha: validarRequerido(fecha, 'La fecha'),
+    });
+    setErrores(nuevos);
+    if (Object.keys(nuevos).length > 0) return;
     setError(null);
     setEnviando(true);
     await crearEvento({
@@ -167,15 +170,13 @@ const AgendaPage = () => {
         styles={{ title: { fontWeight: 800 } }}
       >
         <form onSubmit={crear} className="flex flex-col gap-3.5">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">Título</span>
-            <input
-              value={titulo}
-              onChange={(e) => setTitulo(e.target.value)}
-              placeholder="Capacitación de seguridad…"
-              className={campoClase}
-            />
-          </label>
+          <Campo
+            etiqueta="Título *"
+            value={titulo}
+            onChange={(e) => setTitulo(e.target.value)}
+            error={errores.titulo}
+            placeholder="Capacitación de seguridad…"
+          />
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <CampoSelect
@@ -184,21 +185,21 @@ const AgendaPage = () => {
               onChange={(v) => setTipo(v as TipoEvento)}
               opciones={aOpciones(tipoEventoLabels)}
             />
-            <CampoFecha etiqueta="Fecha" value={fecha} onChange={setFecha} />
+            <CampoFecha
+              etiqueta="Fecha *"
+              value={fecha}
+              onChange={setFecha}
+              error={errores.fecha}
+            />
           </div>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">
-              Descripción (opcional)
-            </span>
-            <textarea
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              rows={2}
-              placeholder="Detalle, horario, lugar…"
-              className={campoClase}
-            />
-          </label>
+          <CampoTextarea
+            etiqueta="Descripción (opcional)"
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+            rows={2}
+            placeholder="Detalle, horario, lugar…"
+          />
 
           {error && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">

@@ -34,7 +34,9 @@ import {
 } from '@/lib/services/rrhh';
 import { CargaMasivaModal } from '@/components/app/recibos/CargaMasivaModal';
 import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
-import { Empleado, ReciboSueldo } from '@/types/rrhh';
+import { Empleado, ReciboSueldo, TipoRecibo } from '@/types/rrhh';
+import { tipoReciboLabels } from '@/lib/etiquetas';
+import { aOpciones } from '@/components/app/ui/Selector';
 
 const FirmaBadge = ({ recibo }: { recibo: ReciboSueldo }) =>
   recibo.estadoFirma === 'firmado' ? (
@@ -63,6 +65,7 @@ const RecibosPage = () => {
     new Date().toISOString().slice(0, 7)
   );
   const [cargaArchivo, setCargaArchivo] = useState<File | null>(null);
+  const [cargaTipo, setCargaTipo] = useState<TipoRecibo>('mensual');
   const [cargaPublicar, setCargaPublicar] = useState(true);
   const [cargaError, setCargaError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -116,7 +119,7 @@ const RecibosPage = () => {
     if (!url) return;
     const a = document.createElement('a');
     a.href = url;
-    a.download = `recibo-${recibo.periodo}.pdf`;
+    a.download = `recibo-${recibo.periodo}-${recibo.tipo}.pdf`;
     a.rel = 'noopener';
     document.body.appendChild(a);
     a.click();
@@ -132,6 +135,34 @@ const RecibosPage = () => {
       setCargaError('Adjuntá el PDF del recibo.');
       return;
     }
+    // Cargar sobre un recibo ya firmado reemplaza el PDF y deja la
+    // constancia de firma apuntando a otro archivo. Se avisa y se corta.
+    const existente = recibos.find(
+      (r) =>
+        r.empleadoId === cargaEmpleado &&
+        r.periodo === cargaPeriodo &&
+        r.tipo === cargaTipo
+    );
+    if (existente) {
+      const ok = await confirmar({
+        titulo: 'Rectificar el recibo existente',
+        detalle: (
+          <>
+            {nombreEmpleado(cargaEmpleado)} ya tiene un{' '}
+            <strong className="font-semibold text-ink">
+              {tipoReciboLabels[cargaTipo].toLowerCase()}
+            </strong>{' '}
+            de {formatearPeriodo(cargaPeriodo)}
+            {existente.estadoFirma === 'firmado' ? ', y ya lo firmó' : ''}. El
+            nuevo lo reemplaza y el anterior queda archivado con su firma, como
+            respaldo. {nombreEmpleado(cargaEmpleado)} va a tener que firmar el
+            nuevo.
+          </>
+        ),
+        confirmar: 'Rectificar',
+      });
+      if (!ok) return;
+    }
     setCargaError(null);
     setCargando(true);
     try {
@@ -139,7 +170,8 @@ const RecibosPage = () => {
         cargaEmpleado,
         cargaPeriodo,
         cargaArchivo,
-        cargaPublicar
+        cargaPublicar,
+        cargaTipo
       );
       avisoExito(
         'Recibo cargado',
@@ -334,7 +366,7 @@ const RecibosPage = () => {
                 key={r.id}
                 icono={IconFileCertificate}
                 principal={`${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`}
-                secundario="El colaborador todavía no lo ve"
+                secundario={`${tipoReciboLabels[r.tipo]} · el colaborador todavía no lo ve`}
                 extremo={
                   <div className="flex shrink-0 items-center gap-2">
                     <Boton
@@ -391,7 +423,7 @@ const RecibosPage = () => {
                     ? formatearPeriodo(r.periodo)
                     : `${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`
                 }
-                secundario="Recibo de sueldo"
+                secundario={tipoReciboLabels[r.tipo]}
                 extremo={
                   <div className="flex shrink-0 items-center gap-2">
                     <FirmaBadge recibo={r} />
@@ -464,7 +496,7 @@ const RecibosPage = () => {
                   ? formatearPeriodo(r.periodo)
                   : `${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`
               }
-              secundario="Recibo de sueldo firmado"
+              secundario={`${tipoReciboLabels[r.tipo]} · firmado`}
               extremo={
                 <div className="flex shrink-0 items-center gap-2">
                   <FirmaBadge recibo={r} />
@@ -525,6 +557,13 @@ const RecibosPage = () => {
             value={cargaPeriodo}
             onChange={setCargaPeriodo}
           />
+          <CampoSelect
+            etiqueta="Concepto *"
+            value={cargaTipo}
+            onChange={(v) => setCargaTipo(v as TipoRecibo)}
+            opciones={aOpciones(tipoReciboLabels)}
+            ayuda="Un mismo mes puede tener el sueldo y el aguinaldo, por ejemplo."
+          />
           <CampoArchivo
             etiqueta="PDF *"
             accept=".pdf,application/pdf"
@@ -564,6 +603,7 @@ const RecibosPage = () => {
       <CargaMasivaModal
         abierto={masivaAbierta}
         empleados={empleados}
+        recibosExistentes={recibos}
         onCerrar={() => setMasivaAbierta(false)}
         onCargado={cargar}
       />

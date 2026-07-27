@@ -159,6 +159,10 @@ export const abrirAdjuntoAusencia = elegir(
   real.abrirAdjuntoAusencia,
   demo.abrirAdjuntoAusencia
 );
+export const eliminarAusencia = elegir(
+  real.eliminarAusencia,
+  demo.eliminarAusencia
+);
 export const resolverAusencia = elegir(
   real.resolverAusencia,
   demo.resolverAusencia

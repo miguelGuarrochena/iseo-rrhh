@@ -7,7 +7,8 @@ import { IconMessages, IconPlus } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
-import { CampoSelect } from '@/components/app/ui/Campo';
+import { Campo, CampoSelect, CampoTextarea } from '@/components/app/ui/Campo';
+import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
@@ -56,6 +57,7 @@ const ComunicacionesPage = () => {
   const [cuerpo, setCuerpo] = useState('');
   const [empleadoId, setEmpleadoId] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [errores, setErrores] = useState<Record<string, string>>({});
 
   const cargar = useCallback(() => {
     if (!usuario) return;
@@ -85,10 +87,17 @@ const ComunicacionesPage = () => {
   const crear = async (e: FormEvent) => {
     e.preventDefault();
     const empId = esEmpleado ? usuario?.empleadoId : empleadoId;
-    if (!empId || !asunto.trim() || !cuerpo.trim()) {
-      avisoError('Completá los datos', 'Asunto y mensaje son obligatorios.');
-      return;
-    }
+    // El error va en cada campo, no en un aviso flotante: así se ve cuál
+    // falta sin tener que adivinar.
+    const nuevos = juntarErrores({
+      empleado: esEmpleado
+        ? null
+        : validarRequerido(empId ?? '', 'El colaborador'),
+      asunto: validarRequerido(asunto, 'El asunto'),
+      cuerpo: validarRequerido(cuerpo, 'El mensaje'),
+    });
+    setErrores(nuevos);
+    if (Object.keys(nuevos).length > 0 || !empId) return;
     setEnviando(true);
     try {
       await crearComunicacion({
@@ -100,6 +109,7 @@ const ComunicacionesPage = () => {
       avisoExito('Enviado', 'Tu mensaje quedó registrado.');
       setAsunto('');
       setCuerpo('');
+      setErrores({});
       close();
       cargar();
     } catch (err) {
@@ -253,9 +263,10 @@ const ComunicacionesPage = () => {
         <form onSubmit={crear} className="flex flex-col gap-3.5">
           {!esEmpleado && (
             <CampoSelect
-              etiqueta="Colaborador"
+              etiqueta="Colaborador *"
               value={empleadoId}
               onChange={setEmpleadoId}
+              error={errores.empleado}
               opciones={[
                 { valor: '', etiqueta: 'Elegí…' },
                 ...empleados.map((e) => ({
@@ -271,24 +282,19 @@ const ComunicacionesPage = () => {
             onChange={(v) => setTipo(v as TipoComunicacion)}
             opciones={aOpciones(tipoLabels)}
           />
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">Asunto</span>
-            <input
-              value={asunto}
-              onChange={(e) => setAsunto(e.target.value)}
-              className={campoClase}
-              placeholder="Ej. Consulta sobre vacaciones"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">Mensaje</span>
-            <textarea
-              value={cuerpo}
-              onChange={(e) => setCuerpo(e.target.value)}
-              rows={4}
-              className={campoClase}
-            />
-          </label>
+          <Campo
+            etiqueta="Asunto *"
+            value={asunto}
+            onChange={(e) => setAsunto(e.target.value)}
+            error={errores.asunto}
+            placeholder="Ej. Consulta sobre vacaciones"
+          />
+          <CampoTextarea
+            etiqueta="Mensaje *"
+            value={cuerpo}
+            onChange={(e) => setCuerpo(e.target.value)}
+            error={errores.cuerpo}
+          />
           <Boton type="submit" disabled={enviando}>
             {enviando ? 'Enviando…' : 'Enviar'}
           </Boton>

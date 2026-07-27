@@ -189,7 +189,11 @@ export const aRecibo = (f: Fila): ReciboSueldo => ({
   id: f.id,
   empleadoId: f.empleado_id,
   periodo: f.periodo,
+  // Los recibos que ya existían no tienen tipo: son sueldos mensuales.
+  tipo: f.tipo ?? 'mensual',
   archivoUrl: f.archivo_url,
+  archivadoEn: f.archivado_en ? String(f.archivado_en).slice(0, 10) : undefined,
+  rectificaA: f.rectifica_a ?? undefined,
   estadoFirma: f.estado_firma,
   firmadoEn: f.firmado_en ? String(f.firmado_en).slice(0, 10) : undefined,
   firmadoEmpleadorEn: f.firmado_empleador_en

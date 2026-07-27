@@ -106,6 +106,8 @@ export interface ParteRecibo {
   motivo?: MotivoSinDueno;
   /** De quién parece ser, cuando no se pudo atribuir. */
   pista?: PistaTramo;
+  /** El documento y el nombre impreso apuntan a personas distintas. */
+  discrepancia?: { nombreImpreso: string };
 }
 
 /** Nombre de archivo legible: sin espacios, acentos ni caracteres raros. */
@@ -161,6 +163,7 @@ export const partirPorTramo = async (
       paginas: tramo.paginas.length,
       motivo: tramo.motivo,
       pista: tramo.pista,
+      discrepancia: tramo.discrepancia,
     });
   }
   return salida;

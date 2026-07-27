@@ -15,7 +15,9 @@ import {
 } from '@/lib/asignarRecibos';
 import { analizarPdf, partirPorTramo } from '@/lib/pdfArchivos';
 import { PistaTramo } from '@/lib/recibosPdf';
-import { Empleado } from '@/types/rrhh';
+import { Empleado, ReciboSueldo, TipoRecibo } from '@/types/rrhh';
+import { tipoReciboLabels } from '@/lib/etiquetas';
+import { aOpciones } from '@/components/app/ui/Selector';
 
 interface Fila {
   /** Estable: la lista se reordena y el nombre se puede editar. */
@@ -39,11 +41,15 @@ interface Fila {
   paginas?: number;
   /** Nombre y documentos leídos del PDF cuando no se supo de quién es. */
   pista?: PistaTramo;
+  /** El documento apuntó a una ficha, pero el recibo nombra a otra persona. */
+  discrepancia?: { nombreImpreso: string };
 }
 
 interface Props {
   abierto: boolean;
   empleados: Empleado[];
+  /** Los ya cargados, para avisar antes de pisar uno existente. */
+  recibosExistentes: ReciboSueldo[];
   onCerrar: () => void;
   onCargado: () => void;
 }
@@ -65,11 +71,13 @@ const MAX_BYTES = MAX_MB * 1024 * 1024;
 export const CargaMasivaModal = ({
   abierto,
   empleados,
+  recibosExistentes,
   onCerrar,
   onCargado,
 }: Props) => {
   const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
   const [filas, setFilas] = useState<Fila[]>([]);
+  const [tipo, setTipo] = useState<TipoRecibo>('mensual');
   const [publicar, setPublicar] = useState(true);
   const [subiendo, setSubiendo] = useState(false);
   const [ignorados, setIgnorados] = useState(0);
@@ -144,6 +152,8 @@ export const CargaMasivaModal = ({
           estado: 'listo',
           lectura: 'ok',
           paginas: analisis.paginas,
+          discrepancia: analisis.tramos.find((t) => t.discrepancia)
+            ?.discrepancia,
         },
       ];
     }
@@ -170,6 +180,7 @@ export const CargaMasivaModal = ({
         paginas: p.paginas,
         vieneDe: archivo.name,
         pista: p.pista,
+        discrepancia: p.discrepancia,
       }));
     }
 
@@ -261,6 +272,22 @@ export const CargaMasivaModal = ({
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.apellido}, ${e.nombre}` : 'un colaborador';
   };
+  /**
+   * Recibos que ya existen para el período elegido. Cargar encima de uno
+   * lo rectifica: el anterior queda archivado con su firma intacta y el
+   * nuevo arranca pendiente de firma. Se avisa porque implica que esa
+   * gente tiene que volver a firmar.
+   */
+  const yaCargado = new Map(
+    recibosExistentes
+      .filter((r) => r.periodo === periodo && r.tipo === tipo)
+      .map((r) => [r.empleadoId, r])
+  );
+  const rectifica = listas.filter((f) => yaCargado.has(f.empleadoId));
+  const rectificaFirmado = listas.filter(
+    (f) => yaCargado.get(f.empleadoId)?.estadoFirma === 'firmado'
+  );
+
   const partidos = filas.filter((f) => f.vieneDe && f.empleadoId).length;
   const nominasPartidas = new Set(
     filas.filter((f) => f.vieneDe && f.empleadoId).map((f) => f.vieneDe)
@@ -274,7 +301,13 @@ export const CargaMasivaModal = ({
     for (const fila of filas) {
       if (fila.estado === 'subido' || !fila.empleadoId) continue;
       try {
-        await cargarRecibo(fila.empleadoId, periodo, fila.archivo, publicar);
+        await cargarRecibo(
+          fila.empleadoId,
+          periodo,
+          fila.archivo,
+          publicar,
+          tipo
+        );
         fila.estado = 'subido';
         ok += 1;
       } catch (err) {
@@ -335,7 +368,19 @@ export const CargaMasivaModal = ({
           void elegirArchivos(e.dataTransfer.files);
         }}
       >
-        <CampoMes etiqueta="Período *" value={periodo} onChange={setPeriodo} />
+        <div className="grid gap-3.5 sm:grid-cols-2">
+          <CampoMes
+            etiqueta="Período *"
+            value={periodo}
+            onChange={setPeriodo}
+          />
+          <CampoSelect
+            etiqueta="Concepto *"
+            value={tipo}
+            onChange={(v) => setTipo(v as TipoRecibo)}
+            opciones={aOpciones(tipoReciboLabels)}
+          />
+        </div>
 
         {/* La zona de drop es lo primero que hay que entender, así que
             lleva el peso visual: ícono, una línea, y el detalle chico
@@ -386,6 +431,24 @@ export const CargaMasivaModal = ({
           </p>
         )}
 
+        {rectifica.length > 0 && (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900">
+            <span className="font-bold">
+              {rectifica.length === 1
+                ? 'Ya había un recibo de este concepto y período.'
+                : `Ya había ${rectifica.length} recibos de este concepto y período.`}
+            </span>{' '}
+            El nuevo lo rectifica: el anterior queda archivado con su firma como
+            respaldo.
+            {rectificaFirmado.length > 0 &&
+              ` ${
+                rectificaFirmado.length === 1
+                  ? 'Uno ya estaba firmado, así que esa persona'
+                  : `${rectificaFirmado.length} ya estaban firmados, así que esas personas`
+              } va a tener que firmar de nuevo.`}
+          </p>
+        )}
+
         {repetidos.size > 0 && (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-xs text-red-800">
             <span className="font-bold">
@@ -428,7 +491,16 @@ export const CargaMasivaModal = ({
                   />
                   <span className="mt-0.5 block px-1.5 text-xs text-ink-soft">
                     {/* Lo más útil primero: de quién parece ser. */}
-                    {!f.empleadoId && f.pista?.nombre ? (
+                    {f.discrepancia ? (
+                      <span className="text-amber-800">
+                        Ojo: el recibo está a nombre de{' '}
+                        <strong className="font-semibold">
+                          {f.discrepancia.nombreImpreso}
+                        </strong>
+                        , pero el CUIL es el de {nombreDe(f.empleadoId)}. Revisá
+                        cuál de las dos fichas tiene mal el dato.
+                      </span>
+                    ) : !f.empleadoId && f.pista?.nombre ? (
                       <>
                         El recibo dice{' '}
                         <strong className="font-semibold text-ink">
@@ -486,6 +558,24 @@ export const CargaMasivaModal = ({
                 ) : repetidos.has(f.empleadoId) ? (
                   <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800">
                     Repetido
+                  </span>
+                ) : yaCargado.has(f.empleadoId) ? (
+                  <span
+                    className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"
+                    title={
+                      yaCargado.get(f.empleadoId)?.estadoFirma === 'firmado'
+                        ? 'Ya hay uno firmado. El nuevo lo rectifica y va a tener que firmarlo otra vez.'
+                        : 'Ya hay uno cargado de este concepto y período. El nuevo lo rectifica.'
+                    }
+                  >
+                    Rectifica
+                  </span>
+                ) : f.discrepancia ? (
+                  <span
+                    className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"
+                    title="El documento del recibo apunta a esta ficha, pero el recibo está a nombre de otra persona."
+                  >
+                    Revisar
                   </span>
                 ) : (
                   <span className="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-bold text-brand-800">

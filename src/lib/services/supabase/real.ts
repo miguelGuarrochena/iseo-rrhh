@@ -44,6 +44,7 @@ import {
   SaldoVacaciones,
   TipoAusencia,
   TipoComunicacion,
+  TipoRecibo,
   Terminal,
   Turno,
   Usuario,
@@ -893,6 +894,18 @@ export const abrirAdjuntoAusencia = async (
   return urlFirmada('documentos', path);
 };
 
+/**
+ * Borra una ausencia cargada por error. No es lo mismo que rechazarla:
+ * rechazar deja el registro con su motivo, borrar es para lo que nunca
+ * debió existir. Sólo lo puede hacer el admin de RRHH (lo hace cumplir
+ * la política de la base).
+ */
+export const eliminarAusencia = async (ausenciaId: string): Promise<void> => {
+  const { error } = await sb().from('ausencias').delete().eq('id', ausenciaId);
+  if (error) throw new Error(mensajeDeErrorDb(error.message));
+  await registrarAuditoria('eliminar', 'ausencia', ausenciaId);
+};
+
 export const resolverAusencia = async (
   ausenciaId: string,
   estado: 'aprobada' | 'rechazada',
@@ -1671,6 +1684,11 @@ export const cargarRemuneracion = async (
   return remuneracion;
 };
 
+/**
+ * Recibos vigentes de un colaborador. Los archivados (rectificados) no
+ * se listan: siguen existiendo como respaldo pero mostrarlos confundiría
+ * a quien sólo quiere su recibo del mes.
+ */
 export const getRecibos = async (
   empleadoId: string
 ): Promise<ReciboSueldo[]> => {
@@ -1678,6 +1696,7 @@ export const getRecibos = async (
     .from('recibos')
     .select('*')
     .eq('empleado_id', empleadoId)
+    .is('archivado_en', null)
     .order('periodo', { ascending: false });
   return oFalla(data, error).map(aRecibo);
 };
@@ -1687,6 +1706,20 @@ export const getRecibosTodos = async (): Promise<ReciboSueldo[]> => {
     .from('recibos')
     .select('*')
     .eq('empresa_id', empresaId())
+    .is('archivado_en', null)
+    .order('periodo', { ascending: false });
+  return oFalla(data, error).map(aRecibo);
+};
+
+/** Versiones anteriores de un recibo, para auditar una rectificación. */
+export const getRecibosArchivados = async (
+  empleadoId: string
+): Promise<ReciboSueldo[]> => {
+  const { data, error } = await sb()
+    .from('recibos')
+    .select('*')
+    .eq('empleado_id', empleadoId)
+    .not('archivado_en', 'is', null)
     .order('periodo', { ascending: false });
   return oFalla(data, error).map(aRecibo);
 };
@@ -1737,25 +1770,52 @@ const avisarReciboDisponible = async (empleadoId: string): Promise<void> => {
  * El admin sube el PDF del recibo de un período (pisa si ya existía).
  * Con publicar=false queda como borrador hasta la firma del empleador.
  */
+/**
+ * Carga un recibo. Un mismo período puede tener varios de distinto tipo
+ * (sueldo y SAC de junio son dos recibos).
+ *
+ * Si ya existe uno vigente del mismo tipo, el nuevo lo **rectifica**: el
+ * anterior queda archivado con su firma intacta —es la prueba de lo que
+ * el colaborador recibió en su momento— y el nuevo arranca pendiente de
+ * firma. Antes esto era un upsert que pisaba el archivo y dejaba la
+ * constancia apuntando a un PDF que esa persona nunca había visto.
+ */
 export const cargarRecibo = async (
   empleadoId: string,
   periodo: string,
   archivo: File,
-  publicar = true
+  publicar = true,
+  tipo: TipoRecibo = 'mensual'
 ): Promise<ReciboSueldo> => {
-  const path = await subirReciboPdf(empleadoId, periodo, archivo);
+  const { data: vigente } = await sb()
+    .from('recibos')
+    .select('id')
+    .eq('empleado_id', empleadoId)
+    .eq('periodo', periodo)
+    .eq('tipo', tipo)
+    .is('archivado_en', null)
+    .maybeSingle();
+
+  const path = await subirReciboPdf(empleadoId, periodo, archivo, tipo);
+
+  if (vigente) {
+    await sb()
+      .from('recibos')
+      .update({ archivado_en: new Date().toISOString() })
+      .eq('id', vigente.id);
+  }
+
   const { data, error } = await sb()
     .from('recibos')
-    .upsert(
-      {
-        empresa_id: empresaId(),
-        empleado_id: empleadoId,
-        periodo,
-        archivo_url: path,
-        firmado_empleador_en: publicar ? new Date().toISOString() : null,
-      },
-      { onConflict: 'empleado_id,periodo' }
-    )
+    .insert({
+      empresa_id: empresaId(),
+      empleado_id: empleadoId,
+      periodo,
+      tipo,
+      archivo_url: path,
+      rectifica_a: vigente?.id ?? null,
+      firmado_empleador_en: publicar ? new Date().toISOString() : null,
+    })
     .select()
     .single();
   const recibo = aRecibo(oFalla(data, error));

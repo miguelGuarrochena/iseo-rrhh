@@ -13,7 +13,7 @@ import {
   IconTruck,
   IconWriting,
 } from '@tabler/icons-react';
-import { CategoriaDocumento, TipoAusencia } from '@/types/rrhh';
+import { CategoriaDocumento, TipoAusencia, TipoRecibo } from '@/types/rrhh';
 
 export const categoriaDocumentoLabels: Record<CategoriaDocumento, string> = {
   dni: 'DNI',
@@ -66,3 +66,12 @@ export const TIPOS_AUSENCIA_JORNADA: TipoAusencia[] = [
   'salida_intermedia',
   'home_office',
 ];
+
+/** Cómo se llama cada concepto en pantalla. */
+export const tipoReciboLabels: Record<TipoRecibo, string> = {
+  mensual: 'Sueldo mensual',
+  sac: 'Aguinaldo (SAC)',
+  vacaciones: 'Vacaciones',
+  gratificacion: 'Gratificación',
+  liquidacion_final: 'Liquidación final',
+};

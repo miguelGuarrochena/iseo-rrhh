@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from 'react';
 import { IconCheck } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
+import { CampoHora } from '@/components/app/ui/CampoHora';
 import { Campo } from '@/components/app/ui/Campo';
 import { validarEmail } from '@/lib/validaciones';
 import {
@@ -57,28 +58,16 @@ export const ConfigPlataformaForm = () => {
           colaborador.
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">Entrada</span>
-            <input
-              type="time"
-              value={config.horaEntradaDefault}
-              onChange={(e) =>
-                setConfig({ ...config, horaEntradaDefault: e.target.value })
-              }
-              className={campoClase}
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">Salida</span>
-            <input
-              type="time"
-              value={config.horaSalidaDefault}
-              onChange={(e) =>
-                setConfig({ ...config, horaSalidaDefault: e.target.value })
-              }
-              className={campoClase}
-            />
-          </label>
+          <CampoHora
+            etiqueta="Entrada"
+            value={config.horaEntradaDefault}
+            onChange={(v) => setConfig({ ...config, horaEntradaDefault: v })}
+          />
+          <CampoHora
+            etiqueta="Salida"
+            value={config.horaSalidaDefault}
+            onChange={(v) => setConfig({ ...config, horaSalidaDefault: v })}
+          />
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-semibold text-ink">
               Tolerancia (min)

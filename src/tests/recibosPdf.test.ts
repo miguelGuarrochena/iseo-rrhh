@@ -354,3 +354,68 @@ describe('reconocimiento por nombre', () => {
     });
   });
 });
+
+// Si el CUIL está cargado en la ficha equivocada, el recibo se le asigna
+// a otra persona. Se asigna igual (el documento es más confiable) pero
+// hay que avisar, porque en silencio le llega a quien no es.
+describe('discrepancia entre el documento y el nombre impreso', () => {
+  const equipo = [
+    { id: 'basura', nombre: 'xxxx', apellido: 'yyyy', cuil: '20-11111111-2' },
+    { id: 'scooby', nombre: 'Scooby', apellido: 'Doo' },
+  ];
+  const pagina =
+    'Empleador: ISEO SRL CUIT 30-71234567-1 ' +
+    'Apellido y Nombre: DOO, SCOOBY CUIL 20-11111111-2';
+
+  it('asigna por documento pero marca el conflicto', () => {
+    const r = duenoDePagina(pagina, equipo, CUIT_EMPRESA);
+    expect(r).toEqual({
+      ok: true,
+      empleadoId: 'basura',
+      por: 'cuil',
+      discrepancia: { nombreImpreso: 'DOO, SCOOBY' },
+    });
+  });
+
+  it('no avisa cuando el nombre coincide', () => {
+    const coherente = [
+      {
+        id: 'scooby',
+        nombre: 'Scooby',
+        apellido: 'Doo',
+        cuil: '20-11111111-2',
+      },
+    ];
+    const r = duenoDePagina(pagina, coherente, CUIT_EMPRESA);
+    expect(r.ok && r.discrepancia).toBeUndefined();
+  });
+
+  it('un segundo nombre de más no cuenta como conflicto', () => {
+    const conSegundoNombre = [
+      {
+        id: 'x',
+        nombre: 'Ana Maria',
+        apellido: 'Aragon',
+        cuil: '27-25123456-4',
+      },
+    ];
+    const t = 'Apellido y Nombre: ARAGON, ANA CUIL 27-25123456-4';
+    const r = duenoDePagina(t, conSegundoNombre, CUIT_EMPRESA);
+    expect(r.ok && r.discrepancia).toBeUndefined();
+  });
+
+  it('una ficha sin nombre cargado no genera aviso', () => {
+    const t = 'Apellido y Nombre: X, Y CUIL 27-25123456-4';
+    const r = duenoDePagina(
+      t,
+      [{ id: 'z', cuil: '27-25123456-4' }],
+      CUIT_EMPRESA
+    );
+    expect(r.ok && r.discrepancia).toBeUndefined();
+  });
+
+  it('el aviso llega hasta el tramo', () => {
+    const [tramo] = agruparPorDueno([pagina], equipo, CUIT_EMPRESA);
+    expect(tramo.discrepancia).toEqual({ nombreImpreso: 'DOO, SCOOBY' });
+  });
+});

@@ -10,6 +10,7 @@ import { Terminales } from '@/components/app/configuracion/Terminales';
 import { CuposLicenciaPanel } from '@/components/app/configuracion/CuposLicenciaPanel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
+import { CampoHora } from '@/components/app/ui/CampoHora';
 import { ConfigPlataformaForm } from '@/components/app/configuracion/ConfigPlataformaForm';
 import { MODULOS_OPCIONALES } from '@/components/app/navItems';
 import { olvidarModulos } from '@/lib/auth/useModulos';
@@ -219,42 +220,18 @@ const ConfiguracionPage = () => {
           </p>
 
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold text-ink">
-                Hora de entrada
-              </span>
-              <input
-                type="time"
-                value={config.horaEntrada}
-                onChange={(e) =>
-                  setConfig({ ...config, horaEntrada: e.target.value })
-                }
-                className={campoClase}
-              />
-              {errores.horaEntrada && (
-                <span className="text-xs font-medium text-red-600">
-                  {errores.horaEntrada}
-                </span>
-              )}
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold text-ink">
-                Hora de salida
-              </span>
-              <input
-                type="time"
-                value={config.horaSalida}
-                onChange={(e) =>
-                  setConfig({ ...config, horaSalida: e.target.value })
-                }
-                className={campoClase}
-              />
-              {errores.horaSalida && (
-                <span className="text-xs font-medium text-red-600">
-                  {errores.horaSalida}
-                </span>
-              )}
-            </label>
+            <CampoHora
+              etiqueta="Hora de entrada"
+              value={config.horaEntrada}
+              onChange={(v) => setConfig({ ...config, horaEntrada: v })}
+              error={errores.horaEntrada}
+            />
+            <CampoHora
+              etiqueta="Hora de salida"
+              value={config.horaSalida}
+              onChange={(v) => setConfig({ ...config, horaSalida: v })}
+              error={errores.horaSalida}
+            />
             <label className="flex flex-col gap-1.5">
               <span className="text-sm font-semibold text-ink">
                 Tolerancia (min)

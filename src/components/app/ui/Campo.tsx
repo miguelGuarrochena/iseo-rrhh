@@ -1,6 +1,6 @@
 'use client';
 
-import { InputHTMLAttributes } from 'react';
+import { InputHTMLAttributes, TextareaHTMLAttributes } from 'react';
 import { Opcion, Selector } from './Selector';
 
 const claseBase =
@@ -27,6 +27,34 @@ export const Campo = ({ etiqueta, error, ayuda, ...props }: CampoProps) => (
   >
     <span className="text-sm font-semibold text-ink">{etiqueta}</span>
     <input {...props} className={claseDe(error)} />
+    {error && <span className="text-xs font-medium text-red-600">{error}</span>}
+    {!error && ayuda && <span className="text-xs text-ink-soft">{ayuda}</span>}
+  </label>
+);
+
+interface CampoTextareaProps
+  extends BaseProps,
+    Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'className'> {}
+
+/**
+ * Textarea con el mismo tratamiento de error que el resto de los campos.
+ * Antes cada formulario armaba el suyo a mano y ninguno podía marcar el
+ * error en el campo: avisaban con un toast y la persona tenía que
+ * adivinar cuál de los campos estaba mal.
+ */
+export const CampoTextarea = ({
+  etiqueta,
+  error,
+  ayuda,
+  rows = 4,
+  ...props
+}: CampoTextareaProps) => (
+  <label
+    className="flex flex-col gap-1.5"
+    {...(error ? { 'data-error-campo': '' } : {})}
+  >
+    <span className="text-sm font-semibold text-ink">{etiqueta}</span>
+    <textarea {...props} rows={rows} className={claseDe(error)} />
     {error && <span className="text-xs font-medium text-red-600">{error}</span>}
     {!error && ayuda && <span className="text-xs text-ink-soft">{ayuda}</span>}
   </label>

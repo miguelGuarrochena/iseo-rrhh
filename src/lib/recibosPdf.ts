@@ -121,8 +121,37 @@ export type MotivoSinDueno =
   | 'varios'; // la página menciona a más de un colaborador
 
 export type DuenoDePagina =
-  | { ok: true; empleadoId: string; por: 'cuil' | 'dni' | 'nombre' }
+  | {
+      ok: true;
+      empleadoId: string;
+      por: 'cuil' | 'dni' | 'nombre';
+      /**
+       * El documento apuntó a una persona, pero el nombre impreso es el
+       * de otra. Casi siempre significa que ese CUIL está cargado en la
+       * ficha equivocada. Se asigna igual (el documento es más confiable)
+       * pero hay que avisarlo: si nadie lo mira, el recibo le llega a
+       * quien no es.
+       */
+      discrepancia?: { nombreImpreso: string };
+    }
   | { ok: false; motivo: MotivoSinDueno };
+
+/** ¿El nombre impreso se corresponde con el de esa ficha? */
+const nombreCoincide = (
+  impreso: string | null,
+  candidato: CandidatoRecibo | undefined
+): boolean => {
+  if (!impreso || !candidato) return true;
+  if (!candidato.apellido && !candidato.nombre) return true;
+  const ficha = clavePorNombre(
+    `${candidato.apellido ?? ''} ${candidato.nombre ?? ''}`
+  );
+  const doc = clavePorNombre(impreso);
+  if (!ficha || !doc) return true;
+  // Alcanza con que una contenga a la otra: en la ficha puede faltar el
+  // segundo nombre, o el recibo traerlo de más.
+  return ficha === doc || ficha.includes(doc) || doc.includes(ficha);
+};
 
 /**
  * De quién es una página, según los documentos que aparecen impresos.
@@ -167,27 +196,40 @@ export const duenoDePagina = (
   const cuils = cuilsEnTexto(texto).filter((c) => !esDeLaEmpresa(c));
   const dnis = dnisEnTexto(texto).filter((d) => !esDeLaEmpresa(d));
 
+  const impresoEnPagina = nombreEnTexto(texto);
+  /** Arma la respuesta y avisa si el nombre impreso es de otra persona. */
+  const identificado = (
+    empleadoId: string,
+    por: 'cuil' | 'dni'
+  ): DuenoDePagina => {
+    const ficha = candidatos.find((c) => c.id === empleadoId);
+    return nombreCoincide(impresoEnPagina, ficha)
+      ? { ok: true, empleadoId, por }
+      : {
+          ok: true,
+          empleadoId,
+          por,
+          discrepancia: { nombreImpreso: impresoEnPagina as string },
+        };
+  };
+
   const idsPorCuil = new Set(
     cuils.map((c) => porCuil.get(c)).filter((x): x is string => Boolean(x))
   );
-  if (idsPorCuil.size === 1) {
-    return { ok: true, empleadoId: [...idsPorCuil][0], por: 'cuil' };
-  }
+  if (idsPorCuil.size === 1) return identificado([...idsPorCuil][0], 'cuil');
   if (idsPorCuil.size > 1) return { ok: false, motivo: 'varios' };
 
   const idsPorDni = new Set(
     dnis.map((d) => porDni.get(d)).filter((x): x is string => Boolean(x))
   );
-  if (idsPorDni.size === 1) {
-    return { ok: true, empleadoId: [...idsPorDni][0], por: 'dni' };
-  }
+  if (idsPorDni.size === 1) return identificado([...idsPorDni][0], 'dni');
   if (idsPorDni.size > 1) return { ok: false, motivo: 'varios' };
 
   // Último recurso: el nombre impreso. Es el caso más común en la
   // práctica —la empresa no tiene cargado el CUIL de todos— y sin esto
   // RRHH asigna a mano gente que el recibo nombra completa. Se exige
   // coincidencia exacta del nombre y que sea de una sola persona.
-  const impreso = nombreEnTexto(texto);
+  const impreso = impresoEnPagina;
   if (impreso) {
     const clave = clavePorNombre(impreso);
     const ids = new Set(
@@ -231,6 +273,8 @@ export interface TramoRecibo {
   motivo?: MotivoSinDueno;
   /** Sólo para los tramos sin dueño: de quién parece ser. */
   pista?: PistaTramo;
+  /** El documento y el nombre impreso apuntan a personas distintas. */
+  discrepancia?: { nombreImpreso: string };
 }
 
 /**
@@ -304,7 +348,11 @@ export const agruparPorDueno = (
       if (ultimo && ultimo.empleadoId === dueno.empleadoId) {
         ultimo.paginas.push(i);
       } else {
-        tramos.push({ empleadoId: dueno.empleadoId, paginas: [i] });
+        tramos.push({
+          empleadoId: dueno.empleadoId,
+          paginas: [i],
+          discrepancia: dueno.discrepancia,
+        });
       }
       return;
     }

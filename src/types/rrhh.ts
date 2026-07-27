@@ -331,15 +331,35 @@ export interface Adelanto {
 
 export type EstadoFirma = 'pendiente' | 'firmado';
 
+/**
+ * Conceptos que se liquidan por separado. Un mismo mes puede tener
+ * varios: el sueldo y el SAC de junio son dos recibos distintos, cada
+ * uno con su firma.
+ */
+export type TipoRecibo =
+  | 'mensual'
+  | 'sac'
+  | 'vacaciones'
+  | 'gratificacion'
+  | 'liquidacion_final';
+
 export interface ReciboSueldo {
   id: string;
   empleadoId: string;
   periodo: string;
+  tipo: TipoRecibo;
   archivoUrl: string;
   estadoFirma: EstadoFirma;
   firmadoEn?: string;
   /** Cuándo lo firmó/publicó el empleador; sin esto el empleado no lo ve. */
   firmadoEmpleadorEn?: string;
+  /**
+   * Si tiene fecha, dejó de ser el vigente: lo rectificó otro recibo.
+   * Se conserva porque es la prueba de lo que se firmó en su momento.
+   */
+  archivadoEn?: string;
+  /** Recibo al que vino a corregir. */
+  rectificaA?: string;
 }
 
 // ---------- Ausencias ----------

@@ -66,7 +66,14 @@ const LoginPage = () => {
       setError('Ingresá tu email.');
       return;
     }
-    void ingresar(email, password || undefined);
+    // Sin contraseña la app cae al camino de demo, que en producción no
+    // existe: el mensaje que salía era "no encontramos una cuenta con
+    // ese email" y mandaba a buscar el problema al lado equivocado.
+    if (!password) {
+      setError('Ingresá tu contraseña.');
+      return;
+    }
+    void ingresar(email, password);
   };
 
   return (

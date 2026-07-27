@@ -262,6 +262,7 @@ const ColaboradoresPage = () => {
 
       <ImportarEmpleadosModal
         abierto={importarAbierto}
+        empleadosActuales={empleados}
         onCerrar={cerrarImportar}
         onImportado={cargarEmpleados}
       />

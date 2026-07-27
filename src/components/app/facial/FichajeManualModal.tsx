@@ -4,7 +4,8 @@ import { useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo, CampoSelect } from '@/components/app/ui/Campo';
+import { CampoSelect } from '@/components/app/ui/Campo';
+import { CampoHora } from '@/components/app/ui/CampoHora';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { ficharAhora } from '@/lib/services/rrhh';
@@ -150,12 +151,7 @@ export const FichajeManualModal = ({
             onChange={(v) => setTipo(v as 'ingreso' | 'egreso')}
             opciones={aOpciones({ ingreso: 'Ingreso', egreso: 'Egreso' })}
           />
-          <Campo
-            etiqueta="Hora"
-            type="time"
-            value={hora}
-            onChange={(e) => setHora(e.target.value)}
-          />
+          <CampoHora etiqueta="Hora" value={hora} onChange={setHora} />
         </div>
 
         {error && (

@@ -88,14 +88,21 @@ export const subirDocumentoLegajo = async (
   );
 
 /** PDF de recibo de sueldo: devuelve el path a guardar. */
+/**
+ * Cada carga va a su propia ruta. Antes todas las de un período pisaban
+ * el mismo archivo, así que al rectificar se perdía el PDF original —el
+ * que el colaborador había firmado—. El sufijo con marca de tiempo lo
+ * evita sin depender de nada más.
+ */
 export const subirReciboPdf = async (
   empleadoId: string,
   periodo: string,
-  archivo: File
+  archivo: File,
+  tipo = 'mensual'
 ): Promise<string> =>
   subir(
     'recibos-pdf',
-    `${empresaId()}/${empleadoId}/${periodo}.pdf`,
+    `${empresaId()}/${empleadoId}/${periodo}-${tipo}-${Date.now()}.pdf`,
     archivo,
     'application/pdf'
   );

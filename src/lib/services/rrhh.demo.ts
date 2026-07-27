@@ -43,6 +43,7 @@ import {
   TipoComunicacion,
   Turno,
   ReciboSueldo,
+  TipoRecibo,
   Remuneracion,
   ResumenControl,
   SaldoVacaciones,
@@ -609,6 +610,11 @@ export const abrirAdjuntoAusencia = async (
   _ausencia: Ausencia
 ): Promise<string | null> => simular(null);
 
+export const eliminarAusencia = async (ausenciaId: string): Promise<void> => {
+  const i = ausenciasMock.findIndex((a) => a.id === ausenciaId);
+  if (i >= 0) ausenciasMock.splice(i, 1);
+};
+
 export const resolverAusencia = async (
   ausenciaId: string,
   estado: 'aprobada' | 'rechazada',
@@ -1166,13 +1172,15 @@ export const cargarRecibo = async (
   periodo: string,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _archivo: File,
-  publicar = true
+  publicar = true,
+  tipo: TipoRecibo = 'mensual'
 ): Promise<ReciboSueldo> => {
   const nuevo: ReciboSueldo = {
     id: `rec-${Date.now()}`,
     empleadoId,
     periodo,
-    archivoUrl: `/recibos/${empleadoId}/${periodo}.pdf`,
+    tipo,
+    archivoUrl: `/recibos/${empleadoId}/${periodo}-${tipo}.pdf`,
     estadoFirma: 'pendiente',
     firmadoEmpleadorEn: publicar ? hoyISO() : undefined,
   };

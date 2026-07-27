@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { Boton } from '@/components/app/ui/Boton';
+import { CampoHora } from '@/components/app/ui/CampoHora';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
@@ -98,9 +99,6 @@ const FilaDia = ({
     }
   };
 
-  const claseHora =
-    'rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink outline-none focus:border-brand-600';
-
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3">
       <div className="w-24 shrink-0">
@@ -114,19 +112,9 @@ const FilaDia = ({
       </div>
 
       <div className="flex items-center gap-2">
-        <input
-          type="time"
-          value={entrada}
-          onChange={(e) => setEntrada(e.target.value)}
-          className={claseHora}
-        />
+        <CampoHora value={entrada} onChange={setEntrada} />
         <span className="text-ink-soft">→</span>
-        <input
-          type="time"
-          value={salida}
-          onChange={(e) => setSalida(e.target.value)}
-          className={claseHora}
-        />
+        <CampoHora value={salida} onChange={setSalida} />
       </div>
 
       <Boton
@@ -417,19 +405,9 @@ const TurnosPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <input
-              type="time"
-              value={baseEntrada}
-              onChange={(e) => setBaseEntrada(e.target.value)}
-              className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink outline-none focus:border-brand-600"
-            />
+            <CampoHora value={baseEntrada} onChange={setBaseEntrada} />
             <span className="text-ink-soft">→</span>
-            <input
-              type="time"
-              value={baseSalida}
-              onChange={(e) => setBaseSalida(e.target.value)}
-              className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink outline-none focus:border-brand-600"
-            />
+            <CampoHora value={baseSalida} onChange={setBaseSalida} />
           </div>
           <div className="flex flex-wrap gap-2">
             <Boton

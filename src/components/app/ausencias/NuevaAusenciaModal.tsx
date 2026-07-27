@@ -9,6 +9,7 @@ import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { diasEntre, formatearFecha, hoyISO } from '@/lib/fechas';
 import { TIPOS_AUSENCIA_JORNADA, tipoAusenciaLabels } from '@/lib/etiquetas';
+import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { Ausencia, Empleado, TipoAusencia } from '@/types/rrhh';
 
 interface NuevaAusenciaModalProps {
@@ -49,6 +50,7 @@ export const NuevaAusenciaModal = ({
   const [comentario, setComentario] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
@@ -60,6 +62,7 @@ export const NuevaAusenciaModal = ({
       setComentario('');
       setArchivo(null);
       setError(null);
+      setErrores({});
     }
   }, [abierto]);
 
@@ -79,14 +82,17 @@ export const NuevaAusenciaModal = ({
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (modoAdmin && !empleadoId) {
-      setError('Elegí el colaborador.');
-      return;
-    }
-    if (dias < 1) {
-      setError('La fecha de fin no puede ser anterior a la de inicio.');
-      return;
-    }
+    // El faltante se marca en el campo, no sólo en el cartel de abajo:
+    // el que más se olvida es el colaborador y estaba fuera de vista.
+    const nuevos = juntarErrores({
+      empleado: modoAdmin
+        ? validarRequerido(empleadoId, 'El colaborador')
+        : null,
+      fechaHasta:
+        dias < 1 ? 'No puede ser anterior a la fecha de inicio.' : null,
+    });
+    setErrores(nuevos);
+    if (Object.keys(nuevos).length > 0) return;
     setError(null);
     setEnviando(true);
     try {
@@ -122,9 +128,10 @@ export const NuevaAusenciaModal = ({
       <form onSubmit={onSubmit} className="flex flex-col gap-3.5">
         {modoAdmin && (
           <CampoSelect
-            etiqueta="Colaborador"
+            etiqueta="Colaborador *"
             value={empleadoId}
             onChange={setEmpleadoId}
+            error={errores.empleado}
             opciones={[
               { valor: '', etiqueta: 'Elegí…' },
               ...empleados.map((e) => ({
@@ -161,6 +168,7 @@ export const NuevaAusenciaModal = ({
             value={fechaHasta}
             min={fechaDesde || undefined}
             onChange={setFechaHasta}
+            error={errores.fechaHasta}
           />
         </div>
 

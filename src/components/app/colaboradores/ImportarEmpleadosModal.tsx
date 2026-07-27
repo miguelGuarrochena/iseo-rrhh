@@ -20,6 +20,7 @@ import {
 } from '@/lib/validaciones';
 import { crearEmpleado } from '@/lib/services/rrhh';
 import { ArchivoNoSoportado, leerFilasDeArchivo } from '@/lib/planillas';
+import { Empleado } from '@/types/rrhh';
 
 /** Campos importables y sus alias típicos en los Excel de las PyMEs. */
 const CAMPOS: { clave: string; etiqueta: string; alias: string[] }[] = [
@@ -117,6 +118,8 @@ interface FilaImporte {
 
 interface Props {
   abierto: boolean;
+  /** Los que ya están en la empresa, para avisar de los repetidos. */
+  empleadosActuales: Empleado[];
   onCerrar: () => void;
   onImportado: () => void;
 }
@@ -128,6 +131,7 @@ interface Props {
  */
 export const ImportarEmpleadosModal = ({
   abierto,
+  empleadosActuales,
   onCerrar,
   onImportado,
 }: Props) => {
@@ -194,6 +198,13 @@ export const ImportarEmpleadosModal = ({
   const preparadas: FilaImporte[] = useMemo(() => {
     if (filas.length === 0) return [];
     const vistos = new Set<string>();
+    // Los que ya están en la empresa: sin esto el choque aparecía recién
+    // al importar, fila por fila, con el error de la base.
+    const yaEnLaEmpresa = new Map(
+      empleadosActuales
+        .filter((e) => e.dni)
+        .map((e) => [soloDigitosDoc(e.dni), `${e.apellido}, ${e.nombre}`])
+    );
     return filas.map((fila) => {
       const datos: Record<string, string> = {};
       columnas.forEach((col) => {
@@ -217,16 +228,23 @@ export const ImportarEmpleadosModal = ({
       else if (validarDni(datos.dni)) errores.push('DNI inválido');
       else if (vistos.has(datos.dni))
         errores.push('DNI repetido en el archivo');
+      else if (yaEnLaEmpresa.has(datos.dni))
+        errores.push(`ya está cargado como ${yaEnLaEmpresa.get(datos.dni)}`);
       else vistos.add(datos.dni);
       if (datos.cuil && validarCuit(datos.cuil)) errores.push('CUIL inválido');
       if (datos.email && validarEmail(datos.email))
         errores.push('email inválido');
       return { datos, errores };
     });
-  }, [filas, columnas, mapeo]);
+  }, [filas, columnas, mapeo, empleadosActuales]);
 
   const validas = preparadas.filter((f) => f.errores.length === 0);
-  const invalidas = preparadas.length - validas.length;
+  // "Ya está cargado" no es un error del archivo: es gente que la empresa
+  // ya tiene. Se cuenta aparte para no alarmar de más.
+  const yaEstaban = preparadas.filter((f) =>
+    f.errores.some((e) => e.startsWith('ya está cargado'))
+  ).length;
+  const invalidas = preparadas.length - validas.length - yaEstaban;
 
   const importar = async () => {
     setImportando(true);
@@ -451,12 +469,13 @@ export const ImportarEmpleadosModal = ({
 
             <p
               className={`rounded-xl px-4 py-3 text-sm font-semibold ${
-                invalidas > 0
+                invalidas > 0 || yaEstaban > 0
                   ? 'bg-amber-100 text-amber-800'
                   : 'bg-emerald-50 text-emerald-800'
               }`}
             >
               {validas.length} filas listas para importar
+              {yaEstaban > 0 && ` · ${yaEstaban} ya estaban en la empresa`}
               {invalidas > 0 && ` · ${invalidas} con errores (se omiten)`}
             </p>
 

@@ -9,6 +9,7 @@ import {
   IconPaperclip,
   IconPlaneDeparture,
   IconPlus,
+  IconTrash,
   IconX,
 } from '@tabler/icons-react';
 import { useDisclosure } from '@mantine/hooks';
@@ -29,8 +30,10 @@ import {
 } from '@/components/app/ui/Paginacion';
 import { formatearFecha, hoyISO } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { tipoAusenciaIconos, tipoAusenciaLabels } from '@/lib/etiquetas';
 import {
+  eliminarAusencia,
   abrirAdjuntoAusencia,
   crearAusencia,
   getAusencias,
@@ -61,6 +64,8 @@ const AusenciasPage = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const esEmpleado = rolEfectivo === 'empleado';
+  const esAdminRRHH = rolEfectivo === 'admin_rrhh';
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
   const [saldo, setSaldo] = useState<SaldoVacaciones | null>(null);
   const [ausencias, setAusencias] = useState<Ausencia[]>([]);
@@ -208,6 +213,40 @@ const AusenciasPage = () => {
       Comentario: a.comentarioEmpleado ?? '',
     }));
     await descargarComoXlsx(filas, 'Ausencias', `ausencias-${hoyISO()}.xlsx`);
+  };
+
+  /**
+   * Sólo para lo que se cargó por error. Rechazar es lo correcto cuando
+   * la solicitud existió de verdad: deja el registro y su motivo.
+   */
+  const borrarAusencia = async (a: Ausencia) => {
+    const ok = await confirmar({
+      titulo: 'Eliminar ausencia',
+      detalle: (
+        <>
+          Vas a eliminar {tipoAusenciaLabels[a.tipo].toLowerCase()} de{' '}
+          {nombreEmpleado(a.empleadoId)} ({rangoDe(a)}). Se borra del calendario
+          y deja de descontar días. No se puede deshacer.
+          <br />
+          <br />
+          Si la solicitud existió y no corresponde, mejor rechazala: así queda
+          el registro con el motivo.
+        </>
+      ),
+      confirmar: 'Eliminar',
+      peligrosa: true,
+    });
+    if (!ok) return;
+    try {
+      await eliminarAusencia(a.id);
+      avisoExito('Ausencia eliminada');
+      cargar();
+    } catch (err) {
+      avisoError(
+        'No pudimos eliminarla',
+        err instanceof Error ? err.message : undefined
+      );
+    }
   };
 
   const verAdjunto = async (a: Ausencia) => {
@@ -481,6 +520,17 @@ const AusenciasPage = () => {
                     </Boton>
                   )}
                   <EstadoBadge estado={a.estado} />
+                  {esAdminRRHH && (
+                    <button
+                      type="button"
+                      onClick={() => void borrarAusencia(a)}
+                      aria-label="Eliminar ausencia"
+                      title="Eliminar: usá esto sólo si se cargó por error"
+                      className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600 sm:h-9 sm:w-9"
+                    >
+                      <IconTrash size={16} />
+                    </button>
+                  )}
                 </div>
               }
             />
@@ -501,6 +551,8 @@ const AusenciasPage = () => {
         modoAdmin={!esEmpleado}
         empleados={empleados}
       />
+
+      {dialogoConfirmar}
     </div>
   );
 };

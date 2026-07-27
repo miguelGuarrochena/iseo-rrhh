@@ -7,7 +7,8 @@ import { IconFileCheck, IconPlus, IconSignature } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo } from '@/components/app/ui/Campo';
+import { Campo, CampoTextarea } from '@/components/app/ui/Campo';
+import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
@@ -19,9 +20,6 @@ import {
   getEmpleados,
 } from '@/lib/services/rrhh';
 import { DocumentoFirma, Empleado } from '@/types/rrhh';
-
-const campoClase =
-  'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors';
 
 const DocumentosFirmaPage = () => {
   const { usuario, rolEfectivo } = useAuth();
@@ -41,6 +39,7 @@ const DocumentosFirmaPage = () => {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
+  const [errores, setErrores] = useState<Record<string, string>>({});
 
   const cargar = useCallback(() => {
     if (!usuario) return;
@@ -62,13 +61,16 @@ const DocumentosFirmaPage = () => {
 
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
-    if (!titulo.trim() || !archivo || elegidos.length === 0) {
-      avisoError(
-        'Faltan datos',
-        'Título, PDF y al menos un destinatario son obligatorios.'
-      );
-      return;
-    }
+    // Cada faltante se marca en su campo. Antes salía un solo aviso con
+    // los tres juntos y había que ir a buscar cuál era.
+    const nuevos = juntarErrores({
+      titulo: validarRequerido(titulo, 'El título'),
+      archivo: archivo ? null : 'Adjuntá el PDF a firmar.',
+      destinatarios:
+        elegidos.length === 0 ? 'Elegí al menos un destinatario.' : null,
+    });
+    setErrores(nuevos);
+    if (Object.keys(nuevos).length > 0 || !archivo) return;
     setEnviando(true);
     try {
       await crearDocumentoFirma({
@@ -209,30 +211,33 @@ const DocumentosFirmaPage = () => {
       >
         <form onSubmit={enviar} className="flex flex-col gap-3.5">
           <Campo
-            etiqueta="Título"
+            etiqueta="Título *"
             value={titulo}
             onChange={(e) => setTitulo(e.target.value)}
+            error={errores.titulo}
             placeholder="Política de seguridad…"
           />
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">
-              Descripción (opcional)
-            </span>
-            <textarea
-              value={descripcion}
-              onChange={(e) => setDescripcion(e.target.value)}
-              rows={2}
-              className={campoClase}
-            />
-          </label>
+          <CampoTextarea
+            etiqueta="Descripción (opcional)"
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+            rows={2}
+          />
           <CampoArchivo
             etiqueta="PDF *"
             accept=".pdf,application/pdf"
             onArchivo={setArchivo}
+            error={errores.archivo}
           />
-          <div>
-            <p className="mb-2 text-sm font-semibold text-ink">Destinatarios</p>
-            <div className="max-h-48 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
+          <div {...(errores.destinatarios ? { 'data-error-campo': '' } : {})}>
+            <p className="mb-2 text-sm font-semibold text-ink">
+              Destinatarios *
+            </p>
+            <div
+              className={`max-h-48 space-y-1 overflow-y-auto rounded-xl border p-2 ${
+                errores.destinatarios ? 'border-red-300' : 'border-line'
+              }`}
+            >
               {empleados.map((e) => (
                 <label
                   key={e.id}
@@ -247,6 +252,11 @@ const DocumentosFirmaPage = () => {
                 </label>
               ))}
             </div>
+            {errores.destinatarios && (
+              <span className="mt-1.5 block text-xs font-medium text-red-600">
+                {errores.destinatarios}
+              </span>
+            )}
           </div>
           <Boton type="submit" disabled={enviando}>
             {enviando ? 'Enviando…' : 'Enviar para firma'}
