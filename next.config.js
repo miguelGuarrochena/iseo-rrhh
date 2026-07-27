@@ -17,6 +17,10 @@ const nextConfig = {
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com https://vitals.vercel-insights.com",
+      // pdf.js corre su parser en un Web Worker propio (/pdf.worker.min.mjs)
+      // y en algunos navegadores lo instancia desde un blob. Sin esto, la
+      // lectura de recibos muere con un error de CSP difícil de diagnosticar.
+      "worker-src 'self' blob:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
@@ -46,6 +50,12 @@ const nextConfig = {
     // supabase-js referencia 'iceberg-js' (buckets analíticos, opcional).
     // No lo usamos: módulo vacío para que webpack no falle.
     config.resolve.alias['iceberg-js'] = false;
+    // pdfjs-dist trae un camino para Node que dibuja con 'canvas' y otro
+    // con '@napi-rs/canvas'. En el navegador no se usa ninguno —solo
+    // extraemos texto— pero webpack igual intenta resolverlos y rompe el
+    // build con "Module not found". Se anulan los dos.
+    config.resolve.alias['canvas'] = false;
+    config.resolve.alias['@napi-rs/canvas'] = false;
     config.ignoreWarnings = [
       ...(config.ignoreWarnings || []),
       {
