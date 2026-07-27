@@ -369,7 +369,7 @@ const VistaAdmin = () => {
       </div>
 
       <Panel>
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <div>
             <h2 className="text-base font-bold text-ink">
               Remuneración por colaborador
@@ -379,7 +379,7 @@ const VistaAdmin = () => {
               ficha o el lápiz para editar el período.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <Boton
               variante="secundario"
               tamano="sm"

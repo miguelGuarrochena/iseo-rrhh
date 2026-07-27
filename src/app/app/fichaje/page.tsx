@@ -215,7 +215,7 @@ const FichajePage = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink">
             Fichaje
@@ -227,7 +227,7 @@ const FichajePage = () => {
           </p>
         </div>
         {!esEmpleado && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             {esTerminal && (
               <Boton variante="negro" onClick={() => setKioscoAbierto(true)}>
                 <IconFaceId size={18} />

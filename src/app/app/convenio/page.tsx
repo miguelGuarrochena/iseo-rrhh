@@ -282,7 +282,7 @@ const ConvenioPage = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           {seleccionado && convenios.length > 1 && !editando && (
             <button
@@ -308,7 +308,7 @@ const ConvenioPage = () => {
           </div>
         </div>
         {esAdmin && !editando && !creando && (
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             {seleccionado ? (
               <>
                 <Boton variante="secundario" onClick={() => setEditando(true)}>

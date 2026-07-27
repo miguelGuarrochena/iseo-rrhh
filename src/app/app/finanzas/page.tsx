@@ -166,8 +166,8 @@ const FinanzasPage = () => {
             El negocio de ISEO: facturación de tus empresas, ingresos y gastos.
           </p>
         </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="w-44">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+          <div className="w-full sm:w-44">
             <CampoMes
               etiqueta="Período"
               value={periodo}
@@ -251,7 +251,7 @@ const FinanzasPage = () => {
           {resumen?.facturacion.map((f) => (
             <div
               key={f.empresaId}
-              className="flex flex-wrap items-center justify-between gap-3 py-3"
+              className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between py-3"
             >
               <div className="min-w-0">
                 <p className="truncate font-semibold text-ink">{f.nombre}</p>

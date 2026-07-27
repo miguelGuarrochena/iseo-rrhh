@@ -170,14 +170,14 @@ const ReportesPage = () => {
           </Panel>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+        <div className="mt-2 flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <h2 className="text-lg font-bold tracking-tight text-ink">
             Detalle por empresa
           </h2>
           <Selector
             valor={empresaSel}
             onCambiar={setEmpresaSel}
-            className="w-64"
+            className="w-full sm:w-64"
             opciones={empresas
               .filter((e) => e.empresa.estado === 'activa')
               .map((e) => ({

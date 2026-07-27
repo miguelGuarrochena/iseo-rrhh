@@ -383,7 +383,7 @@ export const CargaMasivaModal = ({
                     </span>
                   )}
                 </span>
-                <div className="w-56">
+                <div className="w-full sm:w-56">
                   <CampoSelect
                     etiqueta=""
                     value={f.empleadoId}
@@ -457,7 +457,7 @@ export const CargaMasivaModal = ({
           </span>
         </label>
 
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <span className="text-xs text-ink-soft">
             {filas.length === 0
               ? 'Todavía no elegiste archivos.'
