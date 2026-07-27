@@ -445,7 +445,7 @@ export const CargaMasivaModal = ({
                     ) : f.vieneDe ? (
                       `${f.paginas} ${f.paginas === 1 ? 'página' : 'páginas'} de ${f.vieneDe}`
                     ) : f.lectura === 'ok' ? (
-                      'Identificado por el CUIL impreso en el recibo'
+                      'Reconocido por lo que dice el recibo'
                     ) : (
                       'Asignalo a mano'
                     )}

@@ -1,10 +1,12 @@
 import {
   agruparPorDueno,
+  documentosInstitucionales,
   clasificarArchivo,
   cuilsEnTexto,
   dnisEnTexto,
   duenoDePagina,
   nombreEnTexto,
+  clavePorNombre,
 } from '@/lib/recibosPdf';
 
 const ana = { id: 'ana', dni: '25123456', cuil: '27-25123456-4' };
@@ -284,5 +286,71 @@ describe('trampas de un recibo real', () => {
       { empleadoId: null, paginas: [2], motivo: 'desconocido' },
       { empleadoId: 'beto', paginas: [3] },
     ]);
+  });
+});
+
+// Los dos apoyos que hacen que esto funcione con datos reales, donde el
+// CUIT de la empresa puede estar mal cargado y faltan CUIL en las fichas.
+describe('documentos de la empresa deducidos del archivo', () => {
+  const conCuit = (nombre: string, cuil: string) =>
+    `Empleador: ISEO SRL CUIT 30-71234567-1 Apellido y Nombre: ${nombre} CUIL ${cuil}`;
+
+  it('detecta el que se repite en todas las páginas', () => {
+    const paginas = [
+      conCuit('ANA', '27-25123456-4'),
+      conCuit('BETO', '20-30987654-3'),
+    ];
+    expect([...documentosInstitucionales(paginas)]).toEqual(['30712345671']);
+  });
+
+  it('no descarta nada en un PDF de una sola persona', () => {
+    // Ahí el CUIL propio también está en todas y no hay con qué comparar.
+    const paginas = [conCuit('ANA', '27-25123456-4'), 'DUPLICADO'];
+    expect(documentosInstitucionales(paginas).size).toBe(0);
+  });
+
+  it('agrupa bien aunque el CUIT configurado esté equivocado', () => {
+    const paginas = [
+      conCuit('ANA', '27-25123456-4'),
+      'Empleador: ISEO SRL CUIT 30-71234567-1 DUPLICADO',
+      conCuit('BETO', '20-30987654-3'),
+    ];
+    const tramos = agruparPorDueno(paginas, equipo, '30-99999999-9');
+    expect(tramos.map((t) => t.paginas)).toEqual([[0, 1], [2]]);
+  });
+});
+
+describe('reconocimiento por nombre', () => {
+  const sinCuil = [
+    { id: 'bob', nombre: 'Bob', apellido: 'Esponja' },
+    { id: 'ned', nombre: 'Ned', apellido: 'Flanders' },
+  ];
+
+  it('iguala "ESPONJA, BOB" con la ficha "Bob Esponja"', () => {
+    expect(clavePorNombre('ESPONJA, BOB')).toBe(clavePorNombre('Bob Esponja'));
+  });
+
+  it('identifica a quien no tiene el CUIL cargado', () => {
+    const t = 'Apellido y Nombre: ESPONJA, BOB  CUIL 20-44444444-5';
+    expect(duenoDePagina(t, sinCuil, CUIT_EMPRESA)).toEqual({
+      ok: true,
+      empleadoId: 'bob',
+      por: 'nombre',
+    });
+  });
+
+  it('no asigna si el nombre no es exactamente el mismo', () => {
+    const t = 'Apellido y Nombre: ESPONJA, ROBERTO  CUIL 20-44444444-5';
+    expect(duenoDePagina(t, sinCuil, CUIT_EMPRESA).ok).toBe(false);
+  });
+
+  it('el documento manda sobre el nombre', () => {
+    const conAmbos = [...sinCuil, { id: 'ana', cuil: '27-25123456-4' }];
+    const t = 'Apellido y Nombre: ESPONJA, BOB  CUIL 27-25123456-4';
+    expect(duenoDePagina(t, conAmbos, CUIT_EMPRESA)).toEqual({
+      ok: true,
+      empleadoId: 'ana',
+      por: 'cuil',
+    });
   });
 });

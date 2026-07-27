@@ -20,7 +20,27 @@ export interface CandidatoRecibo {
   id: string;
   dni?: string;
   cuil?: string;
+  nombre?: string;
+  apellido?: string;
 }
+
+/**
+ * Normaliza un nombre para compararlo: sin acentos ni puntuación, en
+ * minúsculas y con las palabras ordenadas alfabéticamente. Así
+ * "ESPONJA, BOB" y "Bob Esponja" dan la misma clave, que es justo la
+ * diferencia entre cómo lo imprime el sistema de sueldos y cómo está
+ * cargado en la ficha.
+ */
+export const clavePorNombre = (texto: string): string =>
+  texto
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter((p) => p.length > 1)
+    .sort()
+    .join(' ');
 
 /**
  * Un CUIT/CUIL impreso: 11 dígitos, con o sin guiones o puntos. Se pide
@@ -42,8 +62,14 @@ const RE_CUIL = /(?<!\d)(\d{2})[-.\s]?(\d{8})[-.\s]?(\d)(?!\d)/g;
  *
  * El lookbehind cumple la función simétrica: descarta lo que sea la cola
  * de un número más largo o venga precedido por `$`.
+ *
+ * El guion está en ambos lados por un caso concreto: en `20-11111111-2`
+ * los ocho dígitos del medio tienen forma de DNI y se leían como el
+ * documento de otra persona. Un DNI nunca se escribe con guiones —se usan
+ * puntos—, así que descartarlos no pierde nada.
  */
-const RE_DNI = /(?<![\d$.,])(\d{1,3}\.\d{3}\.\d{3}|\d{7,8})(?!\d)(?![.,]\d)/g;
+const RE_DNI =
+  /(?<![\d$.,-])(\d{1,3}\.\d{3}\.\d{3}|\d{7,8})(?![\d-])(?![.,]\d)/g;
 
 /** Todos los CUIL que aparecen en el texto, normalizados a 11 dígitos. */
 export const cuilsEnTexto = (texto: string): string[] => {
@@ -95,7 +121,7 @@ export type MotivoSinDueno =
   | 'varios'; // la página menciona a más de un colaborador
 
 export type DuenoDePagina =
-  | { ok: true; empleadoId: string; por: 'cuil' | 'dni' }
+  | { ok: true; empleadoId: string; por: 'cuil' | 'dni' | 'nombre' }
   | { ok: false; motivo: MotivoSinDueno };
 
 /**
@@ -114,7 +140,7 @@ export type DuenoDePagina =
 export const duenoDePagina = (
   texto: string,
   candidatos: CandidatoRecibo[],
-  cuitEmpleador?: string
+  documentosEmpresa?: Iterable<string> | string
 ): DuenoDePagina => {
   const porCuil = new Map<string, string>();
   const porDni = new Map<string, string>();
@@ -125,16 +151,21 @@ export const duenoDePagina = (
     if (dni.length >= 7) porDni.set(dni, c.id);
   }
 
-  const cuitEmpresa = soloDigitosDoc(cuitEmpleador ?? '');
-  const cuils = cuilsEnTexto(texto).filter((c) => c !== cuitEmpresa);
-  const dnis = dnisEnTexto(texto).filter(
-    // El CUIT de la empresa también aparece "adentro" como si fuera un
-    // DNI de 8 dígitos; no debe contar como documento de una persona.
-    (d) => !cuitEmpresa || !cuitEmpresa.includes(d)
+  const deLaEmpresa = new Set(
+    (typeof documentosEmpresa === 'string'
+      ? [documentosEmpresa]
+      : [...(documentosEmpresa ?? [])]
+    )
+      .map(soloDigitosDoc)
+      .filter(Boolean)
   );
-  if (cuils.length === 0 && dnis.length === 0) {
-    return { ok: false, motivo: 'sin_documento' };
-  }
+  const esDeLaEmpresa = (doc: string) =>
+    deLaEmpresa.has(doc) ||
+    // El CUIT también aparece "adentro" con forma de DNI de 8 dígitos.
+    [...deLaEmpresa].some((c) => c.includes(doc));
+
+  const cuils = cuilsEnTexto(texto).filter((c) => !esDeLaEmpresa(c));
+  const dnis = dnisEnTexto(texto).filter((d) => !esDeLaEmpresa(d));
 
   const idsPorCuil = new Set(
     cuils.map((c) => porCuil.get(c)).filter((x): x is string => Boolean(x))
@@ -152,6 +183,32 @@ export const duenoDePagina = (
   }
   if (idsPorDni.size > 1) return { ok: false, motivo: 'varios' };
 
+  // Último recurso: el nombre impreso. Es el caso más común en la
+  // práctica —la empresa no tiene cargado el CUIL de todos— y sin esto
+  // RRHH asigna a mano gente que el recibo nombra completa. Se exige
+  // coincidencia exacta del nombre y que sea de una sola persona.
+  const impreso = nombreEnTexto(texto);
+  if (impreso) {
+    const clave = clavePorNombre(impreso);
+    const ids = new Set(
+      candidatos
+        .filter(
+          (c) =>
+            (c.apellido || c.nombre) &&
+            clavePorNombre(`${c.apellido ?? ''} ${c.nombre ?? ''}`) === clave
+        )
+        .map((c) => c.id)
+    );
+    if (ids.size === 1) {
+      return { ok: true, empleadoId: [...ids][0], por: 'nombre' };
+    }
+  }
+
+  // Sin ningún documento propio: es una hoja de continuación (el
+  // duplicado, que sólo repite el encabezado de la empresa).
+  if (cuils.length === 0 && dnis.length === 0) {
+    return { ok: false, motivo: 'sin_documento' };
+  }
   return { ok: false, motivo: 'desconocido' };
 };
 
@@ -177,6 +234,41 @@ export interface TramoRecibo {
 }
 
 /**
+ * Documentos que son de la empresa y no de una persona.
+ *
+ * El CUIT del empleador va impreso en todas las hojas. Se puede pasar
+ * por parámetro, pero depender de eso es frágil: si en la ficha de la
+ * empresa está mal cargado o falta, cada hoja de duplicado parece traer
+ * el documento de un desconocido y el recibo se parte al medio.
+ *
+ * Así que además se deduce del propio archivo: un documento que aparece
+ * en **todas** las páginas, cuando hay otros que no, es institucional.
+ * En un PDF de una sola persona no se descarta nada, porque ahí su CUIL
+ * también está en todas y no hay con qué contrastar.
+ */
+export const documentosInstitucionales = (
+  textosPorPagina: string[]
+): Set<string> => {
+  if (textosPorPagina.length < 2) return new Set();
+
+  const porPagina = textosPorPagina.map(
+    (t) => new Set([...cuilsEnTexto(t), ...dnisEnTexto(t)])
+  );
+  const veces = new Map<string, number>();
+  for (const docs of porPagina) {
+    for (const d of docs) veces.set(d, (veces.get(d) ?? 0) + 1);
+  }
+
+  const total = textosPorPagina.length;
+  const enTodas = [...veces.entries()]
+    .filter(([, n]) => n === total)
+    .map(([d]) => d);
+  const hayOtrosQueVarian = [...veces.values()].some((n) => n < total);
+
+  return hayOtrosQueVarian ? new Set(enTodas) : new Set();
+};
+
+/**
  * Agrupa las páginas del PDF en tramos por persona.
  *
  * Un recibo suele ocupar más de una hoja (original y duplicado), y la
@@ -195,9 +287,16 @@ export const agruparPorDueno = (
   cuitEmpleador?: string
 ): TramoRecibo[] => {
   const tramos: TramoRecibo[] = [];
+  // Lo configurado más lo que se deduce del archivo: si el CUIT de la
+  // ficha está mal o falta, igual se detecta el que se repite en todas
+  // las hojas y el recibo no se parte al medio.
+  const deLaEmpresa = new Set([
+    ...(cuitEmpleador ? [soloDigitosDoc(cuitEmpleador)] : []),
+    ...documentosInstitucionales(textosPorPagina),
+  ]);
 
   textosPorPagina.forEach((texto, i) => {
-    const dueno = duenoDePagina(texto, candidatos, cuitEmpleador);
+    const dueno = duenoDePagina(texto, candidatos, deLaEmpresa);
     const ultimo = tramos[tramos.length - 1];
 
     if (dueno.ok === true) {
@@ -223,7 +322,8 @@ export const agruparPorDueno = (
     }
 
     // Sin dueño: se guarda lo que se haya podido leer para mostrarlo.
-    const cuitEmpresa = soloDigitosDoc(cuitEmpleador ?? '');
+    const propio = (doc: string) =>
+      !deLaEmpresa.has(doc) && ![...deLaEmpresa].some((c) => c.includes(doc));
     tramos.push({
       empleadoId: null,
       paginas: [i],
@@ -231,10 +331,8 @@ export const agruparPorDueno = (
       pista: {
         nombre: nombreEnTexto(texto) ?? undefined,
         documentos: [
-          ...cuilsEnTexto(texto).filter((c) => c !== cuitEmpresa),
-          ...dnisEnTexto(texto).filter(
-            (d) => !cuitEmpresa || !cuitEmpresa.includes(d)
-          ),
+          ...cuilsEnTexto(texto).filter(propio),
+          ...dnisEnTexto(texto).filter(propio),
         ],
       },
     });
