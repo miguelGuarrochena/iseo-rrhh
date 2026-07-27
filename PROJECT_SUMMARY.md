@@ -1,8 +1,8 @@
-# 📊 Talento+ - Resumen del Proyecto
+# 📊 ISEO RH - Resumen del Proyecto
 
 ## 🎯 Descripción General
 
-**Talento+** es una landing page profesional y moderna para una plataforma SaaS de gestión de recursos humanos, específicamente diseñada para pequeñas y medianas empresas sin departamento formal de RRHH.
+**ISEO RH** es una landing page profesional y moderna para una plataforma SaaS de gestión de recursos humanos, específicamente diseñada para pequeñas y medianas empresas sin departamento formal de RRHH.
 
 ## 🏗️ Arquitectura Técnica
 
@@ -23,7 +23,7 @@
 ```
 rrhh/
 ├── public/                    # Archivos estáticos
-│   ├── logo.svg              # Logo SVG de Talento+
+│   ├── logo.svg              # Logo SVG de ISEO RH
 │   └── favicon.ico           # Favicon
 ├── src/
 │   ├── components/           # Componentes React (7 archivos)

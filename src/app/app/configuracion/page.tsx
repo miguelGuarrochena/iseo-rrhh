@@ -11,6 +11,8 @@ import { CuposLicenciaPanel } from '@/components/app/configuracion/CuposLicencia
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { ConfigPlataformaForm } from '@/components/app/configuracion/ConfigPlataformaForm';
+import { MODULOS_OPCIONALES } from '@/components/app/navItems';
+import { olvidarModulos } from '@/lib/auth/useModulos';
 import {
   juntarErrores,
   validarEmail,
@@ -125,6 +127,10 @@ const ConfiguracionPage = () => {
         contactoEmail,
         logoUrl,
       });
+      // El menú lee los módulos de un cache; sin esto, apagar una sección
+      // no se vería hasta recargar la página.
+      const empresaId = empresaVista?.id ?? usuario.empresaId;
+      if (empresaId) olvidarModulos(empresaId);
       avisoExito('Configuración guardada');
       setGuardado(true);
       setTimeout(() => setGuardado(false), 2500);
@@ -300,6 +306,42 @@ const ConfiguracionPage = () => {
               Contar vacaciones en días hábiles (lun–vie)
             </span>
           </label>
+        </Panel>
+
+        <Panel>
+          <h2 className="text-base font-bold text-ink">Secciones</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Apagá lo que esta empresa no usa: desaparece del menú para todo el
+            equipo. No se borra nada, se puede volver a prender cuando quieras.
+          </p>
+          <div className="mt-4 flex flex-col gap-3">
+            {MODULOS_OPCIONALES.map((m) => (
+              <label key={m.clave} className="flex cursor-pointer gap-3">
+                <input
+                  type="checkbox"
+                  checked={config.modulos?.[m.clave] !== false}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      modulos: {
+                        ...(config.modulos ?? {}),
+                        [m.clave]: e.target.checked,
+                      },
+                    })
+                  }
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                />
+                <span>
+                  <span className="text-sm font-semibold text-ink">
+                    {m.etiqueta}
+                  </span>
+                  <span className="mt-0.5 block text-xs text-ink-soft">
+                    {m.descripcion}
+                  </span>
+                </span>
+              </label>
+            ))}
+          </div>
         </Panel>
 
         <CuposLicenciaPanel />

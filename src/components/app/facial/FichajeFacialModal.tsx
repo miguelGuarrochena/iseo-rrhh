@@ -6,7 +6,7 @@ import { IconCircleCheck } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { CapturaFacial } from './CapturaFacial';
 import {
-  UMBRAL_COINCIDENCIA,
+  UMBRAL_VERIFICACION,
   distancia,
   mejorCoincidencia,
 } from '@/lib/facial/reconocimiento';
@@ -107,13 +107,21 @@ export const FichajeFacialModal = ({
           return;
         }
         const d = distancia(descriptor, descriptorEmpleado);
-        if (d > UMBRAL_COINCIDENCIA) {
-          setError('No te reconocimos. Acercate, mirá de frente y con luz.');
+        if (d > UMBRAL_VERIFICACION) {
+          // Se muestra qué tan lejos quedó: si es apenas por encima, casi
+          // siempre alcanza con reintentar de frente y con mejor luz. Si
+          // es muy alto, conviene volver a registrar la cara.
+          const cerca = d < UMBRAL_VERIFICACION * 1.3;
+          setError(
+            cerca
+              ? 'Casi. Acercate, mirá de frente y buscá mejor luz (que no venga de atrás tuyo).'
+              : 'No te reconocimos. Si cambiaste mucho de aspecto (barba, anteojos nuevos), pedile a RRHH que registre tu cara de nuevo.'
+          );
           return;
         }
         await fichar(
           empleadoId,
-          Math.max(0, 1 - d / UMBRAL_COINCIDENCIA),
+          Math.max(0, 1 - d / UMBRAL_VERIFICACION),
           foto
         );
       } else {
@@ -127,7 +135,7 @@ export const FichajeFacialModal = ({
         const match = mejorCoincidencia(descriptor, candidatos);
         if (!match) {
           setError(
-            'No reconocimos a nadie. Acercate, mirá de frente y con buena luz.'
+            'No reconocimos a nadie con seguridad. Acercate, mirá de frente y con buena luz. Si el problema sigue, fichá con tu celular y avisale a RRHH.'
           );
           return;
         }

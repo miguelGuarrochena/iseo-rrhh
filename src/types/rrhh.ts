@@ -47,6 +47,15 @@ export interface ConfigEmpresa {
    * Por defecto false = días corridos (LCT).
    */
   vacacionesDiasHabiles?: boolean;
+  /**
+   * Secciones que la empresa decide no usar. La clave es el `modulo` del
+   * NavItem y sólo se guarda cuando está apagada: lo que no figura acá
+   * queda encendido, así las empresas que ya existen no cambian.
+   *
+   * Es el germen de los módulos por tipo de negocio: cuando se defina
+   * ese paquete, se suman claves acá sin migrar nada.
+   */
+  modulos?: Record<string, boolean>;
 }
 
 export type EstadoEmpresa = 'activa' | 'suspendida';

@@ -1,4 +1,4 @@
-# 🚀 Quick Start Guide - Talento+
+# 🚀 Quick Start Guide - ISEO RH
 
 ## Instalación Rápida
 
@@ -34,7 +34,7 @@ Después de la instalación, verifica que todo funcione:
 
 - [ ] El servidor de desarrollo inicia sin errores
 - [ ] La página carga en http://localhost:3000
-- [ ] El logo "Talento+" se muestra correctamente
+- [ ] El logo "ISEO RH" se muestra correctamente
 - [ ] Todas las secciones son visibles (Hero, Features, About, Contact, Footer)
 - [ ] La navegación funciona (scroll suave)
 - [ ] El formulario de contacto valida correctamente

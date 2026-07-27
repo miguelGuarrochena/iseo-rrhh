@@ -15,7 +15,7 @@ import {
   validarEmail,
   validarRequerido,
 } from '@/lib/validaciones';
-import { avisoExito } from '@/lib/avisos';
+import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   cambiarRolUsuario,
   getEmpleados,
@@ -60,9 +60,21 @@ const PermisosPage = () => {
     );
   }
 
+  const admins = usuarios.filter((u) => u.rol === 'admin_rrhh');
+
   const cambiarRol = async (usuarioId: string, nuevoRol: Rol) => {
-    await cambiarRolUsuario(usuarioId, nuevoRol);
-    cargar();
+    try {
+      await cambiarRolUsuario(usuarioId, nuevoRol);
+      cargar();
+    } catch (err) {
+      // Antes fallaba en silencio: el selector volvía solo y no se sabía
+      // por qué. El caso típico es querer bajar al único admin.
+      avisoError(
+        'No pudimos cambiar el rol',
+        err instanceof Error ? err.message : undefined
+      );
+      cargar();
+    }
   };
 
   const invitar = async (e: FormEvent) => {
@@ -150,11 +162,31 @@ const PermisosPage = () => {
         ))}
       </ListaCard>
 
-      <p className="text-xs text-ink-soft">
-        El rol define qué ve cada persona: los admin gestionan todo, los
-        supervisores aprueban y ven indicadores de su equipo, y los empleados se
-        autogestionan.
-      </p>
+      {admins.length === 1 && (
+        <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <span className="font-bold">
+            Hay un solo admin en esta empresa ({admins[0].nombreCompleto}).
+          </span>{' '}
+          Si esa persona se va o pierde el acceso, nadie más puede dar de alta
+          colaboradores ni cargar recibos. Conviene nombrar a un segundo admin.
+        </p>
+      )}
+
+      <div className="flex flex-col gap-2 rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
+        <p>
+          El rol define qué ve cada persona: los admin gestionan todo, los
+          supervisores aprueban y ven indicadores de su equipo, y los empleados
+          se autogestionan.
+        </p>
+        <p>
+          <span className="font-semibold text-ink">
+            Si cedés la administración de la empresa:
+          </span>{' '}
+          nombrá admin a quien la va a llevar. Tu cuenta de ISEO RH sigue viendo
+          la empresa igual —el acceso de soporte no depende de figurar en esta
+          lista—, pero las tareas del día a día pasan a ser de esa persona.
+        </p>
+      </div>
 
       <Modal
         opened={modalAbierto}

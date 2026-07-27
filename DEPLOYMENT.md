@@ -1,4 +1,4 @@
-# 🚀 Guía de Deployment - Talento+
+# 🚀 Guía de Deployment - ISEO RH
 
 ## Verificación Pre-Deployment
 
@@ -94,7 +94,7 @@ npm run build
 npm install -g pm2
 
 # 3. Iniciar con PM2
-pm2 start npm --name "talento-plus" -- start
+pm2 start npm --name "iseo-rh" -- start
 
 # 4. Guardar configuración
 pm2 save
@@ -133,8 +133,8 @@ CMD ["node", "server.js"]
 Construir y ejecutar:
 
 ```bash
-docker build -t talento-plus .
-docker run -p 3000:3000 talento-plus
+docker build -t iseo-rh .
+docker run -p 3000:3000 iseo-rh
 ```
 
 ## Variables de Entorno

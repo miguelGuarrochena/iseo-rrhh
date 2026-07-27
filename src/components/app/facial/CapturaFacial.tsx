@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IconCamera, IconFaceId, IconRefresh } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
-import { cargarModelos, obtenerDescriptor } from '@/lib/facial/reconocimiento';
+import { cargarModelos, detectarRostro } from '@/lib/facial/reconocimiento';
 
 interface CapturaFacialProps {
   /** Se llama con el descriptor (128 nros) y una foto JPEG (dataURL). */
@@ -13,7 +13,23 @@ interface CapturaFacialProps {
   textoBoton?: string;
 }
 
-type Estado = 'iniciando' | 'listo' | 'sin_camara' | 'permiso_denegado';
+type Estado =
+  | 'iniciando'
+  | 'listo'
+  | 'sin_camara'
+  | 'permiso_denegado'
+  | 'sin_https'
+  | 'camara_ocupada';
+
+const MENSAJES_ESTADO: Record<string, string> = {
+  permiso_denegado:
+    'Necesitamos permiso para usar la cámara. Habilitalo en el candado de la barra de direcciones y reintentá.',
+  sin_https:
+    'El navegador solo habilita la cámara en sitios seguros (https). Entrá por la dirección https:// de la app, no por la IP de la red.',
+  camara_ocupada:
+    'La cámara está siendo usada por otra aplicación. Cerrá la otra app (Zoom, Meet, la cámara del sistema) y reintentá.',
+  sin_camara: 'No pudimos acceder a la cámara de este dispositivo.',
+};
 
 /**
  * Cámara frontal + extracción de descriptor facial en el dispositivo.
@@ -33,6 +49,18 @@ export const CapturaFacial = ({
   const iniciarCamara = useCallback(async () => {
     setEstado('iniciando');
     setMensaje(null);
+    // En contexto inseguro (http:// o una IP de la red local) el
+    // navegador ni siquiera expone mediaDevices. Es la causa más común
+    // de "no me toma la cámara" en las tablets de planta, y sin este
+    // chequeo se reportaba como un genérico "sin cámara".
+    if (
+      typeof navigator === 'undefined' ||
+      !navigator.mediaDevices?.getUserMedia
+    ) {
+      setEstado(window.isSecureContext === false ? 'sin_https' : 'sin_camara');
+      return;
+    }
+
     try {
       void cargarModelos();
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -46,8 +74,13 @@ export const CapturaFacial = ({
       }
       setEstado('listo');
     } catch (err) {
-      if (err instanceof DOMException && err.name === 'NotAllowedError') {
-        setEstado('permiso_denegado');
+      const nombre = err instanceof DOMException ? err.name : '';
+      if (nombre === 'NotAllowedError' || nombre === 'SecurityError') {
+        setEstado(
+          window.isSecureContext === false ? 'sin_https' : 'permiso_denegado'
+        );
+      } else if (nombre === 'NotReadableError' || nombre === 'AbortError') {
+        setEstado('camara_ocupada');
       } else {
         setEstado('sin_camara');
       }
@@ -67,13 +100,18 @@ export const CapturaFacial = ({
     setAnalizando(true);
     setMensaje(null);
     try {
-      const descriptor = await obtenerDescriptor(videoRef.current);
-      if (!descriptor) {
+      const deteccion = await detectarRostro(videoRef.current);
+      if (!deteccion.ok) {
         setMensaje(
-          'No detectamos una sola cara. Acercate, mirá de frente y con buena luz.'
+          deteccion.motivo === 'varias_caras'
+            ? `Detectamos ${deteccion.caras} caras. Que quede una sola persona frente a la cámara.`
+            : deteccion.motivo === 'sin_modelos'
+              ? 'No pudimos cargar el modelo de reconocimiento. Revisá la conexión a internet del dispositivo.'
+              : 'No detectamos ninguna cara. Acercate, mirá de frente, sacate los lentes de sol y buscá mejor luz (que no venga de atrás tuyo).'
         );
         return;
       }
+      const { descriptor } = deteccion;
       const canvas = document.createElement('canvas');
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
@@ -89,14 +127,12 @@ export const CapturaFacial = ({
     }
   };
 
-  if (estado === 'permiso_denegado' || estado === 'sin_camara') {
+  if (estado !== 'iniciando' && estado !== 'listo') {
     return (
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-paper/60 p-6 text-center">
         <IconFaceId size={32} className="text-ink-soft" />
         <p className="text-sm text-ink-soft">
-          {estado === 'permiso_denegado'
-            ? 'Necesitamos permiso para usar la cámara. Habilitalo y reintentá.'
-            : 'No pudimos acceder a la cámara de este dispositivo.'}
+          {MENSAJES_ESTADO[estado] ?? MENSAJES_ESTADO.sin_camara}
         </p>
         <Boton
           variante="secundario"

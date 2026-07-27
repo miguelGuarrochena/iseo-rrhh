@@ -33,7 +33,29 @@ export interface NavItem {
     | 'ausenciasPorResolver'
     | 'comunicacionesAbiertas'
     | 'documentosPorFirmar';
+  /**
+   * Sección que la empresa puede apagar desde Configuración. Si no tiene
+   * `modulo`, siempre se muestra: son las partes que no se negocian.
+   */
+  modulo?: ModuloOpcional;
 }
+
+/** Secciones que se pueden encender y apagar por empresa. */
+export type ModuloOpcional = 'organigrama';
+
+/** Cómo se llaman en Configuración y qué hacen. */
+export const MODULOS_OPCIONALES: {
+  clave: ModuloOpcional;
+  etiqueta: string;
+  descripcion: string;
+}[] = [
+  {
+    clave: 'organigrama',
+    etiqueta: 'Organigrama',
+    descripcion:
+      'Vista del "reporta a" de cada colaborador. Si la empresa no tiene una estructura de supervisión armada, no aporta y conviene apagarla.',
+  },
+];
 
 const OPERATIVOS: Rol[] = ['admin_rrhh', 'supervisor', 'empleado'];
 const GESTION: Rol[] = ['admin_rrhh', 'supervisor'];
@@ -126,6 +148,7 @@ export const navItems: NavItem[] = [
     href: '/organigrama',
     icono: IconSitemap,
     roles: GESTION,
+    modulo: 'organigrama',
   },
   {
     etiqueta: 'Convenio',
@@ -159,5 +182,19 @@ export const navItems: NavItem[] = [
   },
 ];
 
-export const navItemsPorRol = (rol: Rol): NavItem[] =>
-  navItems.filter((item) => item.roles.includes(rol));
+/**
+ * ¿La empresa tiene encendido ese módulo? Sin configuración guardada, sí:
+ * apagar es una decisión explícita, no el estado por defecto.
+ */
+export const moduloActivo = (
+  modulo: ModuloOpcional | undefined,
+  modulos?: Record<string, boolean>
+): boolean => (modulo ? modulos?.[modulo] !== false : true);
+
+export const navItemsPorRol = (
+  rol: Rol,
+  modulos?: Record<string, boolean>
+): NavItem[] =>
+  navItems.filter(
+    (item) => item.roles.includes(rol) && moduloActivo(item.modulo, modulos)
+  );

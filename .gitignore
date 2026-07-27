@@ -35,3 +35,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env
+
+# worker de pdf.js (lo copia scripts/copiar-worker-pdf.mjs en postinstall)
+/public/pdf.worker.min.mjs

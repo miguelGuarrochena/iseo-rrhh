@@ -1,4 +1,4 @@
-# ✅ Estado del Proyecto - Talento+
+# ✅ Estado del Proyecto - ISEO RH
 
 **Fecha**: 2025-10-04  
 **Estado**: ✅ **COMPLETO Y FUNCIONAL**  
@@ -8,7 +8,7 @@
 
 ## 📋 Resumen Ejecutivo
 
-Se ha creado exitosamente un proyecto Next.js completo y production-ready para **Talento+**, una landing page profesional de SaaS de gestión de recursos humanos.
+Se ha creado exitosamente un proyecto Next.js completo y production-ready para **ISEO RH**, una landing page profesional de SaaS de gestión de recursos humanos.
 
 ## ✅ Checklist de Completitud
 
@@ -259,7 +259,7 @@ Para preguntas o problemas:
 
 ## 🎉 Conclusión
 
-El proyecto **Talento+** está **100% completo y funcional**. Todos los requisitos han sido cumplidos:
+El proyecto **ISEO RH** está **100% completo y funcional**. Todos los requisitos han sido cumplidos:
 
 ✅ Next.js + TypeScript  
 ✅ Mantine UI + TailwindCSS  

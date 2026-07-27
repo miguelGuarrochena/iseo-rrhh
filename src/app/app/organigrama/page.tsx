@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@mantine/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { useModulos } from '@/lib/auth/useModulos';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
@@ -27,6 +29,7 @@ const iniciales = (e: Empleado) =>
 
 const OrganigramaPage = () => {
   const { rolEfectivo } = useAuth();
+  const modulos = useModulos();
   const router = useRouter();
   const esAdmin = rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin';
 
@@ -137,6 +140,33 @@ const OrganigramaPage = () => {
       setGuardando(false);
     }
   };
+
+  // La sección se puede apagar por empresa desde Configuración. El menú
+  // ya la esconde; esto cubre a quien llegue por la URL directa o por un
+  // link viejo guardado en favoritos.
+  if (modulos && modulos.organigrama === false) {
+    return (
+      <div className="flex flex-col gap-3">
+        <h1 className="text-2xl font-bold tracking-tight text-ink">
+          Organigrama
+        </h1>
+        <p className="text-sm text-ink-soft">
+          Esta empresa tiene el organigrama apagado.{' '}
+          {esAdmin ? (
+            <>
+              Podés volver a prenderlo en{' '}
+              <Link href="/configuracion" className="font-semibold underline">
+                Configuración
+              </Link>
+              .
+            </>
+          ) : (
+            'Consultalo con quien administra la empresa.'
+          )}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">

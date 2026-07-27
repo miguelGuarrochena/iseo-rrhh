@@ -54,6 +54,26 @@ const cargarPerfil = async (usuarioId: string): Promise<Usuario | null> => {
 };
 
 /**
+ * Empresa que el superadmin estaba mirando, guardada en localStorage.
+ *
+ * Sin esto, cualquier recarga (F5, una URL pegada, abrir un link en otra
+ * pestaña) lo devolvía al contexto global. Las pantallas de la empresa
+ * seguían abiertas pero sin empresa activa, así que las consultas
+ * tiraban "Sin empresa activa" y la pantalla mostraba datos vacíos como
+ * si el equipo no tuviera nada cargado.
+ */
+const empresaVistaGuardada = (perfil: Usuario): Empresa | null => {
+  if (perfil.rol !== 'superadmin') return null;
+  try {
+    const vista = window.localStorage.getItem(EMPRESA_VISTA_KEY);
+    return vista ? (JSON.parse(vista) as Empresa) : null;
+  } catch {
+    window.localStorage.removeItem(EMPRESA_VISTA_KEY);
+    return null;
+  }
+};
+
+/**
  * El acceso de la empresa lo maneja el superadmin (alta/suspensión,
  * ej. por falta de pago). Si está suspendida, nadie de esa empresa entra.
  */
@@ -96,7 +116,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (data.session) {
           const perfil = await cargarPerfil(data.session.user.id);
           if (perfil && (await empresaHabilitada(perfil))) {
-            set({ usuario: perfil, sesionReal: true, cargando: false });
+            set({
+              usuario: perfil,
+              sesionReal: true,
+              // Se recupera la empresa que estaba mirando: si no, al
+              // recargar quedaba adentro de las pantallas de la empresa
+              // pero sin empresa activa.
+              empresaVista: empresaVistaGuardada(perfil),
+              cargando: false,
+            });
             return;
           }
           if (perfil) await supabase().auth.signOut();

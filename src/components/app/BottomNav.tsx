@@ -8,6 +8,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconMenu2 } from '@tabler/icons-react';
 import { navItemsPorRol } from './navItems';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { useModulos } from '@/lib/auth/useModulos';
 import { getPendientesResumen } from '@/lib/services/rrhh';
 import { PendientesResumen } from '@/types/rrhh';
 
@@ -26,6 +27,7 @@ const Badge = ({ n }: { n: number }) =>
  */
 export const BottomNav = () => {
   const { usuario, rolEfectivo } = useAuth();
+  const modulos = useModulos();
   const pathname = usePathname();
   const [masAbierto, { open: abrirMas, close: cerrarMas }] =
     useDisclosure(false);
@@ -51,7 +53,7 @@ export const BottomNav = () => {
     return pendientes[key] ?? 0;
   };
 
-  const items = navItemsPorRol(rolEfectivo);
+  const items = navItemsPorRol(rolEfectivo, modulos);
   const conMas = items.length > MAX_TABS;
   const tabs = conMas ? items.slice(0, MAX_TABS - 1) : items;
   const resto = conMas ? items.slice(MAX_TABS - 1) : [];

@@ -249,4 +249,4 @@ Desarrollado para ISEO RH - Organizá tu empresa y tu equipo
 
 ---
 
-**¿Necesitas ayuda?** Contacta a contacto@talentoplus.com
+**¿Necesitas ayuda?** Contacta a contacto@iseorh.com

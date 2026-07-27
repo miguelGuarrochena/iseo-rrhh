@@ -18,11 +18,29 @@ import type * as FaceApi from '@vladmandic/face-api';
 const MODELOS_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
 
 /**
- * Umbral de distancia euclidiana. Menor = más parecido.
- * 0.5 es el valor recomendado por face-api para el mismo rostro; bajarlo
- * es más estricto (menos falsos positivos, más rechazos).
+ * Umbrales de distancia euclidiana. Menor = más parecido.
+ *
+ * Se usan dos, porque los dos escenarios corren riesgos distintos:
+ *
+ * - **Verificar (1:1, celular)**: la sesión ya dice quién sos; la cara
+ *   solo confirma. Un solo intento de comparación, así que se usa 0.6,
+ *   el valor por defecto de face-api. Con 0.5 rebotaban personas
+ *   legítimas que se habían enrolado con otra luz u otro dispositivo.
+ * - **Identificar (1:N, tablet)**: hay que elegir entre N caras, y cada
+ *   candidato es una chance más de equivocarse. Se mantiene 0.5.
  */
-export const UMBRAL_COINCIDENCIA = 0.5;
+export const UMBRAL_VERIFICACION = 0.6;
+export const UMBRAL_IDENTIFICACION = 0.5;
+
+/**
+ * Diferencia mínima entre el mejor y el segundo candidato en 1:N. Si dos
+ * personas dan parecido (hermanos, gemelos, mala foto), es preferible no
+ * fichar a fichar al equivocado.
+ */
+export const MARGEN_MINIMO = 0.05;
+
+/** @deprecated Usar UMBRAL_VERIFICACION o UMBRAL_IDENTIFICACION. */
+export const UMBRAL_COINCIDENCIA = UMBRAL_IDENTIFICACION;
 
 let faceapi: typeof FaceApi | null = null;
 let modelosCargados = false;
@@ -51,29 +69,65 @@ export type FuenteImagen =
   | HTMLImageElement
   | HTMLCanvasElement;
 
+/** Por qué no se pudo sacar el descriptor. Sirve para explicarlo bien. */
+export type MotivoSinDescriptor = 'sin_modelos' | 'sin_cara' | 'varias_caras';
+
+export type ResultadoDeteccion =
+  | { ok: true; descriptor: Float32Array; caras: 1 }
+  | { ok: false; motivo: MotivoSinDescriptor; caras: number };
+
+/**
+ * Pasadas de detección, de la más barata a la más tolerante. Si la
+ * primera no encuentra nada se reintenta con más resolución y menos
+ * exigencia: es lo que salva a las tablets con cámara pobre, a la
+ * persona parada lejos y a la oficina con poca luz.
+ */
+const PASADAS = [
+  { inputSize: 320, scoreThreshold: 0.5 },
+  { inputSize: 512, scoreThreshold: 0.3 },
+  { inputSize: 608, scoreThreshold: 0.2 },
+];
+
 /**
  * Extrae el descriptor de la cara presente en la imagen/video.
- * Devuelve null si no detecta exactamente un rostro (0 o varios).
+ * Devuelve el motivo cuando no hay exactamente un rostro, para que la
+ * pantalla pueda decir qué corregir en vez de un "no te reconocimos".
+ */
+export const detectarRostro = async (
+  fuente: FuenteImagen
+): Promise<ResultadoDeteccion> => {
+  await cargarModelos();
+  if (!faceapi) return { ok: false, motivo: 'sin_modelos', caras: 0 };
+
+  let ultimasCaras = 0;
+  for (const pasada of PASADAS) {
+    const detecciones = await faceapi
+      .detectAllFaces(fuente, new faceapi.TinyFaceDetectorOptions(pasada))
+      .withFaceLandmarks()
+      .withFaceDescriptors();
+
+    ultimasCaras = detecciones.length;
+    if (detecciones.length === 1) {
+      return { ok: true, descriptor: detecciones[0].descriptor, caras: 1 };
+    }
+    // Con varias caras no sirve insistir: hay que despejar el encuadre.
+    if (detecciones.length > 1) {
+      return { ok: false, motivo: 'varias_caras', caras: detecciones.length };
+    }
+  }
+
+  return { ok: false, motivo: 'sin_cara', caras: ultimasCaras };
+};
+
+/**
+ * Igual que `detectarRostro` pero devuelve solo el descriptor.
+ * Se mantiene por compatibilidad con el código que ya la usaba.
  */
 export const obtenerDescriptor = async (
   fuente: FuenteImagen
 ): Promise<Float32Array | null> => {
-  await cargarModelos();
-  if (!faceapi) return null;
-
-  const opciones = new faceapi.TinyFaceDetectorOptions({
-    inputSize: 320,
-    scoreThreshold: 0.5,
-  });
-
-  const detecciones = await faceapi
-    .detectAllFaces(fuente, opciones)
-    .withFaceLandmarks()
-    .withFaceDescriptors();
-
-  // Exigimos exactamente una cara para evitar ambigüedad.
-  if (detecciones.length !== 1) return null;
-  return detecciones[0].descriptor;
+  const r = await detectarRostro(fuente);
+  return r.ok ? r.descriptor : null;
 };
 
 /** Distancia euclidiana entre dos descriptores (menor = más parecido). */
@@ -93,7 +147,7 @@ export const distancia = (
 export const coincide = (
   a: ArrayLike<number>,
   b: ArrayLike<number>,
-  umbral = UMBRAL_COINCIDENCIA
+  umbral = UMBRAL_VERIFICACION
 ): boolean => distancia(a, b) <= umbral;
 
 export interface Candidato {
@@ -110,28 +164,39 @@ export interface Coincidencia {
 
 /**
  * Busca la mejor coincidencia entre varios candidatos (identificación 1:N).
- * Devuelve null si ninguna está dentro del umbral.
+ *
+ * Devuelve null si ninguna entra en el umbral, y también si el mejor y el
+ * segundo están demasiado cerca entre sí: ante la duda es preferible
+ * pedir otro intento antes que fichar a la persona equivocada.
  */
 export const mejorCoincidencia = (
   descriptor: ArrayLike<number>,
   candidatos: Candidato[],
-  umbral = UMBRAL_COINCIDENCIA
+  umbral = UMBRAL_IDENTIFICACION,
+  margen = MARGEN_MINIMO
 ): Coincidencia | null => {
-  let mejor: Coincidencia | null = null;
+  let mejor: { empleadoId: string; distancia: number } | null = null;
+  let segunda = Infinity;
 
   for (const c of candidatos) {
     if (!c.descriptor || c.descriptor.length === 0) continue;
     const d = distancia(descriptor, c.descriptor);
-    if (d <= umbral && (!mejor || d < mejor.distancia)) {
-      mejor = {
-        empleadoId: c.empleadoId,
-        distancia: d,
-        confianza: Math.max(0, 1 - d / umbral),
-      };
+    if (!mejor || d < mejor.distancia) {
+      if (mejor) segunda = mejor.distancia;
+      mejor = { empleadoId: c.empleadoId, distancia: d };
+    } else if (d < segunda) {
+      segunda = d;
     }
   }
 
-  return mejor;
+  if (!mejor || mejor.distancia > umbral) return null;
+  if (segunda - mejor.distancia < margen) return null;
+
+  return {
+    empleadoId: mejor.empleadoId,
+    distancia: mejor.distancia,
+    confianza: Math.max(0, 1 - mejor.distancia / umbral),
+  };
 };
 
 /** Float32Array del modelo → number[] para guardar en la base. */

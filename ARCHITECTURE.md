@@ -1,4 +1,4 @@
-# 🏗️ Arquitectura del Proyecto - Talento+
+# 🏗️ Arquitectura del Proyecto - ISEO RH
 
 ## Diagrama de Componentes
 
@@ -66,7 +66,7 @@
 rrhh/
 │
 ├── 📁 public/                      # Archivos estáticos
-│   ├── logo.svg                    # Logo SVG de Talento+
+│   ├── logo.svg                    # Logo SVG de ISEO RH
 │   └── favicon.ico                 # Favicon del sitio
 │
 ├── 📁 src/                         # Código fuente

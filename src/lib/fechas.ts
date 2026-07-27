@@ -54,16 +54,18 @@ export const formatearFecha = (iso: string): string =>
   });
 
 /**
- * Fecha de hoy en horario local (YYYY-MM-DD). Ojo: `toISOString()` da
- * UTC, así que en Argentina (UTC-3) después de las 21:00 devolvía el día
- * siguiente y los eventos de hoy quedaban fuera de los listados.
+ * Date → "YYYY-MM-DD" en horario local. Ojo con `toISOString()`: da UTC,
+ * así que en Argentina (UTC-3) después de las 21:00 devuelve el día
+ * siguiente y las cosas de hoy quedan fuera de los listados.
  */
-export const hoyISO = (): string => {
-  const d = new Date();
+export const aISOLocal = (d: Date): string => {
   const mes = String(d.getMonth() + 1).padStart(2, '0');
   const dia = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${mes}-${dia}`;
 };
+
+/** Fecha de hoy en horario local (YYYY-MM-DD). */
+export const hoyISO = (): string => aISOLocal(new Date());
 
 const MESES = [
   'Enero',

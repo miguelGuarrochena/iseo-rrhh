@@ -62,7 +62,7 @@ import { mensajeDeErrorDb } from '@/lib/erroresDb';
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
-import { diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
+import { aISOLocal, diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
 import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import {
@@ -118,7 +118,7 @@ const registrarAuditoria = async (
   try {
     const { usuario } = useAuthStore.getState();
     if (!usuario) return;
-    await sb()
+    const { error } = await sb()
       .from('auditoria_acciones')
       .insert({
         empresa_id: empresaId(),
@@ -129,8 +129,14 @@ const registrarAuditoria = async (
         entidad_id: entidadId ?? null,
         detalle,
       });
+    // La auditoría no debe romper la acción principal, pero tampoco puede
+    // fallar en silencio: así estuvimos meses sin registrar nada de lo
+    // que hacía el superadmin en las empresas cliente.
+    if (error && process.env.NODE_ENV !== 'production') {
+      console.warn(`Auditoría no registrada (${accion}):`, error.message);
+    }
   } catch {
-    // La auditoría no debe romper la acción principal.
+    // Idem: nunca propagar.
   }
 };
 
@@ -629,6 +635,24 @@ export const cambiarRolUsuario = async (
   rol: Usuario['rol']
 ): Promise<Usuario | null> => {
   if (rol === 'superadmin') return null;
+
+  // Una empresa sin ningún admin queda sin nadie que pueda dar de alta
+  // gente, cargar recibos ni invitar usuarios: hay que sacarla de ahí
+  // desde soporte. Se corta antes de que pase.
+  if (rol !== 'admin_rrhh') {
+    const { data: admins } = await sb()
+      .from('usuarios')
+      .select('id')
+      .eq('empresa_id', empresaId())
+      .eq('rol', 'admin_rrhh');
+    const quedan = (admins ?? []).filter((a) => a.id !== usuarioId);
+    if ((admins ?? []).some((a) => a.id === usuarioId) && quedan.length === 0) {
+      throw new Error(
+        'Es el único admin de la empresa. Nombrá a otro admin antes de cambiarle el rol, si no la empresa queda sin quien la administre.'
+      );
+    }
+  }
+
   const { data, error } = await sb()
     .from('usuarios')
     .update({ rol })
@@ -636,7 +660,7 @@ export const cambiarRolUsuario = async (
     .neq('rol', 'superadmin')
     .select()
     .single();
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(mensajeDeErrorDb(error.message));
   return data ? aUsuario(data) : null;
 };
 
@@ -1035,7 +1059,7 @@ export const enrolarRostro = async (
       descriptor_facial: descriptor,
       consentimiento_biometrico: {
         aceptado: true,
-        fecha: new Date().toISOString().slice(0, 10),
+        fecha: hoyISO(),
       },
     })
     .eq('id', empleadoId)
@@ -1103,7 +1127,7 @@ export const agregarNotaInterna = async (
     .insert({
       empresa_id: empresaId(),
       empleado_id: empleadoId,
-      fecha: new Date().toISOString().slice(0, 10),
+      fecha: hoyISO(),
       autor_id: datos.autorId,
       autor_nombre: datos.autorNombre,
       motivo: datos.motivo,
@@ -1462,7 +1486,7 @@ export const getAlertas = async (): Promise<Alerta[]> => {
   const diasAviso = empresa.config.diasAvisoVencimiento;
   const limite = new Date();
   limite.setDate(limite.getDate() + diasAviso);
-  const limiteISO = limite.toISOString().slice(0, 10);
+  const limiteISO = aISOLocal(limite);
   const hoy = hoyISO();
   const nombreDe = (id: string) => {
     const e = empleados.find((x) => x.id === id);

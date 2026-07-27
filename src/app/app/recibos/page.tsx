@@ -5,6 +5,7 @@ import {
   IconFileCertificate,
   IconFiles,
   IconSignature,
+  IconDownload,
   IconEye,
   IconTrash,
   IconUpload,
@@ -68,6 +69,7 @@ const RecibosPage = () => {
   const [publicando, setPublicando] = useState(false);
 
   const [cargandoLista, setCargandoLista] = useState(true);
+  const [anioFiltro, setAnioFiltro] = useState('todos');
 
   const cargar = useCallback(() => {
     if (!usuario) return;
@@ -100,6 +102,23 @@ const RecibosPage = () => {
   const verRecibo = async (recibo: ReciboSueldo) => {
     const url = await abrirRecibo(recibo);
     if (url) window.open(url, '_blank', 'noopener');
+  };
+
+  /**
+   * Descarga el PDF con un nombre que se entiende sin abrirlo. El pedido
+   * del cliente era que la gente pueda guardarse sus recibos viejos sin
+   * tener que pedírselos a RRHH.
+   */
+  const descargarRecibo = async (recibo: ReciboSueldo) => {
+    const url = await abrirRecibo(recibo);
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `recibo-${recibo.periodo}.pdf`;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
   const subirRecibo = async () => {
@@ -228,6 +247,15 @@ const RecibosPage = () => {
     : recibos.filter((r) => r.firmadoEmpleadorEn);
   const pendientes = publicados.filter((r) => r.estadoFirma === 'pendiente');
   const firmados = publicados.filter((r) => r.estadoFirma === 'firmado');
+
+  // Filtro por año del historial: con dos o tres años de recibos, la
+  // lista completa deja de servir para encontrar uno puntual.
+  const anios = [...new Set(firmados.map((r) => r.periodo.slice(0, 4)))].sort(
+    (a, b) => b.localeCompare(a)
+  );
+  const historial = firmados
+    .filter((r) => anioFiltro === 'todos' || r.periodo.startsWith(anioFiltro))
+    .sort((a, b) => b.periodo.localeCompare(a.periodo));
 
   return (
     <div className="flex flex-col gap-6">
@@ -398,46 +426,75 @@ const RecibosPage = () => {
       <ListaCard
         titulo={esEmpleado ? 'Historial de recibos' : 'Historial firmado'}
         cargando={cargandoLista}
-        vacio="Todavía no hay recibos firmados."
+        vacio={
+          anios.length > 0
+            ? 'No hay recibos firmados en ese año.'
+            : 'Todavía no hay recibos firmados.'
+        }
       >
-        {firmados.length > 0 &&
-          [...firmados]
-            .sort((a, b) => b.periodo.localeCompare(a.periodo))
-            .map((r) => (
-              <ListaItem
-                key={r.id}
-                href={esEmpleado ? undefined : `/colaboradores/${r.empleadoId}`}
-                icono={IconFileCertificate}
-                principal={
-                  esEmpleado
-                    ? formatearPeriodo(r.periodo)
-                    : `${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`
-                }
-                secundario="Recibo de sueldo firmado"
-                extremo={
-                  <div className="flex shrink-0 items-center gap-2">
-                    <FirmaBadge recibo={r} />
-                    <Boton
-                      variante="secundario"
-                      tamano="sm"
-                      onClick={() => void verRecibo(r)}
-                    >
-                      <IconEye size={14} />
-                      Ver
-                    </Boton>
-                    {rolEfectivo === 'admin_rrhh' && (
-                      <Boton
-                        variante="rechazar"
-                        tamano="sm"
-                        onClick={() => void borrarRecibo(r)}
-                      >
-                        <IconTrash size={14} />
-                      </Boton>
-                    )}
-                  </div>
-                }
-              />
+        {anios.length > 1 && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-semibold text-ink-soft">Año:</span>
+            {['todos', ...anios].map((a) => (
+              <button
+                key={a}
+                type="button"
+                onClick={() => setAnioFiltro(a)}
+                className={`cursor-pointer rounded-full border px-3 py-1 text-xs font-bold transition-colors ${
+                  anioFiltro === a
+                    ? 'border-brand-300 bg-brand-100 text-brand-800'
+                    : 'border-line bg-surface text-ink-soft hover:border-brand-300'
+                }`}
+              >
+                {a === 'todos' ? 'Todos' : a}
+              </button>
             ))}
+          </div>
+        )}
+        {historial.length > 0 &&
+          historial.map((r) => (
+            <ListaItem
+              key={r.id}
+              href={esEmpleado ? undefined : `/colaboradores/${r.empleadoId}`}
+              icono={IconFileCertificate}
+              principal={
+                esEmpleado
+                  ? formatearPeriodo(r.periodo)
+                  : `${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`
+              }
+              secundario="Recibo de sueldo firmado"
+              extremo={
+                <div className="flex shrink-0 items-center gap-2">
+                  <FirmaBadge recibo={r} />
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    onClick={() => void verRecibo(r)}
+                  >
+                    <IconEye size={14} />
+                    Ver
+                  </Boton>
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    onClick={() => void descargarRecibo(r)}
+                    aria-label={`Descargar recibo de ${formatearPeriodo(r.periodo)}`}
+                  >
+                    <IconDownload size={14} />
+                  </Boton>
+                  {rolEfectivo === 'admin_rrhh' && (
+                    <Boton
+                      variante="rechazar"
+                      tamano="sm"
+                      onClick={() => void borrarRecibo(r)}
+                    >
+                      <IconTrash size={14} />
+                    </Boton>
+                  )}
+                </div>
+              }
+            />
+          ))}
       </ListaCard>
 
       <Modal

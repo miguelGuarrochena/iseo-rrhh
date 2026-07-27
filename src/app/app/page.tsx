@@ -16,6 +16,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { hoyISO } from '@/lib/fechas';
 import { tipoAusenciaIconos } from '@/lib/etiquetas';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
@@ -140,9 +141,9 @@ const DashboardPage = () => {
       ? `${vacacion.empleadoNombre} ${vacacion.empleadoApellido}`.trim()
       : 'Compañero';
   };
-  const hoyISO = new Date().toISOString().slice(0, 10);
+  const hoy = hoyISO();
   const proximasVacacionesSector = vacacionesSector
-    .filter((a) => a.fechaHasta >= hoyISO)
+    .filter((a) => a.fechaHasta >= hoy)
     .slice(0, 4);
 
   if (esSuperadmin) {
