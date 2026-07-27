@@ -33,6 +33,7 @@ import {
   getRecibosTodos,
 } from '@/lib/services/rrhh';
 import { CargaMasivaModal } from '@/components/app/recibos/CargaMasivaModal';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { Empleado, ReciboSueldo } from '@/types/rrhh';
 
 const FirmaBadge = ({ recibo }: { recibo: ReciboSueldo }) =>
@@ -70,6 +71,7 @@ const RecibosPage = () => {
 
   const [cargandoLista, setCargandoLista] = useState(true);
   const [anioFiltro, setAnioFiltro] = useState('todos');
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
   const cargar = useCallback(() => {
     if (!usuario) return;
@@ -198,15 +200,15 @@ const RecibosPage = () => {
   };
 
   const borrarRecibo = async (r: ReciboSueldo) => {
-    if (
-      !window.confirm(
-        `¿Eliminar el recibo de ${formatearPeriodo(r.periodo)}${
-          esEmpleado ? '' : ` de ${nombreEmpleado(r.empleadoId)}`
-        }? Esta acción no se puede deshacer.`
-      )
-    ) {
-      return;
-    }
+    const ok = await confirmar({
+      titulo: 'Eliminar recibo',
+      detalle: `Vas a eliminar el recibo de ${formatearPeriodo(r.periodo)}${
+        esEmpleado ? '' : ` de ${nombreEmpleado(r.empleadoId)}`
+      }. Esta acción no se puede deshacer.`,
+      confirmar: 'Eliminar',
+      peligrosa: true,
+    });
+    if (!ok) return;
     try {
       await eliminarRecibo(r.id);
       avisoExito('Recibo eliminado');
@@ -601,6 +603,8 @@ const RecibosPage = () => {
           </div>
         </div>
       </Modal>
+
+      {dialogoConfirmar}
     </div>
   );
 };

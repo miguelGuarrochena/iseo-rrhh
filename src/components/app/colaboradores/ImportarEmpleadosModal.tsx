@@ -136,6 +136,7 @@ export const ImportarEmpleadosModal = ({
   const [mapeo, setMapeo] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [importando, setImportando] = useState(false);
+  const [arrastrando, setArrastrando] = useState(false);
   const [resultado, setResultado] = useState<{
     ok: number;
     fallas: { quien: string; motivo: string }[];
@@ -320,17 +321,41 @@ export const ImportarEmpleadosModal = ({
               Reconocemos las columnas por su nombre y lo que falte se completa
               después en cada ficha.
             </p>
-            <label className="flex cursor-pointer flex-col items-center gap-3 rounded-2xl border border-dashed border-line bg-paper/60 px-6 py-10 text-center transition-colors hover:border-brand-300">
+            <label
+              onDragOver={(e) => {
+                // Sin cancelar dragover, el navegador abre el Excel.
+                e.preventDefault();
+                if (!arrastrando) setArrastrando(true);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                  setArrastrando(false);
+                }
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setArrastrando(false);
+                const archivo = e.dataTransfer.files?.[0];
+                if (archivo) void leerArchivo(archivo);
+              }}
+              className={`flex cursor-pointer flex-col items-center gap-3 rounded-2xl border border-dashed px-6 py-10 text-center transition-colors ${
+                arrastrando
+                  ? 'border-brand-400 bg-brand-50'
+                  : 'border-line bg-paper/60 hover:border-brand-300'
+              }`}
+            >
               <IconFileSpreadsheet
                 size={34}
                 stroke={1.5}
                 className="text-brand-600"
               />
               <span className="text-sm font-semibold text-ink">
-                Elegir archivo (.xlsx o .csv)
+                {arrastrando
+                  ? 'Soltá el archivo acá'
+                  : 'Arrastrá el archivo o hacé clic para elegirlo'}
               </span>
               <span className="text-xs text-ink-soft">
-                Mínimo necesario: nombre, apellido y DNI
+                .xlsx o .csv · mínimo necesario: nombre, apellido y DNI
               </span>
               <input
                 type="file"

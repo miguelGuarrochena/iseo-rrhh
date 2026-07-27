@@ -6,6 +6,7 @@ import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
 import { formatearPeriodo, hoyISO } from '@/lib/fechas';
@@ -32,6 +33,7 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
   const [archivo, setArchivo] = useState<File | null>(null);
   const [agregando, setAgregando] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
   const cargar = useCallback(() => {
     void getFacturasMonotributo(empleadoId).then(setLista);
@@ -68,10 +70,13 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
   };
 
   const quitar = async (f: FacturaMonotributo) => {
-    if (
-      !window.confirm(`¿Eliminar la factura de ${formatearPeriodo(f.periodo)}?`)
-    )
-      return;
+    const ok = await confirmar({
+      titulo: 'Eliminar factura',
+      detalle: `Vas a eliminar la factura de ${formatearPeriodo(f.periodo)}.`,
+      confirmar: 'Eliminar',
+      peligrosa: true,
+    });
+    if (!ok) return;
     try {
       await eliminarFacturaMonotributo(f.id);
       avisoExito('Eliminada');
@@ -174,6 +179,8 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
       {lista.length === 0 && !agregando && (
         <p className="mt-3 text-xs text-ink-soft">Sin facturas cargadas.</p>
       )}
+
+      {dialogoConfirmar}
     </div>
   );
 };

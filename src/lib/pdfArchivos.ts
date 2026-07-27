@@ -11,6 +11,7 @@
 
 import {
   CandidatoRecibo,
+  MotivoSinDueno,
   TipoDeArchivo,
   TramoRecibo,
   agruparPorDueno,
@@ -96,36 +97,50 @@ export const analizarPdf = async (
   };
 };
 
+export interface ParteRecibo {
+  /** Vacío si no se pudo identificar de quién es el tramo. */
+  empleadoId: string;
+  archivo: File;
+  paginas: number;
+  motivo?: MotivoSinDueno;
+}
+
 /**
  * Corta el PDF en uno por tramo. Cada archivo resultante contiene sólo
  * las páginas de esa persona: es lo que evita que alguien abra el suyo y
  * vea el de toda la empresa.
  *
- * Los tramos sin dueño identificado se descartan: subir un recibo sin
- * saber de quién es sería exactamente el problema que estamos evitando.
+ * Los tramos que no se pudieron atribuir **también** se recortan, aunque
+ * salgan sin dueño. Antes se descartaban y la pantalla ofrecía asignar a
+ * mano el archivo original entero: elegir un colaborador ahí le subía la
+ * nómina completa, que es justo la filtración que estamos evitando. Con
+ * el recorte, asignarlo a mano es seguro.
  */
 export const partirPorTramo = async (
   archivo: File,
   tramos: TramoRecibo[],
   nombreDe: (empleadoId: string) => string
-): Promise<{ empleadoId: string; archivo: File }[]> => {
+): Promise<ParteRecibo[]> => {
   const { PDFDocument } = await import('pdf-lib');
   const original = await PDFDocument.load(await archivo.arrayBuffer());
+  const base = archivo.name.replace(/\.pdf$/i, '');
 
-  const salida: { empleadoId: string; archivo: File }[] = [];
-  for (const tramo of tramos) {
-    if (!tramo.empleadoId) continue;
+  const salida: ParteRecibo[] = [];
+  for (const [i, tramo] of tramos.entries()) {
     const nuevo = await PDFDocument.create();
     const copiadas = await nuevo.copyPages(original, tramo.paginas);
     copiadas.forEach((p) => nuevo.addPage(p));
     const bytes = await nuevo.save();
+    const nombre = tramo.empleadoId
+      ? `${nombreDe(tramo.empleadoId)}.pdf`
+      : `${base}-sin-identificar-${i + 1}.pdf`;
     salida.push({
-      empleadoId: tramo.empleadoId,
-      archivo: new File(
-        [new Uint8Array(bytes)],
-        `${nombreDe(tramo.empleadoId)}.pdf`,
-        { type: 'application/pdf' }
-      ),
+      empleadoId: tramo.empleadoId ?? '',
+      archivo: new File([new Uint8Array(bytes)], nombre, {
+        type: 'application/pdf',
+      }),
+      paginas: tramo.paginas.length,
+      motivo: tramo.motivo,
     });
   }
   return salida;

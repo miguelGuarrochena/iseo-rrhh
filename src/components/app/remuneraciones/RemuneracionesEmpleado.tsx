@@ -5,6 +5,7 @@ import { IconPlus, IconReportMoney, IconTrash } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { RemuneracionModal } from './RemuneracionModal';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { eliminarRemuneracion, getRemuneraciones } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
@@ -26,6 +27,7 @@ export const RemuneracionesEmpleado = ({
   const [rems, setRems] = useState<Remuneracion[]>([]);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<Remuneracion | null>(null);
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
   const cargar = useCallback(() => {
     void getRemuneraciones(empleadoId).then((lista) =>
@@ -50,13 +52,13 @@ export const RemuneracionesEmpleado = ({
 
   const borrar = async (r: Remuneracion, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (
-      !window.confirm(
-        `¿Eliminar la remuneración de ${formatearPeriodo(r.periodo)}?`
-      )
-    ) {
-      return;
-    }
+    const ok = await confirmar({
+      titulo: 'Eliminar remuneración',
+      detalle: `Vas a eliminar la remuneración de ${formatearPeriodo(r.periodo)}.`,
+      confirmar: 'Eliminar',
+      peligrosa: true,
+    });
+    if (!ok) return;
     try {
       await eliminarRemuneracion(r.id);
       avisoExito('Remuneración eliminada');
@@ -154,6 +156,8 @@ export const RemuneracionesEmpleado = ({
           onGuardado={cargar}
         />
       )}
+
+      {dialogoConfirmar}
     </Panel>
   );
 };

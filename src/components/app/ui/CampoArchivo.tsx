@@ -18,7 +18,8 @@ interface CampoArchivoProps {
 /**
  * Selector de archivo con el estilo de la app (sin el botón nativo del
  * navegador ni sus sombras). Muestra el nombre del archivo elegido y
- * permite quitarlo.
+ * permite quitarlo. También acepta arrastrar y soltar: es lo natural
+ * cuando el certificado o el comprobante ya está abierto en una carpeta.
  */
 export const CampoArchivo = ({
   etiqueta,
@@ -32,9 +33,27 @@ export const CampoArchivo = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const [nombre, setNombre] = useState<string | null>(null);
   const [errorTamano, setErrorTamano] = useState<string | null>(null);
+  const [arrastrando, setArrastrando] = useState(false);
 
-  const elegir = (e: ChangeEvent<HTMLInputElement>) => {
-    const archivo = e.target.files?.[0] ?? null;
+  /** ¿El archivo entra en lo que pide `accept`? */
+  const tipoPermitido = (archivo: File): boolean => {
+    if (!accept) return true;
+    return accept.split(',').some((patron) => {
+      const p = patron.trim().toLowerCase();
+      if (!p) return false;
+      if (p.startsWith('.')) return archivo.name.toLowerCase().endsWith(p);
+      if (p.endsWith('/*')) return archivo.type.startsWith(p.slice(0, -1));
+      return archivo.type.toLowerCase() === p;
+    });
+  };
+
+  const tomar = (archivo: File | null) => {
+    if (archivo && !tipoPermitido(archivo)) {
+      setErrorTamano('Ese tipo de archivo no se puede adjuntar acá.');
+      setNombre(null);
+      onArchivo(null);
+      return;
+    }
     if (archivo && archivo.size > maxSizeMB * 1024 * 1024) {
       setErrorTamano(`El archivo pesa demasiado (máximo ${maxSizeMB}MB).`);
       setNombre(null);
@@ -46,6 +65,9 @@ export const CampoArchivo = ({
     setNombre(archivo?.name ?? null);
     onArchivo(archivo);
   };
+
+  const elegir = (e: ChangeEvent<HTMLInputElement>) =>
+    tomar(e.target.files?.[0] ?? null);
 
   const limpiar = () => {
     setNombre(null);
@@ -60,8 +82,27 @@ export const CampoArchivo = ({
     <div className="flex flex-col gap-1.5">
       <span className="text-sm font-semibold text-ink">{etiqueta}</span>
       <div
-        className={`flex items-center gap-3 rounded-xl border bg-surface px-3 py-2.5 ${
-          errorAMostrar ? 'border-red-300' : 'border-line'
+        onDragOver={(e) => {
+          // Sin cancelar dragover el navegador abre el archivo soltado.
+          e.preventDefault();
+          if (!arrastrando) setArrastrando(true);
+        }}
+        onDragLeave={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setArrastrando(false);
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setArrastrando(false);
+          tomar(e.dataTransfer.files?.[0] ?? null);
+        }}
+        className={`flex items-center gap-3 rounded-xl border bg-surface px-3 py-2.5 transition-colors ${
+          arrastrando
+            ? 'border-dashed border-brand-400 bg-brand-50'
+            : errorAMostrar
+              ? 'border-red-300'
+              : 'border-line'
         }`}
       >
         <Boton
@@ -74,7 +115,9 @@ export const CampoArchivo = ({
           {textoBoton}
         </Boton>
         <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
-          {nombre ?? 'Ningún archivo seleccionado'}
+          {arrastrando
+            ? 'Soltalo acá'
+            : (nombre ?? 'Ningún archivo, o arrastralo acá')}
         </span>
         {nombre && (
           <button

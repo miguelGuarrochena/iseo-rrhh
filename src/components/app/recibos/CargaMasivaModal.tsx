@@ -63,6 +63,7 @@ export const CargaMasivaModal = ({
   const [subiendo, setSubiendo] = useState(false);
   const [ignorados, setIgnorados] = useState(0);
   const [analizando, setAnalizando] = useState(false);
+  const [arrastrando, setArrastrando] = useState(false);
   const [cuitEmpresa, setCuitEmpresa] = useState<string | undefined>();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -126,36 +127,25 @@ export const CargaMasivaModal = ({
     }
 
     if (analisis.clase.tipo === 'consolidado') {
+      // Se recortan todos los tramos, incluidos los que no se pudieron
+      // atribuir: así la fila "sin asignar" lleva sólo sus páginas y
+      // elegirle un colaborador a mano no le sube la nómina entera.
       const partes = await partirPorTramo(
         archivo,
         analisis.tramos,
         nombreArchivoDe
       );
-      const sinDuenio = analisis.tramos.filter((t) => !t.empleadoId).length;
-      return [
-        ...partes.map((p) => ({
-          archivo: p.archivo,
-          empleadoId: p.empleadoId,
-          estado: 'listo' as const,
-          lectura: 'ok' as const,
-          vieneDe: archivo.name,
-        })),
-        // Las páginas que no se pudieron atribuir no se suben, pero se
-        // muestran para que RRHH sepa que quedaron afuera.
-        ...(sinDuenio > 0
-          ? [
-              {
-                archivo,
-                empleadoId: '',
-                estado: 'listo' as const,
-                lectura: 'desconocido' as const,
-                motivo: 'sin_coincidencia' as MotivoSinAsignar,
-                paginas: sinDuenio,
-                vieneDe: archivo.name,
-              },
-            ]
-          : []),
-      ];
+      return partes.map((p) => ({
+        archivo: p.archivo,
+        empleadoId: p.empleadoId,
+        estado: 'listo' as const,
+        lectura: p.empleadoId ? ('ok' as const) : ('desconocido' as const),
+        motivo: p.empleadoId
+          ? undefined
+          : ('sin_coincidencia' as MotivoSinAsignar),
+        paginas: p.paginas,
+        vieneDe: archivo.name,
+      }));
     }
 
     // Ilegible (escaneado) o con documentos que no son de nadie de la
@@ -272,7 +262,27 @@ export const CargaMasivaModal = ({
       size="xl"
       styles={{ title: { fontWeight: 800 } }}
     >
-      <div className="flex flex-col gap-4">
+      <div
+        className="flex flex-col gap-4"
+        onDragOver={(e) => {
+          // Hay que cancelar dragover, si no el navegador abre el PDF
+          // en la pestaña en vez de dejarnos manejar el drop.
+          e.preventDefault();
+          if (!arrastrando) setArrastrando(true);
+        }}
+        onDragLeave={(e) => {
+          // Sólo cuando el puntero sale del modal entero: los hijos
+          // disparan dragleave todo el tiempo y titilaría.
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+            setArrastrando(false);
+          }
+        }}
+        onDrop={(e) => {
+          e.preventDefault();
+          setArrastrando(false);
+          void elegirArchivos(e.dataTransfer.files);
+        }}
+      >
         <div className="grid gap-3.5 sm:grid-cols-2">
           <CampoMes
             etiqueta="Período *"
@@ -300,13 +310,30 @@ export const CargaMasivaModal = ({
           </div>
         </div>
 
-        <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
-          Subí los PDF como te los da el sistema de sueldos: uno por persona o
-          el archivo con toda la nómina junta, da igual. Leemos el CUIL impreso
-          adentro de cada recibo para saber de quién es, y si viene todo en un
-          archivo lo cortamos solos. Lo que no podamos leer con certeza queda
-          sin asignar, para que no le llegue a quien no corresponde. Máximo{' '}
-          {MAX_MB}MB por archivo.
+        <p
+          className={`rounded-xl border border-dashed px-4 py-3 text-xs transition-colors ${
+            arrastrando
+              ? 'border-brand-400 bg-brand-50 text-brand-900'
+              : 'border-transparent bg-paper text-ink-soft'
+          }`}
+        >
+          {arrastrando ? (
+            <span className="font-semibold">
+              Soltá acá los PDF y los leemos.
+            </span>
+          ) : (
+            <>
+              <span className="font-semibold text-ink">
+                Arrastrá los PDF acá
+              </span>{' '}
+              o elegilos con el botón, como te los da el sistema de sueldos: uno
+              por persona o el archivo con toda la nómina junta, da igual.
+              Leemos el CUIL impreso adentro de cada recibo para saber de quién
+              es, y si viene todo en un archivo lo cortamos solos. Lo que no
+              podamos leer con certeza queda sin asignar, para que no le llegue
+              a quien no corresponde. Máximo {MAX_MB}MB por archivo.
+            </>
+          )}
         </p>
 
         {analizando && (
@@ -342,7 +369,7 @@ export const CargaMasivaModal = ({
                 : `Detectamos ${nominasPartidas.size} archivos con recibos de más de una persona.`}
             </span>{' '}
             {partidos === 1
-              ? 'Recortamos el recibo de quien pudimos identificar; el resto de las páginas queda sin subir.'
+              ? 'Recortamos el recibo de quien pudimos identificar. Las páginas que no reconocimos quedan aparte, para que las asignes vos.'
               : `Lo cortamos en ${partidos} recibos, uno por persona, así cada una ve solo el suyo.`}
           </p>
         )}
@@ -362,12 +389,12 @@ export const CargaMasivaModal = ({
                     <span className="block truncate text-xs text-ink-soft">
                       {f.vieneDe && f.empleadoId
                         ? `Recortado de ${f.vieneDe}`
-                        : f.lectura === 'ok'
-                          ? 'Identificado por el CUIL impreso en el recibo'
-                          : f.lectura === 'ilegible'
-                            ? 'No pudimos leer el texto del PDF (¿está escaneado?)'
-                            : f.paginas
-                              ? `${f.paginas} ${f.paginas === 1 ? 'página' : 'páginas'} sin colaborador reconocido`
+                        : f.vieneDe
+                          ? `${f.paginas} ${f.paginas === 1 ? 'página recortada' : 'páginas recortadas'} de ${f.vieneDe}, sin colaborador reconocido`
+                          : f.lectura === 'ok'
+                            ? 'Identificado por el CUIL impreso en el recibo'
+                            : f.lectura === 'ilegible'
+                              ? 'No pudimos leer el texto del PDF (¿está escaneado?)'
                               : 'No reconocimos a nadie de la empresa adentro'}
                     </span>
                   )}
