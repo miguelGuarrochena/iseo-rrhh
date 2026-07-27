@@ -37,10 +37,15 @@ interface Pendiente extends OpcionesConfirmacion {
 
 export const useConfirmacion = () => {
   const [pendiente, setPendiente] = useState<Pendiente | null>(null);
+  // El texto se guarda aparte y sobrevive al cierre: si se leyera de
+  // `pendiente`, al confirmar el diálogo se vaciaría de golpe y durante la
+  // animación de salida se vería un cuadro en blanco con botones genéricos.
+  const [texto, setTexto] = useState<OpcionesConfirmacion | null>(null);
 
   const confirmar = useCallback(
     (opciones: OpcionesConfirmacion): Promise<boolean> =>
       new Promise<boolean>((resolver) => {
+        setTexto(opciones);
         setPendiente({ ...opciones, resolver });
       }),
     []
@@ -55,26 +60,26 @@ export const useConfirmacion = () => {
     <Modal
       opened={pendiente !== null}
       onClose={() => responder(false)}
-      title={pendiente?.titulo ?? ''}
+      title={texto?.titulo ?? ''}
       radius="lg"
       centered
       styles={{ title: { fontWeight: 800 } }}
     >
       <div className="flex flex-col gap-4">
-        {pendiente?.detalle && (
+        {texto?.detalle && (
           <div className="text-sm leading-relaxed text-ink-soft">
-            {pendiente.detalle}
+            {texto.detalle}
           </div>
         )}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <Boton variante="secundario" onClick={() => responder(false)}>
-            {pendiente?.cancelar ?? 'Cancelar'}
+            {texto?.cancelar ?? 'Cancelar'}
           </Boton>
           <Boton
-            variante={pendiente?.peligrosa ? 'rechazar' : 'negro'}
+            variante={texto?.peligrosa ? 'rechazar' : 'negro'}
             onClick={() => responder(true)}
           >
-            {pendiente?.confirmar ?? 'Confirmar'}
+            {texto?.confirmar ?? 'Confirmar'}
           </Boton>
         </div>
       </div>

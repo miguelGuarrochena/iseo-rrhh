@@ -7,6 +7,7 @@ import {
   IconSignature,
   IconDownload,
   IconEye,
+  IconHistory,
   IconTrash,
   IconUpload,
   IconWritingSign,
@@ -30,6 +31,8 @@ import {
   firmarReciboEmpleador,
   getEmpleados,
   getRecibos,
+  getRecibosArchivados,
+  getRecibosArchivadosTodos,
   getRecibosTodos,
 } from '@/lib/services/rrhh';
 import { CargaMasivaModal } from '@/components/app/recibos/CargaMasivaModal';
@@ -54,6 +57,11 @@ const RecibosPage = () => {
   const esEmpleado = rolEfectivo === 'empleado';
 
   const [recibos, setRecibos] = useState<ReciboSueldo[]>([]);
+  // Versiones reemplazadas por una rectificación. No se listan sueltas:
+  // cuelgan del recibo vigente, que es donde a alguien se le ocurre
+  // preguntar "¿y esto qué firmó en su momento?".
+  const [archivados, setArchivados] = useState<ReciboSueldo[]>([]);
+  const [versionesDe, setVersionesDe] = useState<ReciboSueldo | null>(null);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [aFirmar, setAFirmar] = useState<ReciboSueldo | null>(null);
   const [firmando, setFirmando] = useState(false);
@@ -79,13 +87,16 @@ const RecibosPage = () => {
   const cargar = useCallback(() => {
     if (!usuario) return;
     if (esEmpleado && usuario.empleadoId) {
-      void getRecibos(usuario.empleadoId)
+      const id = usuario.empleadoId;
+      void getRecibos(id)
         .then(setRecibos)
         .finally(() => setCargandoLista(false));
+      void getRecibosArchivados(id).then(setArchivados);
     } else {
       void getRecibosTodos()
         .then(setRecibos)
         .finally(() => setCargandoLista(false));
+      void getRecibosArchivadosTodos().then(setArchivados);
       void getEmpleados().then(setEmpleados);
     }
   }, [usuario, esEmpleado]);
@@ -124,6 +135,35 @@ const RecibosPage = () => {
     document.body.appendChild(a);
     a.click();
     a.remove();
+  };
+
+  /** Las versiones que este recibo vino a reemplazar, de la más nueva a la más vieja. */
+  const versionesPrevias = (r: ReciboSueldo): ReciboSueldo[] =>
+    archivados.filter(
+      (a) =>
+        a.empleadoId === r.empleadoId &&
+        a.periodo === r.periodo &&
+        a.tipo === r.tipo
+    );
+
+  /**
+   * Sólo aparece si hubo rectificación. Es una función y no un componente
+   * a propósito: definido acá adentro, React lo remontaría en cada render.
+   */
+  const botonVersiones = (r: ReciboSueldo) => {
+    const previas = versionesPrevias(r);
+    if (previas.length === 0) return null;
+    return (
+      <Boton
+        variante="secundario"
+        tamano="sm"
+        onClick={() => setVersionesDe(r)}
+        aria-label={`Ver versiones anteriores del recibo de ${formatearPeriodo(r.periodo)}`}
+      >
+        <IconHistory size={14} />
+        {previas.length} anterior{previas.length === 1 ? '' : 'es'}
+      </Boton>
+    );
   };
 
   const subirRecibo = async () => {
@@ -232,11 +272,16 @@ const RecibosPage = () => {
   };
 
   const borrarRecibo = async (r: ReciboSueldo) => {
+    const previas = versionesPrevias(r);
     const ok = await confirmar({
       titulo: 'Eliminar recibo',
       detalle: `Vas a eliminar el recibo de ${formatearPeriodo(r.periodo)}${
         esEmpleado ? '' : ` de ${nombreEmpleado(r.empleadoId)}`
-      }. Esta acción no se puede deshacer.`,
+      }.${
+        previas.length > 0
+          ? ` Se borran también las ${previas.length} versión${previas.length === 1 ? '' : 'es'} anterior${previas.length === 1 ? '' : 'es'}, con sus firmas.`
+          : ''
+      } Esta acción no se puede deshacer.`,
       confirmar: 'Eliminar',
       peligrosa: true,
     });
@@ -368,7 +413,8 @@ const RecibosPage = () => {
                 principal={`${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`}
                 secundario={`${tipoReciboLabels[r.tipo]} · el colaborador todavía no lo ve`}
                 extremo={
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                    {botonVersiones(r)}
                     <Boton
                       variante="secundario"
                       tamano="sm"
@@ -425,8 +471,9 @@ const RecibosPage = () => {
                 }
                 secundario={tipoReciboLabels[r.tipo]}
                 extremo={
-                  <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                     <FirmaBadge recibo={r} />
+                    {botonVersiones(r)}
                     <Boton
                       variante="secundario"
                       tamano="sm"
@@ -498,8 +545,9 @@ const RecibosPage = () => {
               }
               secundario={`${tipoReciboLabels[r.tipo]} · firmado`}
               extremo={
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                   <FirmaBadge recibo={r} />
+                  {botonVersiones(r)}
                   <Boton
                     variante="secundario"
                     tamano="sm"
@@ -642,6 +690,61 @@ const RecibosPage = () => {
             </Boton>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        opened={versionesDe !== null}
+        onClose={() => setVersionesDe(null)}
+        title="Versiones anteriores"
+        radius="lg"
+        centered
+        styles={{ title: { fontWeight: 800 } }}
+      >
+        {versionesDe && (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm leading-relaxed text-ink-soft">
+              {esEmpleado ? '' : `${nombreEmpleado(versionesDe.empleadoId)} — `}
+              <strong className="text-ink">
+                {tipoReciboLabels[versionesDe.tipo]} de{' '}
+                {formatearPeriodo(versionesDe.periodo)}
+              </strong>
+              . Cada versión guarda el PDF y la firma tal como estaban cuando se
+              la reemplazó.
+            </p>
+            {versionesPrevias(versionesDe).map((v, i, arr) => (
+              <div
+                key={v.id}
+                className="flex flex-col gap-2 rounded-xl border border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-ink">
+                    Versión {arr.length - i}
+                  </p>
+                  <p className="text-xs text-ink-soft">
+                    {v.estadoFirma === 'firmado'
+                      ? `Firmada${v.firmadoEn ? ` el ${formatearFecha(v.firmadoEn)}` : ''}`
+                      : 'Nunca se firmó'}
+                    {v.archivadoEn
+                      ? ` · reemplazada el ${formatearFecha(v.archivadoEn)}`
+                      : ''}
+                  </p>
+                </div>
+                <Boton
+                  variante="secundario"
+                  tamano="sm"
+                  onClick={() => void verRecibo(v)}
+                >
+                  <IconEye size={14} />
+                  Ver PDF
+                </Boton>
+              </div>
+            ))}
+            <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
+              La versión {versionesPrevias(versionesDe).length + 1} es la
+              vigente, la que figura en la lista.
+            </p>
+          </div>
+        )}
       </Modal>
 
       {dialogoConfirmar}

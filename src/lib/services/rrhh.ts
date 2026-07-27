@@ -284,6 +284,14 @@ export const getRecibosTodos = elegir(
   real.getRecibosTodos,
   demo.getRecibosTodos
 );
+export const getRecibosArchivados = elegir(
+  real.getRecibosArchivados,
+  demo.getRecibosArchivados
+);
+export const getRecibosArchivadosTodos = elegir(
+  real.getRecibosArchivadosTodos,
+  demo.getRecibosArchivadosTodos
+);
 export const firmarRecibo = elegir(real.firmarRecibo, demo.firmarRecibo);
 export const cargarRecibo = elegir(real.cargarRecibo, demo.cargarRecibo);
 export const firmarReciboEmpleador = elegir(

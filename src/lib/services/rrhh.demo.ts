@@ -1108,6 +1108,20 @@ export const getRecibos = async (empleadoId: string): Promise<ReciboSueldo[]> =>
 export const getRecibosTodos = async (): Promise<ReciboSueldo[]> =>
   simular(recibosMock.filter((r) => esDeEmpresaDemo(r.empleadoId)));
 
+// En la demo no se rectifica nada, así que no hay versiones archivadas.
+// Existen para que la pantalla funcione igual con datos de ejemplo.
+export const getRecibosArchivados = async (
+  empleadoId: string
+): Promise<ReciboSueldo[]> =>
+  simular(
+    recibosMock.filter((r) => r.empleadoId === empleadoId && r.archivadoEn)
+  );
+
+export const getRecibosArchivadosTodos = async (): Promise<ReciboSueldo[]> =>
+  simular(
+    recibosMock.filter((r) => esDeEmpresaDemo(r.empleadoId) && r.archivadoEn)
+  );
+
 export const firmarRecibo = async (
   reciboId: string
 ): Promise<ReciboSueldo | null> => {

@@ -1720,7 +1720,18 @@ export const getRecibosArchivados = async (
     .select('*')
     .eq('empleado_id', empleadoId)
     .not('archivado_en', 'is', null)
-    .order('periodo', { ascending: false });
+    .order('archivado_en', { ascending: false });
+  return oFalla(data, error).map(aRecibo);
+};
+
+/** Lo mismo para toda la empresa, para la vista de RRHH. */
+export const getRecibosArchivadosTodos = async (): Promise<ReciboSueldo[]> => {
+  const { data, error } = await sb()
+    .from('recibos')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .not('archivado_en', 'is', null)
+    .order('archivado_en', { ascending: false });
   return oFalla(data, error).map(aRecibo);
 };
 
@@ -2161,7 +2172,31 @@ export const getResumenFinanzas = async (
 
 // ---------- Eliminar recibos / remuneraciones ----------
 
+/**
+ * Elimina un recibo y, con él, las versiones que había rectificado.
+ *
+ * Las archivadas sólo se muestran colgando de la vigente: si se borra la
+ * vigente y se las deja, quedan filas invisibles con un PDF de sueldo
+ * adentro que nadie puede consultar ni sabe que existen.
+ */
 export const eliminarRecibo = async (reciboId: string): Promise<void> => {
+  const { data: recibo } = await sb()
+    .from('recibos')
+    .select('empleado_id, periodo, tipo')
+    .eq('id', reciboId)
+    .maybeSingle();
+
+  if (recibo) {
+    const { error: errorVersiones } = await sb()
+      .from('recibos')
+      .delete()
+      .eq('empleado_id', recibo.empleado_id)
+      .eq('periodo', recibo.periodo)
+      .eq('tipo', recibo.tipo)
+      .not('archivado_en', 'is', null);
+    if (errorVersiones) throw new Error(errorVersiones.message);
+  }
+
   const { error } = await sb().from('recibos').delete().eq('id', reciboId);
   if (error) throw new Error(error.message);
   await registrarAuditoria('eliminar', 'recibo', reciboId);
