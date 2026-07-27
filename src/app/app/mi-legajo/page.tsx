@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { categoriaDocumentoLabels } from '@/lib/etiquetas';
+import { abrirArchivo } from '@/lib/archivosUi';
 import {
   abrirDocumento,
   getDocumentosDeEmpleado,
@@ -70,10 +71,10 @@ const MiLegajoPage = () => {
     void getDocumentosDeEmpleado(usuario.empleadoId).then(setDocumentos);
   }, [usuario]);
 
-  const abrir = async (doc: DocumentoLegajo) => {
-    const url = await abrirDocumento(doc);
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
+  const abrir = (doc: DocumentoLegajo) =>
+    abrirArchivo(() => abrirDocumento(doc), {
+      titulo: 'No pudimos abrir el documento',
+    });
 
   if (!usuario?.empleadoId) {
     return (

@@ -3,6 +3,7 @@
 -- 1) Empleado solo ve docs asignados (no todos los de la empresa).
 -- 2) Destinatarios: INSERT/DELETE solo admin; UPDATE firma propia.
 -- 3) Storage: el empleado puede bajar el PDF si es destinatario.
+-- Idempotente: se puede re-ejecutar si falló a medias.
 -- ============================================================
 
 -- ---------- 1. SELECT de documentos_firma ----------
@@ -24,9 +25,12 @@ create policy documentos_firma_select on documentos_firma for select
 
 -- ---------- 2. Destinatarios: policies separadas ----------
 drop policy if exists doc_firma_dest_gestion on documento_firma_destinatarios;
+drop policy if exists doc_firma_dest_select on documento_firma_destinatarios;
+drop policy if exists doc_firma_dest_insert on documento_firma_destinatarios;
+drop policy if exists doc_firma_dest_update on documento_firma_destinatarios;
+drop policy if exists doc_firma_dest_delete on documento_firma_destinatarios;
 
 -- Ver: gestores todos de la empresa; empleado solo los suyos.
-drop policy if exists doc_firma_dest_select on documento_firma_destinatarios;
 create policy doc_firma_dest_select on documento_firma_destinatarios for select
   using (
     es_superadmin()

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPaperclip, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
@@ -11,10 +11,12 @@ import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
 import { formatearPeriodo, hoyISO } from '@/lib/fechas';
 import {
+  abrirFacturaMonotributo,
   cargarFacturaMonotributo,
   eliminarFacturaMonotributo,
   getFacturasMonotributo,
 } from '@/lib/services/rrhh';
+import { abrirArchivo } from '@/lib/archivosUi';
 import { FacturaMonotributo } from '@/types/rrhh';
 
 interface Props {
@@ -122,15 +124,34 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
                 {formatearPeriodo(f.periodo)} ·{' '}
                 <strong>{formatearPesos(f.monto)}</strong>
               </span>
-              {puedeEditar && (
-                <button
-                  type="button"
-                  onClick={() => void quitar(f)}
-                  className="cursor-pointer text-ink-soft hover:text-red-600"
-                >
-                  <IconTrash size={14} />
-                </button>
-              )}
+              <span className="flex shrink-0 items-center gap-2">
+                {/* La factura se podía adjuntar pero no había forma de
+                    volver a verla: quedaba guardada y sin salida. */}
+                {f.archivoUrl && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void abrirArchivo(() => abrirFacturaMonotributo(f), {
+                        titulo: 'No pudimos abrir la factura',
+                      })
+                    }
+                    aria-label={`Ver la factura de ${formatearPeriodo(f.periodo)}`}
+                    className="cursor-pointer border-0 bg-transparent p-0 text-ink-soft transition-colors hover:text-brand-700"
+                  >
+                    <IconPaperclip size={14} />
+                  </button>
+                )}
+                {puedeEditar && (
+                  <button
+                    type="button"
+                    onClick={() => void quitar(f)}
+                    aria-label={`Eliminar la factura de ${formatearPeriodo(f.periodo)}`}
+                    className="cursor-pointer border-0 bg-transparent p-0 text-ink-soft transition-colors hover:text-red-600"
+                  >
+                    <IconTrash size={14} />
+                  </button>
+                )}
+              </span>
             </li>
           ))}
         </ul>

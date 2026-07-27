@@ -357,6 +357,10 @@ export const cargarFacturaMonotributo = elegir(
   real.cargarFacturaMonotributo,
   demo.cargarFacturaMonotributo
 );
+export const abrirFacturaMonotributo = elegir(
+  real.abrirFacturaMonotributo,
+  demo.abrirFacturaMonotributo
+);
 export const eliminarFacturaMonotributo = elegir(
   real.eliminarFacturaMonotributo,
   demo.eliminarFacturaMonotributo

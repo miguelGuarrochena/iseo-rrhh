@@ -281,11 +281,26 @@ describe('trampas de un recibo real', () => {
       recibo('Beto', '20-30987654-3', '30.987.654'),
     ];
     const tramos = agruparPorDueno(paginas, equipo, CUIT_EMPRESA);
-    expect(tramos).toEqual([
-      { empleadoId: 'ana', paginas: [0, 1] },
+
+    // Lo que importa es el corte: quién se lleva cada hoja. La pista del
+    // tramo sin dueño se afirma aparte —y en detalle— en "pistas de los
+    // tramos sin dueño"; acá se compara sólo el agrupamiento para que el
+    // test no se rompa cada vez que se suma un dato de diagnóstico.
+    expect(
+      tramos.map(({ empleadoId, paginas: p, motivo }) => ({
+        empleadoId,
+        paginas: p,
+        motivo,
+      }))
+    ).toEqual([
+      { empleadoId: 'ana', paginas: [0, 1], motivo: undefined },
       { empleadoId: null, paginas: [2], motivo: 'desconocido' },
-      { empleadoId: 'beto', paginas: [3] },
+      { empleadoId: 'beto', paginas: [3], motivo: undefined },
     ]);
+
+    // Y el tramo huérfano llega con el nombre leído del PDF, que es lo
+    // que le permite a RRHH asignarlo a mano sin abrir el archivo.
+    expect(tramos[1].pista?.nombre).toBe('Fantasma');
   });
 });
 

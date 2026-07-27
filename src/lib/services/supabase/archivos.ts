@@ -38,9 +38,39 @@ const extensionDe = (nombre: string, porDefecto = 'bin'): string => {
   return ext && ext.length <= 5 ? ext : porDefecto;
 };
 
-/** dataURL (previsualización del form) → Blob subible. */
-const dataUrlABlob = async (dataUrl: string): Promise<Blob> =>
-  (await fetch(dataUrl)).blob();
+/**
+ * dataURL (previsualización del form) → Blob subible.
+ *
+ * Se decodifica a mano y no con `fetch(dataUrl)`: aunque el dato ya está
+ * en memoria, `fetch` cuenta como conexión para la CSP, y `connect-src`
+ * no incluye —ni debería incluir— el esquema `data:`. El navegador la
+ * bloqueaba y el error que llegaba al usuario era "Failed to fetch",
+ * que no dice nada sobre una foto.
+ */
+const dataUrlABlob = async (dataUrl: string): Promise<Blob> => {
+  const coma = dataUrl.indexOf(',');
+  if (!dataUrl.startsWith('data:') || coma === -1) {
+    throw new Error('No pudimos leer la imagen. Probá con otro archivo.');
+  }
+
+  const cabecera = dataUrl.slice('data:'.length, coma);
+  const enBase64 = cabecera.endsWith(';base64');
+  const tipo =
+    (enBase64 ? cabecera.slice(0, -';base64'.length) : cabecera) ||
+    'application/octet-stream';
+  const cuerpo = dataUrl.slice(coma + 1);
+
+  if (!enBase64) {
+    return new Blob([decodeURIComponent(cuerpo)], { type: tipo });
+  }
+
+  const binario = atob(cuerpo);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i += 1) {
+    bytes[i] = binario.charCodeAt(i);
+  }
+  return new Blob([bytes], { type: tipo });
+};
 
 const subir = async (
   bucket: string,
@@ -133,6 +163,31 @@ export const urlsFirmadas = async (
     if (d.path && d.signedUrl) mapa.set(d.path, d.signedUrl);
   });
   return mapa;
+};
+
+/**
+ * Borra archivos del bucket al eliminar el registro que los referenciaba.
+ *
+ * Sin esto, borrar un recibo o un documento sacaba la fila de la base
+ * pero dejaba el PDF en el bucket para siempre: nadie lo podía encontrar
+ * desde la app —no queda ninguna referencia— pero seguía ocupando el
+ * espacio contratado. Con recibos de sueldo es además un problema de
+ * datos personales: si se borra, tiene que irse de verdad.
+ *
+ * No propaga errores a propósito: la fila ya no está, y un archivo
+ * huérfano no justifica mostrarle un error a quien acaba de borrar bien.
+ */
+export const borrarDeStorage = async (
+  bucket: 'fotos' | 'documentos' | 'recibos-pdf',
+  paths: (string | null | undefined)[]
+): Promise<void> => {
+  const limpios = Array.from(new Set(paths.filter(esPathDeStorage)));
+  if (limpios.length === 0) return;
+  try {
+    await supabase().storage.from(bucket).remove(limpios);
+  } catch {
+    // Silencio deliberado (ver comentario de arriba).
+  }
 };
 
 /** ¿El valor guardado es un path de storage (y no una URL/dataURL)? */

@@ -4,11 +4,30 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 interface CuerpoInvitacion {
   email: string;
   nombreCompleto: string;
-  rol: 'admin_rrhh' | 'supervisor' | 'empleado';
+  rol: RolInvitable;
   /** requerida si invita el superadmin; los admin invitan a su empresa */
   empresaId?: string;
   empleadoId?: string;
 }
+
+/**
+ * Roles que se pueden repartir por invitación. `superadmin` NO está:
+ * es el rol que ve todas las empresas y la facturación de la
+ * plataforma, y se da a mano desde la base.
+ *
+ * Esto se valida en el servidor y no sólo con el tipo de TypeScript: el
+ * rol viaja en el body y termina en la metadata de la invitación, que el
+ * trigger `crear_perfil_usuario` copia tal cual a `public.usuarios`. Sin
+ * este control, cualquier admin_rrhh con sesión válida podía mandar
+ * `{"rol":"superadmin"}` con curl y crearse una cuenta con acceso a los
+ * datos de todos los clientes.
+ */
+const ROLES_INVITABLES = ['admin_rrhh', 'supervisor', 'empleado'] as const;
+type RolInvitable = (typeof ROLES_INVITABLES)[number];
+
+const esRolInvitable = (valor: unknown): valor is RolInvitable =>
+  typeof valor === 'string' &&
+  (ROLES_INVITABLES as readonly string[]).includes(valor);
 
 /** Errores comunes de Supabase Auth, en castellano y accionables. */
 const traducirErrorInvitacion = (mensaje: string): string => {
@@ -61,6 +80,12 @@ export const POST = async (req: Request) => {
   const cuerpo = (await req.json()) as CuerpoInvitacion;
   if (!cuerpo.email || !cuerpo.nombreCompleto || !cuerpo.rol) {
     return NextResponse.json({ error: 'Faltan datos.' }, { status: 400 });
+  }
+  if (!esRolInvitable(cuerpo.rol)) {
+    return NextResponse.json(
+      { error: 'Ese rol no se puede asignar por invitación.' },
+      { status: 400 }
+    );
   }
 
   // Los admin solo invitan dentro de su empresa; el superadmin elige.

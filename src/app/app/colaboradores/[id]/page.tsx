@@ -20,7 +20,8 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { avisoExito } from '@/lib/avisos';
+import { avisoError, avisoExito } from '@/lib/avisos';
+import { abrirArchivo } from '@/lib/archivosUi';
 import { Panel } from '@/components/app/Panel';
 import { EnrolamientoFacial } from '@/components/app/facial/EnrolamientoFacial';
 import { NotasInternas } from '@/components/app/colaboradores/NotasInternas';
@@ -164,13 +165,21 @@ const FichaColaboradorPage = () => {
     recargarDocs();
   };
 
-  const verDocumento = async (doc: DocumentoLegajo) => {
-    const url = await abrirDocumento(doc);
-    if (url) window.open(url, '_blank', 'noopener');
-  };
+  const verDocumento = (doc: DocumentoLegajo) =>
+    abrirArchivo(() => abrirDocumento(doc), {
+      titulo: 'No pudimos abrir el documento',
+    });
 
   const eliminarDocumento = async (documentoId: string) => {
-    await quitarDocumento(documentoId);
+    try {
+      await quitarDocumento(documentoId);
+      avisoExito('Documento eliminado');
+    } catch (err) {
+      avisoError(
+        'No pudimos eliminarlo',
+        err instanceof Error ? err.message : undefined
+      );
+    }
     recargarDocs();
   };
 

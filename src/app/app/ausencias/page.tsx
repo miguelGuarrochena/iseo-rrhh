@@ -30,6 +30,7 @@ import {
 } from '@/components/app/ui/Paginacion';
 import { formatearFecha, hoyISO } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
+import { abrirArchivo } from '@/lib/archivosUi';
 import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { tipoAusenciaIconos, tipoAusenciaLabels } from '@/lib/etiquetas';
 import {
@@ -249,15 +250,11 @@ const AusenciasPage = () => {
     }
   };
 
-  const verAdjunto = async (a: Ausencia) => {
-    const url = await abrirAdjuntoAusencia(a);
-    if (url) window.open(url, '_blank', 'noopener');
-    else
-      avisoError(
-        'Adjunto no disponible',
-        'En el modo demo los archivos no se guardan.'
-      );
-  };
+  const verAdjunto = (a: Ausencia) =>
+    abrirArchivo(() => abrirAdjuntoAusencia(a), {
+      titulo: 'No pudimos abrir el certificado',
+      vacio: 'El archivo ya no está guardado.',
+    });
 
   const resolver = async (id: string, estado: 'aprobada' | 'rechazada') => {
     try {

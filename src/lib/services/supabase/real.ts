@@ -86,6 +86,7 @@ import {
   aUsuario,
 } from './mapeos';
 import {
+  borrarDeStorage,
   esPathDeStorage,
   subirDocumentoLegajo,
   subirFotoEmpleado,
@@ -475,6 +476,15 @@ export const actualizarEmpleado = async (
   // Foto nueva desde el form: subir al bucket antes de guardar.
   if (datos.fotoUrl?.startsWith('data:')) {
     datos = { ...datos, fotoUrl: await subirFotoEmpleado(datos.fotoUrl) };
+  } else if (datos.fotoUrl?.startsWith('http')) {
+    // En `foto_url` va el path del bucket, nunca una URL. Al leer, la app
+    // reemplaza ese path por una URL firmada para poder mostrar la imagen,
+    // y el form de edición la devolvía tal cual: guardarla pisaba el path
+    // con un enlace que caduca en una hora y dejaba la foto rota para
+    // siempre. Si llega una URL es la que dimos nosotros, así que el campo
+    // se saca del update y la foto queda como estaba.
+    datos = { ...datos };
+    delete datos.fotoUrl;
   }
   const cambios: Record<string, unknown> = {};
   const mapa: Record<string, string> = {
@@ -605,7 +615,7 @@ export const agregarDocumento = async (
 export const quitarDocumento = async (documentoId: string): Promise<void> => {
   const { data: previo } = await sb()
     .from('documentos_legajo')
-    .select('empleado_id,categoria')
+    .select('empleado_id,categoria,archivo_url')
     .eq('id', documentoId)
     .maybeSingle();
   const { error } = await sb()
@@ -613,6 +623,7 @@ export const quitarDocumento = async (documentoId: string): Promise<void> => {
     .delete()
     .eq('id', documentoId);
   if (error) throw new Error(error.message);
+  await borrarDeStorage('documentos', [previo?.archivo_url]);
   await registrarAuditoria('quitar', 'documento_legajo', documentoId, {
     empleadoId: previo?.empleado_id,
     categoria: previo?.categoria,
@@ -901,8 +912,19 @@ export const abrirAdjuntoAusencia = async (
  * la política de la base).
  */
 export const eliminarAusencia = async (ausenciaId: string): Promise<void> => {
+  const { data: previa } = await sb()
+    .from('ausencias')
+    .select('adjuntos')
+    .eq('id', ausenciaId)
+    .maybeSingle();
   const { error } = await sb().from('ausencias').delete().eq('id', ausenciaId);
   if (error) throw new Error(mensajeDeErrorDb(error.message));
+  // El certificado médico se va con la ausencia: es un dato de salud y
+  // no tiene por qué quedar en el bucket sin nada que lo referencie.
+  await borrarDeStorage(
+    'documentos',
+    ((previa?.adjuntos ?? []) as string[]) ?? []
+  );
   await registrarAuditoria('eliminar', 'ausencia', ausenciaId);
 };
 
@@ -1809,6 +1831,12 @@ export const cargarRecibo = async (
 
   const path = await subirReciboPdf(empleadoId, periodo, archivo, tipo);
 
+  // El índice único de recibos vigentes obliga a archivar el anterior
+  // antes de insertar el nuevo, y esto son dos llamadas sueltas: no hay
+  // transacción desde el cliente. Si la segunda falla, el colaborador se
+  // queda sin ningún recibo vigente de ese período —el viejo archivado y
+  // el nuevo inexistente—. Por eso, ante un error, se deshace el archivado
+  // y se limpia el PDF que ya había subido.
   if (vigente) {
     await sb()
       .from('recibos')
@@ -1829,6 +1857,17 @@ export const cargarRecibo = async (
     })
     .select()
     .single();
+
+  if (error || !data) {
+    if (vigente) {
+      await sb()
+        .from('recibos')
+        .update({ archivado_en: null })
+        .eq('id', vigente.id);
+    }
+    await borrarDeStorage('recibos-pdf', [path]);
+  }
+
   const recibo = aRecibo(oFalla(data, error));
   await registrarAuditoria('cargar', 'recibo', recibo.id, {
     empleadoId,
@@ -2182,11 +2221,25 @@ export const getResumenFinanzas = async (
 export const eliminarRecibo = async (reciboId: string): Promise<void> => {
   const { data: recibo } = await sb()
     .from('recibos')
-    .select('empleado_id, periodo, tipo')
+    .select('empleado_id, periodo, tipo, archivo_url')
     .eq('id', reciboId)
     .maybeSingle();
 
+  // Los PDF a limpiar del bucket: el vigente y todas sus versiones
+  // archivadas. Se juntan antes de borrar, que es cuando todavía se
+  // puede saber cuáles eran.
+  const pdfs: (string | null | undefined)[] = [recibo?.archivo_url];
+
   if (recibo) {
+    const { data: versiones } = await sb()
+      .from('recibos')
+      .select('archivo_url')
+      .eq('empleado_id', recibo.empleado_id)
+      .eq('periodo', recibo.periodo)
+      .eq('tipo', recibo.tipo)
+      .not('archivado_en', 'is', null);
+    (versiones ?? []).forEach((v) => pdfs.push(v.archivo_url));
+
     const { error: errorVersiones } = await sb()
       .from('recibos')
       .delete()
@@ -2199,6 +2252,7 @@ export const eliminarRecibo = async (reciboId: string): Promise<void> => {
 
   const { error } = await sb().from('recibos').delete().eq('id', reciboId);
   if (error) throw new Error(error.message);
+  await borrarDeStorage('recibos-pdf', pdfs);
   await registrarAuditoria('eliminar', 'recibo', reciboId);
 };
 
@@ -2236,9 +2290,23 @@ export const cargarFacturaMonotributo = async (
   monto: number,
   archivo?: File
 ): Promise<FacturaMonotributo> => {
-  let archivoUrl: string | null = null;
+  // Corregir sólo el monto no debería borrar la factura ya adjunta: el
+  // upsert mandaba `archivo_url: null` y dejaba el PDF huérfano en el
+  // bucket, sin forma de recuperarlo desde la app.
+  const { data: previa } = await sb()
+    .from('facturas_monotributo')
+    .select('archivo_url')
+    .eq('empleado_id', empleadoId)
+    .eq('periodo', periodo)
+    .maybeSingle();
+
+  let archivoUrl: string | null = previa?.archivo_url ?? null;
   if (archivo) {
     archivoUrl = await subirDocumentoLegajo(empleadoId, archivo);
+    // El anterior ya no se referencia: se saca del bucket.
+    if (previa?.archivo_url && previa.archivo_url !== archivoUrl) {
+      await borrarDeStorage('documentos', [previa.archivo_url]);
+    }
   }
   const { data, error } = await sb()
     .from('facturas_monotributo')
@@ -2265,12 +2333,28 @@ export const cargarFacturaMonotributo = async (
   };
 };
 
+/** URL temporal para ver la factura/cuota de monotributo adjunta. */
+export const abrirFacturaMonotributo = async (
+  factura: FacturaMonotributo
+): Promise<string | null> => {
+  if (!factura.archivoUrl) return null;
+  return esPathDeStorage(factura.archivoUrl)
+    ? urlFirmada('documentos', factura.archivoUrl)
+    : factura.archivoUrl;
+};
+
 export const eliminarFacturaMonotributo = async (id: string): Promise<void> => {
+  const { data: previa } = await sb()
+    .from('facturas_monotributo')
+    .select('archivo_url')
+    .eq('id', id)
+    .maybeSingle();
   const { error } = await sb()
     .from('facturas_monotributo')
     .delete()
     .eq('id', id);
   if (error) throw new Error(error.message);
+  await borrarDeStorage('documentos', [previa?.archivo_url]);
 };
 
 // ---------- Cupos de licencia ----------

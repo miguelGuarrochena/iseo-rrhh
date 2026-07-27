@@ -23,6 +23,7 @@ import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
 import { formatearFecha, formatearPeriodo } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
+import { abrirArchivo, descargarArchivo } from '@/lib/archivosUi';
 import {
   abrirRecibo,
   cargarRecibo,
@@ -126,27 +127,22 @@ const RecibosPage = () => {
     open();
   };
 
-  const verRecibo = async (recibo: ReciboSueldo) => {
-    const url = await abrirRecibo(recibo);
-    if (url) window.open(url, '_blank', 'noopener');
-  };
+  const verRecibo = (recibo: ReciboSueldo) =>
+    abrirArchivo(() => abrirRecibo(recibo), {
+      titulo: 'No pudimos abrir el recibo',
+    });
 
   /**
    * Descarga el PDF con un nombre que se entiende sin abrirlo. El pedido
    * del cliente era que la gente pueda guardarse sus recibos viejos sin
    * tener que pedírselos a RRHH.
    */
-  const descargarRecibo = async (recibo: ReciboSueldo) => {
-    const url = await abrirRecibo(recibo);
-    if (!url) return;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `recibo-${recibo.periodo}-${recibo.tipo}.pdf`;
-    a.rel = 'noopener';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  };
+  const descargarRecibo = (recibo: ReciboSueldo) =>
+    descargarArchivo(
+      () => abrirRecibo(recibo),
+      `recibo-${recibo.periodo}-${recibo.tipo}.pdf`,
+      { titulo: 'No pudimos descargar el recibo' }
+    );
 
   /** Las versiones que este recibo vino a reemplazar, de la más nueva a la más vieja. */
   const versionesPrevias = (r: ReciboSueldo): ReciboSueldo[] =>
@@ -744,14 +740,34 @@ const RecibosPage = () => {
                       : ''}
                   </p>
                 </div>
-                <Boton
-                  variante="secundario"
-                  tamano="sm"
-                  onClick={() => void verRecibo(v)}
-                >
-                  <IconEye size={14} />
-                  Ver PDF
-                </Boton>
+                {/* Ver y descargar, igual que en la lista: una versión
+                    archivada es la prueba de lo que se firmó, y a RRHH
+                    se la pide un contador o un abogado como archivo. */}
+                <div className="flex shrink-0 gap-2">
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    onClick={() => void verRecibo(v)}
+                  >
+                    <IconEye size={14} />
+                    Ver PDF
+                  </Boton>
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    onClick={() =>
+                      void descargarArchivo(
+                        () => abrirRecibo(v),
+                        `recibo-${v.periodo}-${v.tipo}-v${arr.length - i}.pdf`,
+                        { titulo: 'No pudimos descargar el recibo' }
+                      )
+                    }
+                    aria-label={`Descargar la versión ${arr.length - i}`}
+                  >
+                    <IconDownload size={14} />
+                    Descargar
+                  </Boton>
+                </div>
               </div>
             ))}
             <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">

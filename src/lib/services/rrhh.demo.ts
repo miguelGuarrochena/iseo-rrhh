@@ -1479,6 +1479,12 @@ export const cargarFacturaMonotributo = async (
   return simular(nueva);
 };
 
+/** En la demo no se guardan archivos, así que no hay nada que abrir. */
+export const abrirFacturaMonotributo = async (
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _factura: FacturaMonotributo
+): Promise<string | null> => simular(null);
+
 export const eliminarFacturaMonotributo = async (id: string): Promise<void> => {
   const i = facturasMonoMock.findIndex((f) => f.id === id);
   if (i >= 0) facturasMonoMock.splice(i, 1);
