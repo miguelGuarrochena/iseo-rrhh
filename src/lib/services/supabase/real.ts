@@ -135,7 +135,8 @@ const registrarAuditoria = async (
     // fallar en silencio: así estuvimos meses sin registrar nada de lo
     // que hacía el superadmin en las empresas cliente.
     if (error && process.env.NODE_ENV !== 'production') {
-      console.warn(`Auditoría no registrada (${accion}):`, error.message);
+      // Sin interpolar en el format string: evita log injection (%s) en Node.
+      console.warn('Auditoría no registrada:', accion, error.message);
     }
   } catch {
     // Idem: nunca propagar.
