@@ -385,17 +385,31 @@ const FichaColaboradorPage = () => {
           </Panel>
         )}
 
-        <RemuneracionesEmpleado
-          empleadoId={empleado.id}
-          puedeEditar={esAdmin}
-          convenioEmpleado={empleado.convenio}
-        />
+        {/* El detalle salarial es de RRHH. Al supervisor la base ya no le
+            devuelve nada (políticas `remuneraciones_select` y
+            `facturas_mono_select`), así que estos paneles le quedaban
+            vacíos: mejor no mostrárselos y evitar que parezca que la
+            ficha está incompleta. */}
+        {esAdmin && (
+          <>
+            <RemuneracionesEmpleado
+              empleadoId={empleado.id}
+              puedeEditar={esAdmin}
+              convenioEmpleado={empleado.convenio}
+            />
 
-        {empleado.modalidadContratacion === 'monotributista' && (
-          <Panel>
-            <h2 className="text-base font-bold text-ink">Costo monotributo</h2>
-            <MonotributoPanel empleadoId={empleado.id} puedeEditar={esAdmin} />
-          </Panel>
+            {empleado.modalidadContratacion === 'monotributista' && (
+              <Panel>
+                <h2 className="text-base font-bold text-ink">
+                  Costo monotributo
+                </h2>
+                <MonotributoPanel
+                  empleadoId={empleado.id}
+                  puedeEditar={esAdmin}
+                />
+              </Panel>
+            )}
+          </>
         )}
 
         {esAdmin && (

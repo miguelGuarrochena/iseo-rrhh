@@ -258,13 +258,18 @@ const ReportesPage = () => {
           href="/fichaje"
           icono={IconClockPlus}
         />
-        <StatCard
-          etiqueta="Recibos sin firmar"
-          valor={resumen?.recibosSinFirmar ?? '…'}
-          detalle="a reclamar"
-          href="/recibos"
-          icono={IconSignature}
-        />
+        {/* Los recibos son de RRHH: a un supervisor la base sólo le
+            cuenta los propios, así que el número no diría lo que promete
+            el rótulo. */}
+        {rolEfectivo === 'admin_rrhh' && (
+          <StatCard
+            etiqueta="Recibos sin firmar"
+            valor={resumen?.recibosSinFirmar ?? '…'}
+            detalle="a reclamar"
+            href="/recibos"
+            icono={IconSignature}
+          />
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">

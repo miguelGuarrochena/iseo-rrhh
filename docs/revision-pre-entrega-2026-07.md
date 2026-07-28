@@ -147,16 +147,30 @@ pestaña.
 
 ## 4. A decidir con el cliente (no toqué nada)
 
-### 4.1 El supervisor puede descargar todos los recibos de la empresa
+### 4.1 El supervisor podía descargar todos los recibos — RESUELTO
 
-Hay una inconsistencia de privacidad: `remuneraciones_select` restringe
+Había una inconsistencia de privacidad: `remuneraciones_select` restringía
 los sueldos a `admin_rrhh`, pero `recibos_select` y la política de storage
-usan `es_gestor()`, que **incluye supervisor**. Un supervisor no ve la
-grilla de remuneraciones, pero sí puede abrir y bajar el recibo de
+usaban `es_gestor()`, que **incluye supervisor**. Un supervisor no veía la
+grilla de remuneraciones, pero sí podía abrir y bajar el recibo de
 cualquiera — que tiene el sueldo impreso adentro.
 
-Es una decisión de negocio, no un bug: puede ser lo que el cliente quiere.
-Si no lo es, se cambia a `auth_rol() = 'admin_rrhh'` en las dos políticas.
+**Decisión del cliente: el detalle salarial es sólo de RRHH.** Aplicado en
+la migración `20260728000032_recibos_solo_rrhh.sql`:
+
+- `recibos_select` y `storage_select_recibos` pasan a `auth_rol() = 'admin_rrhh'`.
+  El supervisor sigue viendo **los suyos**, porque entra por la rama de
+  "empleado dueño" que ya existía: es una persona que cobra.
+- `facturas_mono_select` va con el mismo criterio. Usaba `es_gestor()` y
+  dejaba la misma puerta abierta por otro lado: la cuota de monotributo es
+  lo que cobra un contratado.
+
+En la pantalla: la sección Recibos ahora trata al supervisor como a
+cualquier colaborador (ve y **firma** los propios — antes ni siquiera
+podía firmarlos, porque el botón pedía rol `empleado`), los paneles de
+remuneración y monotributo de la ficha ya no se le muestran (la base no le
+devolvía nada y quedaban vacíos), y la tarjeta "Recibos sin firmar" de
+Reportes es sólo para RRHH.
 
 ### 4.2 Migración renombrada
 

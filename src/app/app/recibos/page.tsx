@@ -55,7 +55,14 @@ const FirmaBadge = ({ recibo }: { recibo: ReciboSueldo }) =>
 
 const RecibosPage = () => {
   const { usuario, rolEfectivo } = useAuth();
-  const esEmpleado = rolEfectivo === 'empleado';
+  /**
+   * Quién ve la sección en modo "mis recibos" y quién en modo "los del
+   * equipo". El recibo tiene el sueldo impreso, así que el detalle es de
+   * RRHH: el supervisor entra acá igual que un colaborador, a ver los
+   * propios. Lo hace cumplir la política `recibos_select` de la base;
+   * esto es sólo la pantalla acompañando.
+   */
+  const soloPropios = rolEfectivo !== 'admin_rrhh';
 
   const [recibos, setRecibos] = useState<ReciboSueldo[]>([]);
   // Versiones reemplazadas por una rectificación. No se listan sueltas:
@@ -98,20 +105,29 @@ const RecibosPage = () => {
 
   const cargar = useCallback(() => {
     if (!usuario) return;
-    if (esEmpleado && usuario.empleadoId) {
+    if (soloPropios) {
       const id = usuario.empleadoId;
+      // Sin legajo vinculado no hay recibos que mostrar. Antes este caso
+      // se caía a la rama de RRHH y la lista quedaba cargando para
+      // siempre, porque `setCargandoLista(false)` nunca llegaba.
+      if (!id) {
+        setRecibos([]);
+        setArchivados([]);
+        setCargandoLista(false);
+        return;
+      }
       void getRecibos(id)
         .then(setRecibos)
         .finally(() => setCargandoLista(false));
       void getRecibosArchivados(id).then(setArchivados);
-    } else {
-      void getRecibosTodos()
-        .then(setRecibos)
-        .finally(() => setCargandoLista(false));
-      void getRecibosArchivadosTodos().then(setArchivados);
-      void getEmpleados().then(setEmpleados);
+      return;
     }
-  }, [usuario, esEmpleado]);
+    void getRecibosTodos()
+      .then(setRecibos)
+      .finally(() => setCargandoLista(false));
+    void getRecibosArchivadosTodos().then(setArchivados);
+    void getEmpleados().then(setEmpleados);
+  }, [usuario, soloPropios]);
 
   useEffect(cargar, [cargar]);
 
@@ -283,7 +299,7 @@ const RecibosPage = () => {
     const ok = await confirmar({
       titulo: 'Eliminar recibo',
       detalle: `Vas a eliminar el recibo de ${formatearPeriodo(r.periodo)}${
-        esEmpleado ? '' : ` de ${nombreEmpleado(r.empleadoId)}`
+        soloPropios ? '' : ` de ${nombreEmpleado(r.empleadoId)}`
       }.${
         previas.length === 0
           ? ''
@@ -327,10 +343,10 @@ const RecibosPage = () => {
   };
 
   // Para el admin: los sin firma del empleador van aparte (borradores).
-  const borradores = esEmpleado
+  const borradores = soloPropios
     ? []
     : recibos.filter((r) => !r.firmadoEmpleadorEn);
-  const publicados = esEmpleado
+  const publicados = soloPropios
     ? recibos
     : recibos.filter((r) => r.firmadoEmpleadorEn);
   const pendientes = publicados.filter((r) => r.estadoFirma === 'pendiente');
@@ -353,7 +369,7 @@ const RecibosPage = () => {
             Recibos de sueldo
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
-            {esEmpleado
+            {soloPropios
               ? 'Consultá y firmá tus recibos con validez digital.'
               : 'Estado de firmas del equipo.'}
           </p>
@@ -376,7 +392,7 @@ const RecibosPage = () => {
         <StatCard
           etiqueta="Por firmar"
           valor={pendientes.length}
-          detalle={esEmpleado ? 'tuyos' : 'en el equipo'}
+          detalle={soloPropios ? 'tuyos' : 'en el equipo'}
           icono={IconSignature}
         />
         <StatCard
@@ -385,7 +401,7 @@ const RecibosPage = () => {
           detalle="al día"
           icono={IconFileCertificate}
         />
-        {!esEmpleado && borradores.length > 0 && (
+        {!soloPropios && borradores.length > 0 && (
           <StatCard
             etiqueta="Sin publicar"
             valor={borradores.length}
@@ -395,7 +411,7 @@ const RecibosPage = () => {
         )}
       </div>
 
-      {!esEmpleado && borradores.length > 0 && (
+      {!soloPropios && borradores.length > 0 && (
         <ListaCard
           titulo="Sin publicar — falta la firma del empleador"
           vacio=""
@@ -457,10 +473,10 @@ const RecibosPage = () => {
       )}
 
       <ListaCard
-        titulo={esEmpleado ? 'Pendientes de firma' : 'Pendientes del equipo'}
+        titulo={soloPropios ? 'Pendientes de firma' : 'Pendientes del equipo'}
         cargando={cargandoLista}
         vacio={
-          esEmpleado
+          soloPropios
             ? 'No tenés recibos pendientes de firma.'
             : 'No hay recibos pendientes de firma.'
         }
@@ -471,10 +487,12 @@ const RecibosPage = () => {
             .map((r) => (
               <ListaItem
                 key={r.id}
-                href={esEmpleado ? undefined : `/colaboradores/${r.empleadoId}`}
+                href={
+                  soloPropios ? undefined : `/colaboradores/${r.empleadoId}`
+                }
                 icono={IconFileCertificate}
                 principal={
-                  esEmpleado
+                  soloPropios
                     ? formatearPeriodo(r.periodo)
                     : `${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`
                 }
@@ -491,7 +509,7 @@ const RecibosPage = () => {
                       <IconEye size={14} />
                       Ver
                     </Boton>
-                    {esEmpleado && r.estadoFirma === 'pendiente' && (
+                    {soloPropios && r.estadoFirma === 'pendiente' && (
                       <Boton tamano="sm" onClick={() => abrirFirma(r)}>
                         <IconSignature size={14} />
                         Firmar
@@ -514,7 +532,7 @@ const RecibosPage = () => {
       </ListaCard>
 
       <ListaCard
-        titulo={esEmpleado ? 'Historial de recibos' : 'Historial firmado'}
+        titulo={soloPropios ? 'Historial de recibos' : 'Historial firmado'}
         cargando={cargandoLista}
         vacio={
           anios.length > 0
@@ -545,10 +563,10 @@ const RecibosPage = () => {
           historial.map((r) => (
             <ListaItem
               key={r.id}
-              href={esEmpleado ? undefined : `/colaboradores/${r.empleadoId}`}
+              href={soloPropios ? undefined : `/colaboradores/${r.empleadoId}`}
               icono={IconFileCertificate}
               principal={
-                esEmpleado
+                soloPropios
                   ? formatearPeriodo(r.periodo)
                   : `${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`
               }
@@ -712,7 +730,7 @@ const RecibosPage = () => {
         {versionesTexto && (
           <div className="flex flex-col gap-3">
             <p className="text-sm leading-relaxed text-ink-soft">
-              {esEmpleado
+              {soloPropios
                 ? ''
                 : `${nombreEmpleado(versionesTexto.empleadoId)} — `}
               <strong className="text-ink">
