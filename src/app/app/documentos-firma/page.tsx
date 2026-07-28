@@ -3,7 +3,12 @@
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconFileCheck, IconPlus, IconSignature } from '@tabler/icons-react';
+import {
+  IconFileCheck,
+  IconPlus,
+  IconSignature,
+  IconTrash,
+} from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
@@ -11,9 +16,12 @@ import { Campo, CampoTextarea } from '@/components/app/ui/Campo';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { avisoError, avisoExito } from '@/lib/avisos';
+import { abrirArchivo } from '@/lib/archivosUi';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import {
   abrirDocumentoFirma,
   crearDocumentoFirma,
+  eliminarDocumentoFirma,
   firmarDocumento,
   getDocumentosFirma,
   getDocumentosFirmaPendientes,
@@ -40,6 +48,7 @@ const DocumentosFirmaPage = () => {
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
   const [errores, setErrores] = useState<Record<string, string>>({});
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
   const cargar = useCallback(() => {
     if (!usuario) return;
@@ -108,16 +117,37 @@ const DocumentosFirmaPage = () => {
     }
   };
 
-  const ver = async (doc: DocumentoFirma) => {
+  const ver = (doc: DocumentoFirma) =>
+    abrirArchivo(() => abrirDocumentoFirma(doc), {
+      titulo: 'No pudimos abrir el PDF',
+    });
+
+  /**
+   * Baja un documento que no debería estar circulando. Si alguien ya
+   * firmó, se avisa: esa firma es una constancia y se va con él, así que
+   * conviene que sea una decisión y no un click de más.
+   */
+  const borrar = async (doc: DocumentoFirma & { firmados: number }) => {
+    const ok = await confirmar({
+      titulo: 'Eliminar el documento',
+      detalle:
+        doc.firmados > 0
+          ? `${doc.titulo} ya tiene ${doc.firmados} firma${doc.firmados === 1 ? '' : 's'}. Al eliminarlo se borran también esas constancias y el PDF. No se puede deshacer.`
+          : `${doc.titulo} va a dejar de pedirse y se borra el PDF. No se puede deshacer.`,
+      confirmar: 'Eliminar',
+      peligrosa: true,
+    });
+    if (!ok) return;
     try {
-      const url = await abrirDocumentoFirma(doc);
-      window.open(url, '_blank', 'noopener');
+      await eliminarDocumentoFirma(doc.id);
+      avisoExito('Documento eliminado');
     } catch (err) {
       avisoError(
-        'No pudimos abrir el PDF',
+        'No pudimos eliminarlo',
         err instanceof Error ? err.message : undefined
       );
     }
+    cargar();
   };
 
   if (!usuario) return null;
@@ -187,13 +217,23 @@ const DocumentosFirmaPage = () => {
               principal={d.titulo}
               secundario={`${d.firmados} firmados · ${d.pendientes} pendientes`}
               extremo={
-                <Boton
-                  variante="secundario"
-                  tamano="sm"
-                  onClick={() => void ver(d)}
-                >
-                  Ver PDF
-                </Boton>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    onClick={() => void ver(d)}
+                  >
+                    Ver PDF
+                  </Boton>
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    onClick={() => void borrar(d)}
+                    aria-label={`Eliminar el documento ${d.titulo}`}
+                  >
+                    <IconTrash size={14} />
+                  </Boton>
+                </div>
               }
             />
           ))}
@@ -263,6 +303,8 @@ const DocumentosFirmaPage = () => {
           </Boton>
         </form>
       </Modal>
+
+      {dialogoConfirmar}
     </div>
   );
 };

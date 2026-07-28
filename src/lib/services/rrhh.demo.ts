@@ -1678,6 +1678,20 @@ export const abrirDocumentoFirma = async (
   _doc: DocumentoFirma
 ): Promise<string> => simular('#');
 
+export const eliminarDocumentoFirma = async (
+  documentoId: string
+): Promise<void> => {
+  const i = docsFirmaMock.findIndex((d) => d.id === documentoId);
+  if (i >= 0) docsFirmaMock.splice(i, 1);
+  // En la base los destinatarios cascadean; acá se limpian a mano.
+  for (let j = docsFirmaDestMock.length - 1; j >= 0; j -= 1) {
+    if (docsFirmaDestMock[j].documentoId === documentoId) {
+      docsFirmaDestMock.splice(j, 1);
+    }
+  }
+  return simular(undefined);
+};
+
 export const getPendientesResumen = async (): Promise<PendientesResumen> => {
   const recibosPorFirmar = recibosMock.filter(
     (r) => r.estadoFirma === 'pendiente' && r.firmadoEmpleadorEn

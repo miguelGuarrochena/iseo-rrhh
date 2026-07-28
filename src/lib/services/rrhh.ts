@@ -421,6 +421,10 @@ export const abrirDocumentoFirma = elegir(
   real.abrirDocumentoFirma,
   demo.abrirDocumentoFirma
 );
+export const eliminarDocumentoFirma = elegir(
+  real.eliminarDocumentoFirma,
+  demo.eliminarDocumentoFirma
+);
 export const getPendientesResumen = elegir(
   real.getPendientesResumen,
   demo.getPendientesResumen

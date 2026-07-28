@@ -125,6 +125,22 @@ pestaña.
 
 ---
 
+## 2.5 Faltante — agregado
+
+**Los documentos a firmar no se podían borrar.** Si RRHH subía el PDF
+equivocado, ponía mal el título o lo mandaba a toda la empresa cuando era
+para un sector, quedaba ahí pidiéndole la firma a gente que no
+correspondía. No hizo falta migración: `documentos_firma_gestion` ya es
+`for all` para `admin_rrhh` y los destinatarios cascadean.
+
+Se agregó `eliminarDocumentoFirma` (borra la fila, el PDF del bucket y
+deja registro en auditoría) y el botón en la lista de enviados. La
+confirmación avisa cuántas firmas se pierden si alguien ya firmó: esa
+constancia se va con el documento, así que conviene que sea una decisión
+y no un click de más.
+
+---
+
 ## 3. Medios — arreglados
 
 - **Archivos huérfanos.** Borrar un recibo, un documento del legajo, una

@@ -2646,6 +2646,39 @@ export const abrirDocumentoFirma = async (
   doc: DocumentoFirma
 ): Promise<string> => urlFirmada('documentos', doc.archivoUrl);
 
+/**
+ * Saca de circulación un documento a firmar.
+ *
+ * Es para el que se subió por error: el PDF equivocado, el título mal, el
+ * que se mandó a toda la empresa cuando era para un sector. Hasta ahora no
+ * había forma de bajarlo y quedaba ahí pidiéndole la firma a gente que no
+ * correspondía.
+ *
+ * Las firmas ya hechas se van con él —los destinatarios cascadean—, así
+ * que la pantalla avisa antes si alguien ya firmó: eso es una constancia
+ * y borrarla es una decisión, no un descuido.
+ */
+export const eliminarDocumentoFirma = async (
+  documentoId: string
+): Promise<void> => {
+  const { data: previo } = await sb()
+    .from('documentos_firma')
+    .select('archivo_url, titulo')
+    .eq('id', documentoId)
+    .maybeSingle();
+
+  const { error } = await sb()
+    .from('documentos_firma')
+    .delete()
+    .eq('id', documentoId);
+  if (error) throw new Error(mensajeDeErrorDb(error.message));
+
+  await borrarDeStorage('documentos', [previo?.archivo_url]);
+  await registrarAuditoria('eliminar', 'documento_firma', documentoId, {
+    titulo: previo?.titulo,
+  });
+};
+
 // ---------- Pendientes (badges) ----------
 
 export const getPendientesResumen = async (): Promise<PendientesResumen> => {
