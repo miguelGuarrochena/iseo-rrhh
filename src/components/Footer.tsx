@@ -2,10 +2,13 @@
 
 import React from 'react';
 import { IconBrandWhatsapp, IconMail } from '@tabler/icons-react';
+import { LogoLanding } from './LogoLanding';
 
 const navLinks = [
   { label: '¿Qué ofrecemos?', id: 'features' },
-  { label: '¿Por qué elegirnos?', id: 'about' },
+  { label: 'La plataforma', id: 'producto' },
+  { label: 'Beneficios', id: 'beneficios' },
+  { label: 'Cómo empezar', id: 'pasos' },
   { label: 'Contacto', id: 'contact' },
 ];
 
@@ -19,9 +22,7 @@ export const Footer: React.FC = () => {
         <div className="rounded-2xl bg-ink/90 px-6 py-6 text-white sm:px-10">
           <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:justify-between sm:gap-6 sm:text-left">
             {/* Marca */}
-            <p className="text-lg font-extrabold tracking-tight text-white">
-              ISEO <span className="text-brand-400">RH</span>
-            </p>
+            <LogoLanding variante="oscura" />
 
             {/* Navegación */}
             <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">

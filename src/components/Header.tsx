@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Burger, Drawer, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { Logo } from './Logo';
+import { LogoLanding } from './LogoLanding';
+import { plataformaLanzada } from '@/lib/lanzamiento';
 
 interface NavLink {
   label: string;
@@ -13,7 +14,8 @@ interface NavLink {
 const links: NavLink[] = [
   { label: '¿Qué ofrecemos?', id: 'features' },
   { label: 'La plataforma', id: 'producto' },
-  { label: '¿Por qué elegirnos?', id: 'about' },
+  { label: 'Beneficios', id: 'beneficios' },
+  { label: 'Cómo empezar', id: 'pasos' },
 ];
 
 export const Header: React.FC = () => {
@@ -57,7 +59,7 @@ export const Header: React.FC = () => {
           aria-label="Ir al inicio"
           className="cursor-pointer border-0 bg-transparent transition-opacity hover:opacity-80"
         >
-          <Logo size="sm" />
+          <LogoLanding />
         </button>
 
         {/* Navegación desktop */}
@@ -79,9 +81,17 @@ export const Header: React.FC = () => {
 
         {/* CTA + burger */}
         <div className="flex items-center gap-2">
+          {plataformaLanzada && (
+            <a
+              href="/login"
+              className="hidden cursor-pointer rounded-lg px-4 py-2.5 text-[0.95rem] font-medium text-ink-soft no-underline transition-colors hover:text-navy lg:inline-block"
+            >
+              Iniciar sesión
+            </a>
+          )}
           <button
             onClick={() => scrollToSection('contact')}
-            className="hidden cursor-pointer rounded-xl border-0 bg-ink px-5 py-2.5 text-[0.95rem] font-semibold text-white transition-colors hover:bg-brand-600 sm:inline-block"
+            className="hidden cursor-pointer rounded-xl border-0 bg-navy px-5 py-2.5 text-[0.95rem] font-semibold text-white transition-colors hover:bg-brand-600 sm:inline-block"
           >
             Contactanos
           </button>
@@ -123,9 +133,17 @@ export const Header: React.FC = () => {
                 {link.label}
               </button>
             ))}
+            {plataformaLanzada && (
+              <a
+                href="/login"
+                className="w-full cursor-pointer rounded-2xl border border-line bg-white px-5 py-4 text-center text-lg font-semibold text-navy no-underline transition-colors hover:border-brand-200"
+              >
+                Iniciar sesión
+              </a>
+            )}
             <button
               onClick={() => scrollToSection('contact')}
-              className="mt-2 w-full cursor-pointer rounded-2xl border-0 bg-ink px-5 py-4 text-center text-lg font-semibold text-white transition-colors hover:bg-brand-600"
+              className="mt-2 w-full cursor-pointer rounded-2xl border-0 bg-navy px-5 py-4 text-center text-lg font-semibold text-white transition-colors hover:bg-brand-600"
             >
               Contactanos
             </button>

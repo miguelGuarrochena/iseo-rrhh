@@ -27,6 +27,13 @@ module.exports = {
           800: '#1a45ab',
           900: '#163a8a',
         },
+        // Azul marino de los titulares y botones sólidos de la landing
+        navy: {
+          DEFAULT: '#0d1b3f',
+          700: '#16295c',
+          800: '#12224e',
+          900: '#0a1533',
+        },
         // Acento cálido tomado del logo (uso puntual)
         peach: '#E59061',
         primary: '#2563eb',

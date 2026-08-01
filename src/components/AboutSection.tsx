@@ -14,14 +14,14 @@ const reasons = [
 
 export const AboutSection: React.FC = () => {
   return (
-    <section id="about" className="bg-paper px-2 py-2 sm:px-3">
+    <section id="beneficios" className="bg-paper px-2 py-2 sm:px-3">
       <div className="mx-auto max-w-7xl">
         <div className="rounded-2xl border border-line bg-white px-6 py-12 sm:px-12 sm:py-16">
           <div className="max-w-2xl">
             <span className="text-sm font-bold uppercase tracking-widest text-brand-600">
-              ¿Por qué elegirnos?
+              Beneficios
             </span>
-            <p className="mt-4 text-2xl font-bold leading-snug text-ink sm:text-3xl">
+            <p className="mt-4 text-2xl font-bold leading-snug text-navy sm:text-3xl">
               Porque transformamos el desorden en claridad.
             </p>
           </div>

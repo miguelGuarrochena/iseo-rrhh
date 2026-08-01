@@ -2,11 +2,12 @@ import {
   Header,
   HeroSection,
   FeaturesSection,
+  ProductoSection,
+  PasosSection,
   AboutSection,
   ContactSection,
   Footer,
 } from '@/components';
-import { ProductoSection } from '@/components/ProductoSection';
 import { HashScrollReset } from '@/components/HashScrollReset';
 
 const Home = () => (
@@ -16,8 +17,8 @@ const Home = () => (
     <HeroSection />
     <FeaturesSection />
     <ProductoSection />
-    {/* <HowWeDoItSection /> */}
     <AboutSection />
+    <PasosSection />
     <ContactSection />
     <Footer />
   </main>
