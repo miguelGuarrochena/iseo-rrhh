@@ -397,6 +397,41 @@ export interface CupoLicencia {
   diasAnuales: number;
 }
 
+// ---------- Errores registrados ----------
+
+/** Un error que la app guardó para que soporte lo mire después. */
+export interface ErrorApp {
+  id: string;
+  empresaId?: string;
+  usuarioId?: string;
+  ruta?: string;
+  contexto?: string;
+  /** El mensaje crudo, sin traducir. */
+  mensaje: string;
+  creadoEn: string;
+}
+
+// ---------- Feriados ----------
+
+/**
+ * 'nacional' son los de ley; 'puente' los turísticos que se anuncian
+ * cada año; 'empresa' los propios (día del gremio, aniversario).
+ */
+export type TipoFeriado = 'nacional' | 'puente' | 'empresa';
+
+export interface Feriado {
+  id: string;
+  empresaId: string;
+  /** YYYY-MM-DD */
+  fecha: string;
+  nombre: string;
+  tipo: TipoFeriado;
+  /** false = se trabaja, pero lo trabajado va con recargo. */
+  noLaborable: boolean;
+}
+
+export type NuevoFeriado = Omit<Feriado, 'id' | 'empresaId'>;
+
 export interface SaldoLicencia {
   tipo: TipoAusencia;
   diasAnuales: number;
@@ -731,7 +766,7 @@ export interface DocumentoFirmaDestinatario {
 export interface PendientesResumen {
   recibosPorFirmar: number;
   ausenciasPorResolver: number;
-  comunicacionesAbiertas: number;
+  comunicacionesSinLeer: number;
   documentosPorFirmar: number;
   total: number;
 }

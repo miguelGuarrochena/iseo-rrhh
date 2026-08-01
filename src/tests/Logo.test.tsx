@@ -14,9 +14,15 @@ describe('Logo', () => {
     expect(wrapper).toHaveClass('custom-class');
   });
 
-  it('apunta a /logo.svg', () => {
+  it('apunta al isotipo', () => {
     render(<Logo />);
     const img = screen.getByAltText('ISEO RH');
-    expect(img.getAttribute('src')).toContain('logo.svg');
+    expect(img.getAttribute('src')).toContain('logo-iseo-marca');
+  });
+
+  it('sobre fondo oscuro usa la variante de trazo claro', () => {
+    render(<Logo tono="sobre-oscuro" />);
+    const img = screen.getByAltText('ISEO RH');
+    expect(img.getAttribute('src')).toContain('logo-iseo-marca-dark');
   });
 });

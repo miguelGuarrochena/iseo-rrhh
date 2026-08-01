@@ -319,6 +319,24 @@ export const resolverAdelanto = elegir(
   real.resolverAdelanto,
   demo.resolverAdelanto
 );
+export const eliminarAdelanto = elegir(
+  real.eliminarAdelanto,
+  demo.eliminarAdelanto
+);
+
+// ---------- Errores registrados (soporte) ----------
+export const getErroresApp = elegir(real.getErroresApp, demo.getErroresApp);
+
+// ---------- Feriados ----------
+export const getFeriados = elegir(real.getFeriados, demo.getFeriados);
+export const guardarFeriados = elegir(
+  real.guardarFeriados,
+  demo.guardarFeriados
+);
+export const eliminarFeriado = elegir(
+  real.eliminarFeriado,
+  demo.eliminarFeriado
+);
 
 // ---------- Archivos ----------
 export const abrirRecibo = elegir(real.abrirRecibo, demo.abrirRecibo);
@@ -396,6 +414,14 @@ export const getMensajesComunicacion = elegir(
 export const responderComunicacion = elegir(
   real.responderComunicacion,
   demo.responderComunicacion
+);
+export const marcarComunicacionLeida = elegir(
+  real.marcarComunicacionLeida,
+  demo.marcarComunicacionLeida
+);
+export const getComunicacionesSinLeer = elegir(
+  real.getComunicacionesSinLeer,
+  demo.getComunicacionesSinLeer
 );
 export const cerrarComunicacion = elegir(
   real.cerrarComunicacion,

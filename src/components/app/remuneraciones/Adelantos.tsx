@@ -2,12 +2,20 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Modal } from '@mantine/core';
-import { IconCashBanknote, IconCheck, IconX } from '@tabler/icons-react';
+import {
+  IconCashBanknote,
+  IconCheck,
+  IconTrash,
+  IconX,
+} from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
+import { useAuth } from '@/lib/auth/AuthProvider';
 import {
+  eliminarAdelanto,
   getAdelantos,
   resolverAdelanto,
   solicitarAdelanto,
@@ -171,6 +179,10 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
   const [aAprobar, setAAprobar] = useState<Adelanto | null>(null);
   const [periodo, setPeriodo] = useState(hoyISO().slice(0, 7));
   const [resolviendo, setResolviendo] = useState(false);
+  const { rolEfectivo } = useAuth();
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
+  const puedeBorrar =
+    rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin';
 
   const cargar = useCallback(() => {
     void getAdelantos().then(setAdelantos);
@@ -208,6 +220,41 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
     setResolviendo(false);
   };
 
+  /**
+   * Sólo para lo que se cargó por error (una prueba, un monto mal
+   * tipeado). Si el pedido existió de verdad, rechazarlo es lo correcto:
+   * deja el registro y el colaborador recibe el aviso.
+   */
+  const borrar = async (a: Adelanto) => {
+    const ok = await confirmar({
+      titulo: 'Eliminar pedido de adelanto',
+      detalle: (
+        <>
+          Vas a eliminar el pedido de {formatearPesos(a.monto)} de{' '}
+          {nombre(a.empleadoId)}. Desaparece del listado y deja de sugerirse
+          como descuento. No se puede deshacer.
+          <br />
+          <br />
+          Si el pedido existió y no corresponde, mejor rechazalo: así queda el
+          registro y el colaborador recibe el aviso.
+        </>
+      ),
+      confirmar: 'Eliminar',
+      peligrosa: true,
+    });
+    if (!ok) return;
+    try {
+      await eliminarAdelanto(a.id);
+      avisoExito('Pedido eliminado');
+      cargar();
+    } catch (err) {
+      avisoError(
+        'No pudimos eliminarlo',
+        err instanceof Error ? err.message : undefined
+      );
+    }
+  };
+
   const pendientes = adelantos.filter((a) => a.estado === 'pendiente');
   const resueltos = adelantos.filter((a) => a.estado !== 'pendiente');
 
@@ -243,31 +290,44 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
                   {a.motivo ? ` · ${a.motivo}` : ''}
                 </p>
               </div>
-              {a.estado === 'pendiente' ? (
-                <div className="flex shrink-0 items-center gap-2">
-                  <Boton
-                    tamano="sm"
-                    onClick={() => {
-                      setPeriodo(hoyISO().slice(0, 7));
-                      setAAprobar(a);
-                    }}
+              <div className="flex shrink-0 items-center gap-2">
+                {a.estado === 'pendiente' ? (
+                  <>
+                    <Boton
+                      tamano="sm"
+                      onClick={() => {
+                        setPeriodo(hoyISO().slice(0, 7));
+                        setAAprobar(a);
+                      }}
+                    >
+                      <IconCheck size={14} />
+                      Aprobar
+                    </Boton>
+                    <Boton
+                      variante="secundario"
+                      tamano="sm"
+                      onClick={() => void resolver(a, false)}
+                      disabled={resolviendo}
+                    >
+                      <IconX size={14} />
+                      Rechazar
+                    </Boton>
+                  </>
+                ) : (
+                  <EstadoChip adelanto={a} />
+                )}
+                {puedeBorrar && (
+                  <button
+                    type="button"
+                    onClick={() => void borrar(a)}
+                    aria-label="Eliminar pedido de adelanto"
+                    title="Eliminar: usá esto sólo si se cargó por error"
+                    className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600 sm:h-9 sm:w-9"
                   >
-                    <IconCheck size={14} />
-                    Aprobar
-                  </Boton>
-                  <Boton
-                    variante="secundario"
-                    tamano="sm"
-                    onClick={() => void resolver(a, false)}
-                    disabled={resolviendo}
-                  >
-                    <IconX size={14} />
-                    Rechazar
-                  </Boton>
-                </div>
-              ) : (
-                <EstadoChip adelanto={a} />
-              )}
+                    <IconTrash size={16} />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -309,6 +369,8 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
           </div>
         )}
       </Modal>
+
+      {dialogoConfirmar}
     </Panel>
   );
 };

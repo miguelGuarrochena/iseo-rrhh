@@ -5,6 +5,7 @@
  */
 import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId } from '@/lib/auth/store';
+import { registrarErrorApp } from '@/lib/erroresApp';
 
 const UNA_HORA = 60 * 60;
 const MB = 1024 * 1024;
@@ -82,7 +83,10 @@ const subir = async (
   const { error } = await supabase()
     .storage.from(bucket)
     .upload(path, archivo, { upsert: true, contentType });
-  if (error) throw new Error(`No pudimos subir el archivo: ${error.message}`);
+  if (error) {
+    registrarErrorApp(error.message, `subir archivo a ${bucket}`);
+    throw new Error(`No pudimos subir el archivo: ${error.message}`);
+  }
   return path;
 };
 

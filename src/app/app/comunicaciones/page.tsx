@@ -16,8 +16,10 @@ import {
   crearComunicacion,
   getComunicaciones,
   getComunicacionesDeEmpleado,
+  getComunicacionesSinLeer,
   getEmpleados,
   getMensajesComunicacion,
+  marcarComunicacionLeida,
   responderComunicacion,
 } from '@/lib/services/rrhh';
 import {
@@ -49,6 +51,7 @@ const ComunicacionesPage = () => {
   const [lista, setLista] = useState<Comunicacion[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [seleccion, setSeleccion] = useState<Comunicacion | null>(null);
+  const [sinLeer, setSinLeer] = useState<Set<string>>(new Set());
   const [mensajes, setMensajes] = useState<ComunicacionMensaje[]>([]);
   const [respuesta, setRespuesta] = useState('');
   const [modal, { open, close }] = useDisclosure(false);
@@ -67,9 +70,25 @@ const ComunicacionesPage = () => {
       void getComunicaciones().then(setLista);
       void getEmpleados().then(setEmpleados);
     }
+    void getComunicacionesSinLeer().then((ids) => setSinLeer(new Set(ids)));
   }, [usuario, esEmpleado]);
 
   useEffect(cargar, [cargar]);
+
+  /**
+   * Abrir la conversación la marca como leída. Vuelve a quedar sin leer
+   * sola si después llega un mensaje nuevo.
+   */
+  const abrir = (c: Comunicacion) => {
+    setSeleccion(c);
+    if (!sinLeer.has(c.id)) return;
+    setSinLeer((previo) => {
+      const copia = new Set(previo);
+      copia.delete(c.id);
+      return copia;
+    });
+    void marcarComunicacionLeida(c.id);
+  };
 
   useEffect(() => {
     if (!seleccion) {
@@ -185,7 +204,14 @@ const ComunicacionesPage = () => {
               secundario={`${tipoLabels[c.tipo]} · ${estadoLabels[c.estado]}${
                 !esEmpleado ? ` · ${nombreEmpleado(c.empleadoId)}` : ''
               }`}
-              onClick={() => setSeleccion(c)}
+              extremo={
+                sinLeer.has(c.id) ? (
+                  <span className="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-bold text-brand-700">
+                    Sin leer
+                  </span>
+                ) : undefined
+              }
+              onClick={() => abrir(c)}
             />
           ))}
         </ListaCard>

@@ -31,7 +31,7 @@ export interface NavItem {
   badgeKey?:
     | 'recibosPorFirmar'
     | 'ausenciasPorResolver'
-    | 'comunicacionesAbiertas'
+    | 'comunicacionesSinLeer'
     | 'documentosPorFirmar';
   /**
    * Sección que la empresa puede apagar desde Configuración. Si no tiene
@@ -134,7 +134,7 @@ export const navItems: NavItem[] = [
     href: '/comunicaciones',
     icono: IconMessages,
     roles: OPERATIVOS,
-    badgeKey: 'comunicacionesAbiertas',
+    badgeKey: 'comunicacionesSinLeer',
   },
   {
     etiqueta: 'A firmar',

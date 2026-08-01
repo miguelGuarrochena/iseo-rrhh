@@ -19,12 +19,15 @@ import {
   Empleado,
   Empresa,
   EmpresaResumen,
+  ErrorApp,
   EventoAgenda,
+  Feriado,
   FacturaMonotributo,
   Fichaje,
   FacturacionEmpresa,
   MetricasGlobales,
   MovimientoFinanciero,
+  NuevoFeriado,
   NuevoMovimiento,
   ResumenFinanzas,
   NotaInterna,
@@ -1271,6 +1274,11 @@ export const solicitarAdelanto = async (
   return simular(nuevo);
 };
 
+export const eliminarAdelanto = async (adelantoId: string): Promise<void> => {
+  const i = adelantosMock.findIndex((a) => a.id === adelantoId);
+  if (i >= 0) adelantosMock.splice(i, 1);
+};
+
 export const resolverAdelanto = async (
   adelantoId: string,
   aprobar: boolean,
@@ -1577,6 +1585,62 @@ export const getMensajesComunicacion = async (
 ): Promise<ComunicacionMensaje[]> =>
   simular(mensajesComMock.filter((m) => m.comunicacionId === comunicacionId));
 
+/** En la demo no se registran errores. */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const getErroresApp = async (_limite = 100): Promise<ErrorApp[]> =>
+  simular([]);
+
+// ---------- Feriados (demo) ----------
+
+const feriadosMock: Feriado[] = [];
+
+export const getFeriados = async (anio?: number): Promise<Feriado[]> =>
+  simular(
+    feriadosMock
+      .filter((f) => !anio || f.fecha.startsWith(String(anio)))
+      .sort((a, b) => (a.fecha < b.fecha ? -1 : 1))
+  );
+
+export const guardarFeriados = async (
+  nuevos: NuevoFeriado[]
+): Promise<Feriado[]> => {
+  const agregados = nuevos
+    .filter((n) => !feriadosMock.some((f) => f.fecha === n.fecha))
+    .map((n, i) => ({
+      ...n,
+      id: `fer-${Date.now()}-${i}`,
+      empresaId: empresaDemo(),
+    }));
+  feriadosMock.push(...agregados);
+  return simular(agregados);
+};
+
+export const eliminarFeriado = async (feriadoId: string): Promise<void> => {
+  const i = feriadosMock.findIndex((f) => f.id === feriadoId);
+  if (i >= 0) feriadosMock.splice(i, 1);
+  return simular(undefined);
+};
+
+/** Marcas de lectura del usuario de la demo: comunicacionId -> fecha. */
+const lecturasMock = new Map<string, string>();
+
+export const marcarComunicacionLeida = async (
+  comunicacionId: string
+): Promise<void> => {
+  lecturasMock.set(comunicacionId, new Date().toISOString());
+};
+
+export const getComunicacionesSinLeer = async (): Promise<string[]> =>
+  simular(
+    comunicacionesMock
+      .filter(
+        (c) =>
+          !lecturasMock.has(c.id) ||
+          (lecturasMock.get(c.id) ?? '') < c.actualizadoEn
+      )
+      .map((c) => c.id)
+  );
+
 export const responderComunicacion = async (
   comunicacionId: string,
   cuerpo: string
@@ -1594,6 +1658,7 @@ export const responderComunicacion = async (
     com.estado = 'en_curso';
     com.actualizadoEn = hoyISO();
   }
+  await marcarComunicacionLeida(comunicacionId);
   return simular(msg);
 };
 
@@ -1699,8 +1764,10 @@ export const getPendientesResumen = async (): Promise<PendientesResumen> => {
   const ausenciasPorResolver = ausenciasMock.filter(
     (a) => a.estado === 'pendiente'
   ).length;
-  const comunicacionesAbiertas = comunicacionesMock.filter(
-    (c) => c.estado !== 'cerrada'
+  const comunicacionesSinLeer = comunicacionesMock.filter(
+    (c) =>
+      !lecturasMock.has(c.id) ||
+      (lecturasMock.get(c.id) ?? '') < c.actualizadoEn
   ).length;
   const documentosPorFirmar = docsFirmaDestMock.filter(
     (d) => !d.firmadoEn
@@ -1708,12 +1775,12 @@ export const getPendientesResumen = async (): Promise<PendientesResumen> => {
   return simular({
     recibosPorFirmar,
     ausenciasPorResolver,
-    comunicacionesAbiertas,
+    comunicacionesSinLeer,
     documentosPorFirmar,
     total:
       recibosPorFirmar +
       ausenciasPorResolver +
-      comunicacionesAbiertas +
+      comunicacionesSinLeer +
       documentosPorFirmar,
   });
 };

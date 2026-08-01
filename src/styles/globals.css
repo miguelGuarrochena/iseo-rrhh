@@ -270,6 +270,10 @@ section[id] {
 [data-mantine-color-scheme='dark'] .app-scope .logo-oscuro {
   display: block;
 }
+/* El "ISEO" del logo se aclara en oscuro; el "RH" dorado no cambia. */
+[data-mantine-color-scheme='dark'] .app-scope .logo-texto {
+  color: rgb(var(--ink-rgb));
+}
 
 /* Badges pastel en modo oscuro */
 [data-mantine-color-scheme='dark'] .app-scope .bg-emerald-100,

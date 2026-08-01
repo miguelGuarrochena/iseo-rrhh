@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { IconBrandWhatsapp, IconMail } from '@tabler/icons-react';
-import { LogoLanding } from './LogoLanding';
+import { Logo } from './Logo';
 
 const navLinks = [
   { label: '¿Qué ofrecemos?', id: 'features' },
@@ -22,7 +22,7 @@ export const Footer: React.FC = () => {
         <div className="rounded-2xl bg-ink/90 px-6 py-6 text-white sm:px-10">
           <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:justify-between sm:gap-6 sm:text-left">
             {/* Marca */}
-            <LogoLanding variante="oscura" />
+            <Logo tono="sobre-oscuro" />
 
             {/* Navegación */}
             <nav className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">

@@ -8,6 +8,8 @@ import { avisoError, avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
 import { Terminales } from '@/components/app/configuracion/Terminales';
 import { CuposLicenciaPanel } from '@/components/app/configuracion/CuposLicenciaPanel';
+import { FeriadosPanel } from '@/components/app/configuracion/FeriadosPanel';
+import { ErroresPanel } from '@/components/app/configuracion/ErroresPanel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoHora } from '@/components/app/ui/CampoHora';
@@ -322,6 +324,10 @@ const ConfiguracionPage = () => {
         </Panel>
 
         <CuposLicenciaPanel />
+
+        <FeriadosPanel />
+
+        {usuario.rol === 'superadmin' && <ErroresPanel />}
 
         <Panel>
           <h2 className="text-base font-bold text-ink">Alertas</h2>

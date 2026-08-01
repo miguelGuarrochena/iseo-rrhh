@@ -20,13 +20,16 @@ import {
   Empleado,
   Empresa,
   EmpresaResumen,
+  ErrorApp,
   EstadoComunicacion,
+  Feriado,
   EventoAgenda,
   FacturaMonotributo,
   Fichaje,
   FacturacionEmpresa,
   MetricasGlobales,
   MovimientoFinanciero,
+  NuevoFeriado,
   NuevoMovimiento,
   ResumenFinanzas,
   NotaInterna,
@@ -44,6 +47,7 @@ import {
   SaldoVacaciones,
   TipoAusencia,
   TipoComunicacion,
+  TipoFeriado,
   TipoRecibo,
   Terminal,
   Turno,
@@ -60,6 +64,7 @@ import type {
   NuevoUsuario,
 } from '@/lib/services/rrhh.demo';
 import { mensajeDeErrorDb } from '@/lib/erroresDb';
+import { registrarErrorApp } from '@/lib/erroresApp';
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
@@ -104,9 +109,19 @@ const empresaId = (): string => {
   return id;
 };
 
+/**
+ * Traduce el error para la pantalla y guarda el crudo para soporte. El
+ * mensaje que ve el cliente pierde a propósito el detalle técnico, así
+ * que si no lo registramos acá se pierde para siempre.
+ */
+const fallar = (mensaje: string, contexto?: string): never => {
+  registrarErrorApp(mensaje, contexto);
+  throw new Error(mensajeDeErrorDb(mensaje));
+};
+
 const oFalla = <T>(data: T | null, error: { message: string } | null): T => {
   // Los errores crudos de Postgres se traducen antes de llegar a la UI.
-  if (error) throw new Error(mensajeDeErrorDb(error.message));
+  if (error) fallar(error.message);
   if (data === null) throw new Error('Sin datos.');
   return data;
 };
@@ -673,7 +688,7 @@ export const cambiarRolUsuario = async (
     .neq('rol', 'superadmin')
     .select()
     .single();
-  if (error) throw new Error(mensajeDeErrorDb(error.message));
+  if (error) fallar(error.message);
   return data ? aUsuario(data) : null;
 };
 
@@ -838,12 +853,16 @@ export const crearAusencia = async (
   const aprobar = Boolean(datos.aprobarAutomaticamente);
   let dias = diasEntre(datos.fechaDesde, datos.fechaHasta);
   try {
-    const empresa = await getEmpresa();
+    const [empresa, noLaborables] = await Promise.all([
+      getEmpresa(),
+      feriadosNoLaborables(),
+    ]);
     dias = diasAusencia(
       datos.fechaDesde,
       datos.fechaHasta,
       datos.tipo,
-      empresa.config.vacacionesDiasHabiles
+      empresa.config.vacacionesDiasHabiles,
+      noLaborables
     );
   } catch {
     // si falla, queda el conteo corrido
@@ -919,7 +938,7 @@ export const eliminarAusencia = async (ausenciaId: string): Promise<void> => {
     .eq('id', ausenciaId)
     .maybeSingle();
   const { error } = await sb().from('ausencias').delete().eq('id', ausenciaId);
-  if (error) throw new Error(mensajeDeErrorDb(error.message));
+  if (error) fallar(error.message);
   // El certificado médico se va con la ausencia: es un dato de salud y
   // no tiene por qué quedar en el bucket sin nada que lo referencie.
   await borrarDeStorage(
@@ -2037,6 +2056,18 @@ export const resolverAdelanto = async (
   return adelanto;
 };
 
+/**
+ * Borra un pedido de adelanto cargado por error. No es lo mismo que
+ * rechazarlo: rechazar deja el registro con su estado, borrar es para lo
+ * que nunca debió existir (una prueba, una carga equivocada). Sólo lo
+ * puede hacer el admin de RRHH, lo hace cumplir la política de la base.
+ */
+export const eliminarAdelanto = async (adelantoId: string): Promise<void> => {
+  const { error } = await sb().from('adelantos').delete().eq('id', adelantoId);
+  if (error) fallar(error.message);
+  await registrarAuditoria('eliminar', 'adelanto', adelantoId);
+};
+
 /** Marca como leídas todas las notificaciones del usuario. */
 export const marcarNotificacionesLeidas = async (
   usuarioId: string
@@ -2517,7 +2548,74 @@ export const responderComunicacion = async (
       actualizado_en: new Date().toISOString(),
     })
     .eq('id', comunicacionId);
+  // Tu propia respuesta no te tiene que aparecer como novedad.
+  await marcarComunicacionLeida(comunicacionId);
   return aMensajeComunicacion(oFalla(data, error));
+};
+
+/**
+ * Deja constancia de que este usuario miró la conversación. Se vuelve a
+ * marcar sin leer sola cuando llega un mensaje nuevo, porque la
+ * comparación es contra `actualizado_en`.
+ */
+export const marcarComunicacionLeida = async (
+  comunicacionId: string
+): Promise<void> => {
+  const uid = useAuthStore.getState().usuario?.id;
+  if (!uid) return;
+  await sb().from('comunicacion_lecturas').upsert(
+    {
+      comunicacion_id: comunicacionId,
+      usuario_id: uid,
+      leido_en: new Date().toISOString(),
+    },
+    { onConflict: 'comunicacion_id,usuario_id' }
+  );
+};
+
+/**
+ * Ids de las conversaciones que este usuario todavía no miró, o que
+ * tuvieron actividad después de la última vez que las miró.
+ */
+export const getComunicacionesSinLeer = async (): Promise<string[]> => {
+  const usuario = useAuthStore.getState().usuario;
+  if (!usuario) return [];
+  const esGestor =
+    usuario.rol === 'admin_rrhh' ||
+    usuario.rol === 'supervisor' ||
+    usuario.rol === 'superadmin';
+
+  let q = sb()
+    .from('comunicaciones')
+    .select('id, actualizado_en')
+    .eq('empresa_id', empresaId());
+  // El colaborador sólo cuenta las suyas; el gestor, las de la empresa.
+  if (!esGestor) {
+    if (!usuario.empleadoId) return [];
+    q = q.eq('empleado_id', usuario.empleadoId);
+  }
+
+  const [{ data: coms, error }, { data: lecturas }] = await Promise.all([
+    q,
+    sb()
+      .from('comunicacion_lecturas')
+      .select('comunicacion_id, leido_en')
+      .eq('usuario_id', usuario.id),
+  ]);
+  if (error || !coms) return [];
+
+  const leidoPor = new Map(
+    (lecturas ?? []).map((l) => [
+      l.comunicacion_id as string,
+      String(l.leido_en),
+    ])
+  );
+  return coms
+    .filter((c) => {
+      const leido = leidoPor.get(c.id as string);
+      return !leido || new Date(leido) < new Date(String(c.actualizado_en));
+    })
+    .map((c) => c.id as string);
 };
 
 export const cerrarComunicacion = async (
@@ -2672,12 +2770,101 @@ export const eliminarDocumentoFirma = async (
     .from('documentos_firma')
     .delete()
     .eq('id', documentoId);
-  if (error) throw new Error(mensajeDeErrorDb(error.message));
+  if (error) fallar(error.message);
 
   await borrarDeStorage('documentos', [previo?.archivo_url]);
   await registrarAuditoria('eliminar', 'documento_firma', documentoId, {
     titulo: previo?.titulo,
   });
+};
+
+// ---------- Feriados ----------
+
+const aFeriado = (f: Record<string, unknown>): Feriado => ({
+  id: f.id as string,
+  empresaId: f.empresa_id as string,
+  fecha: String(f.fecha).slice(0, 10),
+  nombre: f.nombre as string,
+  tipo: f.tipo as TipoFeriado,
+  noLaborable: (f.no_laborable as boolean) ?? true,
+});
+
+/** Feriados de la empresa. Con `anio`, sólo los de ese año. */
+export const getFeriados = async (anio?: number): Promise<Feriado[]> => {
+  let q = sb()
+    .from('feriados')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .order('fecha');
+  if (anio) q = q.gte('fecha', `${anio}-01-01`).lte('fecha', `${anio}-12-31`);
+  const { data, error } = await q;
+  return oFalla(data, error).map(aFeriado);
+};
+
+/**
+ * Alta de varios feriados a la vez. Ignora los que ya estén cargados en
+ * esa fecha (hay un unique por empresa + fecha), así cargar el año dos
+ * veces no duplica ni pisa lo que RRHH haya editado a mano.
+ */
+export const guardarFeriados = async (
+  nuevos: NuevoFeriado[]
+): Promise<Feriado[]> => {
+  if (nuevos.length === 0) return [];
+  const { data, error } = await sb()
+    .from('feriados')
+    .upsert(
+      nuevos.map((f) => ({
+        empresa_id: empresaId(),
+        fecha: f.fecha,
+        nombre: f.nombre,
+        tipo: f.tipo,
+        no_laborable: f.noLaborable,
+      })),
+      { onConflict: 'empresa_id,fecha', ignoreDuplicates: true }
+    )
+    .select();
+  if (error) fallar(error.message);
+  return (data ?? []).map(aFeriado);
+};
+
+export const eliminarFeriado = async (feriadoId: string): Promise<void> => {
+  const { error } = await sb().from('feriados').delete().eq('id', feriadoId);
+  if (error) fallar(error.message);
+};
+
+/** Fechas no laborables de la empresa, listas para las cuentas de días. */
+const feriadosNoLaborables = async (): Promise<Set<string>> => {
+  try {
+    const feriados = await getFeriados();
+    return new Set(feriados.filter((f) => f.noLaborable).map((f) => f.fecha));
+  } catch {
+    // Si la tabla todavía no existe en la base, seguimos sin feriados.
+    return new Set();
+  }
+};
+
+// ---------- Errores registrados (soporte) ----------
+
+/**
+ * Últimos errores que la app registró. Sólo los ve el superadmin: la
+ * política de la base lo hace cumplir, esto es la lectura para el panel.
+ */
+export const getErroresApp = async (limite = 100): Promise<ErrorApp[]> => {
+  const { data, error } = await sb()
+    .from('errores_app')
+    .select('*')
+    .order('creado_en', { ascending: false })
+    .limit(limite);
+  if (error) return [];
+  return (data ?? []).map((f) => ({
+    id: f.id as string,
+    empresaId: (f.empresa_id as string) ?? undefined,
+    usuarioId: (f.usuario_id as string) ?? undefined,
+    ruta: (f.ruta as string) ?? undefined,
+    contexto: (f.contexto as string) ?? undefined,
+    mensaje: f.mensaje as string,
+    creadoEn: String(f.creado_en),
+  }));
 };
 
 // ---------- Pendientes (badges) ----------
@@ -2688,7 +2875,7 @@ export const getPendientesResumen = async (): Promise<PendientesResumen> => {
     return {
       recibosPorFirmar: 0,
       ausenciasPorResolver: 0,
-      comunicacionesAbiertas: 0,
+      comunicacionesSinLeer: 0,
       documentosPorFirmar: 0,
       total: 0,
     };
@@ -2699,7 +2886,6 @@ export const getPendientesResumen = async (): Promise<PendientesResumen> => {
 
   let recibosPorFirmar = 0;
   let ausenciasPorResolver = 0;
-  let comunicacionesAbiertas = 0;
   let documentosPorFirmar = 0;
 
   if (usuario.empleadoId) {
@@ -2714,27 +2900,23 @@ export const getPendientesResumen = async (): Promise<PendientesResumen> => {
   }
 
   if (esGestor) {
-    const [ausencias, coms] = await Promise.all([
-      getAusenciasPendientes(),
-      getComunicaciones(),
-    ]);
-    ausenciasPorResolver = ausencias.length;
-    comunicacionesAbiertas = coms.filter((c) => c.estado !== 'cerrada').length;
-  } else if (usuario.empleadoId) {
-    const coms = await getComunicacionesDeEmpleado(usuario.empleadoId);
-    comunicacionesAbiertas = coms.filter((c) => c.estado !== 'cerrada').length;
+    ausenciasPorResolver = (await getAusenciasPendientes()).length;
   }
+
+  // El badge cuenta lo que no leíste, no lo que está sin cerrar: cerrar
+  // una conversación es una decisión aparte de haberla leído.
+  const comunicacionesSinLeer = (await getComunicacionesSinLeer()).length;
 
   const total =
     recibosPorFirmar +
     ausenciasPorResolver +
-    comunicacionesAbiertas +
+    comunicacionesSinLeer +
     documentosPorFirmar;
 
   return {
     recibosPorFirmar,
     ausenciasPorResolver,
-    comunicacionesAbiertas,
+    comunicacionesSinLeer,
     documentosPorFirmar,
     total,
   };

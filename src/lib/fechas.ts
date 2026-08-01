@@ -16,8 +16,15 @@ export const diasEntre = (desde: string, hasta: string): number => {
   return Math.round((h.getTime() - d.getTime()) / 86400000) + 1;
 };
 
-/** Días hábiles (lun–vie) entre dos fechas ISO, inclusive. */
-export const diasHabilesEntre = (desde: string, hasta: string): number => {
+/**
+ * Días hábiles (lun–vie) entre dos fechas ISO, inclusive. Si se pasan
+ * los feriados de la empresa (`YYYY-MM-DD`), también se descuentan.
+ */
+export const diasHabilesEntre = (
+  desde: string,
+  hasta: string,
+  feriados?: Set<string>
+): number => {
   const d = new Date(`${desde}T00:00:00`);
   const h = new Date(`${hasta}T00:00:00`);
   if (h < d) return 0;
@@ -25,7 +32,8 @@ export const diasHabilesEntre = (desde: string, hasta: string): number => {
   const cur = new Date(d);
   while (cur <= h) {
     const dia = cur.getDay();
-    if (dia !== 0 && dia !== 6) n += 1;
+    const finDeSemana = dia === 0 || dia === 6;
+    if (!finDeSemana && !feriados?.has(aISOLocal(cur))) n += 1;
     cur.setDate(cur.getDate() + 1);
   }
   return n;
@@ -39,10 +47,11 @@ export const diasAusencia = (
   desde: string,
   hasta: string,
   tipo: string,
-  vacacionesDiasHabiles?: boolean
+  vacacionesDiasHabiles?: boolean,
+  feriados?: Set<string>
 ): number => {
   if (tipo === 'vacaciones' && vacacionesDiasHabiles) {
-    return diasHabilesEntre(desde, hasta);
+    return diasHabilesEntre(desde, hasta, feriados);
   }
   return diasEntre(desde, hasta);
 };

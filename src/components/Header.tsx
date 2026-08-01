@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Burger, Drawer, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { LogoLanding } from './LogoLanding';
+import { Logo } from './Logo';
 import { plataformaLanzada } from '@/lib/lanzamiento';
 
 interface NavLink {
@@ -59,7 +59,7 @@ export const Header: React.FC = () => {
           aria-label="Ir al inicio"
           className="cursor-pointer border-0 bg-transparent transition-opacity hover:opacity-80"
         >
-          <LogoLanding />
+          <Logo />
         </button>
 
         {/* Navegación desktop */}
