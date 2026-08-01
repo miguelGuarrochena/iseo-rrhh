@@ -576,16 +576,15 @@ export const PanelPlataforma: React.FC<{ clave: ClavePanel }> = ({ clave }) => {
         ))}
       </div>
 
-      {/* Contenido */}
-      <motion.div
-        key={clave}
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: 'easeOut' }}
-        className="min-w-0 flex-1 bg-paper/40 p-2"
-      >
+      {/*
+        Sin animación propia: la transición al cambiar de solapa la hace
+        el AnimatePresence de ProductoSection, que mueve las dos columnas
+        juntas. Animar acá también hacía que la pantalla entrara con un
+        retardo respecto del texto.
+      */}
+      <div className="min-w-0 flex-1 bg-paper/40 p-2">
         <Panel />
-      </motion.div>
+      </div>
     </div>
   );
 };

@@ -9,7 +9,6 @@ import {
   IconClockCheck,
   IconFileCertificate,
   IconFileCheck,
-  IconGift,
   IconHome,
   IconMessages,
   IconPlaneDeparture,
@@ -32,11 +31,17 @@ const nav = [
   { icono: IconSettings, etiqueta: 'Configuración', activo: false },
 ];
 
+/** Mismos indicadores y textos que el inicio real de la app. */
 const indicadores = [
-  { etiqueta: 'Empleados', valor: 86, pie: 'Activos' },
-  { etiqueta: 'Ausencias hoy', valor: 5, pie: 'Colaboradores' },
-  { etiqueta: 'Vacaciones', valor: 12, pie: 'En curso' },
-  { etiqueta: 'Documentos', valor: 24, pie: 'Pendientes' },
+  { etiqueta: 'Por aprobar', valor: 2, pie: 'solicitudes de ausencia' },
+  {
+    etiqueta: 'Presentes hoy',
+    valor: 11,
+    sufijo: '/12',
+    pie: 'ficharon ingreso',
+  },
+  { etiqueta: 'Vencimientos', valor: 1, pie: 'próximos a vencer' },
+  { etiqueta: 'Colaboradores', valor: 12, pie: 'activos' },
 ];
 
 const ausencias = [
@@ -45,10 +50,10 @@ const ausencias = [
   { nombre: 'Lucía Fernández', tipo: 'Vacaciones', fecha: '20/06 - 27/06' },
 ];
 
-const cumples = [
-  { nombre: 'Martín Gómez', fecha: '14 de junio' },
-  { nombre: 'Ana Torres', fecha: '22 de junio' },
-  { nombre: 'Pedro Ruiz', fecha: '30 de junio' },
+const eventos = [
+  { nombre: 'Cumpleaños de Martín Gómez', fecha: '14 de junio' },
+  { nombre: 'Capacitación de seguridad', fecha: '22 de junio' },
+  { nombre: 'Vence libreta de Pedro Ruiz', fecha: '30 de junio' },
 ];
 
 const tonos = [
@@ -81,19 +86,23 @@ const Avatar: React.FC<{ nombre: string; indice: number }> = ({
 const Indicador: React.FC<{
   etiqueta: string;
   valor: number;
+  sufijo?: string;
   pie: string;
-}> = ({ etiqueta, valor, pie }) => {
+}> = ({ etiqueta, valor, sufijo, pie }) => {
   const { ref, valor: actual } = useContador(valor);
   return (
     <div className="rounded-md border border-line bg-white px-2 py-1.5">
-      <p className="text-[0.4rem] font-medium text-ink-soft">{etiqueta}</p>
+      <p className="truncate text-[0.38rem] font-bold uppercase tracking-wide text-ink-soft">
+        {etiqueta}
+      </p>
       <p
         ref={ref as React.RefObject<HTMLParagraphElement>}
         className="mt-0.5 text-[0.95rem] font-extrabold leading-none tracking-tight text-navy tabular-nums"
       >
         {actual}
+        {sufijo}
       </p>
-      <p className="mt-0.5 text-[0.38rem] text-ink-soft">{pie}</p>
+      <p className="mt-0.5 truncate text-[0.36rem] text-ink-soft">{pie}</p>
     </div>
   );
 };
@@ -124,10 +133,10 @@ export const DashboardMockup: React.FC = () => (
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[0.62rem] font-extrabold leading-tight text-navy">
-            ¡Hola, María!
+            Hola, María
           </p>
           <p className="text-[0.42rem] text-ink-soft">
-            Este es el resumen de tu empresa
+            El resumen de tu equipo hoy.
           </p>
         </div>
         <span className="flex items-center gap-1.5">
@@ -166,7 +175,7 @@ export const DashboardMockup: React.FC = () => (
       <div className="mt-1.5 grid grid-cols-2 gap-1.5">
         <div className="rounded-md border border-line bg-white px-2 py-1.5">
           <p className="text-[0.46rem] font-bold text-navy">
-            Próximas ausencias
+            Solicitudes por aprobar
           </p>
           <div className="mt-1 flex flex-col gap-1">
             {ausencias.map((fila, i) => (
@@ -197,11 +206,9 @@ export const DashboardMockup: React.FC = () => (
         </div>
 
         <div className="relative overflow-hidden rounded-md border border-line bg-white px-2 py-1.5">
-          <p className="text-[0.46rem] font-bold text-navy">
-            Cumpleaños del mes
-          </p>
+          <p className="text-[0.46rem] font-bold text-navy">Próximos eventos</p>
           <div className="mt-1 flex flex-col gap-1">
-            {cumples.map((fila, i) => (
+            {eventos.map((fila, i) => (
               <motion.span
                 key={fila.nombre}
                 initial={{ opacity: 0, x: -6 }}
@@ -210,7 +217,9 @@ export const DashboardMockup: React.FC = () => (
                 transition={{ duration: 0.35, delay: 0.45 + i * 0.1 }}
                 className="flex items-center gap-1"
               >
-                <Avatar nombre={fila.nombre} indice={i + 1} />
+                <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                  <IconCalendarEvent size={8} stroke={2.2} />
+                </span>
                 <span className="min-w-0 flex-1 truncate text-[0.42rem] font-semibold text-navy">
                   {fila.nombre}
                 </span>
@@ -221,19 +230,14 @@ export const DashboardMockup: React.FC = () => (
             ))}
           </div>
           <p className="mt-1.5 text-[0.4rem] font-semibold text-brand-600">
-            Ver todos
+            Ver agenda
           </p>
-          <IconGift
-            size={26}
-            stroke={1.4}
-            className="absolute -bottom-1 -right-1 text-brand-100"
-          />
         </div>
       </div>
 
       {/* Franja inferior insinuada, para que la pantalla no termine seca */}
       <div className="mt-1.5 grid grid-cols-3 gap-1.5">
-        {['Fichajes de hoy', 'Documentos por firmar', 'Comunicados'].map(
+        {['Vencimientos próximos', 'Recibos por firmar', 'Comunicaciones'].map(
           (titulo) => (
             <div
               key={titulo}

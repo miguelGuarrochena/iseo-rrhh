@@ -86,7 +86,7 @@ export const FeaturesSection: React.FC = () => (
               }`}
             >
               <span
-                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105 ${tono}`}
+                className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl duration-150 ease-out transition-transform group-hover:scale-105 ${tono}`}
               >
                 <Icono size={26} stroke={1.7} />
               </span>
@@ -126,13 +126,13 @@ export const FeaturesSection: React.FC = () => (
           </div>
           <button
             onClick={irAContacto}
-            className="group inline-flex w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-brand-200 bg-white px-6 py-3.5 text-[0.95rem] font-semibold text-brand-600 transition-colors hover:bg-brand-600 hover:text-white lg:w-auto"
+            className="presionable group inline-flex w-full shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-brand-200 bg-white px-6 py-3.5 text-[0.95rem] font-semibold text-brand-600 hover:bg-brand-600 hover:text-white lg:w-auto"
           >
             Hablá con un asesor
             <IconArrowRight
               size={17}
               stroke={2.2}
-              className="transition-transform duration-300 group-hover:translate-x-1"
+              className="transition-transform duration-150 ease-out group-hover:translate-x-1"
             />
           </button>
         </motion.div>

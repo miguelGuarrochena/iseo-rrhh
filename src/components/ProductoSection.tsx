@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   IconArrowRight,
   IconChartBar,
@@ -228,53 +228,63 @@ export const ProductoSection: React.FC = () => {
                 })}
               </div>
 
-              {/* Detalle + pantalla */}
-              <div className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:items-center lg:gap-10">
+              {/*
+                Detalle + pantalla. Las dos columnas comparten el mismo
+                `key` y el mismo AnimatePresence, así el panel cambia en
+                un solo movimiento y no en dos tiempos como antes.
+                `mode="wait"` espera a que salga el anterior: cruzarlos
+                dejaba dos textos superpuestos por un instante.
+              */}
+              <AnimatePresence mode="wait" initial={false}>
                 <motion.div
-                  key={solapa.clave}
+                  key={activa}
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, ease: 'easeOut' }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2, ease: [0.23, 1, 0.32, 1] }}
+                  className="grid gap-8 p-6 sm:p-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)] lg:items-center lg:gap-10"
                 >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
-                    <Icono size={22} stroke={1.8} />
-                  </span>
-                  <h3 className="mt-4 text-xl font-extrabold text-navy sm:text-2xl">
-                    {solapa.titulo}
-                  </h3>
-                  <p className="mt-3 text-[0.95rem] leading-relaxed text-ink-soft">
-                    {solapa.detalle}
-                  </p>
-                  <ul className="mt-5 flex list-none flex-col gap-2.5 p-0">
-                    {solapa.puntos.map((punto) => (
-                      <li
-                        key={punto}
-                        className="flex items-center gap-2.5 text-[0.9rem] text-navy"
-                      >
-                        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
-                          <IconCheck size={10} stroke={3.2} />
-                        </span>
-                        {punto}
-                      </li>
-                    ))}
-                  </ul>
-                  <button
-                    onClick={irAContacto}
-                    className="group mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-brand-200 bg-white px-5 py-3 text-[0.9rem] font-bold text-brand-600 transition-colors hover:bg-brand-600 hover:text-white"
-                  >
-                    Solicitar una demo
-                    <IconArrowRight
-                      size={16}
-                      stroke={2.4}
-                      className="transition-transform duration-300 group-hover:translate-x-1"
-                    />
-                  </button>
-                </motion.div>
+                  <div>
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-brand-50 text-brand-600">
+                      <Icono size={22} stroke={1.8} />
+                    </span>
+                    <h3 className="mt-4 text-xl font-extrabold text-navy sm:text-2xl">
+                      {solapa.titulo}
+                    </h3>
+                    <p className="mt-3 text-[0.95rem] leading-relaxed text-ink-soft">
+                      {solapa.detalle}
+                    </p>
+                    <ul className="mt-5 flex list-none flex-col gap-2.5 p-0">
+                      {solapa.puntos.map((punto) => (
+                        <li
+                          key={punto}
+                          className="flex items-center gap-2.5 text-[0.9rem] text-navy"
+                        >
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-brand-600 text-white">
+                            <IconCheck size={10} stroke={3.2} />
+                          </span>
+                          {punto}
+                        </li>
+                      ))}
+                    </ul>
+                    <button
+                      onClick={irAContacto}
+                      className="presionable group mt-6 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-brand-200 bg-white px-5 py-3 text-[0.9rem] font-bold text-brand-600 hover:bg-brand-600 hover:text-white"
+                    >
+                      Solicitar una demo
+                      <IconArrowRight
+                        size={16}
+                        stroke={2.4}
+                        className="transition-transform duration-150 ease-out group-hover:translate-x-1"
+                      />
+                    </button>
+                  </div>
 
-                <div aria-hidden className="aspect-[4/3] w-full">
-                  <PanelPlataforma clave={activa} />
-                </div>
-              </div>
+                  <div aria-hidden className="aspect-[4/3] w-full">
+                    <PanelPlataforma clave={activa} />
+                  </div>
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
 

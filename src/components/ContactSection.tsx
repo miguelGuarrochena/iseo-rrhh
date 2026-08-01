@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   IconBrandWhatsapp,
   IconMail,
@@ -52,7 +52,7 @@ export const ContactSection: React.FC = () => {
                 href={WHATSAPP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-base font-semibold text-ink no-underline transition-transform hover:scale-[1.02] sm:w-auto"
+                className="presionable inline-flex w-full items-center justify-center gap-2 rounded-xl bg-white px-7 py-3.5 text-base font-semibold text-ink no-underline hover:scale-[1.02] sm:w-auto"
               >
                 <IconBrandWhatsapp size={20} className="text-green-600" />
                 WhatsApp
@@ -67,16 +67,49 @@ export const ContactSection: React.FC = () => {
                   title="Copiar al portapapeles"
                   className="relative ml-1 cursor-pointer border-0 bg-transparent p-0.5 text-white/70 transition-colors hover:text-white"
                 >
-                  {emailCopied ? (
-                    <IconCheck size={18} />
-                  ) : (
-                    <IconCopy size={18} />
-                  )}
-                  {emailCopied && (
-                    <span className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-white">
-                      ¡Copiado!
-                    </span>
-                  )}
+                  {/*
+                    El ícono cambia de copiar a tilde. El modo 'popLayout'
+                    saca el que se va del flujo, así el que entra no se
+                    corre de lugar mientras se cruzan.
+                  */}
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.span
+                      key={emailCopied ? 'ok' : 'copiar'}
+                      initial={{ opacity: 0, scale: 0.6 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.6 }}
+                      transition={{
+                        duration: 0.15,
+                        ease: [0.23, 1, 0.32, 1],
+                      }}
+                      className="block"
+                    >
+                      {emailCopied ? (
+                        <IconCheck size={18} />
+                      ) : (
+                        <IconCopy size={18} />
+                      )}
+                    </motion.span>
+                  </AnimatePresence>
+
+                  <AnimatePresence>
+                    {emailCopied && (
+                      <motion.span
+                        initial={{ opacity: 0, y: 4, scale: 0.94 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.94 }}
+                        transition={{
+                          duration: 0.15,
+                          ease: [0.23, 1, 0.32, 1],
+                        }}
+                        // Nace desde el botón, no desde el aire.
+                        style={{ transformOrigin: 'bottom center' }}
+                        className="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink px-2 py-1 text-xs text-white"
+                      >
+                        ¡Copiado!
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
                 </button>
               </div>
             </div>

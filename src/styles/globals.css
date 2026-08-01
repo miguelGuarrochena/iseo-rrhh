@@ -25,6 +25,15 @@
   --ink-rgb: 47 46 58;
   --ink-soft-rgb: 126 124 140;
   --line-rgb: 228 232 241;
+
+  /* Curvas de movimiento. Una sola fuente para toda la landing: sin
+     esto cada componente inventa su propia y el conjunto se nota
+     desprolijo aunque cada pieza esté bien. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 150ms;
+  --dur-hover: 150ms;
+  --dur-panel: 200ms;
 }
 
 /* Tema oscuro: solo dentro de la app (.app-scope), la landing queda clara.
@@ -125,6 +134,39 @@ h6 {
   html {
     scroll-behavior: smooth;
   }
+}
+
+/**
+ * Menos movimiento cuando el sistema lo pide.
+ *
+ * Ojo: esto sólo alcanza a las transiciones y animaciones de CSS.
+ * framer-motion anima con JavaScript, escribiendo estilos en línea, y
+ * no mira esta preferencia por su cuenta: de eso se encarga
+ * `MotionProvider` con `reducedMotion="user"`.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Feedback al apretar: la landing no tenía ninguno. Se aplica a
+   cualquier botón o link de la landing, así no hay que acordarse de
+   sumarlo botón por botón. */
+.presionable {
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-hover) var(--ease-out),
+    color var(--dur-hover) var(--ease-out),
+    border-color var(--dur-hover) var(--ease-out);
+}
+.presionable:active {
+  transform: scale(0.97);
 }
 
 /* Offset para que el header fijo no tape la sección a la que se scrollea. */

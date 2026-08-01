@@ -147,14 +147,29 @@ export const PasosSection: React.FC = () => (
                   </motion.div>
 
                   {i < pasos.length - 1 && (
-                    <span
+                    /*
+                      El chevrón entra después de la tarjeta que lo
+                      precede y antes de la siguiente, así el recorrido
+                      1 → 2 → 3 se lee como un avance y no como tres
+                      cosas que aparecen sueltas. Es una sección que se
+                      ve una vez: acá el escalonado suma.
+                    */
+                    <motion.span
                       aria-hidden
+                      initial={{ opacity: 0, x: -6 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true, margin: '-60px' }}
+                      transition={{
+                        duration: 0.35,
+                        delay: 0.12 * i + 0.28,
+                        ease: [0.23, 1, 0.32, 1],
+                      }}
                       className="hidden items-center justify-center pt-10 lg:flex"
                     >
                       <span className="flex h-8 w-8 items-center justify-center rounded-full bg-paper text-ink-soft">
                         <IconChevronRight size={16} stroke={2.4} />
                       </span>
-                    </span>
+                    </motion.span>
                   )}
                 </React.Fragment>
               )
@@ -188,17 +203,17 @@ export const PasosSection: React.FC = () => (
           <div className="w-full shrink-0 lg:w-auto lg:text-right">
             <button
               onClick={irAContacto}
-              className="group inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-brand-600 px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-brand-700 lg:w-auto"
+              className="presionable group inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl border-0 bg-brand-600 px-7 py-3.5 text-base font-semibold text-white hover:bg-brand-700 lg:w-auto"
             >
               Solicitá tu demo gratuita
               <IconArrowRight
                 size={18}
                 stroke={2.2}
-                className="transition-transform duration-300 group-hover:translate-x-1"
+                className="transition-transform duration-150 ease-out group-hover:translate-x-1"
               />
             </button>
             <p className="mt-2.5 text-center text-[0.8rem] text-ink-soft lg:text-right">
-              Sin tarjeta de crédito · 14 días de prueba
+              Te respondemos en el día
             </p>
           </div>
         </motion.div>

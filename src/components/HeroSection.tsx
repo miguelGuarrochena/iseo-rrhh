@@ -50,6 +50,26 @@ const clientes = [
 const irA = (id: string) =>
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
+/**
+ * El bloque de texto entra en cascada en vez de todo junto: el ojo
+ * sigue el orden en que conviene leerlo (etiqueta → titular → promesa →
+ * botones). 70ms entre elementos es lo suficiente para que se note el
+ * orden sin que el último llegue tarde.
+ */
+const contenedor = {
+  oculto: {},
+  visible: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+
+const item = {
+  oculto: { opacity: 0, y: 14 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, ease: [0.23, 1, 0.32, 1] as const },
+  },
+};
+
 export const HeroSection: React.FC = () => (
   <section className="bg-paper px-2 pb-2 pt-24 sm:px-3 sm:pt-28">
     <div className="mx-auto max-w-7xl">
@@ -57,9 +77,9 @@ export const HeroSection: React.FC = () => (
         <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.05fr] lg:gap-12">
           {/* Texto */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: 'easeOut' }}
+            variants={contenedor}
+            initial="oculto"
+            animate="visible"
             className="relative"
           >
             <div
@@ -67,48 +87,76 @@ export const HeroSection: React.FC = () => (
               className="pointer-events-none absolute -left-16 -top-24 h-72 w-72 rounded-full bg-brand-200/40 blur-[100px]"
             />
             <div className="relative">
-              <span className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-1.5 text-[0.72rem] font-bold uppercase tracking-widest text-brand-600">
+              <motion.span
+                variants={item}
+                className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-1.5 text-[0.72rem] font-bold uppercase tracking-widest text-brand-600"
+              >
                 <span className="h-1.5 w-1.5 rounded-full bg-brand-600" />
                 Recursos Humanos para PyMEs
-              </span>
+              </motion.span>
 
-              <h1 className="text-balance mt-6 text-[2.4rem] font-extrabold leading-[1.05] tracking-tight text-navy sm:text-[3.4rem]">
+              <motion.h1
+                variants={item}
+                className="text-balance mt-6 text-[2.4rem] font-extrabold leading-[1.05] tracking-tight text-navy sm:text-[3.4rem]"
+              >
                 Somos tu área de{' '}
                 <span className="text-brand-600">Recursos Humanos</span>
-              </h1>
+              </motion.h1>
 
-              <span
+              {/*
+                La línea se dibuja de izquierda a derecha justo después
+                del titular: subraya el remate en vez de aparecer ya
+                puesta. Anima el ancho, que no es lo más barato, pero son
+                64px una sola vez al cargar.
+              */}
+              <motion.span
                 aria-hidden
-                className="mt-6 block h-1 w-16 rounded-full bg-peach"
+                initial={{ width: 0 }}
+                animate={{ width: '4rem' }}
+                transition={{
+                  duration: 0.5,
+                  delay: 0.45,
+                  ease: [0.23, 1, 0.32, 1],
+                }}
+                className="mt-6 block h-1 rounded-full bg-peach"
               />
 
-              <p className="mt-6 max-w-xl text-lg font-medium leading-relaxed text-navy/80">
+              <motion.p
+                variants={item}
+                className="mt-6 max-w-xl text-lg font-medium leading-relaxed text-navy/80"
+              >
                 Aliado en la gestión y organización del personal, creando
                 herramientas y procesos a medida.
-              </p>
+              </motion.p>
 
-              <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft">
+              <motion.p
+                variants={item}
+                className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft"
+              >
                 Plataforma pensada para pequeñas y medianas empresas, que
                 permite centralizar la información de los empleados y gestionar
                 procesos como legajos, ausencias, vacaciones, comunicaciones y
                 documentación.
-              </p>
+              </motion.p>
 
-              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <motion.div
+                variants={item}
+                className="mt-9 flex flex-col gap-3 sm:flex-row"
+              >
                 <button
                   onClick={() => irA('contact')}
-                  className="inline-flex cursor-pointer items-center justify-center rounded-xl border-0 bg-navy px-7 py-3.5 text-base font-semibold text-white transition-colors hover:bg-brand-600"
+                  className="presionable inline-flex cursor-pointer items-center justify-center rounded-xl border-0 bg-navy px-7 py-3.5 text-base font-semibold text-white hover:bg-brand-600"
                 >
                   Solicitar una demo
                 </button>
                 <button
                   onClick={() => irA('producto')}
-                  className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-white px-7 py-3.5 text-base font-semibold text-navy transition-colors hover:border-brand-200 hover:text-brand-600"
+                  className="presionable inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl border border-line bg-white px-7 py-3.5 text-base font-semibold text-navy hover:border-brand-200 hover:text-brand-600"
                 >
                   <IconPlayerPlay size={18} stroke={2} />
                   Conocé la plataforma
                 </button>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
 
@@ -119,16 +167,26 @@ export const HeroSection: React.FC = () => (
         </div>
 
         {/* Franja de beneficios */}
+        {/*
+          Las cinco celdas entran una atrás de otra en vez de todas
+          juntas: son cinco promesas distintas y el escalonado las hace
+          leer como una lista, no como un bloque. 50ms es el mínimo que
+          se percibe como secuencia.
+        */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
+          variants={{
+            oculto: {},
+            visible: { transition: { staggerChildren: 0.05 } },
+          }}
+          initial="oculto"
+          whileInView="visible"
           viewport={{ once: true, margin: '-60px' }}
-          transition={{ duration: 0.5 }}
           className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-5"
         >
           {beneficios.map(({ icono: Icono, titulo, detalle }) => (
-            <div
+            <motion.div
               key={titulo}
+              variants={item}
               className="flex items-center gap-3 bg-white px-5 py-5"
             >
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-50 text-brand-600">
@@ -142,7 +200,7 @@ export const HeroSection: React.FC = () => (
                   {detalle}
                 </span>
               </span>
-            </div>
+            </motion.div>
           ))}
         </motion.div>
 

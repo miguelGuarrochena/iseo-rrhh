@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Burger, Drawer, Stack } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
+import { motion } from 'framer-motion';
 import { Logo } from './Logo';
 import { plataformaLanzada } from '@/lib/lanzamiento';
 
@@ -68,13 +69,27 @@ export const Header: React.FC = () => {
             <button
               key={link.id}
               onClick={() => scrollToSection(link.id)}
-              className={`cursor-pointer rounded-lg border-0 bg-transparent px-4 py-2 text-[0.95rem] font-medium transition-colors ${
+              className={`relative cursor-pointer rounded-lg border-0 bg-transparent px-4 py-2 text-[0.95rem] font-medium transition-colors ${
                 active === link.id
-                  ? 'text-ink'
-                  : 'text-ink-soft hover:bg-paper hover:text-ink'
+                  ? 'text-navy'
+                  : 'text-ink-soft hover:text-navy'
               }`}
             >
               {link.label}
+              {/*
+                Un solo subrayado compartido: `layoutId` hace que se
+                deslice de un ítem al otro en vez de apagarse acá y
+                prenderse allá. Es la misma técnica que las solapas de
+                "La plataforma", para que el gesto se repita.
+              */}
+              {active === link.id && (
+                <motion.span
+                  layoutId="nav-activo"
+                  aria-hidden
+                  className="absolute inset-x-3 -bottom-0.5 h-[2px] rounded-full bg-brand-600"
+                  transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                />
+              )}
             </button>
           ))}
         </div>
@@ -91,7 +106,7 @@ export const Header: React.FC = () => {
           )}
           <button
             onClick={() => scrollToSection('contact')}
-            className="hidden cursor-pointer rounded-xl border-0 bg-navy px-5 py-2.5 text-[0.95rem] font-semibold text-white transition-colors hover:bg-brand-600 sm:inline-block"
+            className="presionable hidden cursor-pointer rounded-xl border-0 bg-navy px-5 py-2.5 text-[0.95rem] font-semibold text-white hover:bg-brand-600 sm:inline-block"
           >
             Contactanos
           </button>
@@ -143,7 +158,7 @@ export const Header: React.FC = () => {
             )}
             <button
               onClick={() => scrollToSection('contact')}
-              className="mt-2 w-full cursor-pointer rounded-2xl border-0 bg-navy px-5 py-4 text-center text-lg font-semibold text-white transition-colors hover:bg-brand-600"
+              className="presionable mt-2 w-full cursor-pointer rounded-2xl border-0 bg-navy px-5 py-4 text-center text-lg font-semibold text-white hover:bg-brand-600"
             >
               Contactanos
             </button>

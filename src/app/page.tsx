@@ -9,19 +9,22 @@ import {
   Footer,
 } from '@/components';
 import { HashScrollReset } from '@/components/HashScrollReset';
+import { MotionProvider } from '@/components/MotionProvider';
 
 const Home = () => (
-  <main>
-    <HashScrollReset />
-    <Header />
-    <HeroSection />
-    <FeaturesSection />
-    <ProductoSection />
-    <AboutSection />
-    <PasosSection />
-    <ContactSection />
-    <Footer />
-  </main>
+  <MotionProvider>
+    <main>
+      <HashScrollReset />
+      <Header />
+      <HeroSection />
+      <FeaturesSection />
+      <ProductoSection />
+      <AboutSection />
+      <PasosSection />
+      <ContactSection />
+      <Footer />
+    </main>
+  </MotionProvider>
 );
 
 export default Home;
