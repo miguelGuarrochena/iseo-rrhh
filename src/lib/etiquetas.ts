@@ -59,6 +59,26 @@ export const tipoAusenciaIconos: Record<TipoAusencia, Icon> = {
   examenes: IconWriting,
 };
 
+/**
+ * Color sólido por tipo de ausencia (para puntos/indicadores en el calendario).
+ * Son fills planos (sin texto encima), así funcionan igual en modo oscuro.
+ */
+export const tipoAusenciaColores: Record<TipoAusencia, string> = {
+  vacaciones: 'bg-brand-600',
+  enfermedad: 'bg-red-500',
+  estudio: 'bg-violet-500',
+  mudanza: 'bg-orange-500',
+  fallecimiento: 'bg-slate-500',
+  especial: 'bg-teal-500',
+  entrada_tarde: 'bg-amber-500',
+  salida_anticipada: 'bg-amber-600',
+  salida_intermedia: 'bg-amber-400',
+  home_office: 'bg-emerald-500',
+  casamiento: 'bg-pink-500',
+  donacion_sangre: 'bg-rose-600',
+  examenes: 'bg-indigo-500',
+};
+
 /** Tipos de jornada (se alinean con Turnos; también se pueden cargar a mano). */
 export const TIPOS_AUSENCIA_JORNADA: TipoAusencia[] = [
   'entrada_tarde',

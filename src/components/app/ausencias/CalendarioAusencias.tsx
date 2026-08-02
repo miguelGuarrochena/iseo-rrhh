@@ -3,8 +3,12 @@
 import { useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
-import { tipoAusenciaLabels } from '@/lib/etiquetas';
-import { Ausencia } from '@/types/rrhh';
+import {
+  tipoAusenciaColores,
+  tipoAusenciaIconos,
+  tipoAusenciaLabels,
+} from '@/lib/etiquetas';
+import { Ausencia, TipoAusencia } from '@/types/rrhh';
 
 const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -65,6 +69,18 @@ export const CalendarioAusencias = ({
   const offset = (primerDia.getDay() + 6) % 7; // Lunes = 0
   const hoyStr = iso(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
 
+  // Tipos que aparecen este mes, para armar la leyenda de colores.
+  const tiposDelMes = useMemo(() => {
+    const vistos = new Set<TipoAusencia>();
+    for (let dia = 1; dia <= diasEnMes; dia += 1) {
+      ausentesEn(iso(anio, mes, dia)).forEach((a) => vistos.add(a.tipo));
+    }
+    return Array.from(vistos).sort((a, b) =>
+      tipoAusenciaLabels[a].localeCompare(tipoAusenciaLabels[b])
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vigentes, anio, mes, diasEnMes]);
+
   const mover = (delta: number) => {
     const d = new Date(anio, mes + delta, 1);
     setAnio(d.getFullYear());
@@ -98,6 +114,26 @@ export const CalendarioAusencias = ({
         </button>
       </div>
 
+      {tiposDelMes.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1.5">
+          {tiposDelMes.map((t) => (
+            <span
+              key={t}
+              className="flex items-center gap-1.5 text-[0.7rem] text-ink-soft"
+            >
+              <span
+                className={`h-2 w-2 shrink-0 rounded-full ${tipoAusenciaColores[t]}`}
+              />
+              {tipoAusenciaLabels[t]}
+            </span>
+          ))}
+          <span className="flex items-center gap-1.5 text-[0.7rem] text-ink-soft">
+            <span className="h-2 w-2 shrink-0 rounded-full ring-2 ring-amber-400 ring-offset-1 ring-offset-surface" />
+            Pendiente de aprobar
+          </span>
+        </div>
+      )}
+
       <div className="grid grid-cols-7 gap-1.5 text-center">
         {DIAS.map((d, i) => (
           <span
@@ -113,27 +149,51 @@ export const CalendarioAusencias = ({
         {Array.from({ length: diasEnMes }).map((_, i) => {
           const dia = i + 1;
           const fecha = iso(anio, mes, dia);
-          const cantidad = ausentesEn(fecha).length;
+          const ausentes = ausentesEn(fecha);
+          const cantidad = ausentes.length;
           const esHoy = fecha === hoyStr;
+          const esFinDeSemana = (offset + i) % 7 >= 5;
+          const tienePendiente = ausentes.some((a) => a.estado === 'pendiente');
+          const tiposDelDia = Array.from(new Set(ausentes.map((a) => a.tipo)));
           return (
             <button
               key={fecha}
               type="button"
               disabled={cantidad === 0}
               onClick={() => setDiaSel(fecha)}
-              className={`flex aspect-square flex-col items-center justify-center rounded-xl border text-sm transition-colors ${
+              title={
+                cantidad > 0
+                  ? `${cantidad} ${cantidad === 1 ? 'ausente' : 'ausentes'}: ${ausentes
+                      .map((a) => tipoAusenciaLabels[a.tipo])
+                      .join(', ')}`
+                  : undefined
+              }
+              className={`relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl border text-sm transition-colors ${
                 cantidad > 0
                   ? 'cursor-pointer border-line bg-brand-50/60 text-ink hover:border-brand-300 hover:bg-brand-100/70'
                   : esHoy
                     ? 'cursor-default border-line bg-paper font-bold text-ink'
-                    : 'cursor-default border-transparent text-ink-soft'
-              }`}
+                    : `cursor-default border-transparent ${esFinDeSemana ? 'text-ink-soft/50' : 'text-ink-soft'}`
+              } ${esHoy ? 'ring-2 ring-inset ring-brand-500' : ''}`}
             >
-              {dia}
+              {tienePendiente && (
+                <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-amber-500" />
+              )}
+              <span className={esHoy ? 'font-bold' : undefined}>{dia}</span>
               {cantidad > 0 && (
-                <span className="mt-0.5 rounded-full bg-brand-600 px-1.5 text-[0.55rem] font-bold text-white">
-                  {cantidad}
-                </span>
+                <>
+                  <div className="flex items-center gap-0.5">
+                    {tiposDelDia.slice(0, 4).map((t) => (
+                      <span
+                        key={t}
+                        className={`h-1.5 w-1.5 rounded-full ${tipoAusenciaColores[t]}`}
+                      />
+                    ))}
+                  </div>
+                  <span className="rounded-full bg-brand-600 px-1.5 text-[0.55rem] font-bold text-white">
+                    {cantidad}
+                  </span>
+                </>
               )}
             </button>
           );
@@ -169,26 +229,36 @@ export const CalendarioAusencias = ({
                 : 'personas ausentes'}
               :
             </p>
-            {seleccionados.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-center justify-between rounded-xl border border-line bg-surface px-3 py-2.5"
-              >
-                <span className="text-sm font-semibold text-ink">
-                  {nombreEmpleado(a.empleadoId)}
-                </span>
-                <span className="flex items-center gap-2">
-                  <span className="text-xs text-ink-soft">
-                    {tipoAusenciaLabels[a.tipo]}
-                  </span>
-                  {a.estado === 'pendiente' && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.6rem] font-bold text-amber-800">
-                      Pendiente
+            {seleccionados.map((a) => {
+              const Icono = tipoAusenciaIconos[a.tipo];
+              return (
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2.5"
+                >
+                  <span className="flex min-w-0 items-center gap-2.5">
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white ${tipoAusenciaColores[a.tipo]}`}
+                    >
+                      <Icono size={15} />
                     </span>
-                  )}
-                </span>
-              </div>
-            ))}
+                    <span className="truncate text-sm font-semibold text-ink">
+                      {nombreEmpleado(a.empleadoId)}
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <span className="text-xs text-ink-soft">
+                      {tipoAusenciaLabels[a.tipo]}
+                    </span>
+                    {a.estado === 'pendiente' && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.6rem] font-bold text-amber-800">
+                        Pendiente
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </Modal>
