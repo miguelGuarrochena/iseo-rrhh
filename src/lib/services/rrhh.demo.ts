@@ -57,7 +57,7 @@ import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { diasEntre, hoyISO } from '@/lib/fechas';
 import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
-import { empresaOperativaId } from '@/lib/auth/store';
+import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import { dotacionMock, empresaMock, empresasMock } from '@/lib/mocks/empresa';
 import { usuariosMock } from '@/lib/mocks/usuarios';
 import { empleadosMock } from '@/lib/mocks/empleados';
@@ -195,6 +195,10 @@ export const getMetricasGlobales = async (): Promise<MetricasGlobales> => {
 
 /** Empresa activa en la demo: la operada por el superadmin o la propia. */
 const empresaDemo = (): string => empresaOperativaId() ?? 'emp-1';
+
+/** Usuario logueado en la demo (para registrar quién escribe cada cosa). */
+const usuarioActualId = (): string =>
+  useAuthStore.getState().usuario?.id ?? 'u-demo';
 
 /** true si el empleado pertenece a la empresa activa. */
 const esDeEmpresaDemo = (empleadoId: string): boolean =>
@@ -1568,7 +1572,7 @@ export const crearComunicacion = async (datos: {
     id: `com-${Date.now()}`,
     empresaId: empresaDemo(),
     empleadoId: datos.empleadoId,
-    autorId: 'u-demo',
+    autorId: usuarioActualId(),
     tipo: datos.tipo,
     asunto: datos.asunto,
     cuerpo: datos.cuerpo,
@@ -1648,7 +1652,7 @@ export const responderComunicacion = async (
   const msg: ComunicacionMensaje = {
     id: `msg-${Date.now()}`,
     comunicacionId,
-    autorId: 'u-demo',
+    autorId: usuarioActualId(),
     cuerpo,
     creadoEn: new Date().toISOString(),
   };

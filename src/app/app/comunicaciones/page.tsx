@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconMessages, IconPlus } from '@tabler/icons-react';
@@ -9,7 +9,7 @@ import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect, CampoTextarea } from '@/components/app/ui/Campo';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
-import { aOpciones } from '@/components/app/ui/Selector';
+import { aOpciones, Selector } from '@/components/app/ui/Selector';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   cerrarComunicacion,
@@ -50,6 +50,7 @@ const ComunicacionesPage = () => {
   const esEmpleado = rolEfectivo === 'empleado';
   const [lista, setLista] = useState<Comunicacion[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [filtroEmpleado, setFiltroEmpleado] = useState('');
   const [seleccion, setSeleccion] = useState<Comunicacion | null>(null);
   const [sinLeer, setSinLeer] = useState<Set<string>>(new Set());
   const [mensajes, setMensajes] = useState<ComunicacionMensaje[]>([]);
@@ -74,6 +75,14 @@ const ComunicacionesPage = () => {
   }, [usuario, esEmpleado]);
 
   useEffect(cargar, [cargar]);
+
+  const listaFiltrada = useMemo(
+    () =>
+      filtroEmpleado
+        ? lista.filter((c) => c.empleadoId === filtroEmpleado)
+        : lista,
+    [lista, filtroEmpleado]
+  );
 
   /**
    * Abrir la conversación la marca como leída. Vuelve a quedar sin leer
@@ -101,6 +110,16 @@ const ComunicacionesPage = () => {
   const nombreEmpleado = (id: string) => {
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.apellido}, ${e.nombre}` : 'Colaborador';
+  };
+
+  // No hay forma de resolver el nombre exacto del autor de cada mensaje sin
+  // exponer la tabla de usuarios (RLS no deja a un empleado leer a otros
+  // usuarios). Alcanza con distinguir "lo mío" de "lo del otro lado": el
+  // empleado ve "RRHH" y el admin ve al colaborador dueño del hilo.
+  const esMio = (autorId: string) => autorId === usuario?.id;
+  const autorDe = (autorId: string, empleadoId: string) => {
+    if (esMio(autorId)) return 'Vos';
+    return esEmpleado ? 'RRHH' : nombreEmpleado(empleadoId);
   };
 
   const crear = async (e: FormEvent) => {
@@ -191,12 +210,30 @@ const ComunicacionesPage = () => {
         </Boton>
       </div>
 
+      {!esEmpleado && empleados.length > 0 && (
+        <Selector
+          valor={filtroEmpleado}
+          onCambiar={setFiltroEmpleado}
+          opciones={[
+            { valor: '', etiqueta: 'Todos los colaboradores' },
+            ...empleados.map((e) => ({
+              valor: e.id,
+              etiqueta: `${e.apellido}, ${e.nombre}`,
+            })),
+          ]}
+        />
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <ListaCard
-          titulo={`Conversaciones (${lista.length})`}
-          vacio="Todavía no hay comunicaciones."
+          titulo={`Conversaciones (${listaFiltrada.length})`}
+          vacio={
+            filtroEmpleado
+              ? 'Este colaborador todavía no tiene comunicaciones.'
+              : 'Todavía no hay comunicaciones.'
+          }
         >
-          {lista.map((c) => (
+          {listaFiltrada.map((c) => (
             <ListaItem
               key={c.id}
               icono={IconMessages}
@@ -243,21 +280,40 @@ const ComunicacionesPage = () => {
                   </Boton>
                 )}
               </div>
-              <p className="rounded-xl bg-paper px-4 py-3 text-sm text-ink">
-                {seleccion.cuerpo}
-              </p>
               <div className="flex flex-col gap-2">
-                {mensajes.map((m) => (
-                  <div
-                    key={m.id}
-                    className="rounded-xl border border-line px-3 py-2 text-sm text-ink"
-                  >
-                    {m.cuerpo}
-                    <p className="mt-1 text-[0.65rem] text-ink-soft">
-                      {new Date(m.creadoEn).toLocaleString('es-AR')}
-                    </p>
-                  </div>
-                ))}
+                {[
+                  {
+                    id: seleccion.id,
+                    autorId: seleccion.autorId,
+                    cuerpo: seleccion.cuerpo,
+                    creadoEn: seleccion.creadoEn,
+                  },
+                  ...mensajes,
+                ].map((m) => {
+                  const mio = esMio(m.autorId);
+                  return (
+                    <div
+                      key={m.id}
+                      className={`flex flex-col gap-0.5 ${mio ? 'items-end' : 'items-start'}`}
+                    >
+                      <span className="px-1 text-[0.65rem] font-bold text-ink-soft">
+                        {autorDe(m.autorId, seleccion.empleadoId)}
+                      </span>
+                      <div
+                        className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+                          mio
+                            ? 'bg-brand-600 text-white'
+                            : 'border border-line bg-paper text-ink'
+                        }`}
+                      >
+                        {m.cuerpo}
+                      </div>
+                      <p className="px-1 text-[0.6rem] text-ink-soft">
+                        {new Date(m.creadoEn).toLocaleString('es-AR')}
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
               {seleccion.estado !== 'cerrada' && (
                 <div className="flex flex-col gap-2">
