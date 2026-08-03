@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Modal } from '@mantine/core';
@@ -22,6 +22,8 @@ import {
 } from '@/components/app/organigrama/OrganigramaChart';
 import { Empleado } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const RAIZ = '__root__';
@@ -35,22 +37,23 @@ const OrganigramaPage = () => {
   const router = useRouter();
   const esAdmin = rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin';
 
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [empresaNombre, setEmpresaNombre] = useState('Organización');
   const [selId, setSelId] = useState<string | null>(null);
   const [nuevoSupervisor, setNuevoSupervisor] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  const cargar = () => {
-    void getEmpleados().then(setEmpleados);
-  };
+  const carga = useCarga(() => getEmpleados(), [], {
+    contexto: 'organigrama',
+    inicial: [] as Empleado[],
+  });
+  const empleados = carga.datos;
+  const cargar = carga.recargar;
 
-  useEffect(() => {
-    cargar();
-    void getEmpresa()
-      .then((e) => e && setEmpresaNombre(e.nombre))
-      .catch(() => {});
-  }, []);
+  // El nombre de la empresa es sólo el título del gráfico: si no viene,
+  // el organigrama se dibuja igual con el genérico.
+  const cargaEmpresa = useCarga(() => getEmpresa(), [], {
+    contexto: 'organigrama/empresa',
+  });
+  const empresaNombre = cargaEmpresa.datos?.nombre ?? 'Organización';
 
   const ids = useMemo(() => new Set(empleados.map((e) => e.id)), [empleados]);
 
@@ -211,7 +214,13 @@ const OrganigramaPage = () => {
         </p>
       )}
 
-      {empleados.length === 0 ? (
+      {carga.fase === 'error' && carga.error ? (
+        <BloqueError error={carga.error} onReintentar={carga.recargar} />
+      ) : carga.fase === 'cargando' ? (
+        <Panel>
+          <p className="text-sm text-ink-soft">Cargando el organigrama…</p>
+        </Panel>
+      ) : empleados.length === 0 ? (
         <Panel>
           <p className="text-sm text-ink-soft">
             No hay colaboradores para mostrar.

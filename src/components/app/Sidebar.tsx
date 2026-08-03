@@ -10,7 +10,8 @@ import { Boton } from './ui/Boton';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useModulos } from '@/lib/auth/useModulos';
 import { getEmpresa, getPendientesResumen } from '@/lib/services/rrhh';
-import { Empresa, PendientesResumen } from '@/types/rrhh';
+import { PendientesResumen } from '@/types/rrhh';
+import { useCarga } from '@/lib/useCarga';
 
 /** Marca de la empresa: su logo si lo cargaron, si no el nombre. */
 const MarcaEmpresa = ({
@@ -42,14 +43,14 @@ export const Sidebar = () => {
   const modulos = useModulos();
   const pathname = usePathname();
   const router = useRouter();
-  const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [pendientes, setPendientes] = useState<PendientesResumen | null>(null);
 
-  useEffect(() => {
-    if (usuario && usuario.rol !== 'superadmin') {
-      void getEmpresa().then(setEmpresa);
-    }
-  }, [usuario]);
+  // Sólo alimenta el encabezado del menú: si falla, el menú anda igual.
+  const cEmpresa = useCarga(() => getEmpresa(), [usuario], {
+    activo: Boolean(usuario) && usuario?.rol !== 'superadmin',
+    contexto: 'sidebar/empresa',
+  });
+  const empresa = cEmpresa.datos ?? null;
 
   useEffect(() => {
     if (!usuario) return;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { IconPaperclip, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
@@ -18,6 +18,8 @@ import {
 } from '@/lib/services/rrhh';
 import { abrirArchivo } from '@/lib/archivosUi';
 import { FacturaMonotributo } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 interface Props {
   empleadoId: string;
@@ -29,7 +31,6 @@ interface Props {
  * costo laboral del período.
  */
 export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
-  const [lista, setLista] = useState<FacturaMonotributo[]>([]);
   const [periodo, setPeriodo] = useState(hoyISO().slice(0, 7));
   const [monto, setMonto] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
@@ -37,11 +38,16 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
   const [guardando, setGuardando] = useState(false);
   const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
-  const cargar = useCallback(() => {
-    void getFacturasMonotributo(empleadoId).then(setLista);
-  }, [empleadoId]);
-
-  useEffect(cargar, [cargar]);
+  const carga = useCarga(
+    () => getFacturasMonotributo(empleadoId),
+    [empleadoId],
+    {
+      contexto: 'ficha/monotributo',
+      inicial: [] as FacturaMonotributo[],
+    }
+  );
+  const lista = carga.datos;
+  const cargar = carga.recargar;
 
   const guardar = async () => {
     const m = Number(monto);
@@ -197,7 +203,11 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
         </div>
       )}
 
-      {lista.length === 0 && !agregando && (
+      {carga.fase === 'error' && carga.error && (
+        <BloqueError error={carga.error} onReintentar={carga.recargar} />
+      )}
+
+      {carga.fase === 'ok' && lista.length === 0 && !agregando && (
         <p className="mt-3 text-xs text-ink-soft">Sin facturas cargadas.</p>
       )}
 

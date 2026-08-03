@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -29,11 +29,9 @@ import {
   getMovimientosDeEmpresa,
   getResumenFinanzas,
 } from '@/lib/services/rrhh';
-import {
-  Empresa,
-  FacturacionEmpresa,
-  MovimientoFinanciero,
-} from '@/types/rrhh';
+import { FacturacionEmpresa, MovimientoFinanciero } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const periodoActual = hoyISO().slice(0, 7);
 const MESES = [
@@ -76,24 +74,34 @@ const EmpresaDetallePage = () => {
   const params = useParams();
   const id = String(params.id);
 
-  const [empresa, setEmpresa] = useState<Empresa | null>(null);
-  const [factura, setFactura] = useState<FacturacionEmpresa | null>(null);
-  const [movs, setMovs] = useState<MovimientoFinanciero[]>([]);
   const [editar, setEditar] = useState(false);
-  const [noExiste, setNoExiste] = useState(false);
+
+  const cEmpresa = useCarga(() => getEmpresaPorId(id), [id], {
+    activo: Boolean(id),
+    contexto: 'empresa/ficha',
+  });
+  const empresa = cEmpresa.datos ?? null;
+  // Distinto de "no cargó": la consulta salió bien y devolvió null.
+  const noExiste = cEmpresa.fase === 'ok' && cEmpresa.datos === null;
+
+  const cFactura = useCarga(() => getResumenFinanzas(periodoActual), [], {
+    contexto: 'empresa/facturacion',
+  });
+  const factura: FacturacionEmpresa | null =
+    cFactura.datos?.facturacion.find((f) => f.empresaId === id) ?? null;
+
+  const cMovs = useCarga(() => getMovimientosDeEmpresa(id), [id], {
+    activo: Boolean(id),
+    contexto: 'empresa/movimientos',
+    inicial: [] as MovimientoFinanciero[],
+  });
+  const movs = cMovs.datos;
 
   const cargar = useCallback(() => {
-    void getEmpresaPorId(id).then((e) => {
-      if (!e) setNoExiste(true);
-      else setEmpresa(e);
-    });
-    void getResumenFinanzas(periodoActual).then((r) =>
-      setFactura(r.facturacion.find((f) => f.empresaId === id) ?? null)
-    );
-    void getMovimientosDeEmpresa(id).then(setMovs);
-  }, [id]);
-
-  useEffect(cargar, [cargar]);
+    cEmpresa.recargar();
+    cFactura.recargar();
+    cMovs.recargar();
+  }, [cEmpresa, cFactura, cMovs]);
 
   if (!usuario) return null;
   if (usuario.rol !== 'superadmin') {
@@ -103,6 +111,15 @@ const EmpresaDetallePage = () => {
       </p>
     );
   }
+  // "No encontramos esa empresa" sólo si el servidor efectivamente
+  // contestó que no existe. Si la consulta falló, decirlo: mandar a
+  // alguien a buscar una empresa que sí está es peor que un error.
+  if (cEmpresa.fase === 'error' && cEmpresa.error) {
+    return (
+      <BloqueError error={cEmpresa.error} onReintentar={cEmpresa.recargar} />
+    );
+  }
+
   if (noExiste) {
     return (
       <div className="flex flex-col gap-4">

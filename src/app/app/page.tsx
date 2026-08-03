@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   IconAlertTriangle,
@@ -35,7 +34,6 @@ import {
   getResumenFinanzas,
   getSaldoVacaciones,
   getVacacionesAprobadasMiSector,
-  MiMes,
 } from '@/lib/services/rrhh';
 import {
   Alerta,
@@ -43,12 +41,13 @@ import {
   Empleado,
   EmpresaResumen,
   EventoAgenda,
-  MetricasGlobales,
-  SaldoVacaciones,
+  Fichaje,
+  ReciboSueldo,
   VacacionSector,
 } from '@/types/rrhh';
 
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
+import { useCarga } from '@/lib/useCarga';
 
 const ANIO_ACTUAL = new Date().getFullYear();
 
@@ -66,69 +65,118 @@ const DashboardPage = () => {
   const esEmpleado = rolEfectivo === 'empleado';
   const esSuperadmin = rolEfectivo === 'superadmin';
 
-  const [saldo, setSaldo] = useState<SaldoVacaciones | null>(null);
-  const [misAusencias, setMisAusencias] = useState<Ausencia[]>([]);
-  const [recibosPendientes, setRecibosPendientes] = useState(0);
-  const [pendientes, setPendientes] = useState<Ausencia[]>([]);
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [presentes, setPresentes] = useState(0);
-  const [alertas, setAlertas] = useState<Alerta[]>([]);
-  const [eventos, setEventos] = useState<EventoAgenda[]>([]);
-  const [metricas, setMetricas] = useState<MetricasGlobales | null>(null);
-  const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
-  const [pagosPendientes, setPagosPendientes] = useState(0);
-  const [miMes, setMiMes] = useState<MiMes | null>(null);
-  const [vacacionesSector, setVacacionesSector] = useState<VacacionSector[]>(
-    []
+  /**
+   * Una consulta por tarjeta, cada una con su `activo` según el rol.
+   *
+   * El dashboard es lo primero que ve todo el mundo y arma su vista con
+   * consultas de temas distintos. Si se juntaran, que se caiga el cálculo
+   * de presentes dejaría la pantalla entera en blanco al entrar. Así cada
+   * tarjeta falla sola y el resto sigue sirviendo.
+   */
+  const miId = usuario?.empleadoId;
+  const esGestion = Boolean(rolEfectivo) && rolEfectivo !== 'empleado';
+  const gestionEmpresa = esGestion && !esSuperadmin;
+
+  const cMetricas = useCarga(() => getMetricasGlobales(), [], {
+    activo: esSuperadmin,
+    contexto: 'inicio/metricas',
+  });
+  const metricas = cMetricas.datos ?? null;
+
+  const cEmpresas = useCarga(() => getEmpresas(), [], {
+    activo: esSuperadmin,
+    contexto: 'inicio/empresas',
+    inicial: [] as EmpresaResumen[],
+  });
+  const empresas = cEmpresas.datos;
+
+  const cFinanzas = useCarga(
+    () => getResumenFinanzas(new Date().toISOString().slice(0, 7)),
+    [],
+    { activo: esSuperadmin, contexto: 'inicio/finanzas' }
   );
-  const [, setCargando] = useState(true);
+  const pagosPendientes = cFinanzas.datos?.empresasVencidas ?? 0;
 
-  useEffect(() => {
-    if (!usuario || !rolEfectivo) return;
+  const cEventos = useCarga(() => getEventosProximos(), [], {
+    activo: Boolean(rolEfectivo) && !esSuperadmin,
+    contexto: 'inicio/eventos',
+    inicial: [] as EventoAgenda[],
+  });
+  const eventos = cEventos.datos;
 
-    if (rolEfectivo === 'superadmin') {
-      void getMetricasGlobales().then(setMetricas);
-      void getEmpresas()
-        .then(setEmpresas)
-        .finally(() => setCargando(false));
-      void getResumenFinanzas(new Date().toISOString().slice(0, 7)).then((r) =>
-        setPagosPendientes(r.empresasVencidas)
-      );
-      return;
+  const cMiMes = useCarga(() => getMiMes(miId!), [miId], {
+    activo: Boolean(miId),
+    contexto: 'inicio/mi-mes',
+  });
+  const miMes = cMiMes.datos ?? null;
+
+  const cSaldo = useCarga(
+    () => getSaldoVacaciones(miId!, ANIO_ACTUAL),
+    [miId],
+    { activo: Boolean(miId), contexto: 'inicio/saldo' }
+  );
+  const saldo = cSaldo.datos ?? null;
+
+  const cMisAusencias = useCarga(() => getAusenciasDeEmpleado(miId!), [miId], {
+    activo: Boolean(miId),
+    contexto: 'inicio/mis-ausencias',
+    inicial: [] as Ausencia[],
+  });
+  const misAusencias = cMisAusencias.datos;
+
+  const cSector = useCarga(
+    () => getVacacionesAprobadasMiSector(miId!),
+    [miId],
+    {
+      activo: Boolean(miId),
+      contexto: 'inicio/sector',
+      inicial: [] as VacacionSector[],
     }
+  );
+  const vacacionesSector = cSector.datos;
 
-    void getEventosProximos().then(setEventos);
+  const cRecibos = useCarga(() => getRecibos(miId!), [miId], {
+    activo: Boolean(miId),
+    contexto: 'inicio/recibos',
+    inicial: [] as ReciboSueldo[],
+  });
+  const recibosPendientes = cRecibos.datos.filter(
+    (r) => r.estadoFirma === 'pendiente'
+  ).length;
 
-    if (usuario.empleadoId) {
-      void getMiMes(usuario.empleadoId).then(setMiMes);
-      void getSaldoVacaciones(usuario.empleadoId, ANIO_ACTUAL).then(setSaldo);
-      void getAusenciasDeEmpleado(usuario.empleadoId)
-        .then(setMisAusencias)
-        .finally(() => setCargando(false));
-      void getVacacionesAprobadasMiSector(usuario.empleadoId).then(
-        setVacacionesSector
-      );
-      void getRecibos(usuario.empleadoId).then((r) =>
-        setRecibosPendientes(
-          r.filter((x) => x.estadoFirma === 'pendiente').length
-        )
-      );
+  const cPendientes = useCarga(
+    () => getAusenciasPendientes(),
+    [gestionEmpresa],
+    {
+      activo: gestionEmpresa,
+      contexto: 'inicio/pendientes',
+      inicial: [] as Ausencia[],
     }
-    if (rolEfectivo !== 'empleado') {
-      void getAusenciasPendientes()
-        .then(setPendientes)
-        .finally(() => setCargando(false));
-      void getEmpleados().then(setEmpleados);
-      void getFichajesDeHoy().then((f) =>
-        setPresentes(
-          new Set(
-            f.filter((x) => x.tipo === 'ingreso').map((x) => x.empleadoId)
-          ).size
-        )
-      );
-      void getAlertas().then(setAlertas);
-    }
-  }, [usuario, rolEfectivo]);
+  );
+  const pendientes = cPendientes.datos;
+
+  const cEmpleados = useCarga(() => getEmpleados(), [gestionEmpresa], {
+    activo: gestionEmpresa,
+    contexto: 'inicio/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cEmpleados.datos;
+
+  const cFichajes = useCarga(() => getFichajesDeHoy(), [gestionEmpresa], {
+    activo: gestionEmpresa,
+    contexto: 'inicio/fichajes',
+    inicial: [] as Fichaje[],
+  });
+  const presentes = new Set(
+    cFichajes.datos.filter((f) => f.tipo === 'ingreso').map((f) => f.empleadoId)
+  ).size;
+
+  const cAlertas = useCarga(() => getAlertas(), [gestionEmpresa], {
+    activo: gestionEmpresa,
+    contexto: 'inicio/alertas',
+    inicial: [] as Alerta[],
+  });
+  const alertas = cAlertas.datos;
 
   if (!usuario) return null;
 

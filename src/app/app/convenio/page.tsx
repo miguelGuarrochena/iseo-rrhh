@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   IconArrowLeft,
   IconEdit,
@@ -29,6 +29,8 @@ import { formatearFecha } from '@/lib/fechas';
 import { fetchProtegido } from '@/lib/api/fetchProtegido';
 import { Convenio } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const EjemplosPreguntas = [
@@ -240,25 +242,24 @@ const ConvenioPage = () => {
   const { rolEfectivo } = useAuth();
   const esAdmin = rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin';
 
-  const [convenios, setConvenios] = useState<Convenio[]>([]);
-  const [cargando, setCargando] = useState(true);
   const [seleccionado, setSeleccionado] = useState<Convenio | null>(null);
   const [editando, setEditando] = useState(false);
   const [creando, setCreando] = useState(false);
   const [aEliminar, setAEliminar] = useState<Convenio | null>(null);
   const [eliminando, setEliminando] = useState(false);
 
-  const cargar = useCallback(() => {
-    void getConvenios()
-      .then((lista) => {
-        setConvenios(lista);
-        // Con un solo convenio, directo al detalle.
-        if (lista.length === 1) setSeleccionado(lista[0]);
-      })
-      .finally(() => setCargando(false));
-  }, []);
+  const carga = useCarga(() => getConvenios(), [], {
+    contexto: 'convenio',
+    inicial: [] as Convenio[],
+  });
+  const convenios = carga.datos;
+  const cargar = carga.recargar;
 
-  useEffect(cargar, [cargar]);
+  // Con un solo convenio, directo al detalle. Va en un efecto y no en el
+  // `then` de la consulta para que también aplique al reintentar.
+  useEffect(() => {
+    if (convenios.length === 1) setSeleccionado(convenios[0]);
+  }, [convenios]);
 
   const eliminar = async () => {
     if (!aEliminar) return;
@@ -359,10 +360,12 @@ const ConvenioPage = () => {
       {/* Listado */}
       {!seleccionado && !creando && !editando && (
         <>
-          {cargando ? (
+          {carga.fase === 'cargando' ? (
             <Panel>
               <p className="text-sm text-ink-soft">Cargando…</p>
             </Panel>
+          ) : carga.fase === 'error' && carga.error ? (
+            <BloqueError error={carga.error} onReintentar={carga.recargar} />
           ) : convenios.length === 0 ? (
             <Panel>
               <p className="text-sm text-ink-soft">

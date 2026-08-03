@@ -740,6 +740,65 @@ export const getUsuariosDeEmpresa = async (): Promise<Usuario[]> => {
   return oFalla(data, error).map(aUsuario);
 };
 
+/**
+ * El equipo de ISEO: los que ven todas las empresas y la facturación.
+ * No pertenecen a ninguna empresa, por eso no salen en Permisos.
+ */
+export const getEquipoIseo = async (): Promise<Usuario[]> => {
+  const { data, error } = await sb()
+    .from('usuarios')
+    .select('*')
+    .eq('rol', 'superadmin')
+    .order('nombre_completo');
+  return oFalla(data, error).map(aUsuario);
+};
+
+/**
+ * Cambia el nombre con el que la persona figura en la app.
+ *
+ * El email no se toca acá: es la identidad con la que entra y cambiarlo
+ * es dar de alta otra cuenta en la práctica.
+ */
+export const actualizarMiPerfil = async (
+  nombreCompleto: string
+): Promise<Usuario> => {
+  const uid = useAuthStore.getState().usuario?.id;
+  if (!uid) throw new Error('Sin sesión.');
+  const { data, error } = await sb()
+    .from('usuarios')
+    .update({ nombre_completo: nombreCompleto })
+    .eq('id', uid)
+    .select()
+    .single();
+  return aUsuario(oFalla(data, error));
+};
+
+/**
+ * Cambia la contraseña propia.
+ *
+ * Antes de cambiarla se reintenta el login con la actual. Supabase deja
+ * cambiarla con sólo tener la sesión abierta, y eso significa que
+ * cualquiera que agarre una sesión sin bloquear —una compu prestada, un
+ * celular desbloqueado— puede quedarse con la cuenta cambiando la clave
+ * sin saber la anterior.
+ */
+export const cambiarMiContrasena = async (
+  actual: string,
+  nueva: string
+): Promise<void> => {
+  const email = useAuthStore.getState().usuario?.email;
+  if (!email) throw new Error('Sin sesión.');
+
+  const { error: errorLogin } = await sb().auth.signInWithPassword({
+    email,
+    password: actual,
+  });
+  if (errorLogin) throw new Error('La contraseña actual no es correcta.');
+
+  const { error } = await sb().auth.updateUser({ password: nueva });
+  if (error) throw new Error(error.message);
+};
+
 export const cambiarRolUsuario = async (
   usuarioId: string,
   rol: Usuario['rol']

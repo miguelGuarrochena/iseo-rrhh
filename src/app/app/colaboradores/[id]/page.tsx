@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Modal } from '@mantine/core';
@@ -56,10 +56,11 @@ import {
   getMiMes,
   getRemuneraciones,
   getSaldoVacaciones,
-  MiMes,
 } from '@/lib/services/rrhh';
 import { analizarSalario } from '@/lib/remuneraciones';
 import { armarLiquidacionFinal } from '@/lib/liquidacionFinal';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import { formatearPesos } from '@/lib/formato';
 import {
   categoriaDeChecklist,
@@ -70,9 +71,7 @@ import {
   CategoriaDocumento,
   ChecklistItem,
   DocumentoLegajo,
-  Empleado,
   Remuneracion,
-  SaldoVacaciones,
 } from '@/types/rrhh';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
@@ -94,11 +93,39 @@ const FichaColaboradorPage = () => {
   const { usuario, rolEfectivo } = useAuth();
   const router = useRouter();
 
-  const [empleado, setEmpleado] = useState<Empleado | null>(null);
-  const [saldo, setSaldo] = useState<SaldoVacaciones | null>(null);
-  const [control, setControl] = useState<MiMes | null>(null);
-  const [ausencias, setAusencias] = useState<Ausencia[]>([]);
-  const [documentos, setDocumentos] = useState<DocumentoLegajo[]>([]);
+  const cEmpleado = useCarga(() => getEmpleado(id), [id], {
+    activo: Boolean(id),
+    contexto: 'ficha/empleado',
+  });
+  const empleado = cEmpleado.datos ?? null;
+  /** Tras tildar el checklist, el servidor ya devuelve la ficha nueva. */
+  const setEmpleado = cEmpleado.actualizar;
+
+  const cSaldo = useCarga(() => getSaldoVacaciones(id, ANIO_ACTUAL), [id], {
+    activo: Boolean(id),
+    contexto: 'ficha/saldo',
+  });
+  const saldo = cSaldo.datos ?? null;
+
+  const cControl = useCarga(() => getMiMes(id), [id], {
+    activo: Boolean(id),
+    contexto: 'ficha/control',
+  });
+  const control = cControl.datos ?? null;
+
+  const cAusencias = useCarga(() => getAusenciasDeEmpleado(id), [id], {
+    activo: Boolean(id),
+    contexto: 'ficha/ausencias',
+    inicial: [] as Ausencia[],
+  });
+  const ausencias = cAusencias.datos;
+
+  const cDocumentos = useCarga(() => getDocumentosDeEmpleado(id), [id], {
+    activo: Boolean(id),
+    contexto: 'ficha/documentos',
+    inicial: [] as DocumentoLegajo[],
+  });
+  const documentos = cDocumentos.datos;
   const [docAbierto, { open: abrirDoc, close: cerrarDoc }] =
     useDisclosure(false);
   const [docNombre, setDocNombre] = useState('');
@@ -118,19 +145,12 @@ const FichaColaboradorPage = () => {
   const [errorBaja, setErrorBaja] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
 
-  const [remuneraciones, setRemuneraciones] = useState<Remuneracion[]>([]);
-
-  useEffect(() => {
-    if (!id) return;
-    void getEmpleado(id).then(setEmpleado);
-    void getSaldoVacaciones(id, ANIO_ACTUAL).then(setSaldo);
-    void getMiMes(id).then(setControl);
-    void getAusenciasDeEmpleado(id).then(setAusencias);
-    void getDocumentosDeEmpleado(id).then(setDocumentos);
-    void getRemuneraciones(id)
-      .then(setRemuneraciones)
-      .catch(() => setRemuneraciones([]));
-  }, [id]);
+  const cRemuneraciones = useCarga(() => getRemuneraciones(id), [id], {
+    activo: Boolean(id),
+    contexto: 'ficha/remuneraciones',
+    inicial: [] as Remuneracion[],
+  });
+  const remuneraciones = cRemuneraciones.datos;
 
   /**
    * Borrador de lo que hay que pagarle al irse. Se muestra al dar de
@@ -161,14 +181,21 @@ const FichaColaboradorPage = () => {
     );
   }
 
+  // Un fallo se veía como "Cargando ficha…" para siempre: la persona
+  // esperaba algo que no iba a llegar.
+  if (cEmpleado.fase === 'error' && cEmpleado.error) {
+    return (
+      <BloqueError error={cEmpleado.error} onReintentar={cEmpleado.recargar} />
+    );
+  }
+
   if (!empleado) {
     return <p className="text-sm text-ink-soft">Cargando ficha…</p>;
   }
 
   const esAdmin = rolEfectivo === 'admin_rrhh';
 
-  const recargarDocs = () =>
-    void getDocumentosDeEmpleado(empleado.id).then(setDocumentos);
+  const recargarDocs = cDocumentos.recargar;
 
   const alternarChecklist = async (itemId: string) => {
     if (!esAdmin) return;

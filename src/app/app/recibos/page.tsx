@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   IconFileCertificate,
   IconFiles,
@@ -42,6 +42,8 @@ import { Empleado, ReciboSueldo, TipoRecibo } from '@/types/rrhh';
 import { tipoReciboLabels } from '@/lib/etiquetas';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
@@ -69,11 +71,9 @@ const RecibosPage = () => {
    */
   const soloPropios = rolEfectivo !== 'admin_rrhh';
 
-  const [recibos, setRecibos] = useState<ReciboSueldo[]>([]);
   // Versiones reemplazadas por una rectificación. No se listan sueltas:
   // cuelgan del recibo vigente, que es donde a alguien se le ocurre
   // preguntar "¿y esto qué firmó en su momento?".
-  const [archivados, setArchivados] = useState<ReciboSueldo[]>([]);
   const [versionesDe, setVersionesDe] = useState<ReciboSueldo | null>(null);
   // Copia que sobrevive al cierre: si el contenido se leyera de
   // `versionesDe`, al cerrar se vaciaría de golpe y durante la animación
@@ -86,7 +86,6 @@ const RecibosPage = () => {
     setVersionesTexto(r);
     setVersionesDe(r);
   };
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [aFirmar, setAFirmar] = useState<ReciboSueldo | null>(null);
   const [firmando, setFirmando] = useState(false);
   const [modalAbierto, { open, close }] = useDisclosure(false);
@@ -104,37 +103,51 @@ const RecibosPage = () => {
   const [masivaAbierta, setMasivaAbierta] = useState(false);
   const [publicando, setPublicando] = useState(false);
 
-  const [cargandoLista, setCargandoLista] = useState(true);
   const [anioFiltro, setAnioFiltro] = useState('todos');
   const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
-  const cargar = useCallback(() => {
-    if (!usuario) return;
-    if (soloPropios) {
-      const id = usuario.empleadoId;
-      // Sin legajo vinculado no hay recibos que mostrar. Antes este caso
-      // se caía a la rama de RRHH y la lista quedaba cargando para
-      // siempre, porque `setCargandoLista(false)` nunca llegaba.
-      if (!id) {
-        setRecibos([]);
-        setArchivados([]);
-        setCargandoLista(false);
-        return;
-      }
-      void getRecibos(id)
-        .then(setRecibos)
-        .finally(() => setCargandoLista(false));
-      void getRecibosArchivados(id).then(setArchivados);
-      return;
-    }
-    void getRecibosTodos()
-      .then(setRecibos)
-      .finally(() => setCargandoLista(false));
-    void getRecibosArchivadosTodos().then(setArchivados);
-    void getEmpleados().then(setEmpleados);
-  }, [usuario, soloPropios]);
+  const miId = usuario?.empleadoId;
+  // Sin legajo vinculado no hay recibos propios que pedir: antes ese caso
+  // caía a la rama de RRHH y la lista quedaba cargando para siempre.
+  const puedeVer = soloPropios ? Boolean(miId) : Boolean(usuario);
 
-  useEffect(cargar, [cargar]);
+  const cRecibos = useCarga(
+    () => (soloPropios ? getRecibos(miId!) : getRecibosTodos()),
+    [soloPropios, miId],
+    {
+      activo: puedeVer,
+      contexto: 'recibos',
+      inicial: [] as ReciboSueldo[],
+    }
+  );
+  const recibos = cRecibos.datos;
+
+  const cArchivados = useCarga(
+    () =>
+      soloPropios ? getRecibosArchivados(miId!) : getRecibosArchivadosTodos(),
+    [soloPropios, miId],
+    {
+      activo: puedeVer,
+      contexto: 'recibos/archivados',
+      inicial: [] as ReciboSueldo[],
+    }
+  );
+  const archivados = cArchivados.datos;
+
+  // Sólo resuelve nombres en la vista de RRHH: si falla, los recibos se
+  // ven igual.
+  const cEmpleados = useCarga(() => getEmpleados(), [soloPropios], {
+    activo: !soloPropios && Boolean(usuario),
+    contexto: 'recibos/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cEmpleados.datos;
+
+  const cargar = useCallback(() => {
+    cRecibos.recargar();
+    cArchivados.recargar();
+    cEmpleados.recargar();
+  }, [cRecibos, cArchivados, cEmpleados]);
 
   const nombreEmpleado = (id: string): string => {
     const e = empleados.find((x) => x.id === id);
@@ -484,9 +497,15 @@ const RecibosPage = () => {
         </ListaCard>
       )}
 
+      {/* Arriba de las dos listas: si la consulta falló, "no tenés
+          recibos pendientes" es mentira y alguien se queda sin firmar. */}
+      {cRecibos.fase === 'error' && cRecibos.error && (
+        <BloqueError error={cRecibos.error} onReintentar={cRecibos.recargar} />
+      )}
+
       <ListaCard
         titulo={soloPropios ? 'Pendientes de firma' : 'Pendientes del equipo'}
-        cargando={cargandoLista}
+        cargando={cRecibos.fase === 'cargando'}
         vacio={
           soloPropios
             ? 'No tenés recibos pendientes de firma.'
@@ -545,7 +564,7 @@ const RecibosPage = () => {
 
       <ListaCard
         titulo={soloPropios ? 'Historial de recibos' : 'Historial firmado'}
-        cargando={cargandoLista}
+        cargando={cRecibos.fase === 'cargando'}
         vacio={
           anios.length > 0
             ? 'No hay recibos firmados en ese año.'

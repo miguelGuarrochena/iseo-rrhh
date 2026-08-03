@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   IconAlertTriangle,
   IconCheck,
@@ -36,6 +36,8 @@ import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { Ausencia, Empleado, Fichaje, Turno } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -228,11 +230,7 @@ const FilaDia = ({
 
 const TurnosPage = () => {
   const { usuario, rolEfectivo } = useAuth();
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [empleadoId, setEmpleadoId] = useState('');
-  const [turnos, setTurnos] = useState<Turno[]>([]);
-  const [fichajes, setFichajes] = useState<Fichaje[]>([]);
-  const [ausencias, setAusencias] = useState<Ausencia[]>([]);
   const [semana, setSemana] = useState(() => lunesDe(new Date()));
   const [baseEntrada, setBaseEntrada] = useState('08:00');
   const [baseSalida, setBaseSalida] = useState('17:00');
@@ -243,25 +241,53 @@ const TurnosPage = () => {
     rolEfectivo === 'supervisor' ||
     rolEfectivo === 'superadmin';
 
+  const cEmpleados = useCarga(() => getEmpleados(), [puedeGestionar], {
+    activo: puedeGestionar,
+    contexto: 'turnos/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cEmpleados.datos;
+
+  // Al llegar la lista se elige el primero; el colaborador se ve a sí
+  // mismo. Va en un efecto aparte para que también aplique al reintentar.
   useEffect(() => {
     if (puedeGestionar) {
-      void getEmpleados().then((es) => {
-        setEmpleados(es);
-        if (es[0]) setEmpleadoId((prev) => prev || es[0].id);
-      });
+      if (empleados[0]) setEmpleadoId((prev) => prev || empleados[0].id);
     } else if (usuario?.empleadoId) {
       setEmpleadoId(usuario.empleadoId);
     }
-  }, [puedeGestionar, usuario]);
+  }, [puedeGestionar, empleados, usuario]);
 
-  const cargar = useCallback(() => {
-    if (!empleadoId) return;
-    void getTurnosDeEmpleado(empleadoId).then(setTurnos);
-    void getFichajesDeEmpleado(empleadoId).then(setFichajes);
-    void getAusenciasDeEmpleado(empleadoId).then(setAusencias);
-  }, [empleadoId]);
+  /**
+   * Turnos, fichajes y ausencias van juntas: el control compara lo
+   * planificado contra lo fichado y descuenta las licencias aprobadas.
+   * Con una sola de las tres el cuadro miente —marcaría como ausencia
+   * injustificada a alguien que estaba de vacaciones.
+   */
+  const cSemana = useCarga(
+    async () => {
+      const [turnos, fichajes, ausencias] = await Promise.all([
+        getTurnosDeEmpleado(empleadoId),
+        getFichajesDeEmpleado(empleadoId),
+        getAusenciasDeEmpleado(empleadoId),
+      ]);
+      return { turnos, fichajes, ausencias };
+    },
+    [empleadoId],
+    { activo: Boolean(empleadoId), contexto: 'turnos' }
+  );
 
-  useEffect(cargar, [cargar]);
+  const turnos = useMemo(() => cSemana.datos?.turnos ?? [], [cSemana.datos]);
+  const fichajes = useMemo(
+    () => cSemana.datos?.fichajes ?? [],
+    [cSemana.datos]
+  );
+  const ausencias = useMemo(
+    () => cSemana.datos?.ausencias ?? [],
+    [cSemana.datos]
+  );
+
+  const cargar = cSemana.recargar;
 
   const dias = useMemo(
     () =>
@@ -496,6 +522,12 @@ const TurnosPage = () => {
       <Panel>
         {!empleadoId ? (
           <p className="text-sm text-ink-soft">Elegí un colaborador.</p>
+        ) : cSemana.fase === 'error' && cSemana.error ? (
+          // Sin esto el control se veía vacío y parecía "no tiene turnos
+          // asignados", cuando en realidad no se pudo leer nada.
+          <BloqueError error={cSemana.error} onReintentar={cSemana.recargar} />
+        ) : cSemana.fase === 'cargando' ? (
+          <p className="text-sm text-ink-soft">Cargando la semana…</p>
         ) : (
           <div className="flex flex-col gap-2">
             {dias.map((fecha, i) => (

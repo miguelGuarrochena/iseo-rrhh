@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   IconBuildingFactory2,
   IconClockExclamation,
@@ -28,14 +28,11 @@ import {
   getMetricasGlobales,
   getResumenControl,
 } from '@/lib/services/rrhh';
-import {
-  Ausencia,
-  EmpresaResumen,
-  MetricasGlobales,
-  ResumenControl,
-} from '@/types/rrhh';
+import { Ausencia, EmpresaResumen, ResumenControl } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 /**
  * Reportes con gráficos. Admin/supervisor: control de su empresa.
@@ -43,23 +40,23 @@ import { RequireEmpresa } from '@/components/app/RequireEmpresa';
  */
 const ReportesPage = () => {
   const { usuario, rolEfectivo, empresaVista } = useAuth();
-  const [resumen, setResumen] = useState<ResumenControl | null>(null);
-  const [ausencias, setAusencias] = useState<Ausencia[]>([]);
-  const [metricas, setMetricas] = useState<MetricasGlobales | null>(null);
-  const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
   const [empresaSel, setEmpresaSel] = useState('');
-  const [presentes, setPresentes] = useState(0);
-  const [dotacion, setDotacion] = useState(0);
-  const [cargandoDetalle, setCargandoDetalle] = useState(false);
 
   const esGlobal = usuario?.rol === 'superadmin' && !empresaVista;
 
-  // Metadata global (una sola vez): lista de empresas y métricas del negocio.
-  useEffect(() => {
-    if (!esGlobal) return;
-    void getMetricasGlobales().then(setMetricas);
-    void getEmpresas().then(setEmpresas);
-  }, [esGlobal]);
+  // Metadata global: lista de empresas y métricas del negocio.
+  const cMetricas = useCarga(() => getMetricasGlobales(), [esGlobal], {
+    activo: esGlobal,
+    contexto: 'reportes/metricas',
+  });
+  const metricas = cMetricas.datos ?? null;
+
+  const cEmpresas = useCarga(() => getEmpresas(), [esGlobal], {
+    activo: esGlobal,
+    contexto: 'reportes/empresas',
+    inicial: [] as EmpresaResumen[],
+  });
+  const empresas = cEmpresas.datos;
 
   // Apenas llega la lista de empresas, elegimos una activa por default.
   useEffect(() => {
@@ -68,33 +65,45 @@ const ReportesPage = () => {
     if (primeraActiva) setEmpresaSel(primeraActiva.empresa.id);
   }, [esGlobal, empresas, empresaSel]);
 
-  // Detalle de control (ausentismo, tarde, extras, presentismo): de la propia
-  // empresa si no es superadmin, o de la empresa elegida en el selector.
-  useEffect(() => {
-    if (esGlobal && !empresaSel) return;
-    const idEmpresa = esGlobal ? empresaSel : undefined;
-    setCargandoDetalle(true);
-    Promise.all([
-      getResumenControl(idEmpresa),
-      getAusencias(idEmpresa),
-      getEmpleados(idEmpresa).then((e) => e.length),
-      getFichajesDeHoy(idEmpresa).then(
-        (f) =>
-          new Set(
-            f.filter((x) => x.tipo === 'ingreso').map((x) => x.empleadoId)
-          ).size
-      ),
-    ])
-      .then(
-        ([resumenNuevo, ausenciasNuevas, dotacionNueva, presentesNuevos]) => {
-          setResumen(resumenNuevo);
-          setAusencias(ausenciasNuevas);
-          setDotacion(dotacionNueva);
-          setPresentes(presentesNuevos);
-        }
-      )
-      .finally(() => setCargandoDetalle(false));
-  }, [esGlobal, empresaSel]);
+  /**
+   * El detalle sí va junto: las cuatro consultas arman un mismo cuadro de
+   * situación de una empresa y un período. Mostrar el ausentismo de una
+   * empresa con el presentismo de otra sería peor que no mostrar nada.
+   */
+  const cDetalle = useCarga(
+    async () => {
+      const idEmpresa = esGlobal ? empresaSel : undefined;
+      const [resumen, ausencias, empleados, fichajes] = await Promise.all([
+        getResumenControl(idEmpresa),
+        getAusencias(idEmpresa),
+        getEmpleados(idEmpresa),
+        getFichajesDeHoy(idEmpresa),
+      ]);
+      return {
+        resumen,
+        ausencias,
+        dotacion: empleados.length,
+        presentes: new Set(
+          fichajes.filter((f) => f.tipo === 'ingreso').map((f) => f.empleadoId)
+        ).size,
+      };
+    },
+    [esGlobal, empresaSel],
+    {
+      // Sin empresa elegida no hay nada que pedir todavía.
+      activo: !esGlobal || Boolean(empresaSel),
+      contexto: 'reportes/detalle',
+    }
+  );
+
+  const resumen: ResumenControl | null = cDetalle.datos?.resumen ?? null;
+  const ausencias: Ausencia[] = useMemo(
+    () => cDetalle.datos?.ausencias ?? [],
+    [cDetalle.datos]
+  );
+  const dotacion = cDetalle.datos?.dotacion ?? 0;
+  const presentes = cDetalle.datos?.presentes ?? 0;
+  const cargandoDetalle = cDetalle.fase === 'cargando';
 
   if (!usuario || rolEfectivo === 'empleado') {
     return (
@@ -221,7 +230,12 @@ const ReportesPage = () => {
           />
         </div>
 
-        {cargandoDetalle ? (
+        {cDetalle.fase === 'error' && cDetalle.error ? (
+          <BloqueError
+            error={cDetalle.error}
+            onReintentar={cDetalle.recargar}
+          />
+        ) : cargandoDetalle ? (
           <Panel>
             <p className="text-sm text-ink-soft">Cargando {nombreSel}…</p>
           </Panel>
@@ -273,6 +287,12 @@ const ReportesPage = () => {
           Control del mes: ausentismo, puntualidad, horas extras y firmas.
         </p>
       </div>
+
+      {/* Los indicadores muestran "…" mientras cargan y cero si no hay
+          datos: sin esto, un fallo se leía como "ausentismo 0%". */}
+      {cDetalle.fase === 'error' && cDetalle.error && (
+        <BloqueError error={cDetalle.error} onReintentar={cDetalle.recargar} />
+      )}
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard

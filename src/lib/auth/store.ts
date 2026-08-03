@@ -98,6 +98,8 @@ interface AuthState {
   inicializar: () => () => void;
   login: (email: string, password?: string) => Promise<Usuario | null>;
   logout: () => void;
+  /** Reemplaza el usuario en memoria tras editar el propio perfil. */
+  refrescarUsuario: (usuario: Usuario) => void;
   entrarAEmpresa: (empresa: Empresa) => void;
   salirDeEmpresa: () => void;
 }
@@ -215,6 +217,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     window.localStorage.removeItem(SESSION_KEY);
     window.localStorage.removeItem(EMPRESA_VISTA_KEY);
     set({ usuario: null, sesionReal: false, empresaVista: null });
+  },
+
+  /**
+   * También reescribe la sesión guardada: si no, al recargar volvería el
+   * nombre viejo y parecería que el cambio no se guardó.
+   */
+  refrescarUsuario: (usuario) => {
+    window.localStorage.setItem(SESSION_KEY, JSON.stringify(usuario));
+    set({ usuario });
   },
 
   entrarAEmpresa: (empresa) => {

@@ -11,7 +11,9 @@ import { desactivarKiosco } from '@/lib/kiosco';
 import { avisoExito } from '@/lib/avisos';
 import { getEmpleados, getEmpresa } from '@/lib/services/rrhh';
 import { formatearHora } from '@/lib/fechas';
-import { Empleado, Empresa } from '@/types/rrhh';
+import { Empleado } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 /**
  * Pantalla de la tablet bloqueada como terminal de fichaje: solo se
@@ -19,18 +21,23 @@ import { Empleado, Empresa } from '@/types/rrhh';
  * accesible; para salir hace falta el PIN.
  */
 export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
-  const [empresa, setEmpresa] = useState<Empresa | null>(null);
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   const [salidaAbierta, setSalidaAbierta] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
   const [hora, setHora] = useState('');
 
-  useEffect(() => {
-    void getEmpresa().then(setEmpresa);
-    void getEmpleados().then(setEmpleados);
-  }, []);
+  const cEmpresa = useCarga(() => getEmpresa(), [], {
+    contexto: 'kiosco/empresa',
+  });
+  const empresa = cEmpresa.datos ?? null;
+
+  // Sin la lista no se puede reconocer a nadie: acá el fallo importa.
+  const cEmpleados = useCarga(() => getEmpleados(), [], {
+    contexto: 'kiosco/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cEmpleados.datos;
 
   // Reloj grande, para que la terminal sirva también de referencia.
   useEffect(() => {
@@ -64,6 +71,19 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
       setPinError('PIN incorrecto.');
     }
   };
+
+  // Sin la lista de colaboradores el kiosco no puede reconocer a nadie:
+  // conviene decirlo en pantalla y no dejar la cámara buscando en vano.
+  if (cEmpleados.fase === 'error' && cEmpleados.error) {
+    return (
+      <div className="app-scope bg-app flex min-h-screen items-center justify-center p-6">
+        <BloqueError
+          error={cEmpleados.error}
+          onReintentar={cEmpleados.recargar}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="app-scope bg-app fixed inset-0 z-50 flex min-h-screen flex-col">

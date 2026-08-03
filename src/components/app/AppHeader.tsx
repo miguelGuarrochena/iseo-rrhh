@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Avatar, Menu, useMantineColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -10,6 +9,7 @@ import {
   IconLogout,
   IconMoon,
   IconSun,
+  IconUserCog,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import {
@@ -19,6 +19,7 @@ import {
 import { BuscadorGlobal } from './BuscadorGlobal';
 import { InstalarAppModal } from './InstalarAppModal';
 import { Notificacion, Rol } from '@/types/rrhh';
+import { useCarga } from '@/lib/useCarga';
 
 const etiquetaRol: Record<Rol, string> = {
   superadmin: 'Superadmin',
@@ -44,11 +45,13 @@ export const AppHeader = () => {
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [instalarAbierto, { open: abrirInstalar, close: cerrarInstalar }] =
     useDisclosure(false);
-  const [notificaciones, setNotificaciones] = useState<Notificacion[]>([]);
-
-  useEffect(() => {
-    if (usuario) void getNotificaciones(usuario.id).then(setNotificaciones);
-  }, [usuario]);
+  // La campanita: si falla, el resto del header anda igual.
+  const cNotis = useCarga(() => getNotificaciones(usuario!.id), [usuario], {
+    activo: Boolean(usuario),
+    contexto: 'header/notificaciones',
+    inicial: [] as Notificacion[],
+  });
+  const notificaciones = cNotis.datos;
 
   if (!usuario) return null;
 
@@ -58,7 +61,8 @@ export const AppHeader = () => {
   const alAbrirCampana = (abierta: boolean) => {
     if (!abierta || sinLeer === 0) return;
     void marcarNotificacionesLeidas(usuario.id).then(() =>
-      setNotificaciones((prev) => prev.map((n) => ({ ...n, leida: true })))
+      // El servidor ya las marcó: alcanza con reflejarlo acá.
+      cNotis.actualizar(notificaciones.map((n) => ({ ...n, leida: true })))
     );
   };
 
@@ -152,6 +156,12 @@ export const AppHeader = () => {
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Label>{usuario.email}</Menu.Label>
+              <Menu.Item
+                leftSection={<IconUserCog size={16} />}
+                onClick={() => router.push('/mi-cuenta')}
+              >
+                Mi cuenta
+              </Menu.Item>
               <Menu.Item
                 leftSection={<IconDeviceMobileDown size={16} />}
                 onClick={abrirInstalar}

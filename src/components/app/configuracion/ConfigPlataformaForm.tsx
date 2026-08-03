@@ -12,6 +12,8 @@ import {
   getConfigPlataforma,
 } from '@/lib/services/rrhh';
 import { ConfigPlataforma } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const campoClase =
   'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-600';
@@ -21,14 +23,23 @@ const campoClase =
  * defaults para empresas nuevas y notificaciones.
  */
 export const ConfigPlataformaForm = () => {
-  const [config, setConfig] = useState<ConfigPlataforma | null>(null);
   const [errorEmail, setErrorEmail] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
 
+  const carga = useCarga(() => getConfigPlataforma(), [], {
+    contexto: 'plataforma/config',
+  });
+  const [config, setConfig] = useState<ConfigPlataforma | null>(null);
+
+  // Es un formulario: lo cargado pasa a estado local para poder editarlo.
   useEffect(() => {
-    void getConfigPlataforma().then(setConfig);
-  }, []);
+    if (carga.datos) setConfig(carga.datos);
+  }, [carga.datos]);
+
+  if (carga.fase === 'error' && carga.error) {
+    return <BloqueError error={carga.error} onReintentar={carga.recargar} />;
+  }
 
   if (!config) {
     return <p className="text-sm text-ink-soft">Cargando configuración…</p>;

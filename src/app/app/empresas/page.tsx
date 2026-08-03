@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   IconBuildingFactory2,
@@ -17,20 +17,22 @@ import { Selector } from '@/components/app/ui/Selector';
 import { getEmpresas } from '@/lib/services/rrhh';
 import { Empresa, EmpresaResumen, NuevaEmpresa } from '@/types/rrhh';
 import { crearEmpresa } from '@/lib/services/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const EmpresasPage = () => {
   const { usuario, entrarAEmpresa } = useAuth();
   const router = useRouter();
-  const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [estado, setEstado] = useState('');
   const [modalAbierto, { open, close }] = useDisclosure(false);
 
-  const cargar = useCallback(() => {
-    void getEmpresas().then(setEmpresas);
-  }, []);
-
-  useEffect(cargar, [cargar]);
+  const carga = useCarga(() => getEmpresas(), [], {
+    contexto: 'empresas',
+    inicial: [] as EmpresaResumen[],
+  });
+  const empresas = carga.datos;
+  const cargar = carga.recargar;
 
   useEffect(() => {
     if (usuario && usuario.rol !== 'superadmin') {
@@ -98,8 +100,15 @@ const EmpresasPage = () => {
         />
       </div>
 
+      {carga.fase === 'error' && carga.error && (
+        <BloqueError error={carga.error} onReintentar={carga.recargar} />
+      )}
+
       <ListaCard
-        titulo={`Clientes (${filtradas.length})`}
+        titulo={
+          carga.fase === 'ok' ? `Clientes (${filtradas.length})` : 'Clientes'
+        }
+        cargando={carga.fase === 'cargando'}
         vacio="No hay empresas con esos filtros."
       >
         {filtradas.map(({ empresa, empleadosActivos }) => (

@@ -41,6 +41,8 @@ import { formatearPeriodo } from '@/lib/fechas';
 import { descargarCSV } from '@/lib/csv';
 import { Boton } from '@/components/app/ui/Boton';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import { avisoExito } from '@/lib/avisos';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
@@ -160,13 +162,19 @@ const UltimaLiquidacion = ({ rem }: { rem: Remuneracion }) => {
 };
 
 const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
-  const [rems, setRems] = useState<Remuneracion[]>([]);
-
-  useEffect(() => {
-    void getRemuneraciones(empleadoId).then(setRems);
-  }, [empleadoId]);
+  const carga = useCarga(() => getRemuneraciones(empleadoId), [empleadoId], {
+    contexto: 'remuneraciones/propias',
+    inicial: [] as Remuneracion[],
+  });
+  const rems = carga.datos;
 
   const a = useMemo(() => analizarSalario(rems), [rems]);
+
+  // Un fallo se veía como "todavía no hay remuneraciones cargadas": la
+  // persona concluía que RRHH no le cargó el sueldo.
+  if (carga.fase === 'error' && carga.error) {
+    return <BloqueError error={carga.error} onReintentar={carga.recargar} />;
+  }
 
   if (rems.length === 0) {
     return (
@@ -269,25 +277,39 @@ const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
 
 const VistaAdmin = () => {
   const router = useRouter();
-  const [rems, setRems] = useState<Remuneracion[]>([]);
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editando, setEditando] = useState<Remuneracion | null>(null);
   const [empleadoFijo, setEmpleadoFijo] = useState<string | undefined>();
   const [cargasPct, setCargasPct] = useState(CARGAS_PATRONALES);
   const [aguinaldoAbierto, setAguinaldoAbierto] = useState(false);
 
-  const cargar = useCallback(() => {
-    void getRemuneracionesTodas().then(setRems);
-    void getEmpleados().then(setEmpleados);
-    void getEmpresa().then((e) => {
-      if (e.config.cargasPatronalesPct != null) {
-        setCargasPct(e.config.cargasPatronalesPct);
-      }
-    });
-  }, []);
+  const cRems = useCarga(() => getRemuneracionesTodas(), [], {
+    contexto: 'remuneraciones',
+    inicial: [] as Remuneracion[],
+  });
+  const rems = cRems.datos;
 
-  useEffect(cargar, [cargar]);
+  const cEmpleados = useCarga(() => getEmpleados(), [], {
+    contexto: 'remuneraciones/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cEmpleados.datos;
+
+  // El % de cargas es un parámetro de la estimación: si no llega, se usa
+  // el genérico y la pantalla sirve igual.
+  const cEmpresa = useCarga(() => getEmpresa(), [], {
+    contexto: 'remuneraciones/empresa',
+  });
+  useEffect(() => {
+    const pct = cEmpresa.datos?.config.cargasPatronalesPct;
+    if (pct != null) setCargasPct(pct);
+  }, [cEmpresa.datos]);
+
+  const cargar = useCallback(() => {
+    cRems.recargar();
+    cEmpleados.recargar();
+    cEmpresa.recargar();
+  }, [cRems, cEmpleados, cEmpresa]);
 
   const resumen = useMemo(
     () => resumirMasa(rems, cargasPct),
@@ -428,7 +450,13 @@ const VistaAdmin = () => {
           </div>
         </div>
 
-        {resumen.porEmpleado.length === 0 ? (
+        {cRems.fase === 'error' && cRems.error ? (
+          <div className="mt-4">
+            <BloqueError error={cRems.error} onReintentar={cRems.recargar} />
+          </div>
+        ) : cRems.fase === 'cargando' ? (
+          <p className="mt-4 text-sm text-ink-soft">Cargando sueldos…</p>
+        ) : resumen.porEmpleado.length === 0 ? (
           <div className="mt-4 flex flex-col items-start gap-3 rounded-xl bg-paper px-5 py-6">
             <p className="text-sm text-ink-soft">
               Todavía no hay sueldos cargados. Cargá la primera remuneración y

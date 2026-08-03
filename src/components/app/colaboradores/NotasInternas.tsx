@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { IconLock, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoTextarea } from '@/components/app/ui/Campo';
@@ -12,6 +12,8 @@ import {
   quitarNotaInterna,
 } from '@/lib/services/rrhh';
 import { NotaInterna } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const formatearFechaLarga = (iso: string): string =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('es-AR', {
@@ -30,14 +32,15 @@ interface NotasInternasProps {
  */
 export const NotasInternas = ({ empleadoId }: NotasInternasProps) => {
   const { usuario } = useAuth();
-  const [notas, setNotas] = useState<NotaInterna[]>([]);
   const [motivo, setMotivo] = useState('');
   const [observacion, setObservacion] = useState('');
   const [guardando, setGuardando] = useState(false);
 
-  useEffect(() => {
-    void getNotasInternas(empleadoId).then(setNotas);
-  }, [empleadoId]);
+  const carga = useCarga(() => getNotasInternas(empleadoId), [empleadoId], {
+    contexto: 'ficha/notas',
+    inicial: [] as NotaInterna[],
+  });
+  const notas = carga.datos;
 
   const agregar = async () => {
     if (!motivo.trim() || !usuario) return;
@@ -49,7 +52,8 @@ export const NotasInternas = ({ empleadoId }: NotasInternasProps) => {
         autorId: usuario.id,
         autorNombre: usuario.nombreCompleto,
       });
-      setNotas((prev) => [nueva, ...prev]);
+      // El servidor ya devolvió la nota creada: no hace falta re-pedir.
+      carga.actualizar([nueva, ...notas]);
       setMotivo('');
       setObservacion('');
     } catch {
@@ -60,11 +64,13 @@ export const NotasInternas = ({ empleadoId }: NotasInternasProps) => {
   };
 
   const quitar = async (id: string) => {
-    setNotas((prev) => prev.filter((n) => n.id !== id));
+    // Se saca de la lista antes de que conteste el servidor para que el
+    // borrado se sienta inmediato; si falla, se vuelve a pedir y reaparece.
+    carga.actualizar(notas.filter((n) => n.id !== id));
     try {
       await quitarNotaInterna(id);
     } catch {
-      void getNotasInternas(empleadoId).then(setNotas);
+      carga.recargar();
     }
   };
 
@@ -104,7 +110,9 @@ export const NotasInternas = ({ empleadoId }: NotasInternasProps) => {
 
       {/* Historial */}
       <div className="mt-4 flex flex-col gap-2">
-        {notas.length === 0 ? (
+        {carga.fase === 'error' && carga.error ? (
+          <BloqueError error={carga.error} onReintentar={carga.recargar} />
+        ) : notas.length === 0 ? (
           <p className="rounded-xl bg-paper px-4 py-3 text-sm text-ink-soft">
             Sin notas cargadas.
           </p>

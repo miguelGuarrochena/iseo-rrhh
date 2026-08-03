@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useState } from 'react';
 import {
   Icon,
   IconAlertTriangle,
@@ -29,6 +29,8 @@ import {
 import { Alerta, EventoAgenda, TipoEvento } from '@/types/rrhh';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 8;
@@ -79,8 +81,6 @@ const AgendaPage = () => {
   const puedeCrear =
     rolEfectivo === 'admin_rrhh' || rolEfectivo === 'supervisor';
 
-  const [eventos, setEventos] = useState<EventoAgenda[]>([]);
-  const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [filtro, setFiltro] = useState<TipoEvento | ''>('');
   const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null);
   const [modalAbierto, { open, close }] = useDisclosure(false);
@@ -95,15 +95,25 @@ const AgendaPage = () => {
   const puedeVerAlertas =
     rolEfectivo === 'admin_rrhh' || rolEfectivo === 'supervisor';
 
-  const cargar = useCallback(() => {
-    void getEventosProximos().then(setEventos);
-    if (puedeVerAlertas) {
-      void getAlertas().then(setAlertas);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [puedeVerAlertas]);
+  const cargaEventos = useCarga(() => getEventosProximos(), [], {
+    contexto: 'agenda/eventos',
+    inicial: [] as EventoAgenda[],
+  });
+  const eventos = cargaEventos.datos;
 
-  useEffect(cargar, [cargar]);
+  // Las alertas (vencimientos que calcula el sistema) sólo las ve quien
+  // gestiona; el empleado ve su agenda igual sin ellas.
+  const cargaAlertas = useCarga(() => getAlertas(), [puedeVerAlertas], {
+    activo: puedeVerAlertas,
+    contexto: 'agenda/alertas',
+    inicial: [] as Alerta[],
+  });
+  const alertas = cargaAlertas.datos;
+
+  const cargar = useCallback(() => {
+    cargaEventos.recargar();
+    cargaAlertas.recargar();
+  }, [cargaEventos, cargaAlertas]);
 
   // Los vencimientos de contrato/documentos ya calculados por el sistema se
   // suman a los eventos cargados a mano, para no vivir en dos pantallas
@@ -181,6 +191,13 @@ const AgendaPage = () => {
         ]}
       />
 
+      {cargaEventos.fase === 'error' && cargaEventos.error && (
+        <BloqueError
+          error={cargaEventos.error}
+          onReintentar={cargaEventos.recargar}
+        />
+      )}
+
       <div className="grid gap-4 lg:grid-cols-[minmax(0,20rem)_1fr]">
         <Panel className="h-fit">
           <MiniCalendario
@@ -192,6 +209,7 @@ const AgendaPage = () => {
 
         <ListaCard
           titulo={diaSeleccionado ? 'Eventos del día' : 'Próximos'}
+          cargando={cargaEventos.fase === 'cargando'}
           vacio={
             diaSeleccionado
               ? 'No hay eventos ese día.'

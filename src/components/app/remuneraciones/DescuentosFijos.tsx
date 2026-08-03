@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
@@ -12,6 +12,8 @@ import {
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
 import { DescuentoRecurrente } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 interface Props {
   empleadoId: string;
@@ -30,18 +32,19 @@ export const DescuentosFijos = ({
   puedeEditar,
   onCambio,
 }: Props) => {
-  const [descuentos, setDescuentos] = useState<DescuentoRecurrente[]>([]);
   const [agregando, setAgregando] = useState(false);
   const [concepto, setConcepto] = useState('');
   const [monto, setMonto] = useState('');
   const [modo, setModo] = useState<'monto' | 'porcentaje'>('monto');
   const [guardando, setGuardando] = useState(false);
 
-  const cargar = useCallback(() => {
-    void getDescuentosRecurrentes(empleadoId).then(setDescuentos);
-  }, [empleadoId]);
-
-  useEffect(cargar, [cargar]);
+  const carga = useCarga(
+    () => getDescuentosRecurrentes(empleadoId),
+    [empleadoId],
+    { contexto: 'ficha/descuentos', inicial: [] as DescuentoRecurrente[] }
+  );
+  const descuentos = carga.datos;
+  const cargar = carga.recargar;
 
   const textoValor = (d: DescuentoRecurrente) =>
     d.modo === 'porcentaje' ? `${d.porcentaje ?? 0}%` : formatearPesos(d.monto);
@@ -200,7 +203,11 @@ export const DescuentosFijos = ({
         </div>
       )}
 
-      {descuentos.length === 0 && !agregando && (
+      {carga.fase === 'error' && carga.error && (
+        <BloqueError error={carga.error} onReintentar={carga.recargar} />
+      )}
+
+      {carga.fase === 'ok' && descuentos.length === 0 && !agregando && (
         <p className="mt-3 text-xs text-ink-soft">
           Sin descuentos fijos cargados.
         </p>

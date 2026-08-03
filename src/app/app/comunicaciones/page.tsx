@@ -11,7 +11,10 @@ import { Campo, CampoSelect, CampoTextarea } from '@/components/app/ui/Campo';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { aOpciones, Selector } from '@/components/app/ui/Selector';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import { avisoError, avisoExito } from '@/lib/avisos';
+import { interpretarError } from '@/lib/errores';
 import {
   cerrarComunicacion,
   crearComunicacion,
@@ -54,8 +57,6 @@ const campoClase =
 const ComunicacionesPage = () => {
   const { usuario, rolEfectivo } = useAuth();
   const esEmpleado = rolEfectivo === 'empleado';
-  const [lista, setLista] = useState<Comunicacion[]>([]);
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [filtroEmpleado, setFiltroEmpleado] = useState('');
   const [seleccion, setSeleccion] = useState<Comunicacion | null>(null);
   const [sinLeer, setSinLeer] = useState<Set<string>>(new Set());
@@ -69,18 +70,44 @@ const ComunicacionesPage = () => {
   const [enviando, setEnviando] = useState(false);
   const [errores, setErrores] = useState<Record<string, string>>({});
 
-  const cargar = useCallback(() => {
-    if (!usuario) return;
-    if (esEmpleado && usuario.empleadoId) {
-      void getComunicacionesDeEmpleado(usuario.empleadoId).then(setLista);
-    } else {
-      void getComunicaciones().then(setLista);
-      void getEmpleados().then(setEmpleados);
-    }
-    void getComunicacionesSinLeer().then((ids) => setSinLeer(new Set(ids)));
-  }, [usuario, esEmpleado]);
+  const miId = usuario?.empleadoId;
+  const soloMias = esEmpleado && Boolean(miId);
 
-  useEffect(cargar, [cargar]);
+  const cLista = useCarga(
+    () => (soloMias ? getComunicacionesDeEmpleado(miId!) : getComunicaciones()),
+    [soloMias, miId],
+    {
+      activo: Boolean(usuario),
+      contexto: 'comunicaciones',
+      inicial: [] as Comunicacion[],
+    }
+  );
+  const lista = cLista.datos;
+
+  const cEmpleados = useCarga(() => getEmpleados(), [soloMias], {
+    activo: !soloMias && Boolean(usuario),
+    contexto: 'comunicaciones/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cEmpleados.datos;
+
+  // Los "sin leer" son un adorno del listado: si fallan, las
+  // conversaciones se abren igual.
+  const cSinLeer = useCarga(() => getComunicacionesSinLeer(), [], {
+    activo: Boolean(usuario),
+    contexto: 'comunicaciones/sin-leer',
+    inicial: [] as string[],
+  });
+
+  useEffect(() => {
+    setSinLeer(new Set(cSinLeer.datos));
+  }, [cSinLeer.datos]);
+
+  const cargar = useCallback(() => {
+    cLista.recargar();
+    cEmpleados.recargar();
+    cSinLeer.recargar();
+  }, [cLista, cEmpleados, cSinLeer]);
 
   const listaFiltrada = useMemo(
     () =>
@@ -119,7 +146,12 @@ const ComunicacionesPage = () => {
     }
     const id = seleccion.id;
     const traer = () => {
-      void getMensajesComunicacion(id).then(setMensajes);
+      void getMensajesComunicacion(id)
+        .then(setMensajes)
+        .catch((err) => {
+          const { titulo, detalle } = interpretarError(err);
+          avisoError(titulo, detalle);
+        });
     };
     traer();
 
@@ -247,9 +279,18 @@ const ComunicacionesPage = () => {
         />
       )}
 
+      {cLista.fase === 'error' && cLista.error && (
+        <BloqueError error={cLista.error} onReintentar={cLista.recargar} />
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <ListaCard
-          titulo={`Conversaciones (${listaFiltrada.length})`}
+          titulo={
+            cLista.fase === 'ok'
+              ? `Conversaciones (${listaFiltrada.length})`
+              : 'Conversaciones'
+          }
+          cargando={cLista.fase === 'cargando'}
           vacio={
             filtroEmpleado
               ? 'Este colaborador todavía no tiene comunicaciones.'

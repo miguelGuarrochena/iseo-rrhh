@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode } from 'react';
 import { IconDownload, IconFileText } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
@@ -12,12 +12,9 @@ import {
   getDocumentosDeEmpleado,
   getEmpleado,
 } from '@/lib/services/rrhh';
-import {
-  DocumentoLegajo,
-  Empleado,
-  EstadoCivil,
-  NivelEstudios,
-} from '@/types/rrhh';
+import { DocumentoLegajo, EstadoCivil, NivelEstudios } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const estadoCivilLabel: Record<EstadoCivil, string> = {
   soltero: 'Soltero/a',
@@ -62,14 +59,27 @@ const Seccion = ({
 
 const MiLegajoPage = () => {
   const { usuario } = useAuth();
-  const [empleado, setEmpleado] = useState<Empleado | null>(null);
-  const [documentos, setDocumentos] = useState<DocumentoLegajo[]>([]);
+  const empleadoId = usuario?.empleadoId;
 
-  useEffect(() => {
-    if (!usuario?.empleadoId) return;
-    void getEmpleado(usuario.empleadoId).then(setEmpleado);
-    void getDocumentosDeEmpleado(usuario.empleadoId).then(setDocumentos);
-  }, [usuario]);
+  // `activo` evita pedir con un id vacío: el usuario del superadmin no
+  // tiene legajo. Va como opción y no como `if` antes del hook, que
+  // rompería el orden de los hooks de React.
+  const cargaEmpleado = useCarga(() => getEmpleado(empleadoId!), [empleadoId], {
+    activo: Boolean(empleadoId),
+    contexto: 'mi-legajo/empleado',
+  });
+  const empleado = cargaEmpleado.datos ?? null;
+
+  const cargaDocs = useCarga(
+    () => getDocumentosDeEmpleado(empleadoId!),
+    [empleadoId],
+    {
+      activo: Boolean(empleadoId),
+      contexto: 'mi-legajo/documentos',
+      inicial: [] as DocumentoLegajo[],
+    }
+  );
+  const documentos = cargaDocs.datos;
 
   const abrir = (doc: DocumentoLegajo) =>
     abrirArchivo(() => abrirDocumento(doc), {
@@ -81,6 +91,17 @@ const MiLegajoPage = () => {
       <p className="rounded-xl bg-paper px-4 py-3 text-sm text-ink-soft">
         Tu usuario no está vinculado a un legajo.
       </p>
+    );
+  }
+
+  // Antes cualquier fallo se veía como "Cargando tu legajo…" para
+  // siempre: la persona esperaba a que apareciera algo que no iba a venir.
+  if (cargaEmpleado.fase === 'error' && cargaEmpleado.error) {
+    return (
+      <BloqueError
+        error={cargaEmpleado.error}
+        onReintentar={cargaEmpleado.recargar}
+      />
     );
   }
 

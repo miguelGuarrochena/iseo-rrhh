@@ -41,6 +41,8 @@ import { FichajeManualModal } from '@/components/app/facial/FichajeManualModal';
 import { getTerminalLocal } from '@/lib/terminal';
 import { ActivarKioscoModal } from '@/components/app/fichaje/ActivarKioscoModal';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
@@ -146,30 +148,55 @@ const FichajePage = () => {
   const { usuario, rolEfectivo } = useAuth();
   const esEmpleado = rolEfectivo === 'empleado';
 
-  const [misFichajes, setMisFichajes] = useState<Fichaje[]>([]);
-  const [fichajesHoy, setFichajesHoy] = useState<Fichaje[]>([]);
-  const [ausenciasHoy, setAusenciasHoy] = useState<Ausencia[]>([]);
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [miEmpleado, setMiEmpleado] = useState<Empleado | null>(null);
   const [facialAbierto, setFacialAbierto] = useState(false);
   const [kioscoAbierto, setKioscoAbierto] = useState(false);
   const [manualAbierto, setManualAbierto] = useState(false);
   const [esTerminal, setEsTerminal] = useState(false);
 
-  const cargar = useCallback(() => {
-    if (!usuario) return;
-    if (usuario.empleadoId) {
-      void getFichajesDeEmpleadoHoy(usuario.empleadoId).then(setMisFichajes);
-      void getEmpleado(usuario.empleadoId).then(setMiEmpleado);
-    }
-    if (!esEmpleado) {
-      void getFichajesDeHoy().then(setFichajesHoy);
-      void getEmpleados().then(setEmpleados);
-      void getAusencias().then(setAusenciasHoy);
-    }
-  }, [usuario, esEmpleado]);
+  const miId = usuario?.empleadoId;
+  const vistaEquipo = Boolean(usuario) && !esEmpleado;
 
-  useEffect(cargar, [cargar]);
+  const cMisFichajes = useCarga(() => getFichajesDeEmpleadoHoy(miId!), [miId], {
+    activo: Boolean(miId),
+    contexto: 'fichaje/mios',
+    inicial: [] as Fichaje[],
+  });
+  const misFichajes = cMisFichajes.datos;
+
+  const cMiEmpleado = useCarga(() => getEmpleado(miId!), [miId], {
+    activo: Boolean(miId),
+    contexto: 'fichaje/mi-ficha',
+  });
+  const miEmpleado = cMiEmpleado.datos ?? null;
+
+  const cFichajesHoy = useCarga(() => getFichajesDeHoy(), [vistaEquipo], {
+    activo: vistaEquipo,
+    contexto: 'fichaje/hoy',
+    inicial: [] as Fichaje[],
+  });
+  const fichajesHoy = cFichajesHoy.datos;
+
+  const cEmpleados = useCarga(() => getEmpleados(), [vistaEquipo], {
+    activo: vistaEquipo,
+    contexto: 'fichaje/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cEmpleados.datos;
+
+  const cAusencias = useCarga(() => getAusencias(), [vistaEquipo], {
+    activo: vistaEquipo,
+    contexto: 'fichaje/ausencias',
+    inicial: [] as Ausencia[],
+  });
+  const ausenciasHoy = cAusencias.datos;
+
+  const cargar = useCallback(() => {
+    cMisFichajes.recargar();
+    cMiEmpleado.recargar();
+    cFichajesHoy.recargar();
+    cEmpleados.recargar();
+    cAusencias.recargar();
+  }, [cMisFichajes, cMiEmpleado, cFichajesHoy, cEmpleados, cAusencias]);
 
   // Verifica si ESTE dispositivo está autorizado como terminal de planta.
   useEffect(() => {
@@ -356,8 +383,19 @@ const FichajePage = () => {
             />
           </div>
 
+          {cFichajesHoy.fase === 'error' && cFichajesHoy.error && (
+            <BloqueError
+              error={cFichajesHoy.error}
+              onReintentar={cFichajesHoy.recargar}
+            />
+          )}
+
           <div className="grid gap-4 lg:grid-cols-2">
-            <ListaCard titulo="Fichajes de hoy" vacio="Sin fichajes todavía.">
+            <ListaCard
+              titulo="Fichajes de hoy"
+              cargando={cFichajesHoy.fase === 'cargando'}
+              vacio="Sin fichajes todavía."
+            >
               {fichajesHoy.length > 0 &&
                 paginaFichajes.visibles.map((f) => (
                   <ListaItem

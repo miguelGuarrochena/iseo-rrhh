@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { IconPlus, IconReportMoney, IconTrash } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
@@ -11,6 +11,8 @@ import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
 import { formatearPeriodo } from '@/lib/fechas';
 import { Remuneracion } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 interface Props {
   empleadoId: string;
@@ -24,18 +26,20 @@ export const RemuneracionesEmpleado = ({
   puedeEditar,
   convenioEmpleado,
 }: Props) => {
-  const [rems, setRems] = useState<Remuneracion[]>([]);
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState<Remuneracion | null>(null);
   const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
-  const cargar = useCallback(() => {
-    void getRemuneraciones(empleadoId).then((lista) =>
-      setRems([...lista].sort((a, b) => (a.periodo < b.periodo ? 1 : -1)))
-    );
-  }, [empleadoId]);
-
-  useEffect(cargar, [cargar]);
+  const carga = useCarga(
+    async () => {
+      const lista = await getRemuneraciones(empleadoId);
+      return [...lista].sort((a, b) => (a.periodo < b.periodo ? 1 : -1));
+    },
+    [empleadoId],
+    { contexto: 'ficha/remuneraciones', inicial: [] as Remuneracion[] }
+  );
+  const rems = carga.datos;
+  const cargar = carga.recargar;
 
   const convenioSugerido =
     convenioEmpleado || rems.find((r) => r.convenio)?.convenio;
@@ -86,7 +90,9 @@ export const RemuneracionesEmpleado = ({
         )}
       </div>
 
-      {rems.length === 0 ? (
+      {carga.fase === 'error' && carga.error ? (
+        <BloqueError error={carga.error} onReintentar={carga.recargar} />
+      ) : rems.length === 0 ? (
         <p className="mt-4 text-sm text-ink-soft">
           {puedeEditar
             ? 'Sin remuneraciones cargadas. Usá “Cargar remuneración” para el sueldo del período.'

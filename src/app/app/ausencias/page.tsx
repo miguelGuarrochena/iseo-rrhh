@@ -53,6 +53,8 @@ import {
   VacacionSector,
 } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const ANIO_ACTUAL = new Date().getFullYear();
@@ -70,46 +72,71 @@ const AusenciasPage = () => {
   const esAdminRRHH = rolEfectivo === 'admin_rrhh';
   const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
-  const [saldo, setSaldo] = useState<SaldoVacaciones | null>(null);
-  const [ausencias, setAusencias] = useState<Ausencia[]>([]);
-  const [vacacionesSector, setVacacionesSector] = useState<VacacionSector[]>(
-    []
-  );
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [filtroTipo, setFiltroTipo] = useState<TipoAusencia | ''>('');
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroEmpleado, setFiltroEmpleado] = useState('');
   const [pagina, setPagina] = useState(1);
   const [modalAbierto, { open, close }] = useDisclosure(false);
-  const [cargando, setCargando] = useState(true);
+
+  const miEmpleadoId = usuario?.empleadoId;
+  const soloMias = esEmpleado && Boolean(miEmpleadoId);
+
+  /**
+   * Cada consulta va por separado, no en un `Promise.all`: son de
+   * importancia distinta. Si falla la lista de colaboradores —que sólo
+   * resuelve nombres y llena el filtro— no tiene sentido dejar la
+   * pantalla sin las ausencias, que es a lo que se vino.
+   */
+  const cargaAusencias = useCarga(
+    () => (soloMias ? getAusenciasDeEmpleado(miEmpleadoId!) : getAusencias()),
+    [soloMias, miEmpleadoId],
+    {
+      activo: Boolean(usuario),
+      contexto: 'ausencias',
+      inicial: [] as Ausencia[],
+    }
+  );
+  const ausencias = cargaAusencias.datos;
+
+  const cargaEmpleados = useCarga(
+    async () => {
+      if (!soloMias) return getEmpleados();
+      const propio = await getEmpleado(miEmpleadoId!);
+      return propio ? [propio] : [];
+    },
+    [soloMias, miEmpleadoId],
+    {
+      activo: Boolean(usuario),
+      contexto: 'ausencias/empleados',
+      inicial: [] as Empleado[],
+    }
+  );
+  const empleados = cargaEmpleados.datos;
+
+  const cargaSaldo = useCarga(
+    () => getSaldoVacaciones(miEmpleadoId!, ANIO_ACTUAL),
+    [miEmpleadoId],
+    { activo: Boolean(miEmpleadoId), contexto: 'ausencias/saldo' }
+  );
+  const saldo: SaldoVacaciones | null = cargaSaldo.datos ?? null;
+
+  const cargaSector = useCarga(
+    () => getVacacionesAprobadasMiSector(miEmpleadoId!),
+    [miEmpleadoId, soloMias],
+    {
+      activo: soloMias,
+      contexto: 'ausencias/sector',
+      inicial: [] as VacacionSector[],
+    }
+  );
+  const vacacionesSector = cargaSector.datos;
 
   const cargar = useCallback(() => {
-    if (!usuario) return;
-    if (esEmpleado && usuario.empleadoId) {
-      const empleadoId = usuario.empleadoId;
-      void (async () => {
-        const [misAusencias, saldoVacaciones, empleado, vacaciones] =
-          await Promise.all([
-            getAusenciasDeEmpleado(empleadoId),
-            getSaldoVacaciones(empleadoId, ANIO_ACTUAL),
-            getEmpleado(empleadoId),
-            getVacacionesAprobadasMiSector(empleadoId),
-          ]);
-        setAusencias(misAusencias);
-        setSaldo(saldoVacaciones);
-        setEmpleados(empleado ? [empleado] : []);
-        setVacacionesSector(vacaciones);
-      })().finally(() => setCargando(false));
-    } else {
-      void getAusencias()
-        .then(setAusencias)
-        .finally(() => setCargando(false));
-      void getEmpleados().then(setEmpleados);
-      setVacacionesSector([]);
-    }
-  }, [usuario, esEmpleado]);
-
-  useEffect(cargar, [cargar]);
+    cargaAusencias.recargar();
+    cargaEmpleados.recargar();
+    cargaSaldo.recargar();
+    cargaSector.recargar();
+  }, [cargaAusencias, cargaEmpleados, cargaSaldo, cargaSector]);
 
   // Permite llegar filtrado desde otras pantallas: /app/ausencias?empleado=ple-2
   useEffect(() => {
@@ -415,11 +442,21 @@ const AusenciasPage = () => {
         </Panel>
       )}
 
+      {/* El error va arriba de las dos listas: si la consulta falló,
+          "no hay solicitudes pendientes" es mentira y hace que alguien
+          dé por aprobado lo que en realidad no se pudo leer. */}
+      {cargaAusencias.fase === 'error' && cargaAusencias.error && (
+        <BloqueError
+          error={cargaAusencias.error}
+          onReintentar={cargaAusencias.recargar}
+        />
+      )}
+
       <ListaCard
         titulo={
           esEmpleado ? 'Solicitudes en curso' : 'Pendientes de aprobación'
         }
-        cargando={cargando}
+        cargando={cargaAusencias.fase === 'cargando'}
         vacio={
           esEmpleado
             ? 'No tenés solicitudes en curso.'
@@ -490,7 +527,7 @@ const AusenciasPage = () => {
 
       <ListaCard
         titulo="Historial"
-        cargando={cargando}
+        cargando={cargaAusencias.fase === 'cargando'}
         tieneItems={resueltasVisibles.length > 0}
         vacio="Sin movimientos anteriores."
       >

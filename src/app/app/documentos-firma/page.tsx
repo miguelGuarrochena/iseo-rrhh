@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -16,9 +16,12 @@ import { Campo, CampoTextarea } from '@/components/app/ui/Campo';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { avisoError, avisoExito } from '@/lib/avisos';
+import { interpretarError } from '@/lib/errores';
 import { abrirArchivo } from '@/lib/archivosUi';
 import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 import {
   abrirDocumentoFirma,
   crearDocumentoFirma,
@@ -44,13 +47,6 @@ const DocumentosFirmaPage = () => {
   const esAdmin = rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin';
   const esEmpleado = rolEfectivo === 'empleado';
 
-  const [docs, setDocs] = useState<
-    (DocumentoFirma & { pendientes: number; firmados: number })[]
-  >([]);
-  const [pendientes, setPendientes] = useState<
-    (DocumentoFirma & { destinatarioId: string })[]
-  >([]);
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [detalleDoc, setDetalleDoc] = useState<
     (DocumentoFirma & { pendientes: number; firmados: number }) | null
   >(null);
@@ -66,18 +62,42 @@ const DocumentosFirmaPage = () => {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
-  const cargar = useCallback(() => {
-    if (!usuario) return;
-    if (esAdmin) {
-      void getDocumentosFirma().then(setDocs);
-      void getEmpleados().then(setEmpleados);
-    }
-    if (usuario.empleadoId) {
-      void getDocumentosFirmaPendientes(usuario.empleadoId).then(setPendientes);
-    }
-  }, [usuario, esAdmin]);
+  const miId = usuario?.empleadoId;
+  const vistaAdmin = esAdmin && Boolean(usuario);
 
-  useEffect(cargar, [cargar]);
+  const cDocs = useCarga(() => getDocumentosFirma(), [vistaAdmin], {
+    activo: vistaAdmin,
+    contexto: 'documentos-firma/enviados',
+    inicial: [] as (DocumentoFirma & {
+      pendientes: number;
+      firmados: number;
+    })[],
+  });
+  const docs = cDocs.datos;
+
+  const cEmpleados = useCarga(() => getEmpleados(), [vistaAdmin], {
+    activo: vistaAdmin,
+    contexto: 'documentos-firma/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cEmpleados.datos;
+
+  const cPendientes = useCarga(
+    () => getDocumentosFirmaPendientes(miId!),
+    [miId],
+    {
+      activo: Boolean(miId),
+      contexto: 'documentos-firma/pendientes',
+      inicial: [] as (DocumentoFirma & { destinatarioId: string })[],
+    }
+  );
+  const pendientes = cPendientes.datos;
+
+  const cargar = useCallback(() => {
+    cDocs.recargar();
+    cEmpleados.recargar();
+    cPendientes.recargar();
+  }, [cDocs, cEmpleados, cPendientes]);
 
   const {
     pagina,
@@ -154,7 +174,14 @@ const DocumentosFirmaPage = () => {
     doc: DocumentoFirma & { pendientes: number; firmados: number }
   ) => {
     setDetalleDoc(doc);
-    void getDestinatariosDocumento(doc.id).then(setDestinatarios);
+    // Es una acción, no una carga de pantalla: el error va al toast.
+    void getDestinatariosDocumento(doc.id)
+      .then(setDestinatarios)
+      .catch((err) => {
+        const { titulo, detalle } = interpretarError(err);
+        avisoError(titulo, detalle);
+        setDestinatarios([]);
+      });
   };
 
   /**
@@ -206,9 +233,23 @@ const DocumentosFirmaPage = () => {
         )}
       </div>
 
+      {/* Si no se pudo leer lo pendiente, decirlo: "no tenés documentos
+          pendientes" hace que alguien deje sin firmar algo que sí estaba. */}
+      {cPendientes.fase === 'error' && cPendientes.error && (
+        <BloqueError
+          error={cPendientes.error}
+          onReintentar={cPendientes.recargar}
+        />
+      )}
+
       {(esEmpleado || usuario.empleadoId) && (
         <ListaCard
-          titulo={`Pendientes de tu firma (${pendientes.length})`}
+          titulo={
+            cPendientes.fase === 'ok'
+              ? `Pendientes de tu firma (${pendientes.length})`
+              : 'Pendientes de tu firma'
+          }
+          cargando={cPendientes.fase === 'cargando'}
           vacio="No tenés documentos pendientes."
         >
           {pendientes.map((d) => (
@@ -242,7 +283,10 @@ const DocumentosFirmaPage = () => {
 
       {esAdmin && (
         <ListaCard
-          titulo={`Enviados (${docs.length})`}
+          titulo={
+            cDocs.fase === 'ok' ? `Enviados (${docs.length})` : 'Enviados'
+          }
+          cargando={cDocs.fase === 'cargando'}
           vacio="Todavía no enviaste documentos a firmar."
         >
           {docsVisibles.map((d) => (

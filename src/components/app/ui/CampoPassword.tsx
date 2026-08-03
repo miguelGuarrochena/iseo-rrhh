@@ -3,20 +3,40 @@
 import { InputHTMLAttributes, useState } from 'react';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 
-type Props = Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>;
+interface Props extends Omit<InputHTMLAttributes<HTMLInputElement>, 'type'> {
+  /** Sin etiqueta el campo va pelado, como en el login. */
+  etiqueta?: string;
+  error?: string;
+  ayuda?: string;
+}
 
 /**
  * Input de contraseña con el "ojito" para mostrarla u ocultarla.
+ *
+ * Acepta etiqueta, error y ayuda como el resto de los campos: era el
+ * único que no los tenía, y en un formulario con tres contraseñas
+ * seguidas (cambiar la propia) sin marca por campo no se sabe cuál falló.
  */
-export const CampoPassword = ({ className, ...props }: Props) => {
+export const CampoPassword = ({
+  etiqueta,
+  error,
+  ayuda,
+  className,
+  ...props
+}: Props) => {
   const [visible, setVisible] = useState(false);
 
-  return (
+  const campo = (
     <div className="relative">
       <input
         {...props}
         type={visible ? 'text' : 'password'}
-        className={`w-full rounded-xl border border-line bg-surface px-4 py-3 pr-12 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600 ${className ?? ''}`}
+        aria-invalid={Boolean(error)}
+        className={`w-full rounded-xl border bg-surface px-4 py-3 pr-12 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 ${
+          error
+            ? 'border-red-300 focus:border-red-500'
+            : 'border-line focus:border-brand-600'
+        } ${className ?? ''}`}
       />
       <button
         type="button"
@@ -32,5 +52,27 @@ export const CampoPassword = ({ className, ...props }: Props) => {
         )}
       </button>
     </div>
+  );
+
+  // Sin etiqueta ni mensajes se devuelve el input solo, para no cambiar
+  // el layout de las pantallas que ya lo usaban así.
+  if (!etiqueta && !error && !ayuda) return campo;
+
+  return (
+    <label
+      className="flex flex-col gap-1.5"
+      {...(error ? { 'data-error-campo': '' } : {})}
+    >
+      {etiqueta && (
+        <span className="text-sm font-semibold text-ink">{etiqueta}</span>
+      )}
+      {campo}
+      {error && (
+        <span className="text-xs font-medium text-red-600">{error}</span>
+      )}
+      {!error && ayuda && (
+        <span className="text-xs text-ink-soft">{ayuda}</span>
+      )}
+    </label>
   );
 };

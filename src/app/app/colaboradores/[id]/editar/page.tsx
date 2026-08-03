@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
@@ -10,17 +9,18 @@ import {
 } from '@/components/app/colaboradores/FormEmpleado';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { actualizarEmpleado, getEmpleado } from '@/lib/services/rrhh';
-import { Empleado } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const EditarColaboradorPage = () => {
   const { id } = useParams<{ id: string }>();
   const { usuario, rolEfectivo } = useAuth();
   const router = useRouter();
-  const [empleado, setEmpleado] = useState<Empleado | null>(null);
-
-  useEffect(() => {
-    if (id) void getEmpleado(id).then(setEmpleado);
-  }, [id]);
+  const carga = useCarga(() => getEmpleado(id), [id], {
+    activo: Boolean(id),
+    contexto: 'colaborador/editar',
+  });
+  const empleado = carga.datos ?? null;
 
   if (!usuario || rolEfectivo !== 'admin_rrhh') {
     return (
@@ -28,6 +28,10 @@ const EditarColaboradorPage = () => {
         No tenés permisos para ver esta sección.
       </p>
     );
+  }
+
+  if (carga.fase === 'error' && carga.error) {
+    return <BloqueError error={carga.error} onReintentar={carga.recargar} />;
   }
 
   if (!empleado) {

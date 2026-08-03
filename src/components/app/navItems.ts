@@ -1,5 +1,6 @@
 import {
   Icon,
+  IconAdjustments,
   IconBuildingFactory2,
   IconCashBanknote,
   IconCalendarClock,
@@ -222,6 +223,14 @@ export const navItems: NavItem[] = [
     roles: ['superadmin'],
   },
   {
+    // Lo de ISEO. La Configuración de más abajo es la de cada empresa:
+    // son dos cosas distintas y por eso no comparten nombre.
+    etiqueta: 'Plataforma',
+    href: '/plataforma',
+    icono: IconAdjustments,
+    roles: ['superadmin'],
+  },
+  {
     etiqueta: 'Colaboradores',
     href: '/colaboradores',
     icono: IconUsers,
@@ -315,10 +324,13 @@ export const navItems: NavItem[] = [
     modulo: 'reportes',
   },
   {
+    // De una empresa: invita usuarios a ESA empresa. Al superadmin le
+    // aparece cuando entra a un cliente (ahí su rol efectivo es admin).
+    // En su menú suelto no iba: no hay empresa sobre la cual dar permisos.
     etiqueta: 'Permisos',
     href: '/permisos',
     icono: IconShieldCheck,
-    roles: ['superadmin', 'admin_rrhh'],
+    roles: ['admin_rrhh'],
   },
   {
     etiqueta: 'Ayuda',
@@ -327,10 +339,11 @@ export const navItems: NavItem[] = [
     roles: ['superadmin', ...OPERATIVOS],
   },
   {
+    // Los parámetros de una empresa. Lo de ISEO está en Plataforma.
     etiqueta: 'Configuración',
     href: '/configuracion',
     icono: IconSettings,
-    roles: ['superadmin', 'admin_rrhh'],
+    roles: ['admin_rrhh'],
   },
 ];
 

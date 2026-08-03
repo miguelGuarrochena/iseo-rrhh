@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { avisoError } from '@/lib/avisos';
 import { registrarErrorApp } from '@/lib/erroresApp';
+import { interpretarError, textoDeError } from '@/lib/errores';
 
 /**
  * Última red antes de la consola.
@@ -20,57 +21,6 @@ import { registrarErrorApp } from '@/lib/erroresApp';
  * que nada falle en silencio.
  */
 
-/** Errores de infraestructura traducidos a algo accionable. */
-const traducir = (mensaje: string): { titulo: string; detalle: string } => {
-  const m = mensaje.toLowerCase();
-
-  if (m.includes('sin empresa activa')) {
-    return {
-      titulo: 'Elegí una empresa primero',
-      detalle:
-        'Esta sección trabaja sobre una empresa concreta. Entrá a una desde Empresas y volvé a intentar.',
-    };
-  }
-  if (m.includes('sin sesión') || m.includes('sesión vencida')) {
-    return {
-      titulo: 'Se cerró tu sesión',
-      detalle: 'Volvé a ingresar para seguir.',
-    };
-  }
-  if (m.includes('no está conectada al servidor')) {
-    return {
-      titulo: 'Sin conexión con el servidor',
-      detalle: 'Revisá tu conexión y volvé a intentar.',
-    };
-  }
-  if (
-    m.includes('failed to fetch') ||
-    m.includes('networkerror') ||
-    m.includes('load failed')
-  ) {
-    return {
-      titulo: 'No pudimos conectarnos',
-      detalle: 'Puede ser tu conexión. Probá de nuevo en unos segundos.',
-    };
-  }
-  if (m.includes('infinite recursion')) {
-    return {
-      titulo: 'Error de permisos en el servidor',
-      detalle: 'Avisá a ISEO RH: hay una regla de acceso mal configurada.',
-    };
-  }
-  return {
-    titulo: 'No pudimos cargar todo',
-    detalle: 'Fue un problema puntual. Probá recargar la pantalla.',
-  };
-};
-
-const textoDe = (razon: unknown): string => {
-  if (razon instanceof Error) return razon.message;
-  if (typeof razon === 'string') return razon;
-  return 'Error desconocido';
-};
-
 export const RedDeSeguridad = () => {
   useEffect(() => {
     /**
@@ -81,14 +31,14 @@ export const RedDeSeguridad = () => {
     const yaAvisado = new Set<string>();
 
     const alFallar = (e: PromiseRejectionEvent) => {
-      const mensaje = textoDe(e.reason);
+      const mensaje = textoDeError(e.reason);
       if (yaAvisado.has(mensaje)) return;
       yaAvisado.add(mensaje);
       // Se olvida a los pocos segundos para que un fallo nuevo más tarde
       // sí vuelva a avisar.
       window.setTimeout(() => yaAvisado.delete(mensaje), 5000);
 
-      const { titulo, detalle } = traducir(mensaje);
+      const { titulo, detalle } = interpretarError(e.reason);
       avisoError(titulo, detalle);
       registrarErrorApp(mensaje, 'promesa sin atrapar');
     };

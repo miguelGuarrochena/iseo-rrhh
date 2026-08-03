@@ -417,6 +417,23 @@ export const quitarDocumento = async (documentoId: string): Promise<void> => {
 export const getUsuariosDeEmpresa = async (): Promise<Usuario[]> =>
   simular(usuariosMock.filter((u) => u.empresaId === empresaDemo()));
 
+export const getEquipoIseo = async (): Promise<Usuario[]> =>
+  simular(usuariosMock.filter((u) => u.rol === 'superadmin'));
+
+export const actualizarMiPerfil = async (
+  nombreCompleto: string
+): Promise<Usuario> => {
+  const id = usuarioActualId();
+  const u = usuariosMock.find((x) => x.id === id);
+  if (!u) throw new Error('Sin sesión.');
+  u.nombreCompleto = nombreCompleto;
+  return simular(u);
+};
+
+/** En demo no hay contraseñas reales: se acepta y no se guarda nada. */
+export const cambiarMiContrasena = async (): Promise<void> =>
+  simular(undefined);
+
 export const cambiarRolUsuario = async (
   usuarioId: string,
   rol: Usuario['rol']

@@ -134,6 +134,15 @@ export const getUsuariosDeEmpresa = elegir(
   real.getUsuariosDeEmpresa,
   demo.getUsuariosDeEmpresa
 );
+export const getEquipoIseo = elegir(real.getEquipoIseo, demo.getEquipoIseo);
+export const actualizarMiPerfil = elegir(
+  real.actualizarMiPerfil,
+  demo.actualizarMiPerfil
+);
+export const cambiarMiContrasena = elegir(
+  real.cambiarMiContrasena,
+  demo.cambiarMiContrasena
+);
 export const cambiarRolUsuario = elegir(
   real.cambiarRolUsuario,
   demo.cambiarRolUsuario

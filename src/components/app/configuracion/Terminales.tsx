@@ -20,17 +20,22 @@ import {
   setTerminalLocal,
 } from '@/lib/terminal';
 import { Terminal } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 export const Terminales = () => {
-  const [terminales, setTerminales] = useState<Terminal[]>([]);
   const [nombre, setNombre] = useState('Tablet de planta');
   const [guardando, setGuardando] = useState(false);
   const [localId, setLocalId] = useState<string | null>(null);
 
-  const cargar = () => void getTerminales().then(setTerminales);
+  const carga = useCarga(() => getTerminales(), [], {
+    contexto: 'configuracion/terminales',
+    inicial: [] as Terminal[],
+  });
+  const terminales = carga.datos;
+  const cargar = carga.recargar;
 
   useEffect(() => {
-    cargar();
     setLocalId(getTerminalLocal());
   }, []);
 
@@ -97,6 +102,12 @@ export const Terminales = () => {
             <IconDeviceTablet size={18} />
             {guardando ? 'Autorizando…' : 'Autorizar este dispositivo'}
           </Boton>
+        </div>
+      )}
+
+      {carga.fase === 'error' && carga.error && (
+        <div className="mt-4">
+          <BloqueError error={carga.error} onReintentar={carga.recargar} />
         </div>
       )}
 

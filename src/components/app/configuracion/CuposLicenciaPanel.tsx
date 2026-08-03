@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
@@ -11,6 +11,8 @@ import {
   TIPOS_LICENCIA_CON_CUPO,
   TipoAusencia,
 } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 /**
  * Cupos anuales de licencias legales (mudanza, casamiento, etc.).
@@ -19,17 +21,21 @@ export const CuposLicenciaPanel = () => {
   const [cupos, setCupos] = useState<Record<string, number>>({});
   const [guardando, setGuardando] = useState(false);
 
-  const cargar = useCallback(() => {
-    void getCuposLicencia().then((lista: CupoLicencia[]) => {
-      const mapa: Record<string, number> = {};
-      TIPOS_LICENCIA_CON_CUPO.forEach((t) => {
-        mapa[t] = lista.find((c) => c.tipo === t)?.diasAnuales ?? 0;
-      });
-      setCupos(mapa);
-    });
-  }, []);
+  const carga = useCarga(() => getCuposLicencia(), [], {
+    contexto: 'configuracion/cupos',
+    inicial: [] as CupoLicencia[],
+  });
+  const cargar = carga.recargar;
 
-  useEffect(cargar, [cargar]);
+  // Los cupos se editan en el form, así que lo cargado se copia a estado
+  // local. Se rearma cuando llega una respuesta nueva (o un reintento).
+  useEffect(() => {
+    const mapa: Record<string, number> = {};
+    TIPOS_LICENCIA_CON_CUPO.forEach((t) => {
+      mapa[t] = carga.datos.find((c) => c.tipo === t)?.diasAnuales ?? 0;
+    });
+    setCupos(mapa);
+  }, [carga.datos]);
 
   const guardar = async () => {
     setGuardando(true);
@@ -40,6 +46,8 @@ export const CuposLicenciaPanel = () => {
         )
       );
       avisoExito('Cupos de licencia guardados');
+      // Relee lo guardado: si el servidor ajustó algo, el form lo refleja.
+      cargar();
     } catch (err) {
       avisoError(
         'No pudimos guardar',
@@ -48,6 +56,10 @@ export const CuposLicenciaPanel = () => {
     }
     setGuardando(false);
   };
+
+  if (carga.fase === 'error' && carga.error) {
+    return <BloqueError error={carga.error} onReintentar={carga.recargar} />;
+  }
 
   return (
     <Panel>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   IconAlertTriangle,
@@ -34,12 +34,13 @@ import {
   getResumenFinanzas,
 } from '@/lib/services/rrhh';
 import {
-  Empresa,
+  EmpresaResumen,
   FacturacionEmpresa,
   MovimientoFinanciero,
-  ResumenFinanzas,
   TipoMovimiento,
 } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const periodoActual = hoyISO().slice(0, 7);
 const MESES = [
@@ -71,27 +72,43 @@ const FinanzasPage = () => {
   const { usuario } = useAuth();
   const router = useRouter();
   const [periodo, setPeriodo] = useState(periodoActual);
-  const [resumen, setResumen] = useState<ResumenFinanzas | null>(null);
-  const [movimientos, setMovimientos] = useState<MovimientoFinanciero[]>([]);
-  const [todos, setTodos] = useState<MovimientoFinanciero[]>([]);
-  const [empresas, setEmpresas] = useState<Empresa[]>([]);
   const [modalTipo, setModalTipo] = useState<TipoMovimiento | null>(null);
   const [abonoEmpresa, setAbonoEmpresa] = useState<FacturacionEmpresa | null>(
     null
   );
 
-  const cargar = useCallback(() => {
-    void getResumenFinanzas(periodo).then(setResumen);
-    void getMovimientos(periodo).then(setMovimientos);
-    void getMovimientos().then(setTodos);
-  }, [periodo]);
+  const cResumen = useCarga(() => getResumenFinanzas(periodo), [periodo], {
+    contexto: 'finanzas/resumen',
+  });
+  const resumen = cResumen.datos ?? null;
 
-  useEffect(cargar, [cargar]);
-  useEffect(() => {
-    void getEmpresas().then((lista) =>
-      setEmpresas(lista.map((e) => e.empresa))
-    );
-  }, []);
+  const cMovimientos = useCarga(() => getMovimientos(periodo), [periodo], {
+    contexto: 'finanzas/movimientos',
+    inicial: [] as MovimientoFinanciero[],
+  });
+  const movimientos = cMovimientos.datos;
+
+  // Todos los períodos: alimenta el gráfico de evolución.
+  const cTodos = useCarga(() => getMovimientos(), [], {
+    contexto: 'finanzas/historico',
+    inicial: [] as MovimientoFinanciero[],
+  });
+  const todos = cTodos.datos;
+
+  const cEmpresas = useCarga(() => getEmpresas(), [], {
+    contexto: 'finanzas/empresas',
+    inicial: [] as EmpresaResumen[],
+  });
+  const empresas = useMemo(
+    () => cEmpresas.datos.map((e) => e.empresa),
+    [cEmpresas.datos]
+  );
+
+  const cargar = useCallback(() => {
+    cResumen.recargar();
+    cMovimientos.recargar();
+    cTodos.recargar();
+  }, [cResumen, cMovimientos, cTodos]);
 
   useEffect(() => {
     if (usuario && usuario.rol !== 'superadmin') {
@@ -203,6 +220,12 @@ const FinanzasPage = () => {
             </p>
           </div>
         </div>
+      )}
+
+      {/* Las tarjetas muestran "…" mientras cargan: un fallo se leería
+          como "cero ingresos este mes". */}
+      {cResumen.fase === 'error' && cResumen.error && (
+        <BloqueError error={cResumen.error} onReintentar={cResumen.recargar} />
       )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

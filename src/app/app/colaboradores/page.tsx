@@ -23,6 +23,8 @@ import {
 import { getEmpleadosTodos } from '@/lib/services/rrhh';
 import { Empleado, ModalidadContratacion } from '@/types/rrhh';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const POR_PAGINA = 6;
 
@@ -36,7 +38,6 @@ const modalidades: Record<ModalidadContratacion, string> = {
 
 const ColaboradoresPage = () => {
   const { usuario, rolEfectivo } = useAuth();
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [busqueda, setBusqueda] = useState('');
   const [sector, setSector] = useState('');
   const [modalidad, setModalidad] = useState('');
@@ -46,15 +47,13 @@ const ColaboradoresPage = () => {
   const [pagina, setPagina] = useState(1);
   const [importarAbierto, { open: abrirImportar, close: cerrarImportar }] =
     useDisclosure(false);
-  const [cargando, setCargando] = useState(true);
 
-  const cargarEmpleados = () => {
-    void getEmpleadosTodos()
-      .then(setEmpleados)
-      .finally(() => setCargando(false));
-  };
-
-  useEffect(cargarEmpleados, []);
+  const carga = useCarga(() => getEmpleadosTodos(), [], {
+    contexto: 'colaboradores',
+    inicial: [] as Empleado[],
+  });
+  const empleados = carga.datos;
+  const cargarEmpleados = carga.recargar;
 
   const sectores = useMemo(
     () => Array.from(new Set(empleados.map((e) => e.sector))).sort(),
@@ -217,11 +216,22 @@ const ColaboradoresPage = () => {
         )}
       </div>
 
+      {/* El error va antes de la lista y no dentro: si la consulta falló,
+          "no hay colaboradores con esos filtros" es mentira y hace que
+          alguien toque los filtros buscando un problema que no está ahí. */}
+      {carga.fase === 'error' && carga.error && (
+        <BloqueError error={carga.error} onReintentar={carga.recargar} />
+      )}
+
       <ListaCard
-        titulo={cargando ? 'Equipo' : `Equipo (${filtrados.length})`}
-        cargando={cargando}
+        titulo={carga.fase === 'ok' ? `Equipo (${filtrados.length})` : 'Equipo'}
+        cargando={carga.fase === 'cargando'}
         tieneItems={visibles.length > 0}
-        vacio="No se encontraron colaboradores con esos filtros."
+        vacio={
+          carga.fase === 'error'
+            ? 'No pudimos cargar el equipo.'
+            : 'No se encontraron colaboradores con esos filtros.'
+        }
       >
         {visibles.length > 0 &&
           visibles.map((e) => {

@@ -24,6 +24,7 @@ interface AuthApi {
   rolEfectivo: Rol | null;
   login: (email: string, password?: string) => Promise<Usuario | null>;
   logout: () => void;
+  refrescarUsuario: (usuario: Usuario) => void;
   entrarAEmpresa: (empresa: Empresa) => void;
   salirDeEmpresa: () => void;
 }
@@ -34,6 +35,7 @@ export const useAuth = (): AuthApi => {
   const empresaVista = useAuthStore((s) => s.empresaVista);
   const login = useAuthStore((s) => s.login);
   const logout = useAuthStore((s) => s.logout);
+  const refrescarUsuario = useAuthStore((s) => s.refrescarUsuario);
   const entrarAEmpresa = useAuthStore((s) => s.entrarAEmpresa);
   const salirDeEmpresa = useAuthStore((s) => s.salirDeEmpresa);
 
@@ -44,6 +46,7 @@ export const useAuth = (): AuthApi => {
     rolEfectivo: rolEfectivoDe(usuario, empresaVista),
     login,
     logout,
+    refrescarUsuario,
     entrarAEmpresa,
     salirDeEmpresa,
   };

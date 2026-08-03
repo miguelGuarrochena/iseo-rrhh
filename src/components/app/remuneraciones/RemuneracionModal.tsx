@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import {
   IconCashBanknote,
@@ -35,6 +35,7 @@ import {
   Empleado,
   Remuneracion,
 } from '@/types/rrhh';
+import { useCarga } from '@/lib/useCarga';
 
 interface RemuneracionModalProps {
   abierto: boolean;
@@ -112,8 +113,6 @@ export const RemuneracionModal = ({
   const [convenio, setConvenio] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [recurrentes, setRecurrentes] = useState<DescuentoRecurrente[]>([]);
-  const [adelantos, setAdelantos] = useState<Adelanto[]>([]);
   const [horasExtras, setHorasExtras] = useState(0);
   const [horasMensuales, setHorasMensuales] = useState(HORAS_MENSUALES);
 
@@ -127,23 +126,32 @@ export const RemuneracionModal = ({
       setNoRem(inicial?.noRemunerativo ? String(inicial.noRemunerativo) : '');
       setConvenio(inicial?.convenio ?? convenioSugerido ?? '');
       setError(null);
-      setRecurrentes([]);
-      setAdelantos([]);
     }
   }, [abierto, inicial, convenioSugerido, empleadoId]);
 
-  const recargarRecurrentes = useCallback(() => {
-    if (empleadoActual)
-      void getDescuentosRecurrentes(empleadoActual).then(setRecurrentes);
-  }, [empleadoActual]);
-
   // Los descuentos fijos y adelantos son del colaborador elegido.
-  useEffect(() => {
-    if (abierto && empleadoActual) {
-      void getDescuentosRecurrentes(empleadoActual).then(setRecurrentes);
-      void getAdelantos(empleadoActual).then(setAdelantos);
+  const cRecurrentes = useCarga(
+    () => getDescuentosRecurrentes(empleadoActual),
+    [abierto, empleadoActual],
+    {
+      activo: abierto && Boolean(empleadoActual),
+      contexto: 'remuneracion/descuentos',
+      inicial: [] as DescuentoRecurrente[],
     }
-  }, [abierto, empleadoActual]);
+  );
+  const recurrentes = cRecurrentes.datos;
+  const recargarRecurrentes = cRecurrentes.recargar;
+
+  const cAdelantos = useCarga(
+    () => getAdelantos(empleadoActual),
+    [abierto, empleadoActual],
+    {
+      activo: abierto && Boolean(empleadoActual),
+      contexto: 'remuneracion/adelantos',
+      inicial: [] as Adelanto[],
+    }
+  );
+  const adelantos = cAdelantos.datos;
 
   /**
    * Horas extras del período. Se venían calculando y mostrando en

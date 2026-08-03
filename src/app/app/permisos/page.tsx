@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { FormEvent, useCallback, useState } from 'react';
 import Link from 'next/link';
 import { IconPlus, IconShieldCheck } from '@tabler/icons-react';
 import { Modal } from '@mantine/core';
@@ -26,6 +26,8 @@ import {
 import { AccionAuditoria, Empleado, Rol, Usuario } from '@/types/rrhh';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
+import { EstadoCarga } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const POR_PAGINA = 8;
 
@@ -51,9 +53,6 @@ const rolesAsignables: Record<Exclude<Rol, 'superadmin'>, string> = {
 
 const PermisosPage = () => {
   const { usuario, rolEfectivo, empresaVista } = useAuth();
-  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
-  const [auditoria, setAuditoria] = useState<AccionAuditoria[]>([]);
   const [modalAbierto, { open, close }] = useDisclosure(false);
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
@@ -62,18 +61,39 @@ const PermisosPage = () => {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
 
-  const cargar = useCallback(() => {
-    void getUsuariosDeEmpresa().then(setUsuarios);
-    void getEmpleados().then(setEmpleados);
-    // La auditoría es lo que respalda "quién tocó qué" ante un reclamo:
-    // cortarla en 20 dejaba afuera la semana pasada. Se traen más y se
-    // paginan.
-    void getAuditoria(200)
-      .then(setAuditoria)
-      .catch(() => setAuditoria([]));
-  }, []);
+  /**
+   * Los usuarios son el contenido de la pantalla: si fallan, hay que
+   * decirlo y ofrecer reintentar, no dejar una lista vacía que parece
+   * "esta empresa no tiene usuarios".
+   */
+  const cargaUsuarios = useCarga(() => getUsuariosDeEmpresa(), [], {
+    contexto: 'permisos/usuarios',
+    inicial: [] as Usuario[],
+  });
+  const usuarios = cargaUsuarios.datos;
 
-  useEffect(cargar, [cargar]);
+  // Los empleados sólo llenan el desplegable de la invitación: si no
+  // vienen, la pantalla sigue siendo útil.
+  const cargaEmpleados = useCarga(() => getEmpleados(), [], {
+    contexto: 'permisos/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cargaEmpleados.datos;
+
+  // La auditoría es lo que respalda "quién tocó qué" ante un reclamo:
+  // cortarla en 20 dejaba afuera la semana pasada. Se traen más y se
+  // paginan.
+  const cargaAuditoria = useCarga(() => getAuditoria(200), [], {
+    contexto: 'permisos/auditoria',
+    inicial: [] as AccionAuditoria[],
+  });
+  const auditoria = cargaAuditoria.datos;
+
+  const cargar = useCallback(() => {
+    cargaUsuarios.recargar();
+    cargaEmpleados.recargar();
+    cargaAuditoria.recargar();
+  }, [cargaUsuarios, cargaEmpleados, cargaAuditoria]);
 
   const {
     pagina,
@@ -164,35 +184,47 @@ const PermisosPage = () => {
       </div>
 
       <ListaCard
-        titulo={`Usuarios (${usuarios.length})`}
-        vacio="Sin usuarios cargados."
+        titulo={
+          cargaUsuarios.fase === 'ok'
+            ? `Usuarios (${usuarios.length})`
+            : 'Usuarios'
+        }
+        tieneItems
       >
-        {usuarios.map((u) => (
-          <ListaItem
-            key={u.id}
-            icono={IconShieldCheck}
-            principal={u.nombreCompleto}
-            secundario={u.email}
-            extremo={
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {u.empleadoId && (
-                  <Link
-                    href={`/colaboradores/${u.empleadoId}`}
-                    className="text-xs font-bold text-brand-700 no-underline hover:underline"
-                  >
-                    Ver ficha
-                  </Link>
-                )}
-                <Selector
-                  tamano="sm"
-                  valor={u.rol}
-                  onCambiar={(v) => void cambiarRol(u.id, v as Rol)}
-                  opciones={aOpciones(rolesAsignables)}
-                />
-              </div>
-            }
-          />
-        ))}
+        <EstadoCarga
+          carga={cargaUsuarios}
+          vacio="Sin usuarios cargados."
+          filas={3}
+        >
+          {(lista) =>
+            lista.map((u) => (
+              <ListaItem
+                key={u.id}
+                icono={IconShieldCheck}
+                principal={u.nombreCompleto}
+                secundario={u.email}
+                extremo={
+                  <div className="flex flex-wrap items-center justify-end gap-2">
+                    {u.empleadoId && (
+                      <Link
+                        href={`/colaboradores/${u.empleadoId}`}
+                        className="text-xs font-bold text-brand-700 no-underline hover:underline"
+                      >
+                        Ver ficha
+                      </Link>
+                    )}
+                    <Selector
+                      tamano="sm"
+                      valor={u.rol}
+                      onCambiar={(v) => void cambiarRol(u.id, v as Rol)}
+                      opciones={aOpciones(rolesAsignables)}
+                    />
+                  </div>
+                }
+              />
+            ))
+          }
+        </EstadoCarga>
       </ListaCard>
 
       {admins.length === 1 && (

@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 import {
   IconCamera,
   IconMapPin,
@@ -34,6 +34,7 @@ import {
   ModoFichaje,
   NivelEstudios,
 } from '@/types/rrhh';
+import { useCarga } from '@/lib/useCarga';
 
 const vinculosFamiliar: Record<Familiar['vinculo'], string> = {
   conyuge: 'Cónyuge',
@@ -146,17 +147,22 @@ export const FormEmpleado = ({
         }
   );
   const [errores, setErrores] = useState<Record<string, string>>({});
-  const [supervisores, setSupervisores] = useState<Empleado[]>([]);
   const [enviando, setEnviando] = useState(false);
   const inputFoto = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    void getEmpleados().then((lista) =>
-      setSupervisores(
-        lista.filter((e) => e.supervisorId === null && e.id !== inicial?.id)
-      )
-    );
-  }, [inicial?.id]);
+  // Sólo llena el desplegable de supervisor: si falla, el alta sigue
+  // sirviendo y se puede asignar el supervisor después.
+  const cSupervisores = useCarga(
+    async () => {
+      const lista = await getEmpleados();
+      return lista.filter(
+        (e) => e.supervisorId === null && e.id !== inicial?.id
+      );
+    },
+    [inicial?.id],
+    { contexto: 'alta/supervisores', inicial: [] as Empleado[] }
+  );
+  const supervisores = cSupervisores.datos;
 
   const set = (campo: keyof DatosEmpleado) => (valor: string) =>
     setDatos((prev) => ({ ...prev, [campo]: valor || undefined }));

@@ -9,6 +9,7 @@ import { useModulos } from '@/lib/auth/useModulos';
 import { navItemsPorRol } from './navItems';
 import { getEmpleados } from '@/lib/services/rrhh';
 import { Empleado } from '@/types/rrhh';
+import { useCarga } from '@/lib/useCarga';
 
 /**
  * Buscador global estilo ⌘K: botón en el header + atajo de teclado
@@ -21,9 +22,16 @@ export const BuscadorGlobal = () => {
   const [abierto, setAbierto] = useState(false);
   const [q, setQ] = useState('');
   const [seleccion, setSeleccion] = useState(0);
-  const [empleados, setEmpleados] = useState<Empleado[]>([]);
 
   const esGestor = rolEfectivo === 'admin_rrhh' || rolEfectivo === 'supervisor';
+
+  const cEmpleados = useCarga(() => getEmpleados(), [abierto, esGestor], {
+    activo: abierto && esGestor,
+    contexto: 'buscador/empleados',
+    inicial: [] as Empleado[],
+  });
+  const empleados = cEmpleados.datos;
+
   const esMac =
     typeof navigator !== 'undefined' && /Mac/i.test(navigator.platform);
 
@@ -39,7 +47,6 @@ export const BuscadorGlobal = () => {
   }, []);
 
   useEffect(() => {
-    if (abierto && esGestor) void getEmpleados().then(setEmpleados);
     if (abierto) {
       setQ('');
       setSeleccion(0);

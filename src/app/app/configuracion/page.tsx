@@ -10,11 +10,9 @@ import { HORAS_MENSUALES } from '@/lib/remuneraciones';
 import { Terminales } from '@/components/app/configuracion/Terminales';
 import { CuposLicenciaPanel } from '@/components/app/configuracion/CuposLicenciaPanel';
 import { FeriadosPanel } from '@/components/app/configuracion/FeriadosPanel';
-import { ErroresPanel } from '@/components/app/configuracion/ErroresPanel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoHora } from '@/components/app/ui/CampoHora';
-import { ConfigPlataformaForm } from '@/components/app/configuracion/ConfigPlataformaForm';
 import { MODULOS_OPCIONALES } from '@/components/app/navItems';
 import { olvidarModulos } from '@/lib/auth/useModulos';
 import {
@@ -28,6 +26,8 @@ import {
   getEmpresa,
 } from '@/lib/services/rrhh';
 import { ConfigEmpresa } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const campoClase =
   'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-600';
@@ -48,19 +48,24 @@ const ConfiguracionPage = () => {
   const [errores, setErrores] = useState<Record<string, string>>({});
   const inputLogo = useRef<HTMLInputElement>(null);
 
+  const carga = useCarga(() => getEmpresa(), [], {
+    contexto: 'configuracion/empresa',
+  });
+
+  // Es un formulario: lo cargado pasa a estado local para poder editarlo.
   useEffect(() => {
-    void getEmpresa().then((e) => {
-      setConfig(e.config);
-      setNombreEmpresa(e.nombre);
-      setContactoNombre(e.contactoNombre);
-      setContactoEmail(e.contactoEmail);
-      setContactoTelefono(e.contactoTelefono ?? '');
-      setCuit(e.cuit ?? '');
-      setRazonSocial(e.razonSocial ?? '');
-      setDomicilioFiscal(e.domicilio ?? '');
-      setLogoUrl(e.logoUrl);
-    });
-  }, []);
+    const e = carga.datos;
+    if (!e) return;
+    setConfig(e.config);
+    setNombreEmpresa(e.nombre);
+    setContactoNombre(e.contactoNombre);
+    setContactoEmail(e.contactoEmail);
+    setContactoTelefono(e.contactoTelefono ?? '');
+    setCuit(e.cuit ?? '');
+    setRazonSocial(e.razonSocial ?? '');
+    setDomicilioFiscal(e.domicilio ?? '');
+    setLogoUrl(e.logoUrl);
+  }, [carga.datos]);
 
   const cargarLogo = (archivo: File | undefined) => {
     if (!archivo) return;
@@ -77,29 +82,40 @@ const ConfiguracionPage = () => {
     );
   }
 
-  // Superadmin sin empresa elegida: configuración general de la plataforma
+  // El superadmin sin empresa activa no tiene nada que configurar acá:
+  // lo suyo vive en Plataforma. Antes esta misma pantalla mostraba una
+  // cosa u otra según el contexto y el nombre del menú significaba dos
+  // cosas distintas.
   if (usuario.rol === 'superadmin' && !empresaVista) {
     return (
-      <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
-            Configuración general
-          </h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Defaults de la plataforma y notificaciones. Lo específico de cada
-            cliente se ajusta{' '}
-            <Link
-              href="/empresas"
-              className="font-semibold text-brand-700 no-underline hover:underline"
-            >
-              entrando a su empresa
-            </Link>
-            .
-          </p>
+      <div className="flex flex-col items-start gap-3 rounded-2xl border border-line bg-surface px-5 py-6">
+        <h1 className="text-lg font-bold text-ink">
+          Esta es la configuración de una empresa
+        </h1>
+        <p className="max-w-md text-sm leading-relaxed text-ink-soft">
+          Entrá a un cliente desde Empresas para ajustar sus horarios, módulos y
+          cargas. Lo de ISEO —defaults, equipo y errores— está en Plataforma.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/empresas"
+            className="presionable rounded-xl border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink no-underline hover:border-brand-300"
+          >
+            Ir a Empresas
+          </Link>
+          <Link
+            href="/plataforma"
+            className="presionable rounded-xl border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink no-underline hover:border-brand-300"
+          >
+            Ir a Plataforma
+          </Link>
         </div>
-        <ConfigPlataformaForm />
       </div>
     );
+  }
+
+  if (carga.fase === 'error' && carga.error) {
+    return <BloqueError error={carga.error} onReintentar={carga.recargar} />;
   }
 
   if (!config) {
@@ -410,8 +426,6 @@ const ConfiguracionPage = () => {
         <CuposLicenciaPanel />
 
         <FeriadosPanel />
-
-        {usuario.rol === 'superadmin' && <ErroresPanel />}
 
         <Panel>
           <h2 className="text-base font-bold text-ink">Alertas</h2>

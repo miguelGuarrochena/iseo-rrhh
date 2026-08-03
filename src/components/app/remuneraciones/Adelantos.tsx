@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Modal } from '@mantine/core';
 import {
   IconCashBanknote,
@@ -24,6 +24,8 @@ import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
 import { formatearFecha, formatearPeriodo, hoyISO } from '@/lib/fechas';
 import { Adelanto, Empleado } from '@/types/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
 
 const EstadoChip = ({ adelanto }: { adelanto: Adelanto }) => {
   if (adelanto.estado === 'aprobado')
@@ -48,18 +50,18 @@ const EstadoChip = ({ adelanto }: { adelanto: Adelanto }) => {
 
 /** Vista del empleado: pide adelantos y sigue el estado. */
 export const AdelantosEmpleado = ({ empleadoId }: { empleadoId: string }) => {
-  const [adelantos, setAdelantos] = useState<Adelanto[]>([]);
   const [abierto, setAbierto] = useState(false);
   const [monto, setMonto] = useState('');
   const [motivo, setMotivo] = useState('');
   const [pidiendo, setPidiendo] = useState(false);
   const [errorMonto, setErrorMonto] = useState<string | null>(null);
 
-  const cargar = useCallback(() => {
-    void getAdelantos(empleadoId).then(setAdelantos);
-  }, [empleadoId]);
-
-  useEffect(cargar, [cargar]);
+  const carga = useCarga(() => getAdelantos(empleadoId), [empleadoId], {
+    contexto: 'adelantos/propios',
+    inicial: [] as Adelanto[],
+  });
+  const adelantos = carga.datos;
+  const cargar = carga.recargar;
 
   const pedir = async () => {
     const m = Number(monto);
@@ -106,7 +108,9 @@ export const AdelantosEmpleado = ({ empleadoId }: { empleadoId: string }) => {
         </Boton>
       </div>
 
-      {adelantos.length === 0 ? (
+      {carga.fase === 'error' && carga.error ? (
+        <BloqueError error={carga.error} onReintentar={carga.recargar} />
+      ) : adelantos.length === 0 ? (
         <p className="mt-3 text-sm text-ink-soft">
           No pediste adelantos. Si lo necesitás, pedilo acá y RRHH lo revisa.
         </p>
@@ -178,7 +182,6 @@ export const AdelantosEmpleado = ({ empleadoId }: { empleadoId: string }) => {
 
 /** Vista del admin: aprueba o rechaza los pedidos del equipo. */
 export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
-  const [adelantos, setAdelantos] = useState<Adelanto[]>([]);
   const [aAprobar, setAAprobar] = useState<Adelanto | null>(null);
   const [periodo, setPeriodo] = useState(hoyISO().slice(0, 7));
   const [resolviendo, setResolviendo] = useState(false);
@@ -187,11 +190,12 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
   const puedeBorrar =
     rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin';
 
-  const cargar = useCallback(() => {
-    void getAdelantos().then(setAdelantos);
-  }, []);
-
-  useEffect(cargar, [cargar]);
+  const carga = useCarga(() => getAdelantos(), [], {
+    contexto: 'adelantos',
+    inicial: [] as Adelanto[],
+  });
+  const adelantos = carga.datos;
+  const cargar = carga.recargar;
 
   const nombre = (id: string) => {
     const e = empleados.find((x) => x.id === id);
@@ -273,7 +277,9 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
         )}
       </div>
 
-      {adelantos.length === 0 ? (
+      {carga.fase === 'error' && carga.error ? (
+        <BloqueError error={carga.error} onReintentar={carga.recargar} />
+      ) : adelantos.length === 0 ? (
         <p className="mt-3 text-sm text-ink-soft">
           No hay pedidos de adelanto.
         </p>
