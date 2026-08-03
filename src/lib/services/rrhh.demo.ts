@@ -243,6 +243,13 @@ export const getEmpleados = async (
       .map(sinBiometria)
   );
 
+export const getEmpleadosConCuenta = async (): Promise<string[]> =>
+  simular(
+    usuariosMock
+      .filter((u) => u.empresaId === empresaDemo() && u.empleadoId)
+      .map((u) => u.empleadoId as string)
+  );
+
 /** Incluye también los dados de baja (para el listado con filtro de estado) */
 export const getEmpleadosTodos = async (): Promise<Empleado[]> =>
   simular(

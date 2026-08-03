@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   IconFileCertificate,
   IconFiles,
@@ -12,6 +12,7 @@ import {
   IconUpload,
   IconWritingSign,
 } from '@tabler/icons-react';
+import Link from 'next/link';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -34,6 +35,7 @@ import {
   getRecibos,
   getRecibosArchivados,
   getRecibosArchivadosTodos,
+  getEmpleadosConCuenta,
   getRecibosTodos,
 } from '@/lib/services/rrhh';
 import { CargaMasivaModal } from '@/components/app/recibos/CargaMasivaModal';
@@ -143,11 +145,29 @@ const RecibosPage = () => {
   });
   const empleados = cEmpleados.datos;
 
+  // Quién puede entrar a la app. Un recibo publicado para alguien sin
+  // cuenta queda guardado y asignado, pero no lo ve nadie y no sale
+  // ningún aviso: era una publicación silenciosa.
+  const cConCuenta = useCarga(() => getEmpleadosConCuenta(), [soloPropios], {
+    activo: !soloPropios && Boolean(usuario),
+    contexto: 'recibos/cuentas',
+    inicial: [] as string[],
+  });
+  const conCuenta = useMemo(
+    () => new Set(cConCuenta.datos),
+    [cConCuenta.datos]
+  );
+  // Si la consulta falló no se afirma nada: mejor sin advertencia que con
+  // una inventada.
+  const sinCuenta = (empleadoId: string): boolean =>
+    cConCuenta.fase === 'ok' && !conCuenta.has(empleadoId);
+
   const cargar = useCallback(() => {
     cRecibos.recargar();
     cArchivados.recargar();
     cEmpleados.recargar();
-  }, [cRecibos, cArchivados, cEmpleados]);
+    cConCuenta.recargar();
+  }, [cRecibos, cArchivados, cEmpleados, cConCuenta]);
 
   const nombreEmpleado = (id: string): string => {
     const e = empleados.find((x) => x.id === id);
@@ -368,6 +388,14 @@ const RecibosPage = () => {
   const pendientes = publicados.filter((r) => r.estadoFirma === 'pendiente');
   const firmados = publicados.filter((r) => r.estadoFirma === 'firmado');
 
+  // Publicados que no le llegaron a nadie porque esa persona no entra.
+  const mudos = soloPropios
+    ? []
+    : pendientes.filter((r) => sinCuenta(r.empleadoId));
+  const nombresMudos = [...new Set(mudos.map((r) => r.empleadoId))].map(
+    nombreEmpleado
+  );
+
   // Filtro por año del historial: con dos o tres años de recibos, la
   // lista completa deja de servir para encontrar uno puntual.
   const anios = [...new Set(firmados.map((r) => r.periodo.slice(0, 4)))].sort(
@@ -503,6 +531,34 @@ const RecibosPage = () => {
         <BloqueError error={cRecibos.error} onReintentar={cRecibos.recargar} />
       )}
 
+      {/* La pregunta que se hace RRHH mirando esta lista es "por qué no
+          firman". Si la respuesta es que esa gente ni siquiera puede
+          entrar, tiene que estar acá y no enterrada en cada fila. */}
+      {mudos.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
+          <p className="text-sm font-bold text-amber-900">
+            {mudos.length === 1
+              ? '1 recibo publicado para alguien sin cuenta'
+              : `${mudos.length} recibos publicados para gente sin cuenta`}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-900">
+            El recibo está guardado y asignado bien, pero{' '}
+            {mudos.length === 1 ? 'esa persona' : 'esas personas'} no{' '}
+            {mudos.length === 1 ? 'lo ve' : 'los ven'} ni{' '}
+            {mudos.length === 1 ? 'recibió' : 'recibieron'} el aviso por mail:{' '}
+            {nombresMudos.slice(0, 3).join(', ')}
+            {nombresMudos.length > 3 && ` y ${nombresMudos.length - 3} más`}.
+            Invitalas desde Permisos y les va a aparecer todo lo que ya tenían.
+          </p>
+          <Link
+            href="/permisos"
+            className="presionable mt-3 inline-flex items-center gap-1.5 rounded-xl border border-amber-300 bg-surface px-3.5 py-2 text-xs font-bold text-amber-900 no-underline hover:border-amber-400"
+          >
+            Ir a Permisos
+          </Link>
+        </div>
+      )}
+
       <ListaCard
         titulo={soloPropios ? 'Pendientes de firma' : 'Pendientes del equipo'}
         cargando={cRecibos.fase === 'cargando'}
@@ -527,7 +583,11 @@ const RecibosPage = () => {
                     ? formatearPeriodo(r.periodo)
                     : `${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`
                 }
-                secundario={tipoReciboLabels[r.tipo]}
+                secundario={
+                  !soloPropios && sinCuenta(r.empleadoId)
+                    ? `${tipoReciboLabels[r.tipo]} · no tiene cuenta: no lo ve ni recibió el aviso`
+                    : tipoReciboLabels[r.tipo]
+                }
                 extremo={
                   <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                     <FirmaBadge recibo={r} />

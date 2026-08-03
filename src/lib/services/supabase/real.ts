@@ -490,6 +490,25 @@ export const getEmpleados = async (
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
 };
 
+/**
+ * Ids de los colaboradores que tienen cuenta en la app.
+ *
+ * Existe porque cargar un recibo para alguien sin cuenta no falla: el PDF
+ * se guarda bien y queda asignado, pero esa persona no lo puede ver ni
+ * recibe el aviso, y RRHH se enteraba semanas después. Con esto la
+ * pantalla lo puede decir antes de subir.
+ */
+export const getEmpleadosConCuenta = async (): Promise<string[]> => {
+  const { data, error } = await sb()
+    .from('usuarios')
+    .select('empleado_id')
+    .eq('empresa_id', empresaId())
+    .not('empleado_id', 'is', null);
+  return oFalla(data, error)
+    .map((u) => u.empleado_id as string)
+    .filter(Boolean);
+};
+
 export const getEmpleadosTodos = async (): Promise<Empleado[]> => {
   const { data, error } = await sb()
     .from('empleados')

@@ -6,7 +6,11 @@ import { IconEye, IconFileUpload, IconTrash } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
-import { cargarRecibo, getEmpresa } from '@/lib/services/rrhh';
+import {
+  cargarRecibo,
+  getEmpleadosConCuenta,
+  getEmpresa,
+} from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   MotivoSinAsignar,
@@ -84,6 +88,7 @@ export const CargaMasivaModal = ({
   const [analizando, setAnalizando] = useState(false);
   const [arrastrando, setArrastrando] = useState(false);
   const [cuitEmpresa, setCuitEmpresa] = useState<string | undefined>();
+  const [conCuenta, setConCuenta] = useState<Set<string> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // El CUIT de la empresa aparece en el encabezado de cada hoja del
@@ -94,6 +99,20 @@ export const CargaMasivaModal = ({
       .then((e) => setCuitEmpresa(e.cuit))
       .catch(() => setCuitEmpresa(undefined));
   }, [abierto, cuitEmpresa]);
+
+  // Quién tiene cuenta. Subir un recibo para alguien que no la tiene no
+  // falla —el PDF se guarda y queda asignado—, pero esa persona no lo ve
+  // ni recibe el aviso. Si no se sabe (la consulta falló), no se muestra
+  // nada: inventar una advertencia es peor que no darla.
+  useEffect(() => {
+    if (!abierto || conCuenta) return;
+    void getEmpleadosConCuenta()
+      .then((ids) => setConCuenta(new Set(ids)))
+      .catch(() => setConCuenta(null));
+  }, [abierto, conCuenta]);
+
+  const sinCuenta = (empleadoId: string): boolean =>
+    Boolean(conCuenta && empleadoId && !conCuenta.has(empleadoId));
 
   const opciones = [
     { valor: '', etiqueta: 'Sin asignar — elegí…' },
@@ -288,6 +307,9 @@ export const CargaMasivaModal = ({
     (f) => yaCargado.get(f.empleadoId)?.estadoFirma === 'firmado'
   );
 
+  /** Asignados a alguien que todavía no puede entrar a la app. */
+  const mudos = listas.filter((f) => sinCuenta(f.empleadoId));
+
   const partidos = filas.filter((f) => f.vieneDe && f.empleadoId).length;
   const nominasPartidas = new Set(
     filas.filter((f) => f.vieneDe && f.empleadoId).map((f) => f.vieneDe)
@@ -298,8 +320,10 @@ export const CargaMasivaModal = ({
     setSubiendo(true);
     let ok = 0;
     let fallas = 0;
+    let sinAvisar = 0;
     for (const fila of filas) {
       if (fila.estado === 'subido' || !fila.empleadoId) continue;
+      if (sinCuenta(fila.empleadoId)) sinAvisar += 1;
       try {
         await cargarRecibo(
           fila.empleadoId,
@@ -319,11 +343,14 @@ export const CargaMasivaModal = ({
     }
     setSubiendo(false);
     if (ok > 0) {
+      const avisados = ok - sinAvisar;
       avisoExito(
         `${ok} recibo${ok === 1 ? '' : 's'} cargado${ok === 1 ? '' : 's'}`,
-        publicar
-          ? 'Quedaron firmados por el empleador y visibles para el equipo.'
-          : 'Quedaron sin publicar: falta tu firma como empleador.'
+        !publicar
+          ? 'Quedaron sin publicar: falta tu firma como empleador.'
+          : sinAvisar > 0
+            ? `Le avisamos a ${avisados}. ${sinAvisar === 1 ? '1 no tiene cuenta y no se enteró' : `${sinAvisar} no tienen cuenta y no se enteraron`}: invitá a esa gente desde Permisos.`
+            : 'Quedaron firmados por el empleador y visibles para el equipo.'
       );
       onCargado();
     }
@@ -446,6 +473,26 @@ export const CargaMasivaModal = ({
                   ? 'Uno ya estaba firmado, así que esa persona'
                   : `${rectificaFirmado.length} ya estaban firmados, así que esas personas`
               } va a tener que firmar de nuevo.`}
+          </p>
+        )}
+
+        {mudos.length > 0 && (
+          <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900">
+            <span className="font-bold">
+              {mudos.length === 1
+                ? '1 persona todavía no tiene cuenta en la app.'
+                : `${mudos.length} personas todavía no tienen cuenta en la app.`}
+            </span>{' '}
+            El recibo se guarda igual y queda asignado, pero{' '}
+            {mudos.length === 1 ? 'no lo va' : 'no lo van'} a poder ver ni{' '}
+            {mudos.length === 1 ? 'recibe' : 'reciben'} el aviso por mail hasta
+            que {mudos.length === 1 ? 'la invites' : 'las invites'} desde
+            Permisos:{' '}
+            {mudos
+              .slice(0, 3)
+              .map((f) => nombreDe(f.empleadoId))
+              .join(', ')}
+            {mudos.length > 3 && ` y ${mudos.length - 3} más`}.
           </p>
         )}
 
@@ -580,6 +627,18 @@ export const CargaMasivaModal = ({
                 ) : (
                   <span className="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-bold text-brand-800">
                     Listo
+                  </span>
+                )}
+                {/* Chip aparte y no dentro de la cadena de estados: una
+                    fila puede rectificar un recibo Y ser de alguien sin
+                    cuenta, y esconder una atrás de la otra fue lo que
+                    hizo que esto pasara desapercibido. */}
+                {f.estado !== 'subido' && sinCuenta(f.empleadoId) && (
+                  <span
+                    className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"
+                    title="No tiene cuenta: el recibo se guarda, pero no lo va a ver ni le va a llegar el aviso hasta que la invites desde Permisos."
+                  >
+                    Sin cuenta
                   </span>
                 )}
                 <button

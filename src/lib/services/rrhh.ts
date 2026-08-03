@@ -95,6 +95,10 @@ export const actualizarConfigPlataforma = elegir(
 
 // ---------- Empleados ----------
 export const getEmpleados = elegir(real.getEmpleados, demo.getEmpleados);
+export const getEmpleadosConCuenta = elegir(
+  real.getEmpleadosConCuenta,
+  demo.getEmpleadosConCuenta
+);
 export const getEmpleadosTodos = elegir(
   real.getEmpleadosTodos,
   demo.getEmpleadosTodos
