@@ -501,8 +501,6 @@ const configPlataformaMock: ConfigPlataforma = {
   horaEntradaDefault: '08:00',
   horaSalidaDefault: '17:00',
   diasAvisoDefault: 30,
-  emailAvisos: 'avisos@iseo-rh.com',
-  pushHabilitado: true,
   resumenSemanalEmail: true,
 };
 

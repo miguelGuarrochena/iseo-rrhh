@@ -1,0 +1,187 @@
+import { NextResponse } from 'next/server';
+import { supabaseAdmin } from '@/lib/supabase/admin';
+import { enviarEmail } from '@/lib/email/resend';
+
+/**
+ * Resumen semanal a quien administra RRHH en cada empresa.
+ *
+ * La idea es no tener que entrar a la app a ver si hay algo: los lunes
+ * llega un mail con lo que quedó pendiente. Si no hay nada pendiente, no
+ * se manda nada — un mail que dice "no tenés nada" entrena a la gente a
+ * ignorar los mails.
+ *
+ * Se puede apagar por completo desde Plataforma
+ * (`config_plataforma.resumenSemanalEmail`).
+ *
+ * Seguridad: exige CRON_SECRET y "Authorization: Bearer …". Si falta el
+ * secret en el entorno responde 401, igual que el cron de facturación.
+ */
+export const POST = (req: Request) => procesar(req);
+export const GET = (req: Request) => procesar(req);
+
+interface Pendientes {
+  ausencias: number;
+  recibosSinFirmar: number;
+  comunicacionesAbiertas: number;
+  vencimientos: { titulo: string; fecha: string }[];
+}
+
+const hayAlgo = (p: Pendientes): boolean =>
+  p.ausencias > 0 ||
+  p.recibosSinFirmar > 0 ||
+  p.comunicacionesAbiertas > 0 ||
+  p.vencimientos.length > 0;
+
+const fila = (n: number, singular: string, plural: string): string =>
+  n === 0
+    ? ''
+    : `<li style="margin-bottom:6px"><strong>${n}</strong> ${n === 1 ? singular : plural}</li>`;
+
+const armarEmail = (empresa: string, p: Pendientes): string => `
+  <div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#2f2e3a">
+    <h1 style="font-size:18px;font-weight:700;margin:0 0 4px">Tu semana en ${empresa}</h1>
+    <p style="font-size:14px;color:#5f5e6a;margin:0 0 18px">Esto quedó pendiente:</p>
+    <ul style="font-size:15px;line-height:1.6;padding-left:20px;margin:0 0 18px">
+      ${fila(p.ausencias, 'ausencia sin resolver', 'ausencias sin resolver')}
+      ${fila(p.recibosSinFirmar, 'recibo sin firmar por el colaborador', 'recibos sin firmar por los colaboradores')}
+      ${fila(p.comunicacionesAbiertas, 'consulta sin responder', 'consultas sin responder')}
+    </ul>
+    ${
+      p.vencimientos.length > 0
+        ? `<p style="font-size:14px;font-weight:600;margin:0 0 6px">Vence pronto</p>
+           <ul style="font-size:14px;line-height:1.6;padding-left:20px;margin:0 0 18px;color:#5f5e6a">
+             ${p.vencimientos.map((v) => `<li>${v.titulo} — ${v.fecha}</li>`).join('')}
+           </ul>`
+        : ''
+    }
+    <p style="font-size:12px;color:#9a98a6;margin:22px 0 0">
+      Recibís este resumen porque administrás RRHH en ${empresa}. Se puede
+      desactivar desde ISEO RH.
+    </p>
+  </div>
+`;
+
+const procesar = async (req: Request) => {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: 'No autorizado.' }, { status: 401 });
+  }
+
+  const admin = supabaseAdmin();
+
+  // Interruptor general: si está apagado, no se manda nada.
+  const { data: plataforma } = await admin
+    .from('config_plataforma')
+    .select('config')
+    .maybeSingle();
+  const config = (plataforma?.config ?? {}) as {
+    resumenSemanalEmail?: boolean;
+  };
+  if (config.resumenSemanalEmail === false) {
+    return NextResponse.json({ ok: true, enviados: 0, motivo: 'desactivado' });
+  }
+
+  const hoy = new Date();
+  const enUnMes = new Date(hoy);
+  enUnMes.setDate(enUnMes.getDate() + 30);
+  const hoyISO = hoy.toISOString().slice(0, 10);
+  const limiteISO = enUnMes.toISOString().slice(0, 10);
+
+  // Lunes de esta semana: la clave de dedup. Si el cron corre dos veces
+  // (reintento, deploy, ejecución manual) el segundo no manda nada.
+  const lunes = new Date(hoy);
+  lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7));
+  const semana = lunes.toISOString().slice(0, 10);
+
+  const { data: empresas } = await admin
+    .from('empresas')
+    .select('id, nombre, config')
+    .eq('estado', 'activa');
+
+  let enviados = 0;
+
+  for (const empresa of empresas ?? []) {
+    // Lo que no figura guardado está prendido, igual que en la pantalla
+    // de módulos. Contar pendientes de una sección apagada sería mandar
+    // a alguien a una pantalla que no tiene.
+    const modulos = ((
+      empresa.config as { modulos?: Record<string, boolean> } | null
+    )?.modulos ?? {}) as Record<string, boolean>;
+    const activo = (clave: string) => modulos[clave] !== false;
+
+    const { data: admins } = await admin
+      .from('usuarios')
+      .select('email')
+      .eq('empresa_id', empresa.id)
+      .eq('rol', 'admin_rrhh');
+
+    const destinos = (admins ?? [])
+      .map((u) => u.email as string)
+      .filter(Boolean);
+    if (destinos.length === 0) continue;
+
+    const [ausencias, recibos, comunicaciones, alertas] = await Promise.all([
+      admin
+        .from('ausencias')
+        .select('id', { count: 'exact', head: true })
+        .eq('empresa_id', empresa.id)
+        .eq('estado', 'pendiente'),
+      admin
+        .from('recibos')
+        .select('id', { count: 'exact', head: true })
+        .eq('empresa_id', empresa.id)
+        .eq('estado_firma', 'pendiente')
+        .not('firmado_empleador_en', 'is', null),
+      admin
+        .from('comunicaciones')
+        .select('id', { count: 'exact', head: true })
+        .eq('empresa_id', empresa.id)
+        .neq('estado', 'cerrada'),
+      admin
+        .from('documentos_legajo')
+        .select('nombre, fecha_vencimiento')
+        .eq('empresa_id', empresa.id)
+        .not('fecha_vencimiento', 'is', null)
+        .gte('fecha_vencimiento', hoyISO)
+        .lte('fecha_vencimiento', limiteISO)
+        .order('fecha_vencimiento')
+        .limit(5),
+    ]);
+
+    const pendientes: Pendientes = {
+      ausencias: activo('ausencias') ? (ausencias.count ?? 0) : 0,
+      recibosSinFirmar: activo('recibos') ? (recibos.count ?? 0) : 0,
+      comunicacionesAbiertas: activo('comunicaciones')
+        ? (comunicaciones.count ?? 0)
+        : 0,
+      vencimientos: (alertas.data ?? []).map((d) => ({
+        titulo: String(d.nombre),
+        fecha: new Date(
+          `${String(d.fecha_vencimiento)}T00:00:00`
+        ).toLocaleDateString('es-AR'),
+      })),
+    };
+
+    // Semana tranquila: no se manda nada. Un mail que dice "no tenés
+    // nada" enseña a archivar sin leer, y entonces el que importa
+    // también se archiva sin leer.
+    if (!hayAlgo(pendientes)) continue;
+
+    // La marca se escribe ANTES de mandar: si el envío falla, se pierde
+    // un resumen semanal. Al revés se podrían mandar dos, y duplicar un
+    // mail es más caro que saltear uno que se repite en siete días.
+    const { error: yaEnviado } = await admin
+      .from('avisos_resumen_semanal')
+      .insert({ empresa_id: empresa.id, semana });
+    if (yaEnviado) continue;
+
+    const ok = await enviarEmail({
+      para: destinos,
+      asunto: `Tu semana en ${empresa.nombre} · ISEO RH`,
+      html: armarEmail(String(empresa.nombre), pendientes),
+    });
+    if (ok) enviados += 1;
+  }
+
+  return NextResponse.json({ ok: true, enviados });
+};

@@ -5,8 +5,6 @@ import { IconCheck } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoHora } from '@/components/app/ui/CampoHora';
-import { Campo } from '@/components/app/ui/Campo';
-import { validarEmail } from '@/lib/validaciones';
 import {
   actualizarConfigPlataforma,
   getConfigPlataforma,
@@ -24,7 +22,6 @@ const campoClase =
  * defaults para empresas nuevas y notificaciones.
  */
 export const ConfigPlataformaForm = () => {
-  const [errorEmail, setErrorEmail] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
 
@@ -48,9 +45,6 @@ export const ConfigPlataformaForm = () => {
 
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
-    const err = validarEmail(config.emailAvisos);
-    setErrorEmail(err);
-    if (err) return;
     setGuardando(true);
     await actualizarConfigPlataforma(config);
     setGuardando(false);
@@ -118,49 +112,32 @@ export const ConfigPlataformaForm = () => {
       </Panel>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Notificaciones</h2>
-        <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
-          <Campo
-            etiqueta="Email remitente de avisos"
-            type="email"
-            value={config.emailAvisos}
-            onChange={(e) =>
-              setConfig({ ...config, emailAvisos: e.target.value })
+        <h2 className="text-base font-bold text-ink">Avisos por mail</h2>
+        <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-soft">
+          Cada lunes le llega a quien administra RRHH un resumen de lo que quedó
+          pendiente en su empresa: ausencias sin resolver, recibos sin firmar,
+          consultas sin responder y vencimientos cercanos. Así no hace falta
+          entrar a mirar si hay algo. Si la semana no tiene nada pendiente, no
+          se manda ningún mail.
+        </p>
+        <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 py-3">
+          <Switch
+            checked={config.resumenSemanalEmail}
+            onChange={() =>
+              setConfig({
+                ...config,
+                resumenSemanalEmail: !config.resumenSemanalEmail,
+              })
             }
-            error={errorEmail ?? undefined}
-            ayuda="Desde esta casilla salen los avisos a las empresas."
           />
-          <div className="flex flex-col gap-2">
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 py-3">
-              <Switch
-                checked={config.pushHabilitado}
-                onChange={() =>
-                  setConfig({
-                    ...config,
-                    pushHabilitado: !config.pushHabilitado,
-                  })
-                }
-              />
-              <span className="text-sm font-medium text-ink">
-                Notificaciones push habilitadas
-              </span>
-            </label>
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 py-3">
-              <Switch
-                checked={config.resumenSemanalEmail}
-                onChange={() =>
-                  setConfig({
-                    ...config,
-                    resumenSemanalEmail: !config.resumenSemanalEmail,
-                  })
-                }
-              />
-              <span className="text-sm font-medium text-ink">
-                Resumen semanal por email a cada admin
-              </span>
-            </label>
-          </div>
-        </div>
+          <span className="text-sm font-medium text-ink">
+            Enviar el resumen semanal
+          </span>
+        </label>
+        <p className="mt-3 text-xs leading-relaxed text-ink-soft">
+          Los avisos puntuales —te respondieron, tenés un recibo para firmar, te
+          resolvieron una ausencia— se mandan siempre y no se configuran acá.
+        </p>
       </Panel>
 
       <div className="flex items-center gap-3">

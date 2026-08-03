@@ -137,9 +137,15 @@ export interface ConfigPlataforma {
   horaEntradaDefault: string;
   horaSalidaDefault: string;
   diasAvisoDefault: number;
-  /** notificaciones */
-  emailAvisos: string;
-  pushHabilitado: boolean;
+  /**
+   * Resumen semanal a los admin de RRHH (lunes). Los avisos puntuales
+   * —respuesta, recibo listo, ausencia resuelta— se mandan siempre y no
+   * se configuran.
+   *
+   * El remitente sale de EMAIL_FROM y no es configurable acá: Resend
+   * exige que el dominio esté verificado, así que dejarlo editable era
+   * prometer algo que no iba a funcionar.
+   */
   resumenSemanalEmail: boolean;
 }
 
