@@ -35,6 +35,9 @@ import {
   TipoComunicacion,
 } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { ChatColaborador } from '@/components/app/comunicaciones/ChatColaborador';
+import { HiloMensajes } from '@/components/app/comunicaciones/HiloMensajes';
+import { Redactor } from '@/components/app/comunicaciones/Redactor';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const tipoLabels: Record<TipoComunicacion, string> = {
@@ -51,9 +54,6 @@ const estadoLabels: Record<EstadoComunicacion, string> = {
 
 const POR_PAGINA = 8;
 
-const campoClase =
-  'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600';
-
 const ComunicacionesPage = () => {
   const { usuario, rolEfectivo } = useAuth();
   const esEmpleado = rolEfectivo === 'empleado';
@@ -61,7 +61,6 @@ const ComunicacionesPage = () => {
   const [seleccion, setSeleccion] = useState<Comunicacion | null>(null);
   const [sinLeer, setSinLeer] = useState<Set<string>>(new Set());
   const [mensajes, setMensajes] = useState<ComunicacionMensaje[]>([]);
-  const [respuesta, setRespuesta] = useState('');
   const [modal, { open, close }] = useDisclosure(false);
   const [tipo, setTipo] = useState<TipoComunicacion>('consulta');
   const [asunto, setAsunto] = useState('');
@@ -167,16 +166,6 @@ const ComunicacionesPage = () => {
     return e ? `${e.apellido}, ${e.nombre}` : 'Colaborador';
   };
 
-  // No hay forma de resolver el nombre exacto del autor de cada mensaje sin
-  // exponer la tabla de usuarios (RLS no deja a un empleado leer a otros
-  // usuarios). Alcanza con distinguir "lo mío" de "lo del otro lado": el
-  // empleado ve "RRHH" y el admin ve al colaborador dueño del hilo.
-  const esMio = (autorId: string) => autorId === usuario?.id;
-  const autorDe = (autorId: string, empleadoId: string) => {
-    if (esMio(autorId)) return 'Vos';
-    return esEmpleado ? 'RRHH' : nombreEmpleado(empleadoId);
-  };
-
   const crear = async (e: FormEvent) => {
     e.preventDefault();
     const empId = esEmpleado ? usuario?.empleadoId : empleadoId;
@@ -214,11 +203,10 @@ const ComunicacionesPage = () => {
     setEnviando(false);
   };
 
-  const responder = async () => {
-    if (!seleccion || !respuesta.trim()) return;
+  const responder = async (texto: string) => {
+    if (!seleccion) return;
     try {
-      await responderComunicacion(seleccion.id, respuesta.trim());
-      setRespuesta('');
+      await responderComunicacion(seleccion.id, texto);
       const msgs = await getMensajesComunicacion(seleccion.id);
       setMensajes(msgs);
       cargar();
@@ -256,12 +244,12 @@ const ComunicacionesPage = () => {
             Comunicaciones
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
-            Consultas, reclamos y pedidos en un solo lugar (sin WhatsApp).
+            Consultas, reclamos y pedidos de tu equipo, con historial.
           </p>
         </div>
         <Boton variante="negro" onClick={open}>
           <IconPlus size={18} />
-          Nuevo
+          Escribir a un colaborador
         </Boton>
       </div>
 
@@ -349,56 +337,24 @@ const ComunicacionesPage = () => {
                   </Boton>
                 )}
               </div>
-              <div className="flex flex-col gap-2">
-                {[
-                  {
-                    id: seleccion.id,
-                    autorId: seleccion.autorId,
-                    cuerpo: seleccion.cuerpo,
-                    creadoEn: seleccion.creadoEn,
-                  },
-                  ...mensajes,
-                ].map((m) => {
-                  const mio = esMio(m.autorId);
-                  return (
-                    <div
-                      key={m.id}
-                      className={`flex flex-col gap-0.5 ${mio ? 'items-end' : 'items-start'}`}
-                    >
-                      <span className="px-1 text-[0.65rem] font-bold text-ink-soft">
-                        {autorDe(m.autorId, seleccion.empleadoId)}
-                      </span>
-                      <div
-                        className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
-                          mio
-                            ? 'bg-brand-600 text-white'
-                            : 'border border-line bg-paper text-ink'
-                        }`}
-                      >
-                        {m.cuerpo}
-                      </div>
-                      <p className="px-1 text-[0.6rem] text-ink-soft">
-                        {new Date(m.creadoEn).toLocaleString('es-AR')}
-                      </p>
-                    </div>
-                  );
-                })}
+              <div className="max-h-[24rem] overflow-y-auto pr-1">
+                <HiloMensajes
+                  comunicacion={seleccion}
+                  mensajes={mensajes}
+                  usuarioId={usuario.id}
+                  nombreDelOtro={nombreEmpleado(seleccion.empleadoId)}
+                  autoScroll
+                />
               </div>
-              {seleccion.estado !== 'cerrada' && (
-                <div className="flex flex-col gap-2">
-                  <textarea
-                    value={respuesta}
-                    onChange={(e) => setRespuesta(e.target.value)}
-                    rows={2}
-                    placeholder="Escribí una respuesta…"
-                    aria-label={`Responder a ${seleccion.asunto}`}
-                    className={campoClase}
-                  />
-                  <Boton onClick={() => void responder()} className="self-end">
-                    Responder
-                  </Boton>
-                </div>
-              )}
+              <Redactor
+                onEnviar={responder}
+                placeholder="Escribí una respuesta…"
+                cerrado={
+                  seleccion.estado === 'cerrada'
+                    ? 'Diste el tema por cerrado. El colaborador puede abrir uno nuevo si necesita algo más.'
+                    : undefined
+                }
+              />
             </div>
           )}
         </div>
@@ -456,12 +412,28 @@ const ComunicacionesPage = () => {
   );
 };
 
+/**
+ * El colaborador y RRHH usan la misma sección con formas distintas: uno
+ * habla con RRHH (chat), el otro gestiona muchos temas (bandeja). Meter
+ * a los dos en la bandeja hacía que el colaborador viera una lista al
+ * costado con un solo elemento y un panel que le pedía "elegí una
+ * conversación".
+ */
+const ComunicacionesSegunRol = () => {
+  const { usuario, rolEfectivo } = useAuth();
+  if (!usuario) return null;
+  if (rolEfectivo === 'empleado' && usuario.empleadoId) {
+    return <ChatColaborador empleadoId={usuario.empleadoId} />;
+  }
+  return <ComunicacionesPage />;
+};
+
 /** La empresa puede tener esta sección apagada: se bloquea la ruta,
  * no sólo el link del menú. */
 const ComunicacionesPageProtegida = () => (
   <RequireEmpresa>
     <RequireModulo modulo="comunicaciones">
-      <ComunicacionesPage />
+      <ComunicacionesSegunRol />
     </RequireModulo>
   </RequireEmpresa>
 );

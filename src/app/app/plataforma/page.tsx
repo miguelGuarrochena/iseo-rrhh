@@ -5,7 +5,6 @@ import { IconBuildingFactory2, IconSettings } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { ConfigPlataformaForm } from '@/components/app/configuracion/ConfigPlataformaForm';
-import { ErroresPanel } from '@/components/app/configuracion/ErroresPanel';
 import { EquipoIseo } from '@/components/app/plataforma/EquipoIseo';
 
 /**
@@ -14,9 +13,12 @@ import { EquipoIseo } from '@/components/app/plataforma/EquipoIseo';
  * Antes esto vivía adentro de "Configuración", que mostraba una cosa u
  * otra según si había una empresa activa: el mismo ítem del menú
  * significaba dos cosas que no tienen nada que ver. Acá quedan los
- * defaults de la plataforma, el equipo y el registro de errores; la
- * configuración de cada empresa es de esa empresa y se ajusta entrando a
- * ella.
+ * defaults de la plataforma y el equipo; la configuración de cada
+ * empresa es de esa empresa y se ajusta entrando a ella.
+ *
+ * El registro de errores se sacó a propósito: esta pantalla la usa quien
+ * administra RRHH, no quien programa. Los errores se siguen guardando en
+ * `errores_app` para poder diagnosticar desde la base cuando haga falta.
  */
 const PlataformaPage = () => {
   const { usuario } = useAuth();
@@ -59,8 +61,6 @@ const PlataformaPage = () => {
       <ConfigPlataformaForm />
 
       <EquipoIseo />
-
-      <ErroresPanel />
     </div>
   );
 };
