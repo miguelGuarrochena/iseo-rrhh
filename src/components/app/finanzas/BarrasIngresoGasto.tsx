@@ -23,7 +23,7 @@ export const BarrasIngresoGasto = ({ datos }: { datos: Punto[] }) => {
 
   const barra = (valor: number, color: string) => (
     <div
-      className={`w-1/2 max-w-[22px] rounded-t-md ${color} transition-all`}
+      className={`w-1/2 max-w-[22px] rounded-t-md ${color} transition-[height] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]`}
       style={{
         height: `${(valor / max) * 100}%`,
         minHeight: valor > 0 ? 3 : 0,

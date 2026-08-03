@@ -35,7 +35,7 @@ export const BarrasMensuales = ({ datos }: { datos: Punto[] }) => {
             {d.valor > 0 ? formatearPesos(d.valor) : ''}
           </span>
           <div
-            className="w-full max-w-[40px] rounded-t-md bg-brand-500 transition-all"
+            className="w-full max-w-[40px] rounded-t-md bg-brand-500 transition-[height] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]"
             style={{
               height: `${(d.valor / max) * 100}%`,
               minHeight: d.valor > 0 ? 4 : 0,

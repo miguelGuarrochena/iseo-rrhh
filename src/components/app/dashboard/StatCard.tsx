@@ -23,9 +23,9 @@ export const StatCard = ({
 }: StatCardProps) => {
   const contenido = (
     <div
-      className={`flex h-full flex-col rounded-2xl border border-line bg-surface p-4 sm:p-5 ${
+      className={`aparece flex h-full flex-col rounded-2xl border border-line bg-surface p-4 sm:p-5 ${
         href
-          ? 'hover-bloque transition-colors duration-200 hover:border-brand-300'
+          ? 'hover-bloque transition-[background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-brand-300'
           : ''
       }`}
     >

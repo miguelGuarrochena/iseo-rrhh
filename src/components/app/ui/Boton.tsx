@@ -17,8 +17,14 @@ interface BotonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
+/**
+ * `presionable` (globals.css) da el feedback al apretar y transiciona
+ * sólo las propiedades que cambian. Antes era `transition-all
+ * duration-300`: 300ms se siente lento en el botón que más se toca de la
+ * app, y `all` anima de más (incluido el layout) por si acaso.
+ */
 const base =
-  'inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border-0 font-semibold transition-all duration-300 disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0';
+  'presionable inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border-0 font-semibold disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0 disabled:active:transform-none';
 
 /**
  * En mobile se fuerza una altura mínima cómoda para el pulgar (44px en

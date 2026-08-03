@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 
 interface PaginacionProps {
@@ -52,3 +53,26 @@ export const paginar = <T,>(items: T[], pagina: number, porPagina: number) =>
 
 export const totalPaginasDe = (total: number, porPagina: number) =>
   Math.max(1, Math.ceil(total / porPagina));
+
+/**
+ * Paginación lista para usar: devuelve el tramo visible y se acomoda sola
+ * cuando la lista se achica. Sin esto, al filtrar estando en la página 5
+ * la pantalla queda en blanco: hay resultados, pero no en esa página.
+ */
+export const usePaginacion = <T,>(items: T[], porPagina: number) => {
+  const [pagina, setPagina] = useState(1);
+  const totalPaginas = totalPaginasDe(items.length, porPagina);
+
+  useEffect(() => {
+    setPagina((actual) => (actual > totalPaginas ? 1 : actual));
+  }, [totalPaginas]);
+
+  const seguro = Math.min(pagina, totalPaginas);
+
+  return {
+    pagina: seguro,
+    setPagina,
+    totalPaginas,
+    visibles: paginar(items, seguro, porPagina),
+  };
+};

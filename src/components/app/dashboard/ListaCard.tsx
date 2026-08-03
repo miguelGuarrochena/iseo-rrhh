@@ -43,7 +43,7 @@ export const ListaCard = ({
     (children !== undefined && children !== null && children !== false);
 
   return (
-    <section className="rounded-3xl border border-line bg-surface p-5 sm:p-6">
+    <section className="aparece rounded-3xl border border-line bg-surface p-5 sm:p-6">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-base font-bold text-ink">{titulo}</h2>
         {accion && (
@@ -55,7 +55,9 @@ export const ListaCard = ({
           </Link>
         )}
       </div>
-      <div className="mt-4 flex flex-col gap-3">
+      <div
+        className={`mt-4 flex flex-col gap-3 ${cargando ? '' : 'aparece-lista'}`}
+      >
         {cargando ? (
           <>
             <FilaEsqueleto />
@@ -100,7 +102,7 @@ export const ListaItem = ({
       onClick={onClick}
       className={`flex flex-col gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${
         clickeable
-          ? 'hover-bloque cursor-pointer transition-colors duration-200 hover:border-brand-300'
+          ? 'hover-bloque cursor-pointer transition-[background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-brand-300'
           : ''
       }`}
     >

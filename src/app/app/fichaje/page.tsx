@@ -40,6 +40,9 @@ import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
 import { FichajeManualModal } from '@/components/app/facial/FichajeManualModal';
 import { getTerminalLocal } from '@/lib/terminal';
 import { ActivarKioscoModal } from '@/components/app/fichaje/ActivarKioscoModal';
+import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+
+const POR_PAGINA = 8;
 
 const metodoLabel: Record<MetodoFichaje, string> = {
   facial_tablet: 'Reconocimiento facial',
@@ -179,8 +182,6 @@ const FichajePage = () => {
       .catch(() => setEsTerminal(false));
   }, [esEmpleado]);
 
-  if (!usuario) return null;
-
   const ultimo = misFichajes[misFichajes.length - 1];
   const proximoTipo = ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso';
   const tieneRostro = Boolean(miEmpleado?.descriptorFacial?.length);
@@ -235,6 +236,11 @@ const FichajePage = () => {
   const sinFicharTodos = empleados.filter((e) => !idsQueFicharon.has(e.id));
   const sinFichar = sinFicharTodos.filter((e) => !licenciaDe(e.id));
   const deLicenciaHoy = sinFicharTodos.filter((e) => licenciaDe(e.id));
+
+  const paginaFichajes = usePaginacion(fichajesHoy, POR_PAGINA);
+  const paginaSinFichar = usePaginacion(sinFichar, POR_PAGINA);
+
+  if (!usuario) return null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -351,7 +357,7 @@ const FichajePage = () => {
           <div className="grid gap-4 lg:grid-cols-2">
             <ListaCard titulo="Fichajes de hoy" vacio="Sin fichajes todavía.">
               {fichajesHoy.length > 0 &&
-                fichajesHoy.map((f) => (
+                paginaFichajes.visibles.map((f) => (
                   <ListaItem
                     key={f.id}
                     href={`/colaboradores/${f.empleadoId}`}
@@ -385,6 +391,11 @@ const FichajePage = () => {
                     }
                   />
                 ))}
+              <Paginacion
+                pagina={paginaFichajes.pagina}
+                totalPaginas={paginaFichajes.totalPaginas}
+                onCambiar={paginaFichajes.setPagina}
+              />
             </ListaCard>
 
             <ListaCard
@@ -392,7 +403,7 @@ const FichajePage = () => {
               vacio="Todos ficharon o están de licencia. Equipo al día."
             >
               {sinFichar.length > 0 &&
-                sinFichar.map((e) => (
+                paginaSinFichar.visibles.map((e) => (
                   <ListaItem
                     key={e.id}
                     href={`/colaboradores/${e.id}`}
@@ -401,6 +412,11 @@ const FichajePage = () => {
                     secundario={`${e.puesto} · ${e.sector}`}
                   />
                 ))}
+              <Paginacion
+                pagina={paginaSinFichar.pagina}
+                totalPaginas={paginaSinFichar.totalPaginas}
+                onCambiar={paginaSinFichar.setPagina}
+              />
               {deLicenciaHoy.length > 0 && (
                 <div className="border-t border-line px-4 py-3">
                   <p className="text-xs font-semibold text-ink-soft">

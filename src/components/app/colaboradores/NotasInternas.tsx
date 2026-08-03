@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { IconLock, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo } from '@/components/app/ui/Campo';
+import { Campo, CampoTextarea } from '@/components/app/ui/Campo';
 import { avisoError } from '@/lib/avisos';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import {
@@ -85,18 +85,13 @@ export const NotasInternas = ({ empleadoId }: NotasInternasProps) => {
           onChange={(e) => setMotivo(e.target.value)}
           placeholder="Solicitó aumento, problema familiar, buen desempeño…"
         />
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink">
-            Observación (opcional)
-          </span>
-          <textarea
-            value={observacion}
-            onChange={(e) => setObservacion(e.target.value)}
-            rows={2}
-            placeholder="Detalle adicional…"
-            className="w-full resize-none rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
-          />
-        </label>
+        <CampoTextarea
+          etiqueta="Observación (opcional)"
+          value={observacion}
+          onChange={(e) => setObservacion(e.target.value)}
+          rows={2}
+          placeholder="Detalle adicional…"
+        />
         <Boton
           onClick={() => void agregar()}
           disabled={!motivo.trim() || guardando}

@@ -53,7 +53,7 @@ export const Barras = ({ datos, sufijo = '' }: BarrasProps) => {
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-paper">
               <div
-                className="h-full rounded-full transition-all duration-500"
+                className="h-full rounded-full transition-[width] duration-500 ease-[cubic-bezier(0.23,1,0.32,1)]"
                 style={{
                   width: `${Math.max((d.valor / max) * 100, 2)}%`,
                   backgroundColor: colorDe(d, i),

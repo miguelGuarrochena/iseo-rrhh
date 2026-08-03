@@ -40,7 +40,10 @@ import { formatearPesos, formatearPorcentaje } from '@/lib/formato';
 import { formatearPeriodo } from '@/lib/fechas';
 import { descargarCSV } from '@/lib/csv';
 import { Boton } from '@/components/app/ui/Boton';
+import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { avisoExito } from '@/lib/avisos';
+
+const POR_PAGINA = 10;
 
 /** Gráfico de líneas simple en SVG (sin librerías). */
 const LineaEvolucion = ({
@@ -288,6 +291,13 @@ const VistaAdmin = () => {
     () => resumirMasa(rems, cargasPct),
     [rems, cargasPct]
   );
+  const {
+    pagina,
+    setPagina,
+    totalPaginas,
+    visibles: filasVisibles,
+  } = usePaginacion(resumen.porEmpleado, POR_PAGINA);
+
   const nombre = (id: string) => {
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.nombre} ${e.apellido}` : '—';
@@ -443,7 +453,7 @@ const VistaAdmin = () => {
                 </tr>
               </thead>
               <tbody>
-                {resumen.porEmpleado.map((f) => (
+                {filasVisibles.map((f) => (
                   <tr
                     key={f.empleadoId}
                     onClick={() =>
@@ -483,6 +493,11 @@ const VistaAdmin = () => {
                 ))}
               </tbody>
             </table>
+            <Paginacion
+              pagina={pagina}
+              totalPaginas={totalPaginas}
+              onCambiar={setPagina}
+            />
           </div>
         )}
         <p className="mt-4 text-xs text-ink-soft">

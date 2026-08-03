@@ -10,6 +10,7 @@ import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect, CampoTextarea } from '@/components/app/ui/Campo';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { aOpciones, Selector } from '@/components/app/ui/Selector';
+import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   cerrarComunicacion,
@@ -41,6 +42,8 @@ const estadoLabels: Record<EstadoComunicacion, string> = {
   en_curso: 'En curso',
   cerrada: 'Cerrada',
 };
+
+const POR_PAGINA = 8;
 
 const campoClase =
   'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600';
@@ -83,6 +86,13 @@ const ComunicacionesPage = () => {
         : lista,
     [lista, filtroEmpleado]
   );
+
+  const {
+    pagina,
+    setPagina,
+    totalPaginas,
+    visibles: listaVisible,
+  } = usePaginacion(listaFiltrada, POR_PAGINA);
 
   /**
    * Abrir la conversación la marca como leída. Vuelve a quedar sin leer
@@ -233,7 +243,7 @@ const ComunicacionesPage = () => {
               : 'Todavía no hay comunicaciones.'
           }
         >
-          {listaFiltrada.map((c) => (
+          {listaVisible.map((c) => (
             <ListaItem
               key={c.id}
               icono={IconMessages}
@@ -251,6 +261,11 @@ const ComunicacionesPage = () => {
               onClick={() => abrir(c)}
             />
           ))}
+          <Paginacion
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            onCambiar={setPagina}
+          />
         </ListaCard>
 
         <div className="rounded-2xl border border-line bg-surface p-4">
@@ -322,6 +337,7 @@ const ComunicacionesPage = () => {
                     onChange={(e) => setRespuesta(e.target.value)}
                     rows={2}
                     placeholder="Escribí una respuesta…"
+                    aria-label={`Responder a ${seleccion.asunto}`}
                     className={campoClase}
                   />
                   <Boton onClick={() => void responder()} className="self-end">

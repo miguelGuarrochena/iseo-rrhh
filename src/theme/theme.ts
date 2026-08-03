@@ -1,7 +1,23 @@
-import { MantineThemeOverride } from '@mantine/core';
+import { MantineThemeOverride, MantineTransition } from '@mantine/core';
 
 const fontStack =
   'var(--font-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+/** La misma curva que usa el resto de la app (globals.css: --ease-out). */
+const EASE_OUT = 'cubic-bezier(0.23, 1, 0.32, 1)';
+
+/**
+ * Entrada de los modales. El `pop` de Mantine arranca en scale(0.9) y se
+ * ve como si la ventana saliera de un punto; desde 0.95 parece que ya
+ * estaba ahí y sólo se acerca. El modal escala desde el centro (a
+ * diferencia de un popover, no cuelga de ningún botón que lo dispare).
+ */
+const modalTransition: MantineTransition = {
+  in: { opacity: 1, transform: 'scale(1)' },
+  out: { opacity: 0, transform: 'scale(0.95)' },
+  common: { transformOrigin: 'center' },
+  transitionProperty: 'transform, opacity',
+};
 
 export const theme: MantineThemeOverride = {
   primaryColor: 'brand',
@@ -69,6 +85,31 @@ export const theme: MantineThemeOverride = {
     Card: {
       defaultProps: {
         radius: 'lg',
+      },
+    },
+    /**
+     * Un solo lugar para el movimiento de los ~20 modales de la app. Sin
+     * esto cada uno queda con el default de Mantine y la curva no es la
+     * del resto de la interfaz.
+     */
+    Modal: {
+      defaultProps: {
+        transitionProps: {
+          transition: modalTransition,
+          duration: 200,
+          timingFunction: EASE_OUT,
+        },
+        overlayProps: { backgroundOpacity: 0.45, blur: 2 },
+      },
+    },
+    Drawer: {
+      defaultProps: {
+        transitionProps: { duration: 250, timingFunction: EASE_OUT },
+      },
+    },
+    Tooltip: {
+      defaultProps: {
+        transitionProps: { duration: 125, timingFunction: EASE_OUT },
       },
     },
     Container: {

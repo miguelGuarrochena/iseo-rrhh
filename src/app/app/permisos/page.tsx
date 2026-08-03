@@ -24,6 +24,9 @@ import {
   invitarUsuario,
 } from '@/lib/services/rrhh';
 import { AccionAuditoria, Empleado, Rol, Usuario } from '@/types/rrhh';
+import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+
+const POR_PAGINA = 8;
 
 const accionLabels: Record<string, string> = {
   crear: 'creó',
@@ -61,12 +64,22 @@ const PermisosPage = () => {
   const cargar = useCallback(() => {
     void getUsuariosDeEmpresa().then(setUsuarios);
     void getEmpleados().then(setEmpleados);
-    void getAuditoria(20)
+    // La auditoría es lo que respalda "quién tocó qué" ante un reclamo:
+    // cortarla en 20 dejaba afuera la semana pasada. Se traen más y se
+    // paginan.
+    void getAuditoria(200)
       .then(setAuditoria)
       .catch(() => setAuditoria([]));
   }, []);
 
   useEffect(cargar, [cargar]);
+
+  const {
+    pagina,
+    setPagina,
+    totalPaginas,
+    visibles: auditoriaVisible,
+  } = usePaginacion(auditoria, POR_PAGINA);
 
   const puedeGestionar =
     usuario?.rol === 'superadmin' || rolEfectivo === 'admin_rrhh';
@@ -193,7 +206,7 @@ const PermisosPage = () => {
 
       {auditoria.length > 0 && (
         <ListaCard titulo="Actividad reciente">
-          {auditoria.map((a) => (
+          {auditoriaVisible.map((a) => (
             <ListaItem
               key={a.id}
               icono={IconShieldCheck}
@@ -201,6 +214,11 @@ const PermisosPage = () => {
               secundario={new Date(a.creadaEn).toLocaleString('es-AR')}
             />
           ))}
+          <Paginacion
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            onCambiar={setPagina}
+          />
         </ListaCard>
       )}
 

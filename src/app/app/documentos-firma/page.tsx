@@ -18,6 +18,7 @@ import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { abrirArchivo } from '@/lib/archivosUi';
 import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
+import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import {
   abrirDocumentoFirma,
   crearDocumentoFirma,
@@ -33,6 +34,8 @@ import {
   DocumentoFirmaDestinatario,
   Empleado,
 } from '@/types/rrhh';
+
+const POR_PAGINA = 8;
 
 const DocumentosFirmaPage = () => {
   const { usuario, rolEfectivo } = useAuth();
@@ -73,6 +76,13 @@ const DocumentosFirmaPage = () => {
   }, [usuario, esAdmin]);
 
   useEffect(cargar, [cargar]);
+
+  const {
+    pagina,
+    setPagina,
+    totalPaginas,
+    visibles: docsVisibles,
+  } = usePaginacion(docs, POR_PAGINA);
 
   const toggleEmpleado = (id: string) =>
     setElegidos((prev) =>
@@ -233,7 +243,7 @@ const DocumentosFirmaPage = () => {
           titulo={`Enviados (${docs.length})`}
           vacio="Todavía no enviaste documentos a firmar."
         >
-          {docs.map((d) => (
+          {docsVisibles.map((d) => (
             <ListaItem
               key={d.id}
               icono={IconFileCheck}
@@ -261,6 +271,11 @@ const DocumentosFirmaPage = () => {
               }
             />
           ))}
+          <Paginacion
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            onCambiar={setPagina}
+          />
         </ListaCard>
       )}
 

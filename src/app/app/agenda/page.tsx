@@ -27,6 +27,9 @@ import {
   getEventosProximos,
 } from '@/lib/services/rrhh';
 import { Alerta, EventoAgenda, TipoEvento } from '@/types/rrhh';
+import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+
+const POR_PAGINA = 8;
 
 /** Vista unificada: eventos cargados a mano + vencimientos que ya calcula el sistema (contrato, documentos). */
 interface ItemAgenda {
@@ -100,8 +103,6 @@ const AgendaPage = () => {
 
   useEffect(cargar, [cargar]);
 
-  if (!usuario) return null;
-
   // Los vencimientos de contrato/documentos ya calculados por el sistema se
   // suman a los eventos cargados a mano, para no vivir en dos pantallas
   // distintas (acá y en el Dashboard).
@@ -116,6 +117,13 @@ const AgendaPage = () => {
     return true;
   });
   const fechasConEventos = new Set(items.map((e) => e.fecha));
+
+  const {
+    pagina,
+    setPagina,
+    totalPaginas,
+    visibles: visiblesPagina,
+  } = usePaginacion(visibles, POR_PAGINA);
 
   const crear = async (e: FormEvent) => {
     e.preventDefault();
@@ -141,6 +149,8 @@ const AgendaPage = () => {
     close();
     cargar();
   };
+
+  if (!usuario) return null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -187,7 +197,7 @@ const AgendaPage = () => {
           }
         >
           {visibles.length > 0 &&
-            visibles.map((e) => (
+            visiblesPagina.map((e) => (
               <ListaItem
                 key={e.id}
                 href={e.href}
@@ -209,6 +219,11 @@ const AgendaPage = () => {
                 }
               />
             ))}
+          <Paginacion
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            onCambiar={setPagina}
+          />
         </ListaCard>
       </div>
 

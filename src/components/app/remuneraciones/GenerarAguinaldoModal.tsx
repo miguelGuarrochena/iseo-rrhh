@@ -30,6 +30,8 @@ interface FilaAguinaldo {
   monto: string;
   elegiblePorModalidad: boolean;
   yaGenerado: boolean;
+  /** Mensaje a mostrar en la fila cuando el monto no sirve. */
+  error?: string;
 }
 
 const semestreActual = (): 1 | 2 => (new Date().getMonth() < 6 ? 1 : 2);
@@ -110,11 +112,28 @@ export const GenerarAguinaldoModal = ({
     );
 
   const setMonto = (i: number, monto: string) =>
-    setFilas((prev) => prev.map((f, idx) => (idx === i ? { ...f, monto } : f)));
+    setFilas((prev) =>
+      prev.map((f, idx) => (idx === i ? { ...f, monto, error: undefined } : f))
+    );
 
   const generar = async () => {
     const aGenerar = filas.filter((f) => f.seleccionado);
     if (aGenerar.length === 0) return;
+
+    // Un SAC en cero no es un aguinaldo, es un registro que después nadie
+    // entiende. Se marca la fila en vez de dejar pasar el número.
+    const invalidos = aGenerar.filter((f) => !(Number(f.monto) > 0));
+    if (invalidos.length > 0) {
+      setFilas((prev) =>
+        prev.map((f) =>
+          f.seleccionado && !(Number(f.monto) > 0)
+            ? { ...f, error: 'Poné un monto mayor a cero o destildalo.' }
+            : { ...f, error: undefined }
+        )
+      );
+      return;
+    }
+    setFilas((prev) => prev.map((f) => ({ ...f, error: undefined })));
     setGenerando(true);
     try {
       await Promise.all(
@@ -201,19 +220,32 @@ export const GenerarAguinaldoModal = ({
                     <p className="truncate text-sm font-semibold text-ink">
                       {f.empleado.apellido}, {f.empleado.nombre}
                     </p>
-                    <p className="truncate text-xs text-ink-soft">
-                      {!f.elegiblePorModalidad &&
-                        'No suele corresponderle aguinaldo (revisá su modalidad) · '}
-                      {f.yaGenerado && 'Ya tiene SAC generado este semestre · '}
-                      {f.empleado.puesto}
-                    </p>
+                    {f.error ? (
+                      <p className="truncate text-xs font-medium text-red-600">
+                        {f.error}
+                      </p>
+                    ) : (
+                      <p className="truncate text-xs text-ink-soft">
+                        {!f.elegiblePorModalidad &&
+                          'No suele corresponderle aguinaldo (revisá su modalidad) · '}
+                        {f.yaGenerado &&
+                          'Ya tiene SAC generado este semestre · '}
+                        {f.empleado.puesto}
+                      </p>
+                    )}
                   </div>
                   <input
                     type="number"
                     value={f.monto}
                     onChange={(e) => setMonto(i, e.target.value)}
                     disabled={!f.seleccionado}
-                    className="w-32 shrink-0 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-right text-sm text-ink outline-none focus:border-brand-600 disabled:opacity-50"
+                    aria-invalid={Boolean(f.error)}
+                    aria-label={`Monto del aguinaldo de ${f.empleado.nombre} ${f.empleado.apellido}`}
+                    className={`w-32 shrink-0 rounded-lg border bg-surface px-2.5 py-1.5 text-right text-sm text-ink outline-none disabled:opacity-50 ${
+                      f.error
+                        ? 'border-red-300 focus:border-red-500'
+                        : 'border-line focus:border-brand-600'
+                    }`}
                   />
                 </label>
               ))}

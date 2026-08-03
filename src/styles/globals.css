@@ -48,9 +48,21 @@
 }
 
 /* Hover de bloques (StatCard, filas): fondo opaco y sutil, sin que el
-   bloque se "pierda" contra el fondo. Se adapta al tema. */
-.hover-bloque:hover {
-  background-color: rgb(var(--surface-hover-rgb));
+   bloque se "pierda" contra el fondo. Se adapta al tema.
+
+   Va detrás de `hover: hover` porque en pantallas táctiles el navegador
+   dispara :hover al tocar y el resaltado queda pegado hasta que se toca
+   otra cosa: parece una fila seleccionada que no se puede deseleccionar. */
+@media (hover: hover) and (pointer: fine) {
+  .hover-bloque:hover {
+    background-color: rgb(var(--surface-hover-rgb));
+  }
+}
+
+/* Feedback al tocar una fila clickeable: más sutil que en un botón,
+   porque la fila es grande y un 0.97 se ve exagerado. */
+.hover-bloque:active {
+  transform: scale(0.995);
 }
 
 * {
@@ -167,6 +179,70 @@ h6 {
 }
 .presionable:active {
   transform: scale(0.97);
+}
+
+/**
+ * Entrada de contenido. La app carga los datos después de pintar la
+ * pantalla, así que las listas y tarjetas aparecen de golpe cuando llega
+ * la respuesta. Un fade corto con 6px de desplazamiento tapa ese salto
+ * sin hacer esperar a nadie.
+ *
+ * Sube desde abajo (no baja): el contenido "llega" al lugar que le
+ * corresponde en vez de caer sobre él.
+ */
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.aparece {
+  animation: aparecer var(--dur-panel) var(--ease-out) both;
+}
+
+/**
+ * Escalonado para listas: cada fila entra 40ms después de la anterior.
+ * Se corta en la 8ª porque más allá el retraso acumulado se nota como
+ * lentitud, no como prolijidad. Las filas siguientes entran con la
+ * última demora.
+ */
+.aparece-lista > * {
+  animation: aparecer var(--dur-panel) var(--ease-out) both;
+}
+.aparece-lista > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.aparece-lista > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.aparece-lista > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+.aparece-lista > *:nth-child(4) {
+  animation-delay: 120ms;
+}
+.aparece-lista > *:nth-child(5) {
+  animation-delay: 160ms;
+}
+.aparece-lista > *:nth-child(6) {
+  animation-delay: 200ms;
+}
+.aparece-lista > *:nth-child(n + 7) {
+  animation-delay: 240ms;
+}
+
+/* El escalonado es decoración: si el sistema pide menos movimiento, las
+   filas aparecen juntas y sin desplazarse. */
+@media (prefers-reduced-motion: reduce) {
+  .aparece,
+  .aparece-lista > * {
+    animation: none !important;
+  }
 }
 
 /* Offset para que el header fijo no tape la sección a la que se scrollea. */

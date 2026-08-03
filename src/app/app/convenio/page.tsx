@@ -14,7 +14,8 @@ import { Modal } from '@mantine/core';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo } from '@/components/app/ui/Campo';
+import { Campo, CampoTextarea } from '@/components/app/ui/Campo';
+import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   actualizarConvenio,
@@ -47,18 +48,20 @@ const FormConvenio = ({
   const [nombre, setNombre] = useState(inicial?.nombre ?? '');
   const [contenido, setContenido] = useState(inicial?.contenido ?? '');
   const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [errores, setErrores] = useState<Record<string, string>>({});
 
   const guardar = async () => {
-    if (!nombre.trim()) {
-      setError('El nombre del convenio es obligatorio.');
-      return;
-    }
-    if (!contenido.trim()) {
-      setError('Pegá el texto del convenio antes de guardar.');
-      return;
-    }
-    setError(null);
+    // Cada faltante se marca en su campo. Antes los dos mensajes iban al
+    // mismo lugar y se decidía cuál mostrar mirando si el texto decía
+    // "nombre", algo que se rompía al cambiar una palabra del mensaje.
+    const nuevos = juntarErrores({
+      nombre: validarRequerido(nombre, 'El nombre del convenio'),
+      contenido: contenido.trim()
+        ? null
+        : 'Pegá el texto del convenio antes de guardar.',
+    });
+    setErrores(nuevos);
+    if (Object.keys(nuevos).length > 0) return;
     setGuardando(true);
     try {
       const datos = { nombre: nombre.trim(), contenido };
@@ -82,23 +85,16 @@ const FormConvenio = ({
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
           placeholder="Ej. CCT 130/75 — Empleados de Comercio"
-          error={error?.includes('nombre') ? error : undefined}
+          error={errores.nombre}
         />
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink">
-            Texto del convenio
-          </span>
-          <textarea
-            value={contenido}
-            onChange={(e) => setContenido(e.target.value)}
-            rows={14}
-            placeholder="Pegá acá el texto del convenio. Separá los artículos con una línea en blanco."
-            className="w-full resize-y rounded-xl border border-line bg-surface px-4 py-3 text-sm leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
-          />
-          {error && !error.includes('nombre') && (
-            <span className="text-xs font-medium text-red-600">{error}</span>
-          )}
-        </label>
+        <CampoTextarea
+          etiqueta="Texto del convenio"
+          value={contenido}
+          onChange={(e) => setContenido(e.target.value)}
+          rows={14}
+          placeholder="Pegá acá el texto del convenio. Separá los artículos con una línea en blanco."
+          error={errores.contenido}
+        />
         <div className="flex gap-2">
           <Boton onClick={() => void guardar()} disabled={guardando}>
             {guardando ? 'Guardando…' : 'Guardar'}

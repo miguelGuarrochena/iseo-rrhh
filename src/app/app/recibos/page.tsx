@@ -41,6 +41,9 @@ import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { Empleado, ReciboSueldo, TipoRecibo } from '@/types/rrhh';
 import { tipoReciboLabels } from '@/lib/etiquetas';
 import { aOpciones } from '@/components/app/ui/Selector';
+import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+
+const POR_PAGINA = 8;
 
 const FirmaBadge = ({ recibo }: { recibo: ReciboSueldo }) =>
   recibo.estadoFirma === 'firmado' ? (
@@ -130,8 +133,6 @@ const RecibosPage = () => {
   }, [usuario, soloPropios]);
 
   useEffect(cargar, [cargar]);
-
-  if (!usuario) return null;
 
   const nombreEmpleado = (id: string): string => {
     const e = empleados.find((x) => x.id === id);
@@ -361,6 +362,15 @@ const RecibosPage = () => {
     .filter((r) => anioFiltro === 'todos' || r.periodo.startsWith(anioFiltro))
     .sort((a, b) => b.periodo.localeCompare(a.periodo));
 
+  const {
+    pagina,
+    setPagina,
+    totalPaginas,
+    visibles: historialVisible,
+  } = usePaginacion(historial, POR_PAGINA);
+
+  if (!usuario) return null;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
@@ -560,7 +570,7 @@ const RecibosPage = () => {
           </div>
         )}
         {historial.length > 0 &&
-          historial.map((r) => (
+          historialVisible.map((r) => (
             <ListaItem
               key={r.id}
               href={soloPropios ? undefined : `/colaboradores/${r.empleadoId}`}
@@ -604,6 +614,11 @@ const RecibosPage = () => {
               }
             />
           ))}
+        <Paginacion
+          pagina={pagina}
+          totalPaginas={totalPaginas}
+          onCambiar={setPagina}
+        />
       </ListaCard>
 
       <Modal

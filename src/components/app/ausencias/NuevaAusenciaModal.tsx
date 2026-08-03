@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { Boton } from '@/components/app/ui/Boton';
-import { CampoSelect } from '@/components/app/ui/Campo';
+import { CampoSelect, CampoTextarea } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
@@ -30,9 +30,6 @@ interface NuevaAusenciaModalProps {
   modoAdmin?: boolean;
   empleados?: Empleado[];
 }
-
-const campoClase =
-  'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600';
 
 export const NuevaAusenciaModal = ({
   abierto,
@@ -207,22 +204,17 @@ export const NuevaAusenciaModal = ({
           </div>
         )}
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold text-ink">
-            Comentario (opcional)
-          </span>
-          <textarea
-            value={comentario}
-            onChange={(e) => setComentario(e.target.value)}
-            rows={2}
-            placeholder={
-              modoAdmin
-                ? 'Motivo o detalle interno'
-                : 'Motivo o detalle para tu supervisor'
-            }
-            className={campoClase}
-          />
-        </label>
+        <CampoTextarea
+          etiqueta="Comentario (opcional)"
+          value={comentario}
+          onChange={(e) => setComentario(e.target.value)}
+          rows={2}
+          placeholder={
+            modoAdmin
+              ? 'Motivo o detalle interno'
+              : 'Motivo o detalle para tu supervisor'
+          }
+        />
 
         <CampoArchivo
           key={abierto ? 'abierto' : 'cerrado'}

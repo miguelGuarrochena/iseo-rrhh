@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo } from '@/components/app/ui/Campo';
+import { Campo, CampoTextarea } from '@/components/app/ui/Campo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
 import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -53,6 +53,7 @@ export const AdelantosEmpleado = ({ empleadoId }: { empleadoId: string }) => {
   const [monto, setMonto] = useState('');
   const [motivo, setMotivo] = useState('');
   const [pidiendo, setPidiendo] = useState(false);
+  const [errorMonto, setErrorMonto] = useState<string | null>(null);
 
   const cargar = useCallback(() => {
     void getAdelantos(empleadoId).then(setAdelantos);
@@ -62,10 +63,13 @@ export const AdelantosEmpleado = ({ empleadoId }: { empleadoId: string }) => {
 
   const pedir = async () => {
     const m = Number(monto);
+    // El error se marca en el campo: un toast genérico obliga a volver a
+    // buscar cuál de los dos campos estaba mal.
     if (!m || m <= 0) {
-      avisoError('Ingresá el monto', 'Debe ser mayor a cero.');
+      setErrorMonto('Ingresá un monto mayor a cero.');
       return;
     }
+    setErrorMonto(null);
     setPidiendo(true);
     try {
       await solicitarAdelanto(empleadoId, m, motivo);
@@ -145,21 +149,20 @@ export const AdelantosEmpleado = ({ empleadoId }: { empleadoId: string }) => {
             etiqueta="Monto *"
             type="number"
             value={monto}
-            onChange={(e) => setMonto(e.target.value)}
+            onChange={(e) => {
+              setMonto(e.target.value);
+              if (errorMonto) setErrorMonto(null);
+            }}
             placeholder="0"
+            error={errorMonto ?? undefined}
           />
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-ink">
-              Motivo (opcional)
-            </span>
-            <textarea
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              rows={3}
-              placeholder="Contale a RRHH para qué lo necesitás."
-              className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-600"
-            />
-          </label>
+          <CampoTextarea
+            etiqueta="Motivo (opcional)"
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            rows={3}
+            placeholder="Contale a RRHH para qué lo necesitás."
+          />
           <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
             RRHH recibe el pedido y te avisa cuando lo resuelva. Si se aprueba,
             se descuenta de tu sueldo del período indicado.
