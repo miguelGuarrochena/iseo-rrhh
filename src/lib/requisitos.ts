@@ -84,6 +84,11 @@ export interface ContextoEmpleado {
    * es peor que ninguna.
    */
   tieneCuenta?: boolean;
+  /**
+   * Si tiene al menos una remuneración cargada. Misma regla que arriba:
+   * `undefined` significa que no se sabe, no que no tenga.
+   */
+  tieneSueldo?: boolean;
 }
 
 const vacio = (v: string | undefined | null): boolean =>
@@ -139,6 +144,17 @@ const REGLAS: Regla[] = [
     comoSeArregla: 'Cargá el CBU en la ficha.',
     ruta: fichaDe,
     falta: (e) => vacio(e.cbu),
+  },
+  {
+    clave: 'sin_sueldo',
+    ambitos: ['pagos'],
+    severidad: 'avisa',
+    titulo: 'Sin sueldo cargado',
+    detalle:
+      'No tiene ninguna remuneración registrada, así que no entra en la masa salarial, no se le calcula el aguinaldo ni el valor de la hora extra, y si se va no hay con qué armar la liquidación final.',
+    comoSeArregla: 'Cargale la remuneración desde Remuneraciones.',
+    ruta: () => '/remuneraciones',
+    falta: (_e, ctx) => ctx.tieneSueldo === false,
   },
   {
     clave: 'plazo_fijo_sin_fin',

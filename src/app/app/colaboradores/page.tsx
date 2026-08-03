@@ -20,8 +20,12 @@ import {
   paginar,
   totalPaginasDe,
 } from '@/components/app/ui/Paginacion';
-import { getEmpleadosConCuenta, getEmpleadosTodos } from '@/lib/services/rrhh';
-import { Empleado, ModalidadContratacion } from '@/types/rrhh';
+import {
+  getEmpleadosConCuenta,
+  getEmpleadosTodos,
+  getRemuneracionesTodas,
+} from '@/lib/services/rrhh';
+import { Empleado, ModalidadContratacion, Remuneracion } from '@/types/rrhh';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
@@ -70,20 +74,29 @@ const ColaboradoresPage = () => {
     contexto: 'colaboradores/cuentas',
     inicial: [] as string[],
   });
+  // Una sola consulta para toda la empresa, no una por persona.
+  const cSueldos = useCarga(() => getRemuneracionesTodas(), [], {
+    activo: rolEfectivo === 'admin_rrhh',
+    contexto: 'colaboradores/sueldos',
+    inicial: [] as Remuneracion[],
+  });
   const faltasPorEmpleado = useMemo(() => {
     const cuentas = new Set(cCuentas.datos);
-    const sabemos = cCuentas.fase === 'ok';
+    const sabemosCuentas = cCuentas.fase === 'ok';
+    const conSueldo = new Set(cSueldos.datos.map((r) => r.empleadoId));
+    const sabemosSueldos = cSueldos.fase === 'ok';
     return new Map(
       empleados
         .filter((e) => e.activo)
         .map((e) => [
           e.id,
           faltasDeEmpleado(e, {
-            tieneCuenta: sabemos ? cuentas.has(e.id) : undefined,
+            tieneCuenta: sabemosCuentas ? cuentas.has(e.id) : undefined,
+            tieneSueldo: sabemosSueldos ? conSueldo.has(e.id) : undefined,
           }),
         ])
     );
-  }, [empleados, cCuentas.datos, cCuentas.fase]);
+  }, [empleados, cCuentas.datos, cCuentas.fase, cSueldos.datos, cSueldos.fase]);
 
   const resumen = useMemo(
     () =>

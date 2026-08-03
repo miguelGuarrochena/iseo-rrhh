@@ -170,9 +170,20 @@ const FichaColaboradorPage = () => {
             // Si la consulta falló no se afirma nada.
             tieneCuenta:
               cCuentas.fase === 'ok' ? cCuentas.datos.includes(id) : undefined,
+            tieneSueldo:
+              cRemuneraciones.fase === 'ok'
+                ? remuneraciones.length > 0
+                : undefined,
           })
         : [],
-    [empleado, cCuentas.fase, cCuentas.datos, id]
+    [
+      empleado,
+      cCuentas.fase,
+      cCuentas.datos,
+      id,
+      cRemuneraciones.fase,
+      remuneraciones,
+    ]
   );
 
   /**

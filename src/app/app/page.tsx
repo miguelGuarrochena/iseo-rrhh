@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   IconAlertTriangle,
@@ -25,12 +26,14 @@ import {
   getAusenciasDeEmpleado,
   getAusenciasPendientes,
   getEmpleados,
+  getEmpleadosConCuenta,
   getEmpresas,
   getEventosProximos,
   getFichajesDeHoy,
   getMetricasGlobales,
   getMiMes,
   getRecibos,
+  getRemuneracionesTodas,
   getResumenFinanzas,
   getSaldoVacaciones,
   getVacacionesAprobadasMiSector,
@@ -43,11 +46,14 @@ import {
   EventoAgenda,
   Fichaje,
   ReciboSueldo,
+  Remuneracion,
   VacacionSector,
 } from '@/types/rrhh';
 
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { useCarga } from '@/lib/useCarga';
+import { faltasDeEmpleado } from '@/lib/requisitos';
+import { BloqueFaltasDeVarios } from '@/components/app/Faltas';
 
 const ANIO_ACTUAL = new Date().getFullYear();
 
@@ -177,6 +183,31 @@ const DashboardPage = () => {
     inicial: [] as Alerta[],
   });
   const alertas = cAlertas.datos;
+
+  // Dos consultas para toda la empresa, no una por persona.
+  const cCuentas = useCarga(() => getEmpleadosConCuenta(), [gestionEmpresa], {
+    activo: gestionEmpresa,
+    contexto: 'inicio/cuentas',
+    inicial: [] as string[],
+  });
+  const cSueldos = useCarga(() => getRemuneracionesTodas(), [gestionEmpresa], {
+    activo: gestionEmpresa,
+    contexto: 'inicio/sueldos',
+    inicial: [] as Remuneracion[],
+  });
+  const faltantes = useMemo(() => {
+    const cuentas = new Set(cCuentas.datos);
+    const conSueldo = new Set(cSueldos.datos.map((r) => r.empleadoId));
+    return empleados.map((e) => ({
+      nombre: `${e.nombre} ${e.apellido}`,
+      // Cada dato que no se pudo consultar va undefined por separado: si
+      // falla la de sueldos, las faltas de cuenta se siguen mostrando.
+      faltas: faltasDeEmpleado(e, {
+        tieneCuenta: cCuentas.fase === 'ok' ? cuentas.has(e.id) : undefined,
+        tieneSueldo: cSueldos.fase === 'ok' ? conSueldo.has(e.id) : undefined,
+      }),
+    }));
+  }, [empleados, cCuentas.datos, cCuentas.fase, cSueldos.datos, cSueldos.fase]);
 
   if (!usuario) return null;
 
@@ -392,6 +423,17 @@ const DashboardPage = () => {
             icono={IconUsers}
           />
         </div>
+      )}
+
+      {/* Lo que hay que completar en toda la empresa. Va en Inicio
+          porque son cosas que nadie va a buscar: no duelen hasta el día
+          que hacen falta, y ese día ya es tarde. Agrupado por falta, con
+          los nombres: "10 sin cuenta" sin decir quiénes no sirve. */}
+      {gestionEmpresa && (
+        <BloqueFaltasDeVarios
+          items={faltantes}
+          titulo="Para completar cuando puedas"
+        />
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">

@@ -243,6 +243,18 @@ Si algo no se pudo consultar —por ejemplo, quién tiene cuenta— el
 contexto se pasa `undefined` y la regla **no dispara**. Una advertencia
 inventada es peor que no dar ninguna.
 
+### Datos que se consultan para toda la empresa
+
+Dos faltas necesitan un dato que la ficha no tiene: si la persona tiene
+cuenta (`getEmpleadosConCuenta`) y si tiene sueldo cargado
+(`getRemuneracionesTodas`). Las dos se consultan **una vez por pantalla**
+y se cruzan en memoria. Hacerlo por fila serían N consultas para pintar
+una lista.
+
+Cada dato viaja en su propia clave del contexto y se pasa `undefined` por
+separado: si falla la consulta de sueldos, las faltas de cuenta se siguen
+mostrando.
+
 ### Agregar una falta nueva
 
 Se agrega una fila a `REGLAS` en `requisitos.ts` y aparece sola en la

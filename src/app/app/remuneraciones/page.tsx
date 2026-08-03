@@ -43,6 +43,8 @@ import { Boton } from '@/components/app/ui/Boton';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { faltasDeEmpleado } from '@/lib/requisitos';
+import { BloqueFaltasDeVarios } from '@/components/app/Faltas';
 import { avisoExito } from '@/lib/avisos';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
@@ -315,6 +317,21 @@ const VistaAdmin = () => {
     () => resumirMasa(rems, cargasPct),
     [rems, cargasPct]
   );
+
+  // Quién no tiene ninguna remuneración cargada. Se saca de `rems`, que
+  // ya está en memoria: no hace falta otra consulta.
+  const faltantes = useMemo(() => {
+    if (cRems.fase !== 'ok' || cEmpleados.fase !== 'ok') return [];
+    const conSueldo = new Set(rems.map((r) => r.empleadoId));
+    return empleados.map((e) => ({
+      nombre: `${e.apellido}, ${e.nombre}`,
+      faltas: faltasDeEmpleado(
+        e,
+        { tieneSueldo: conSueldo.has(e.id) },
+        'pagos'
+      ),
+    }));
+  }, [empleados, rems, cRems.fase, cEmpleados.fase]);
   const {
     pagina,
     setPagina,
@@ -413,6 +430,14 @@ const VistaAdmin = () => {
           icono={IconUsers}
         />
       </div>
+
+      {/* "N con sueldo cargado" deja abierta la pregunta de quiénes son
+          los otros, y esa diferencia hace que la masa salarial de arriba
+          esté subestimada sin que se note. */}
+      <BloqueFaltasDeVarios
+        items={faltantes}
+        titulo="Estos no entran en los números de arriba"
+      />
 
       <Panel>
         <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
