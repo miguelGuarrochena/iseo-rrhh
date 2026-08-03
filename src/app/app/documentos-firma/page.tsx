@@ -35,6 +35,7 @@ import {
   Empleado,
 } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 8;
 
@@ -394,9 +395,11 @@ const DocumentosFirmaPage = () => {
 /** La empresa puede tener esta sección apagada: se bloquea la ruta,
  * no sólo el link del menú. */
 const DocumentosFirmaPageProtegida = () => (
-  <RequireModulo modulo="documentos-firma">
-    <DocumentosFirmaPage />
-  </RequireModulo>
+  <RequireEmpresa>
+    <RequireModulo modulo="documentos-firma">
+      <DocumentosFirmaPage />
+    </RequireModulo>
+  </RequireEmpresa>
 );
 
 export default DocumentosFirmaPageProtegida;

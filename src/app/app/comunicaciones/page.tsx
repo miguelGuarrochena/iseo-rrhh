@@ -32,6 +32,7 @@ import {
   TipoComunicacion,
 } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const tipoLabels: Record<TipoComunicacion, string> = {
   consulta: 'Consulta',
@@ -417,9 +418,11 @@ const ComunicacionesPage = () => {
 /** La empresa puede tener esta sección apagada: se bloquea la ruta,
  * no sólo el link del menú. */
 const ComunicacionesPageProtegida = () => (
-  <RequireModulo modulo="comunicaciones">
-    <ComunicacionesPage />
-  </RequireModulo>
+  <RequireEmpresa>
+    <RequireModulo modulo="comunicaciones">
+      <ComunicacionesPage />
+    </RequireModulo>
+  </RequireEmpresa>
 );
 
 export default ComunicacionesPageProtegida;

@@ -6,6 +6,7 @@ import { Sidebar } from '@/components/app/Sidebar';
 import { BottomNav } from '@/components/app/BottomNav';
 import { AppHeader } from '@/components/app/AppHeader';
 import { ModoKiosco } from '@/components/app/fichaje/ModoKiosco';
+import { RedDeSeguridad } from '@/components/app/RedDeSeguridad';
 import { kioscoActivo } from '@/lib/kiosco';
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
@@ -28,6 +29,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <RequireAuth>
+      <RedDeSeguridad />
       <div className="app-scope bg-app min-h-screen">
         <Sidebar />
         <div className="lg:pl-64">

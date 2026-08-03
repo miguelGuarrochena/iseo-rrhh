@@ -29,6 +29,7 @@ import { formatearFecha } from '@/lib/fechas';
 import { fetchProtegido } from '@/lib/api/fetchProtegido';
 import { Convenio } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const EjemplosPreguntas = [
   '¿Cuántos días corresponden por fallecimiento de un familiar?',
@@ -447,9 +448,11 @@ const ConvenioPage = () => {
 /** La empresa puede tener esta sección apagada: se bloquea la ruta,
  * no sólo el link del menú. */
 const ConvenioPageProtegida = () => (
-  <RequireModulo modulo="convenio">
-    <ConvenioPage />
-  </RequireModulo>
+  <RequireEmpresa>
+    <RequireModulo modulo="convenio">
+      <ConvenioPage />
+    </RequireModulo>
+  </RequireEmpresa>
 );
 
 export default ConvenioPageProtegida;

@@ -25,6 +25,7 @@ import {
 } from '@/lib/services/rrhh';
 import { AccionAuditoria, Empleado, Rol, Usuario } from '@/types/rrhh';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 8;
 
@@ -291,4 +292,11 @@ const PermisosPage = () => {
   );
 };
 
-export default PermisosPage;
+/** Trabaja sobre una empresa concreta: sin una activa no hay qué pedir. */
+const PermisosPageConEmpresa = () => (
+  <RequireEmpresa>
+    <PermisosPage />
+  </RequireEmpresa>
+);
+
+export default PermisosPageConEmpresa;

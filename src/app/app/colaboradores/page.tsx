@@ -22,6 +22,7 @@ import {
 } from '@/components/app/ui/Paginacion';
 import { getEmpleadosTodos } from '@/lib/services/rrhh';
 import { Empleado, ModalidadContratacion } from '@/types/rrhh';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 6;
 
@@ -270,4 +271,11 @@ const ColaboradoresPage = () => {
   );
 };
 
-export default ColaboradoresPage;
+/** Trabaja sobre una empresa concreta: sin una activa no hay qué pedir. */
+const ColaboradoresPageConEmpresa = () => (
+  <RequireEmpresa>
+    <ColaboradoresPage />
+  </RequireEmpresa>
+);
+
+export default ColaboradoresPageConEmpresa;

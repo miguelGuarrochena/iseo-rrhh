@@ -29,6 +29,7 @@ import {
 import { Alerta, EventoAgenda, TipoEvento } from '@/types/rrhh';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 8;
 
@@ -290,9 +291,11 @@ const AgendaPage = () => {
 /** La empresa puede tener esta sección apagada: se bloquea la ruta,
  * no sólo el link del menú. */
 const AgendaPageProtegida = () => (
-  <RequireModulo modulo="agenda">
-    <AgendaPage />
-  </RequireModulo>
+  <RequireEmpresa>
+    <RequireModulo modulo="agenda">
+      <AgendaPage />
+    </RequireModulo>
+  </RequireEmpresa>
 );
 
 export default AgendaPageProtegida;

@@ -74,6 +74,7 @@ import {
   Remuneracion,
   SaldoVacaciones,
 } from '@/types/rrhh';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const ANIO_ACTUAL = new Date().getFullYear();
 
@@ -745,4 +746,11 @@ const FichaColaboradorPage = () => {
   );
 };
 
-export default FichaColaboradorPage;
+/** Trabaja sobre una empresa concreta: sin una activa no hay qué pedir. */
+const FichaColaboradorPageConEmpresa = () => (
+  <RequireEmpresa>
+    <FichaColaboradorPage />
+  </RequireEmpresa>
+);
+
+export default FichaColaboradorPageConEmpresa;

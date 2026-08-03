@@ -22,6 +22,7 @@ import {
 } from '@/components/app/organigrama/OrganigramaChart';
 import { Empleado } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const RAIZ = '__root__';
 
@@ -266,9 +267,11 @@ const OrganigramaPage = () => {
 /** La empresa puede tener esta sección apagada: se bloquea la ruta,
  * no sólo el link del menú. */
 const OrganigramaPageProtegida = () => (
-  <RequireModulo modulo="organigrama">
-    <OrganigramaPage />
-  </RequireModulo>
+  <RequireEmpresa>
+    <RequireModulo modulo="organigrama">
+      <OrganigramaPage />
+    </RequireModulo>
+  </RequireEmpresa>
 );
 
 export default OrganigramaPageProtegida;

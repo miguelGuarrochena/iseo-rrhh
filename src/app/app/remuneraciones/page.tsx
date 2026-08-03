@@ -43,6 +43,7 @@ import { Boton } from '@/components/app/ui/Boton';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { avisoExito } from '@/lib/avisos';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 10;
 
@@ -570,9 +571,11 @@ const RemuneracionesPage = () => {
 /** La empresa puede tener esta sección apagada: se bloquea la ruta,
  * no sólo el link del menú. */
 const RemuneracionesPageProtegida = () => (
-  <RequireModulo modulo="remuneraciones">
-    <RemuneracionesPage />
-  </RequireModulo>
+  <RequireEmpresa>
+    <RequireModulo modulo="remuneraciones">
+      <RemuneracionesPage />
+    </RequireModulo>
+  </RequireEmpresa>
 );
 
 export default RemuneracionesPageProtegida;

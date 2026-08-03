@@ -35,6 +35,7 @@ import {
   ResumenControl,
 } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 /**
  * Reportes con gráficos. Admin/supervisor: control de su empresa.
@@ -376,9 +377,11 @@ const ReportesPage = () => {
 /** La empresa puede tener esta sección apagada: se bloquea la ruta,
  * no sólo el link del menú. */
 const ReportesPageProtegida = () => (
-  <RequireModulo modulo="reportes">
-    <ReportesPage />
-  </RequireModulo>
+  <RequireEmpresa>
+    <RequireModulo modulo="reportes">
+      <ReportesPage />
+    </RequireModulo>
+  </RequireEmpresa>
 );
 
 export default ReportesPageProtegida;
