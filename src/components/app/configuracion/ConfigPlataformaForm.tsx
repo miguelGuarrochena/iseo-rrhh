@@ -14,6 +14,7 @@ import {
 import { ConfigPlataforma } from '@/types/rrhh';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { Switch } from '@/components/app/ui/Switch';
 
 const campoClase =
   'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-600';
@@ -131,8 +132,7 @@ export const ConfigPlataformaForm = () => {
           />
           <div className="flex flex-col gap-2">
             <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 py-3">
-              <input
-                type="checkbox"
+              <Switch
                 checked={config.pushHabilitado}
                 onChange={() =>
                   setConfig({
@@ -140,15 +140,13 @@ export const ConfigPlataformaForm = () => {
                     pushHabilitado: !config.pushHabilitado,
                   })
                 }
-                className="h-4 w-4 accent-brand-600"
               />
               <span className="text-sm font-medium text-ink">
                 Notificaciones push habilitadas
               </span>
             </label>
             <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 py-3">
-              <input
-                type="checkbox"
+              <Switch
                 checked={config.resumenSemanalEmail}
                 onChange={() =>
                   setConfig({
@@ -156,7 +154,6 @@ export const ConfigPlataformaForm = () => {
                     resumenSemanalEmail: !config.resumenSemanalEmail,
                   })
                 }
-                className="h-4 w-4 accent-brand-600"
               />
               <span className="text-sm font-medium text-ink">
                 Resumen semanal por email a cada admin

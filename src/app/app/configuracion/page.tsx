@@ -12,6 +12,7 @@ import { CuposLicenciaPanel } from '@/components/app/configuracion/CuposLicencia
 import { FeriadosPanel } from '@/components/app/configuracion/FeriadosPanel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
+import { Switch } from '@/components/app/ui/Switch';
 import { CampoHora } from '@/components/app/ui/CampoHora';
 import { MODULOS_OPCIONALES } from '@/components/app/navItems';
 import { olvidarModulos } from '@/lib/auth/useModulos';
@@ -375,8 +376,7 @@ const ConfiguracionPage = () => {
             días hábiles.
           </p>
           <label className="mt-4 flex cursor-pointer items-center gap-3">
-            <input
-              type="checkbox"
+            <Switch
               checked={Boolean(config.vacacionesDiasHabiles)}
               onChange={(e) =>
                 setConfig({
@@ -384,7 +384,6 @@ const ConfiguracionPage = () => {
                   vacacionesDiasHabiles: e.target.checked,
                 })
               }
-              className="h-4 w-4"
             />
             <span className="text-sm font-semibold text-ink">
               Contar vacaciones en días hábiles (lun–vie)

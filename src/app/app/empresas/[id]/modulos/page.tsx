@@ -11,6 +11,7 @@ import {
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
+import { Switch } from '@/components/app/ui/Switch';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { actualizarModulosEmpresa, getEmpresaPorId } from '@/lib/services/rrhh';
 import {
@@ -181,8 +182,7 @@ const ModulosEmpresaPage = () => {
                     : 'border-line bg-paper/60'
                 }`}
               >
-                <input
-                  type="checkbox"
+                <Switch
                   checked={activo}
                   onChange={(e) =>
                     setModulos((prev) => ({
@@ -190,7 +190,8 @@ const ModulosEmpresaPage = () => {
                       [m.clave]: e.target.checked,
                     }))
                   }
-                  className="mt-0.5 h-4 w-4 shrink-0"
+                  etiquetaAccesible={`${m.etiqueta}: ${activo ? 'encendida' : 'apagada'}`}
+                  className="mt-0.5"
                 />
                 <div className="min-w-0 flex-1">
                   <p
