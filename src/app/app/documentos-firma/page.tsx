@@ -23,11 +23,16 @@ import {
   crearDocumentoFirma,
   eliminarDocumentoFirma,
   firmarDocumento,
+  getDestinatariosDocumento,
   getDocumentosFirma,
   getDocumentosFirmaPendientes,
   getEmpleados,
 } from '@/lib/services/rrhh';
-import { DocumentoFirma, Empleado } from '@/types/rrhh';
+import {
+  DocumentoFirma,
+  DocumentoFirmaDestinatario,
+  Empleado,
+} from '@/types/rrhh';
 
 const DocumentosFirmaPage = () => {
   const { usuario, rolEfectivo } = useAuth();
@@ -41,6 +46,12 @@ const DocumentosFirmaPage = () => {
     (DocumentoFirma & { destinatarioId: string })[]
   >([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [detalleDoc, setDetalleDoc] = useState<
+    (DocumentoFirma & { pendientes: number; firmados: number }) | null
+  >(null);
+  const [destinatarios, setDestinatarios] = useState<
+    DocumentoFirmaDestinatario[]
+  >([]);
   const [modal, { open, close }] = useDisclosure(false);
   const [titulo, setTitulo] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -121,6 +132,18 @@ const DocumentosFirmaPage = () => {
     abrirArchivo(() => abrirDocumentoFirma(doc), {
       titulo: 'No pudimos abrir el PDF',
     });
+
+  const nombreEmpleado = (id: string) => {
+    const e = empleados.find((x) => x.id === id);
+    return e ? `${e.apellido}, ${e.nombre}` : 'Colaborador';
+  };
+
+  const verDetalle = (
+    doc: DocumentoFirma & { pendientes: number; firmados: number }
+  ) => {
+    setDetalleDoc(doc);
+    void getDestinatariosDocumento(doc.id).then(setDestinatarios);
+  };
 
   /**
    * Baja un documento que no debería estar circulando. Si alguien ya
@@ -215,7 +238,8 @@ const DocumentosFirmaPage = () => {
               key={d.id}
               icono={IconFileCheck}
               principal={d.titulo}
-              secundario={`${d.firmados} firmados · ${d.pendientes} pendientes`}
+              secundario={`${d.firmados} firmados · ${d.pendientes} pendientes · tocá para ver quién falta`}
+              onClick={() => verDetalle(d)}
               extremo={
                 <div className="flex shrink-0 items-center gap-2">
                   <Boton
@@ -302,6 +326,48 @@ const DocumentosFirmaPage = () => {
             {enviando ? 'Enviando…' : 'Enviar para firma'}
           </Boton>
         </form>
+      </Modal>
+
+      <Modal
+        opened={Boolean(detalleDoc)}
+        onClose={() => setDetalleDoc(null)}
+        title={detalleDoc?.titulo}
+        radius="lg"
+        centered
+        styles={{ title: { fontWeight: 800 } }}
+      >
+        <div className="flex flex-col gap-2">
+          {destinatarios.length === 0 ? (
+            <p className="text-sm text-ink-soft">Cargando…</p>
+          ) : (
+            destinatarios
+              .slice()
+              .sort((a, b) =>
+                nombreEmpleado(a.empleadoId).localeCompare(
+                  nombreEmpleado(b.empleadoId)
+                )
+              )
+              .map((d) => (
+                <div
+                  key={d.id}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2.5"
+                >
+                  <span className="text-sm font-semibold text-ink">
+                    {nombreEmpleado(d.empleadoId)}
+                  </span>
+                  {d.firmadoEn ? (
+                    <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
+                      Firmado
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                      Pendiente
+                    </span>
+                  )}
+                </div>
+              ))
+          )}
+        </div>
       </Modal>
 
       {dialogoConfirmar}

@@ -21,8 +21,39 @@ import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones, Selector } from '@/components/app/ui/Selector';
 import { formatearFecha, hoyISO } from '@/lib/fechas';
-import { crearEvento, getEventosProximos } from '@/lib/services/rrhh';
-import { EventoAgenda, TipoEvento } from '@/types/rrhh';
+import {
+  crearEvento,
+  getAlertas,
+  getEventosProximos,
+} from '@/lib/services/rrhh';
+import { Alerta, EventoAgenda, TipoEvento } from '@/types/rrhh';
+
+/** Vista unificada: eventos cargados a mano + vencimientos que ya calcula el sistema (contrato, documentos). */
+interface ItemAgenda {
+  id: string;
+  tipo: TipoEvento;
+  titulo: string;
+  fecha: string;
+  descripcion?: string;
+  href?: string;
+}
+
+const deEvento = (e: EventoAgenda): ItemAgenda => ({
+  id: e.id,
+  tipo: e.tipo,
+  titulo: e.titulo,
+  fecha: e.fecha,
+  descripcion: e.descripcion,
+});
+
+const deAlerta = (a: Alerta): ItemAgenda => ({
+  id: a.id,
+  tipo: 'vencimiento',
+  titulo: a.titulo,
+  fecha: a.fecha,
+  descripcion: 'Vencimiento automático',
+  href: a.empleadoId ? `/colaboradores/${a.empleadoId}` : '/colaboradores',
+});
 
 const tipoEventoLabels: Record<TipoEvento, string> = {
   evento: 'Evento',
@@ -44,6 +75,7 @@ const AgendaPage = () => {
     rolEfectivo === 'admin_rrhh' || rolEfectivo === 'supervisor';
 
   const [eventos, setEventos] = useState<EventoAgenda[]>([]);
+  const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [filtro, setFiltro] = useState<TipoEvento | ''>('');
   const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null);
   const [modalAbierto, { open, close }] = useDisclosure(false);
@@ -55,20 +87,35 @@ const AgendaPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
 
+  const puedeVerAlertas =
+    rolEfectivo === 'admin_rrhh' || rolEfectivo === 'supervisor';
+
   const cargar = useCallback(() => {
     void getEventosProximos().then(setEventos);
-  }, []);
+    if (puedeVerAlertas) {
+      void getAlertas().then(setAlertas);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [puedeVerAlertas]);
 
   useEffect(cargar, [cargar]);
 
   if (!usuario) return null;
 
-  const visibles = eventos.filter((e) => {
+  // Los vencimientos de contrato/documentos ya calculados por el sistema se
+  // suman a los eventos cargados a mano, para no vivir en dos pantallas
+  // distintas (acá y en el Dashboard).
+  const items: ItemAgenda[] = [
+    ...eventos.map(deEvento),
+    ...alertas.filter((a) => a.estado !== 'resuelta').map(deAlerta),
+  ].sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+  const visibles = items.filter((e) => {
     if (filtro && e.tipo !== filtro) return false;
     if (diaSeleccionado && e.fecha !== diaSeleccionado) return false;
     return true;
   });
-  const fechasConEventos = new Set(eventos.map((e) => e.fecha));
+  const fechasConEventos = new Set(items.map((e) => e.fecha));
 
   const crear = async (e: FormEvent) => {
     e.preventDefault();
@@ -143,10 +190,14 @@ const AgendaPage = () => {
             visibles.map((e) => (
               <ListaItem
                 key={e.id}
-                onClick={() =>
-                  setDiaSeleccionado(
-                    diaSeleccionado === e.fecha ? null : e.fecha
-                  )
+                href={e.href}
+                onClick={
+                  e.href
+                    ? undefined
+                    : () =>
+                        setDiaSeleccionado(
+                          diaSeleccionado === e.fecha ? null : e.fecha
+                        )
                 }
                 icono={tipoEventoIconos[e.tipo]}
                 principal={e.titulo}

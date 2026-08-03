@@ -9,6 +9,9 @@ export interface NodoOrgData {
   puesto: string;
   iniciales: string;
   esRaiz?: boolean;
+  sector?: string;
+  /** El supervisorId original apuntaba a alguien que ya no existe (baja, dato roto): distinto de "sin supervisor" a propósito. */
+  supervisorRoto?: boolean;
 }
 
 const escapar = (s: string): string =>
@@ -32,8 +35,16 @@ const tarjeta = (d: NodoOrgData): string => {
       )}</div>
     </div>`;
   }
+  const borde = d.supervisorRoto
+    ? '1px solid #f59e0b'
+    : '1px solid rgb(var(--line-rgb))';
   return `<div style="height:100%;padding-top:6px;box-sizing:border-box;">
-    <div style="height:100%;box-sizing:border-box;border:1px solid rgb(var(--line-rgb));border-radius:16px;background:rgb(var(--surface-rgb));display:flex;align-items:center;gap:12px;padding:0 14px;cursor:pointer;">
+    <div style="height:100%;box-sizing:border-box;border:${borde};border-radius:16px;background:rgb(var(--surface-rgb));display:flex;align-items:center;gap:12px;padding:0 14px;cursor:pointer;position:relative;">
+      ${
+        d.supervisorRoto
+          ? `<div title="El supervisor original ya no existe" style="position:absolute;top:-8px;right:10px;background:#f59e0b;color:#fff;border-radius:9999px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">!</div>`
+          : ''
+      }
       <div style="width:40px;height:40px;flex-shrink:0;border-radius:9999px;background:#dde6ff;color:#1d51d1;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;">${escapar(
         d.iniciales
       )}</div>
@@ -43,7 +54,11 @@ const tarjeta = (d: NodoOrgData): string => {
         )}</div>
         <div style="font-size:12px;color:rgb(var(--ink-soft-rgb));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapar(
           d.puesto
-        )}</div>
+        )}${
+          d.sector
+            ? ` <span style="color:#1d51d1;">· ${escapar(d.sector)}</span>`
+            : ' <span style="color:#f59e0b;">· sin sector</span>'
+        }</div>
       </div>
     </div>
   </div>`;

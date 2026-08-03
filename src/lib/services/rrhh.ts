@@ -326,6 +326,7 @@ export const eliminarAdelanto = elegir(
 
 // ---------- Errores registrados (soporte) ----------
 export const getErroresApp = elegir(real.getErroresApp, demo.getErroresApp);
+export const getAuditoria = elegir(real.getAuditoria, demo.getAuditoria);
 
 // ---------- Feriados ----------
 export const getFeriados = elegir(real.getFeriados, demo.getFeriados);
@@ -434,6 +435,10 @@ export const getDocumentosFirma = elegir(
 export const getDocumentosFirmaPendientes = elegir(
   real.getDocumentosFirmaPendientes,
   demo.getDocumentosFirmaPendientes
+);
+export const getDestinatariosDocumento = elegir(
+  real.getDestinatariosDocumento,
+  demo.getDestinatariosDocumento
 );
 export const crearDocumentoFirma = elegir(
   real.crearDocumentoFirma,

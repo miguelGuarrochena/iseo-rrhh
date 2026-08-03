@@ -225,6 +225,7 @@ export const aRemuneracion = (f: Fila): Remuneracion => ({
   id: f.id,
   empleadoId: f.empleado_id,
   periodo: f.periodo,
+  tipo: (f.tipo as Remuneracion['tipo']) ?? 'mensual',
   montoBruto: Number(f.monto_bruto),
   noRemunerativo:
     f.no_remunerativo != null ? Number(f.no_remunerativo) : undefined,

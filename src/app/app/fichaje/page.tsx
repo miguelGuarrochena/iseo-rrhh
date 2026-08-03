@@ -17,10 +17,11 @@ import { Panel } from '@/components/app/Panel';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
-import { formatearHora } from '@/lib/fechas';
+import { formatearHora, hoyISO } from '@/lib/fechas';
 import { descargarCSV } from '@/lib/csv';
 import { avisoExito } from '@/lib/avisos';
 import {
+  getAusencias,
   getEmpleado,
   getEmpleados,
   getFichajesDeEmpleadoHoy,
@@ -28,7 +29,13 @@ import {
   getResumenControl,
   getTerminales,
 } from '@/lib/services/rrhh';
-import { Empleado, Fichaje, MetodoFichaje, ModoFichaje } from '@/types/rrhh';
+import {
+  Ausencia,
+  Empleado,
+  Fichaje,
+  MetodoFichaje,
+  ModoFichaje,
+} from '@/types/rrhh';
 import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
 import { FichajeManualModal } from '@/components/app/facial/FichajeManualModal';
 import { getTerminalLocal } from '@/lib/terminal';
@@ -136,6 +143,7 @@ const FichajePage = () => {
 
   const [misFichajes, setMisFichajes] = useState<Fichaje[]>([]);
   const [fichajesHoy, setFichajesHoy] = useState<Fichaje[]>([]);
+  const [ausenciasHoy, setAusenciasHoy] = useState<Ausencia[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [miEmpleado, setMiEmpleado] = useState<Empleado | null>(null);
   const [facialAbierto, setFacialAbierto] = useState(false);
@@ -152,6 +160,7 @@ const FichajePage = () => {
     if (!esEmpleado) {
       void getFichajesDeHoy().then(setFichajesHoy);
       void getEmpleados().then(setEmpleados);
+      void getAusencias().then(setAusenciasHoy);
     }
   }, [usuario, esEmpleado]);
 
@@ -211,7 +220,21 @@ const FichajePage = () => {
   };
 
   const idsQueFicharon = new Set(fichajesHoy.map((f) => f.empleadoId));
-  const sinFichar = empleados.filter((e) => !idsQueFicharon.has(e.id));
+  const hoy = hoyISO();
+  const licenciaDe = (empleadoId: string) =>
+    ausenciasHoy.find(
+      (a) =>
+        a.empleadoId === empleadoId &&
+        a.estado === 'aprobada' &&
+        a.fechaDesde <= hoy &&
+        hoy <= a.fechaHasta
+    );
+  // "Sin fichar" mezclaba a quien realmente faltó con quien está de
+  // vacaciones/licencia aprobada ese día: eso hacía parecer un problema de
+  // presentismo donde en realidad no hay nada que reclamar.
+  const sinFicharTodos = empleados.filter((e) => !idsQueFicharon.has(e.id));
+  const sinFichar = sinFicharTodos.filter((e) => !licenciaDe(e.id));
+  const deLicenciaHoy = sinFicharTodos.filter((e) => licenciaDe(e.id));
 
   return (
     <div className="flex flex-col gap-6">
@@ -346,8 +369,18 @@ const FichajePage = () => {
                         : ''
                     }${f.registradoPor ? ` · por ${f.registradoPor}` : ''}`}
                     extremo={
-                      <span className="shrink-0 text-sm font-bold text-ink">
-                        {formatearHora(f.timestamp)}
+                      <span className="flex shrink-0 items-center gap-2">
+                        {f.fueraDeZona && (
+                          <span
+                            title="Fichó fuera de la zona de trabajo"
+                            className="rounded-full bg-red-100 px-2 py-0.5 text-[0.65rem] font-bold text-red-700"
+                          >
+                            Fuera de zona
+                          </span>
+                        )}
+                        <span className="text-sm font-bold text-ink">
+                          {formatearHora(f.timestamp)}
+                        </span>
                       </span>
                     }
                   />
@@ -356,7 +389,7 @@ const FichajePage = () => {
 
             <ListaCard
               titulo="Sin fichar hoy"
-              vacio="Todos ficharon. Equipo completo."
+              vacio="Todos ficharon o están de licencia. Equipo al día."
             >
               {sinFichar.length > 0 &&
                 sinFichar.map((e) => (
@@ -368,6 +401,17 @@ const FichajePage = () => {
                     secundario={`${e.puesto} · ${e.sector}`}
                   />
                 ))}
+              {deLicenciaHoy.length > 0 && (
+                <div className="border-t border-line px-4 py-3">
+                  <p className="text-xs font-semibold text-ink-soft">
+                    {deLicenciaHoy.length}{' '}
+                    {deLicenciaHoy.length === 1
+                      ? 'colaborador de licencia hoy (no cuenta como ausente)'
+                      : 'colaboradores de licencia hoy (no cuentan como ausentes)'}
+                    : {deLicenciaHoy.map((e) => e.nombre).join(', ')}.
+                  </p>
+                </div>
+              )}
             </ListaCard>
           </div>
         </>

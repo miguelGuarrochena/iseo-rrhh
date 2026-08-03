@@ -56,6 +56,12 @@ export interface ConfigEmpresa {
    * ese paquete, se suman claves acá sin migrar nada.
    */
   modulos?: Record<string, boolean>;
+  /**
+   * % estimado de cargas patronales sobre el bruto (ej. 0.27 = 27%), para
+   * el costo laboral de Remuneraciones. Si no está definido, se usa una
+   * estimación genérica.
+   */
+  cargasPatronalesPct?: number;
 }
 
 export type EstadoEmpresa = 'activa' | 'suspendida';
@@ -267,6 +273,12 @@ export interface Remuneracion {
   empleadoId: string;
   /** formato YYYY-MM */
   periodo: string;
+  /**
+   * Mensual, aguinaldo (SAC), vacaciones, gratificación o liquidación
+   * final. Junto con el período, distingue varias remuneraciones del
+   * mismo mes (ej. sueldo de junio + SAC de junio) sin pisarse.
+   */
+  tipo: TipoRecibo;
   /** Sueldo bruto remunerativo (base para aportes). */
   montoBruto: number;
   /** Adicionales no remunerativos (no tributan aportes). */
@@ -285,6 +297,8 @@ export interface Remuneracion {
 export interface NuevaRemuneracion {
   empleadoId: string;
   periodo: string;
+  /** Default 'mensual' si no se especifica. */
+  tipo?: TipoRecibo;
   montoBruto: number;
   noRemunerativo?: number;
   otrosDescuentos?: number;
@@ -618,6 +632,20 @@ export interface EventoAgenda {
   titulo: string;
   fecha: string;
   descripcion?: string;
+}
+
+// ---------- Auditoría (quién hizo qué) ----------
+
+export interface AccionAuditoria {
+  id: string;
+  empresaId: string;
+  actorId?: string;
+  actorNombre: string;
+  accion: string;
+  entidad: string;
+  entidadId?: string;
+  detalle: Record<string, unknown>;
+  creadaEn: string;
 }
 
 // ---------- Reportes de control ----------

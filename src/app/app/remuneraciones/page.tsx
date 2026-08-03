@@ -22,9 +22,11 @@ import {
   AdelantosEmpleado,
 } from '@/components/app/remuneraciones/Adelantos';
 import { RemuneracionModal } from '@/components/app/remuneraciones/RemuneracionModal';
+import { GenerarAguinaldoModal } from '@/components/app/remuneraciones/GenerarAguinaldoModal';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import {
   getEmpleados,
+  getEmpresa,
   getRemuneraciones,
   getRemuneracionesTodas,
 } from '@/lib/services/rrhh';
@@ -267,15 +269,25 @@ const VistaAdmin = () => {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [editando, setEditando] = useState<Remuneracion | null>(null);
   const [empleadoFijo, setEmpleadoFijo] = useState<string | undefined>();
+  const [cargasPct, setCargasPct] = useState(CARGAS_PATRONALES);
+  const [aguinaldoAbierto, setAguinaldoAbierto] = useState(false);
 
   const cargar = useCallback(() => {
     void getRemuneracionesTodas().then(setRems);
     void getEmpleados().then(setEmpleados);
+    void getEmpresa().then((e) => {
+      if (e.config.cargasPatronalesPct != null) {
+        setCargasPct(e.config.cargasPatronalesPct);
+      }
+    });
   }, []);
 
   useEffect(cargar, [cargar]);
 
-  const resumen = useMemo(() => resumirMasa(rems), [rems]);
+  const resumen = useMemo(
+    () => resumirMasa(rems, cargasPct),
+    [rems, cargasPct]
+  );
   const nombre = (id: string) => {
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.nombre} ${e.apellido}` : '—';
@@ -351,7 +363,7 @@ const VistaAdmin = () => {
         <StatCard
           etiqueta="Cargas sociales"
           valor={formatearPesos(resumen.cargasSociales)}
-          detalle={`estimadas (${Math.round(CARGAS_PATRONALES * 100)}%)`}
+          detalle={`estimadas (${Math.round(cargasPct * 100)}%)`}
           icono={IconBuildingBank}
         />
         <StatCard
@@ -388,6 +400,14 @@ const VistaAdmin = () => {
             >
               <IconDownload size={14} />
               Exportar para liquidación
+            </Boton>
+            <Boton
+              variante="secundario"
+              tamano="sm"
+              onClick={() => setAguinaldoAbierto(true)}
+            >
+              <IconGift size={14} />
+              Generar aguinaldo
             </Boton>
             <Boton variante="negro" tamano="sm" onClick={abrirNueva}>
               <IconPlus size={14} />
@@ -466,9 +486,9 @@ const VistaAdmin = () => {
           </div>
         )}
         <p className="mt-4 text-xs text-ink-soft">
-          Las cargas sociales son una estimación (
-          {Math.round(CARGAS_PATRONALES * 100)}% sobre el bruto). Para valores
-          exactos, consultá con tu contador.
+          Las cargas sociales son una estimación ({Math.round(cargasPct * 100)}%
+          sobre el bruto, configurable en Configuración). Para valores exactos,
+          consultá con tu contador.
         </p>
       </Panel>
 
@@ -486,6 +506,14 @@ const VistaAdmin = () => {
         }
         onCerrar={() => setModalAbierto(false)}
         onGuardado={cargar}
+      />
+
+      <GenerarAguinaldoModal
+        abierto={aguinaldoAbierto}
+        empleados={empleados}
+        remuneraciones={rems}
+        onCerrar={() => setAguinaldoAbierto(false)}
+        onGenerado={cargar}
       />
     </div>
   );

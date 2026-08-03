@@ -5,6 +5,7 @@ import {
   IconBuildingFactory2,
   IconClockExclamation,
   IconClockPlus,
+  IconDownload,
   IconInbox,
   IconSignature,
   IconUserExclamation,
@@ -15,7 +16,10 @@ import { StatCard } from '@/components/app/dashboard/StatCard';
 import { Panel } from '@/components/app/Panel';
 import { Barras, Dona } from '@/components/app/ui/Graficos';
 import { Selector } from '@/components/app/ui/Selector';
+import { Boton } from '@/components/app/ui/Boton';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
+import { descargarCSV } from '@/lib/csv';
+import { hoyISO } from '@/lib/fechas';
 import {
   getAusencias,
   getEmpleados,
@@ -41,30 +45,54 @@ const ReportesPage = () => {
   const [ausencias, setAusencias] = useState<Ausencia[]>([]);
   const [metricas, setMetricas] = useState<MetricasGlobales | null>(null);
   const [empresas, setEmpresas] = useState<EmpresaResumen[]>([]);
-  const [empresaSel, setEmpresaSel] = useState('emp-1');
+  const [empresaSel, setEmpresaSel] = useState('');
   const [presentes, setPresentes] = useState(0);
   const [dotacion, setDotacion] = useState(0);
+  const [cargandoDetalle, setCargandoDetalle] = useState(false);
 
   const esGlobal = usuario?.rol === 'superadmin' && !empresaVista;
 
+  // Metadata global (una sola vez): lista de empresas y métricas del negocio.
   useEffect(() => {
-    if (esGlobal) {
-      void getMetricasGlobales().then(setMetricas);
-      void getEmpresas().then(setEmpresas);
-      void getAusencias().then(setAusencias);
-      void getResumenControl().then(setResumen);
-    } else {
-      void getResumenControl().then(setResumen);
-      void getAusencias().then(setAusencias);
-    }
-    void getEmpleados().then((e) => setDotacion(e.length));
-    void getFichajesDeHoy().then((f) =>
-      setPresentes(
-        new Set(f.filter((x) => x.tipo === 'ingreso').map((x) => x.empleadoId))
-          .size
-      )
-    );
+    if (!esGlobal) return;
+    void getMetricasGlobales().then(setMetricas);
+    void getEmpresas().then(setEmpresas);
   }, [esGlobal]);
+
+  // Apenas llega la lista de empresas, elegimos una activa por default.
+  useEffect(() => {
+    if (!esGlobal || empresaSel || empresas.length === 0) return;
+    const primeraActiva = empresas.find((e) => e.empresa.estado === 'activa');
+    if (primeraActiva) setEmpresaSel(primeraActiva.empresa.id);
+  }, [esGlobal, empresas, empresaSel]);
+
+  // Detalle de control (ausentismo, tarde, extras, presentismo): de la propia
+  // empresa si no es superadmin, o de la empresa elegida en el selector.
+  useEffect(() => {
+    if (esGlobal && !empresaSel) return;
+    const idEmpresa = esGlobal ? empresaSel : undefined;
+    setCargandoDetalle(true);
+    Promise.all([
+      getResumenControl(idEmpresa),
+      getAusencias(idEmpresa),
+      getEmpleados(idEmpresa).then((e) => e.length),
+      getFichajesDeHoy(idEmpresa).then(
+        (f) =>
+          new Set(
+            f.filter((x) => x.tipo === 'ingreso').map((x) => x.empleadoId)
+          ).size
+      ),
+    ])
+      .then(
+        ([resumenNuevo, ausenciasNuevas, dotacionNueva, presentesNuevos]) => {
+          setResumen(resumenNuevo);
+          setAusencias(ausenciasNuevas);
+          setDotacion(dotacionNueva);
+          setPresentes(presentesNuevos);
+        }
+      )
+      .finally(() => setCargandoDetalle(false));
+  }, [esGlobal, empresaSel]);
 
   if (!usuario || rolEfectivo === 'empleado') {
     return (
@@ -108,7 +136,11 @@ const ReportesPage = () => {
   if (esGlobal) {
     const nombreSel =
       empresas.find((e) => e.empresa.id === empresaSel)?.empresa.nombre ?? '';
-    const tieneDatos = empresaSel === 'emp-1';
+    // Antes esto miraba si empresaSel === 'emp-1' (hardcodeado a la demo):
+    // con cualquier empresa real, siempre caía en el placeholder. Ahora el
+    // detalle se trae de la empresa elegida (ver useEffect de arriba), así
+    // que alcanza con chequear si esa empresa tiene dotación cargada.
+    const tieneDatos = dotacion > 0;
     return (
       <div className="flex flex-col gap-6">
         <div>
@@ -187,7 +219,11 @@ const ReportesPage = () => {
           />
         </div>
 
-        {tieneDatos ? (
+        {cargandoDetalle ? (
+          <Panel>
+            <p className="text-sm text-ink-soft">Cargando {nombreSel}…</p>
+          </Panel>
+        ) : tieneDatos ? (
           <>
             <div className="grid gap-4 lg:grid-cols-2">
               <Panel>
@@ -217,9 +253,9 @@ const ReportesPage = () => {
         ) : (
           <Panel>
             <p className="text-sm text-ink-soft">
-              {nombreSel} todavía no tiene actividad cargada en la demo. Con el
-              backend conectado, acá vas a ver sus gráficos de puntualidad,
-              extras y presentismo.
+              {nombreSel || 'Esta empresa'} todavía no tiene empleados cargados,
+              así que no hay datos de puntualidad, extras ni presentismo para
+              mostrar.
             </p>
           </Panel>
         )}
@@ -310,9 +346,28 @@ const ReportesPage = () => {
         </Panel>
       </div>
 
-      <p className="text-xs text-ink-soft">
-        Exportación de novedades para liquidación disponible desde Fichaje.
-      </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-ink-soft">
+          Exportación de novedades para liquidación disponible desde Fichaje.
+        </p>
+        <Boton
+          variante="secundario"
+          tamano="sm"
+          onClick={() =>
+            descargarCSV(`reportes-${hoyISO()}.csv`, [
+              ['Colaborador', 'Minutos tarde', 'Horas extras'],
+              ...(resumen?.porEmpleado.map((e) => [
+                e.nombreCompleto,
+                String(e.minutosTarde),
+                String(e.horasExtras),
+              ]) ?? []),
+            ])
+          }
+        >
+          <IconDownload size={16} />
+          Exportar CSV
+        </Boton>
+      </div>
     </div>
   );
 };

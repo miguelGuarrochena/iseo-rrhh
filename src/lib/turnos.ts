@@ -2,7 +2,7 @@
  * Control de turnos: compara el turno asignado con la fichada real y
  * calcula llegadas tarde, salidas antes, horas extras y ausencias.
  */
-import { Fichaje, Turno } from '@/types/rrhh';
+import { Ausencia, Fichaje, Turno } from '@/types/rrhh';
 
 /** "HH:MM" → minutos desde medianoche. */
 export const aMinutos = (hhmm: string): number => {
@@ -26,7 +26,23 @@ export interface ControlTurno {
   antesMin: number;
   extrasMin: number;
   ausente: boolean;
+  /** Si no fichó pero tenía una ausencia aprobada ese día, no es un faltazo real. */
+  deLicencia?: Ausencia;
 }
+
+/** true si `fecha` cae dentro de una ausencia aprobada de ese empleado. */
+const ausenciaAprobadaEn = (
+  ausencias: Ausencia[],
+  empleadoId: string,
+  fecha: string
+): Ausencia | undefined =>
+  ausencias.find(
+    (a) =>
+      a.empleadoId === empleadoId &&
+      a.estado === 'aprobada' &&
+      a.fechaDesde <= fecha &&
+      fecha <= a.fechaHasta
+  );
 
 const horaDe = (ts: string): string => ts.slice(11, 16); // "HH:MM" del ISO
 
@@ -36,7 +52,8 @@ const horaDe = (ts: string): string => ts.slice(11, 16); // "HH:MM" del ISO
  */
 export const controlarTurno = (
   turno: Turno,
-  fichajes: Fichaje[]
+  fichajes: Fichaje[],
+  ausencias: Ausencia[] = []
 ): ControlTurno => {
   const delDia = fichajes
     .filter(
@@ -49,12 +66,19 @@ export const controlarTurno = (
   const egresoF = [...delDia].reverse().find((f) => f.tipo === 'egreso');
 
   if (!ingresoF) {
+    const deLicencia = ausenciaAprobadaEn(
+      ausencias,
+      turno.empleadoId,
+      turno.fecha
+    );
     return {
       turno,
       tardeMin: 0,
       antesMin: 0,
       extrasMin: 0,
-      ausente: true,
+      // Si tenía una ausencia aprobada ese día, no faltó: estaba de licencia.
+      ausente: !deLicencia,
+      deLicencia,
     };
   }
 
@@ -95,9 +119,10 @@ export interface ResumenControl {
 /** Resume el control de una lista de turnos contra los fichajes. */
 export const resumirControlTurnos = (
   turnos: Turno[],
-  fichajes: Fichaje[]
+  fichajes: Fichaje[],
+  ausencias: Ausencia[] = []
 ): ResumenControl => {
-  const controles = turnos.map((t) => controlarTurno(t, fichajes));
+  const controles = turnos.map((t) => controlarTurno(t, fichajes, ausencias));
   return {
     ausencias: controles.filter((c) => c.ausente).length,
     llegadasTarde: controles.filter((c) => c.tardeMin > 0).length,

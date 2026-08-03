@@ -21,16 +21,19 @@ import {
   aprobarExtrasTurno,
   asignarTurno,
   asignarTurnos,
+  getAusenciasDeEmpleado,
   getEmpleados,
   getFichajesDeEmpleado,
   getTurnosDeEmpleado,
+  quitarTurno,
 } from '@/lib/services/rrhh';
 import {
   controlarTurno,
   formatearMinutos,
   resumirControlTurnos,
 } from '@/lib/turnos';
-import { Empleado, Fichaje, Turno } from '@/types/rrhh';
+import { tipoAusenciaLabels } from '@/lib/etiquetas';
+import { Ausencia, Empleado, Fichaje, Turno } from '@/types/rrhh';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -52,21 +55,26 @@ const FilaDia = ({
   etiqueta,
   turno,
   fichajes,
+  ausencias,
   puedeGestionar,
   onGuardar,
   onAprobarExtras,
+  onQuitar,
 }: {
   fecha: string;
   etiqueta: string;
   turno?: Turno;
   fichajes: Fichaje[];
+  ausencias: Ausencia[];
   puedeGestionar: boolean;
   onGuardar: (entrada: string, salida: string) => Promise<void>;
   onAprobarExtras: (aprobado: boolean) => Promise<void>;
+  onQuitar: () => Promise<void>;
 }) => {
   const [entrada, setEntrada] = useState(turno?.horaEntrada ?? '08:00');
   const [salida, setSalida] = useState(turno?.horaSalida ?? '17:00');
   const [guardando, setGuardando] = useState(false);
+  const [quitando, setQuitando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -77,9 +85,18 @@ const FilaDia = ({
   }, [turno]);
 
   const control = useMemo(
-    () => (turno ? controlarTurno(turno, fichajes) : null),
-    [turno, fichajes]
+    () => (turno ? controlarTurno(turno, fichajes, ausencias) : null),
+    [turno, fichajes, ausencias]
   );
+
+  const quitar = async () => {
+    setQuitando(true);
+    try {
+      await onQuitar();
+    } finally {
+      setQuitando(false);
+    }
+  };
 
   const guardar = async () => {
     if (!entrada || !salida) {
@@ -126,6 +143,17 @@ const FilaDia = ({
         {guardando ? 'Guardando…' : turno ? 'Actualizar' : 'Asignar'}
       </Boton>
 
+      {turno && puedeGestionar && (
+        <button
+          type="button"
+          onClick={() => void quitar()}
+          disabled={quitando}
+          className="cursor-pointer text-xs font-bold text-ink-soft underline decoration-dotted hover:text-red-600 disabled:opacity-50"
+        >
+          {quitando ? 'Quitando…' : 'Quitar turno'}
+        </button>
+      )}
+
       {error && (
         <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-bold text-red-700">
           {error}
@@ -137,6 +165,11 @@ const FilaDia = ({
         {control?.ausente && (
           <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
             Ausente
+          </span>
+        )}
+        {control?.deLicencia && (
+          <span className="rounded-full bg-brand-100 px-2.5 py-1 text-xs font-bold text-brand-700">
+            De licencia · {tipoAusenciaLabels[control.deLicencia.tipo]}
           </span>
         )}
         {control && control.tardeMin > 0 && (
@@ -178,6 +211,7 @@ const FilaDia = ({
           ))}
         {control &&
           !control.ausente &&
+          !control.deLicencia &&
           control.tardeMin === 0 &&
           control.antesMin === 0 &&
           control.extrasMin === 0 && (
@@ -196,6 +230,7 @@ const TurnosPage = () => {
   const [empleadoId, setEmpleadoId] = useState('');
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [fichajes, setFichajes] = useState<Fichaje[]>([]);
+  const [ausencias, setAusencias] = useState<Ausencia[]>([]);
   const [semana, setSemana] = useState(() => lunesDe(new Date()));
   const [baseEntrada, setBaseEntrada] = useState('08:00');
   const [baseSalida, setBaseSalida] = useState('17:00');
@@ -221,6 +256,7 @@ const TurnosPage = () => {
     if (!empleadoId) return;
     void getTurnosDeEmpleado(empleadoId).then(setTurnos);
     void getFichajesDeEmpleado(empleadoId).then(setFichajes);
+    void getAusenciasDeEmpleado(empleadoId).then(setAusencias);
   }, [empleadoId]);
 
   useEffect(cargar, [cargar]);
@@ -237,7 +273,7 @@ const TurnosPage = () => {
 
   const turnoDe = (fecha: string) => turnos.find((t) => t.fecha === fecha);
   const turnosSemana = dias.map(turnoDe).filter((t): t is Turno => Boolean(t));
-  const resumen = resumirControlTurnos(turnosSemana, fichajes);
+  const resumen = resumirControlTurnos(turnosSemana, fichajes, ausencias);
 
   const moverSemana = (delta: number) => {
     const d = new Date(semana);
@@ -245,12 +281,28 @@ const TurnosPage = () => {
     setSemana(d);
   };
 
+  const licenciaEn = (fecha: string) =>
+    ausencias.find(
+      (a) =>
+        a.estado === 'aprobada' &&
+        a.fechaDesde <= fecha &&
+        fecha <= a.fechaHasta
+    );
+
   const guardar = async (fecha: string, entrada: string, salida: string) => {
     if (!empleadoId) return;
     if (!entrada || !salida || salida <= entrada) {
       avisoError(
         'Revisá el horario',
         'La salida debe ser posterior a la entrada.'
+      );
+      return;
+    }
+    const licencia = licenciaEn(fecha);
+    if (licencia) {
+      avisoError(
+        'Tiene una ausencia aprobada ese día',
+        `${tipoAusenciaLabels[licencia.tipo]} del ${licencia.fechaDesde} al ${licencia.fechaHasta}. Si igual querés asignarle el turno, primero cancelá o ajustá la ausencia.`
       );
       return;
     }
@@ -273,10 +325,15 @@ const TurnosPage = () => {
       );
       return;
     }
+    // No pisamos días con una ausencia aprobada (vacaciones, licencia, etc.):
+    // si no, ese día pasa a figurar "ausente" contra un turno que nunca
+    // debió existir.
+    const fechasAAplicar = fechas.filter((f) => !licenciaEn(f));
+    const omitidas = fechas.length - fechasAAplicar.length;
     setAplicando(true);
     try {
       await asignarTurnos(
-        fechas.map((fecha) => ({
+        fechasAAplicar.map((fecha) => ({
           empleadoId,
           fecha,
           horaEntrada: baseEntrada,
@@ -285,12 +342,18 @@ const TurnosPage = () => {
       );
       avisoExito(
         `Horario aplicado a ${etiqueta}`,
-        `${baseEntrada}–${baseSalida}. Podés ajustar días puntuales abajo.`
+        `${baseEntrada}–${baseSalida}.${omitidas > 0 ? ` Se salteó ${omitidas} ${omitidas === 1 ? 'día' : 'días'} con ausencia aprobada.` : ''} Podés ajustar días puntuales abajo.`
       );
       cargar();
     } finally {
       setAplicando(false);
     }
+  };
+
+  const quitar = async (turnoId: string) => {
+    await quitarTurno(turnoId);
+    avisoExito('Turno eliminado');
+    cargar();
   };
 
   const aprobarExtras = async (turnoId: string, aprobado: boolean) => {
@@ -440,11 +503,16 @@ const TurnosPage = () => {
                 etiqueta={DIAS[i]}
                 turno={turnoDe(fecha)}
                 fichajes={fichajes}
+                ausencias={ausencias}
                 puedeGestionar={puedeGestionar}
                 onGuardar={(entrada, salida) => guardar(fecha, entrada, salida)}
                 onAprobarExtras={(aprobado) => {
                   const t = turnoDe(fecha);
                   return t ? aprobarExtras(t.id, aprobado) : Promise.resolve();
+                }}
+                onQuitar={() => {
+                  const t = turnoDe(fecha);
+                  return t ? quitar(t.id) : Promise.resolve();
                 }}
               />
             ))}

@@ -1,7 +1,13 @@
 'use client';
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { IconCamera, IconMapPin, IconX } from '@tabler/icons-react';
+import {
+  IconCamera,
+  IconMapPin,
+  IconPlus,
+  IconTrash,
+  IconX,
+} from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
@@ -22,11 +28,18 @@ import { obtenerUbicacion } from '@/lib/facial/ubicacion';
 import {
   Empleado,
   EstadoCivil,
+  Familiar,
   ModalidadContratacion,
   ModalidadPago,
   ModoFichaje,
   NivelEstudios,
 } from '@/types/rrhh';
+
+const vinculosFamiliar: Record<Familiar['vinculo'], string> = {
+  conyuge: 'Cónyuge',
+  hijo: 'Hijo/a',
+  otro: 'Otro',
+};
 
 const modalidades: Record<ModalidadContratacion, string> = {
   indeterminado: 'Tiempo indeterminado',
@@ -88,6 +101,14 @@ const desdeEmpleado = (e: Empleado): DatosEmpleado => ({
   domicilio: e.domicilio || undefined,
   telefono: e.telefono || undefined,
   email: e.email || undefined,
+  contactoEmergencia:
+    e.contactoEmergencia &&
+    (e.contactoEmergencia.nombreCompleto ||
+      e.contactoEmergencia.vinculo ||
+      e.contactoEmergencia.telefono)
+      ? e.contactoEmergencia
+      : undefined,
+  grupoFamiliar: e.grupoFamiliar?.length ? e.grupoFamiliar : undefined,
   puesto: e.puesto,
   sector: e.sector,
   fechaIngreso: e.fechaIngreso,
@@ -139,6 +160,44 @@ export const FormEmpleado = ({
 
   const set = (campo: keyof DatosEmpleado) => (valor: string) =>
     setDatos((prev) => ({ ...prev, [campo]: valor || undefined }));
+
+  const setContacto = (
+    campo: keyof NonNullable<DatosEmpleado['contactoEmergencia']>,
+    valor: string
+  ) =>
+    setDatos((prev) => ({
+      ...prev,
+      contactoEmergencia: {
+        nombreCompleto: '',
+        vinculo: '',
+        telefono: '',
+        ...prev.contactoEmergencia,
+        [campo]: valor,
+      },
+    }));
+
+  const agregarFamiliar = () =>
+    setDatos((prev) => ({
+      ...prev,
+      grupoFamiliar: [
+        ...(prev.grupoFamiliar ?? []),
+        { nombreCompleto: '', vinculo: 'hijo' as const },
+      ],
+    }));
+
+  const quitarFamiliar = (i: number) =>
+    setDatos((prev) => ({
+      ...prev,
+      grupoFamiliar: (prev.grupoFamiliar ?? []).filter((_, idx) => idx !== i),
+    }));
+
+  const setFamiliar = (i: number, campo: keyof Familiar, valor: string) =>
+    setDatos((prev) => ({
+      ...prev,
+      grupoFamiliar: (prev.grupoFamiliar ?? []).map((f, idx) =>
+        idx === i ? { ...f, [campo]: valor } : f
+      ),
+    }));
 
   const setGeocerca = (campo: 'lat' | 'lng' | 'radioM', valor: string) =>
     setDatos((prev) => {
@@ -366,6 +425,96 @@ export const FormEmpleado = ({
             error={errores.email}
           />
         </div>
+      </Panel>
+
+      <Panel>
+        <h2 className="text-base font-bold text-ink">Contacto de emergencia</h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          A quién avisar ante una urgencia con este colaborador.
+        </p>
+        <div className="mt-4 grid gap-3.5 sm:grid-cols-3">
+          <Campo
+            etiqueta="Nombre completo"
+            value={datos.contactoEmergencia?.nombreCompleto ?? ''}
+            onChange={(e) => setContacto('nombreCompleto', e.target.value)}
+          />
+          <Campo
+            etiqueta="Vínculo"
+            value={datos.contactoEmergencia?.vinculo ?? ''}
+            onChange={(e) => setContacto('vinculo', e.target.value)}
+            placeholder="Madre, pareja…"
+          />
+          <Campo
+            etiqueta="Teléfono"
+            value={datos.contactoEmergencia?.telefono ?? ''}
+            onChange={(e) => setContacto('telefono', e.target.value)}
+            placeholder="11-5555-0000"
+          />
+        </div>
+      </Panel>
+
+      <Panel>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-base font-bold text-ink">Grupo familiar</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              Cónyuge, hijos u otros familiares a cargo.
+            </p>
+          </div>
+          <Boton
+            type="button"
+            variante="secundario"
+            tamano="sm"
+            onClick={agregarFamiliar}
+          >
+            <IconPlus size={14} />
+            Agregar
+          </Boton>
+        </div>
+        {(datos.grupoFamiliar ?? []).length > 0 && (
+          <div className="mt-4 flex flex-col gap-3">
+            {(datos.grupoFamiliar ?? []).map((f, i) => (
+              <div
+                key={i}
+                className="grid gap-2.5 rounded-xl border border-line p-3 sm:grid-cols-[2fr_1fr_1fr_1fr_auto]"
+              >
+                <Campo
+                  etiqueta="Nombre completo"
+                  value={f.nombreCompleto}
+                  onChange={(e) =>
+                    setFamiliar(i, 'nombreCompleto', e.target.value)
+                  }
+                />
+                <CampoSelect
+                  etiqueta="Vínculo"
+                  value={f.vinculo}
+                  onChange={(v) => setFamiliar(i, 'vinculo', v)}
+                  opciones={aOpciones(vinculosFamiliar)}
+                />
+                <CampoFecha
+                  etiqueta="Nacimiento"
+                  value={f.fechaNacimiento ?? ''}
+                  onChange={(v) => setFamiliar(i, 'fechaNacimiento', v)}
+                />
+                <Campo
+                  etiqueta="DNI"
+                  value={f.dni ?? ''}
+                  onChange={(e) => setFamiliar(i, 'dni', e.target.value)}
+                />
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => quitarFamiliar(i)}
+                    aria-label="Quitar familiar"
+                    className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600"
+                  >
+                    <IconTrash size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Panel>
 
       <Panel>

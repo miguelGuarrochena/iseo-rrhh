@@ -4,6 +4,7 @@
  * sin tocar las pantallas.
  */
 import {
+  AccionAuditoria,
   Alerta,
   Ausencia,
   Comunicacion,
@@ -96,8 +97,13 @@ export const getUsuariosDemo = (): Usuario[] => usuariosMock;
 
 // ---------- Empresa ----------
 
-export const getEmpresa = async (): Promise<Empresa> =>
-  simular(empresasMock.find((e) => e.id === empresaDemo()) ?? empresaMock);
+export const getEmpresa = async (
+  empresaIdOverride?: string
+): Promise<Empresa> =>
+  simular(
+    empresasMock.find((e) => e.id === empresaDemo(empresaIdOverride)) ??
+      empresaMock
+  );
 
 // ---------- Empresas (superadmin) ----------
 
@@ -194,16 +200,20 @@ export const getMetricasGlobales = async (): Promise<MetricasGlobales> => {
 // ---------- Empleados ----------
 
 /** Empresa activa en la demo: la operada por el superadmin o la propia. */
-const empresaDemo = (): string => empresaOperativaId() ?? 'emp-1';
+const empresaDemo = (override?: string): string =>
+  override ?? empresaOperativaId() ?? 'emp-1';
 
 /** Usuario logueado en la demo (para registrar quién escribe cada cosa). */
 const usuarioActualId = (): string =>
   useAuthStore.getState().usuario?.id ?? 'u-demo';
 
-/** true si el empleado pertenece a la empresa activa. */
-const esDeEmpresaDemo = (empleadoId: string): boolean =>
+/** true si el empleado pertenece a la empresa (activa, o la que se pase). */
+const esDeEmpresaDemo = (
+  empleadoId: string,
+  empresaOverride?: string
+): boolean =>
   empleadosMock.some(
-    (e) => e.id === empleadoId && e.empresaId === empresaDemo()
+    (e) => e.id === empleadoId && e.empresaId === empresaDemo(empresaOverride)
   );
 
 const sinBiometria = (empleado: Empleado): Empleado => {
@@ -213,10 +223,12 @@ const sinBiometria = (empleado: Empleado): Empleado => {
   return { ...resto };
 };
 
-export const getEmpleados = async (): Promise<Empleado[]> =>
+export const getEmpleados = async (
+  empresaIdOverride?: string
+): Promise<Empleado[]> =>
   simular(
     empleadosMock
-      .filter((e) => e.activo && e.empresaId === empresaDemo())
+      .filter((e) => e.activo && e.empresaId === empresaDemo(empresaIdOverride))
       .map(sinBiometria)
   );
 
@@ -256,6 +268,7 @@ export interface NuevoEmpleado {
   telefono?: string;
   email?: string;
   contactoEmergencia?: Empleado['contactoEmergencia'];
+  grupoFamiliar?: Empleado['grupoFamiliar'];
   // Datos de pago opcionales
   modalidadPago?: Empleado['modalidadPago'];
   banco?: string;
@@ -289,7 +302,7 @@ export const crearEmpleado = async (
       vinculo: '',
       telefono: '',
     },
-    grupoFamiliar: [],
+    grupoFamiliar: datos.grupoFamiliar ?? [],
     fechaIngreso: datos.fechaIngreso,
     puesto: datos.puesto,
     sector: datos.sector,
@@ -480,7 +493,17 @@ export const actualizarConfigPlataforma = async (
 
 export const actualizarEmpresa = async (
   datos: Partial<
-    Pick<Empresa, 'nombre' | 'logoUrl' | 'contactoNombre' | 'contactoEmail'>
+    Pick<
+      Empresa,
+      | 'nombre'
+      | 'logoUrl'
+      | 'contactoNombre'
+      | 'contactoEmail'
+      | 'contactoTelefono'
+      | 'cuit'
+      | 'razonSocial'
+      | 'domicilio'
+    >
   >
 ): Promise<Empresa> => {
   Object.assign(empresaMock, datos);
@@ -489,8 +512,14 @@ export const actualizarEmpresa = async (
 
 // ---------- Ausencias ----------
 
-export const getAusencias = async (): Promise<Ausencia[]> =>
-  simular(ausenciasMock.filter((a) => esDeEmpresaDemo(a.empleadoId)));
+export const getAusencias = async (
+  empresaIdOverride?: string
+): Promise<Ausencia[]> =>
+  simular(
+    ausenciasMock.filter((a) =>
+      esDeEmpresaDemo(a.empleadoId, empresaIdOverride)
+    )
+  );
 
 export const getAusenciasDeEmpleado = async (
   empleadoId: string
@@ -695,8 +724,12 @@ export const getSaldoVacaciones = async (
 
 // ---------- Fichajes ----------
 
-export const getFichajesDeHoy = async (): Promise<Fichaje[]> =>
-  simular(fichajesMock.filter((f) => esDeEmpresaDemo(f.empleadoId)));
+export const getFichajesDeHoy = async (
+  empresaIdOverride?: string
+): Promise<Fichaje[]> =>
+  simular(
+    fichajesMock.filter((f) => esDeEmpresaDemo(f.empleadoId, empresaIdOverride))
+  );
 
 export const getFichajesDeEmpleadoHoy = async (
   empleadoId: string
@@ -983,7 +1016,7 @@ export const getAlertas = async (): Promise<Alerta[]> =>
 export const getEventosProximos = async (): Promise<EventoAgenda[]> =>
   simular(
     eventosMock
-      .filter((e) => e.empresaId === empresaDemo())
+      .filter((e) => e.empresaId === empresaDemo() && e.fecha >= hoyISO())
       .sort((a, b) => a.fecha.localeCompare(b.fecha))
   );
 
@@ -994,8 +1027,13 @@ export const getNotificaciones = async (
 
 // ---------- Reportes de control ----------
 
-export const getResumenControl = async (): Promise<ResumenControl> => {
-  const activos = empleadosMock.filter((e) => e.activo);
+export const getResumenControl = async (
+  empresaIdOverride?: string
+): Promise<ResumenControl> => {
+  const empresa = empresaDemo(empresaIdOverride);
+  const activos = empleadosMock.filter(
+    (e) => e.activo && e.empresaId === empresa
+  );
 
   const porEmpleado = activos
     .map((e) => {
@@ -1015,7 +1053,10 @@ export const getResumenControl = async (): Promise<ResumenControl> => {
   const mesActual = new Date().toISOString().slice(0, 7);
   const diasAusencia = ausenciasMock
     .filter(
-      (a) => a.estado === 'aprobada' && a.fechaDesde.startsWith(mesActual)
+      (a) =>
+        a.estado === 'aprobada' &&
+        a.fechaDesde.startsWith(mesActual) &&
+        esDeEmpresaDemo(a.empleadoId, empresaIdOverride)
     )
     .reduce((acc, a) => acc + a.dias, 0);
   const diasPersona = activos.length * 22;
@@ -1034,8 +1075,11 @@ export const getResumenControl = async (): Promise<ResumenControl> => {
       (acc, e) => acc + e.jornadasIncompletas,
       0
     ),
-    recibosSinFirmar: recibosMock.filter((r) => r.estadoFirma === 'pendiente')
-      .length,
+    recibosSinFirmar: recibosMock.filter(
+      (r) =>
+        r.estadoFirma === 'pendiente' &&
+        esDeEmpresaDemo(r.empleadoId, empresaIdOverride)
+    ).length,
     porEmpleado,
   });
 };
@@ -1076,8 +1120,12 @@ export const cargarRemuneracion = async (
   datos: NuevaRemuneracion
 ): Promise<Remuneracion> => {
   const { aportes, neto } = calcularLiquidacion(datos);
+  const tipo = datos.tipo ?? 'mensual';
   const existente = remuneracionesMock.find(
-    (r) => r.empleadoId === datos.empleadoId && r.periodo === datos.periodo
+    (r) =>
+      r.empleadoId === datos.empleadoId &&
+      r.periodo === datos.periodo &&
+      (r.tipo ?? 'mensual') === tipo
   );
   if (existente) {
     Object.assign(existente, {
@@ -1094,6 +1142,7 @@ export const cargarRemuneracion = async (
     id: `rem-${Date.now()}`,
     empleadoId: datos.empleadoId,
     periodo: datos.periodo,
+    tipo,
     montoBruto: datos.montoBruto,
     noRemunerativo: datos.noRemunerativo,
     otrosDescuentos: datos.otrosDescuentos,
@@ -1594,6 +1643,11 @@ export const getMensajesComunicacion = async (
 export const getErroresApp = async (_limite = 100): Promise<ErrorApp[]> =>
   simular([]);
 
+/** En la demo no se registra auditoría (no hay múltiples usuarios reales operando). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const getAuditoria = async (_limite = 50): Promise<AccionAuditoria[]> =>
+  simular([]);
+
 // ---------- Feriados (demo) ----------
 
 const feriadosMock: Feriado[] = [];
@@ -1692,6 +1746,11 @@ export const getDocumentosFirma = async (): Promise<
         };
       })
   );
+
+export const getDestinatariosDocumento = async (
+  documentoId: string
+): Promise<DocumentoFirmaDestinatario[]> =>
+  simular(docsFirmaDestMock.filter((d) => d.documentoId === documentoId));
 
 export const getDocumentosFirmaPendientes = async (
   empleadoId: string

@@ -18,11 +18,26 @@ import {
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   cambiarRolUsuario,
+  getAuditoria,
   getEmpleados,
   getUsuariosDeEmpresa,
   invitarUsuario,
 } from '@/lib/services/rrhh';
-import { Empleado, Rol, Usuario } from '@/types/rrhh';
+import { AccionAuditoria, Empleado, Rol, Usuario } from '@/types/rrhh';
+
+const accionLabels: Record<string, string> = {
+  crear: 'creó',
+  editar: 'editó',
+  cambiar_rol: 'cambió el rol de',
+  cambiar_estado: 'cambió el estado de',
+  invitar: 'invitó a',
+  eliminar: 'eliminó',
+};
+
+const entidadLabels: Record<string, string> = {
+  usuario: 'un usuario',
+  empresa: 'una empresa',
+};
 
 const rolesAsignables: Record<Exclude<Rol, 'superadmin'>, string> = {
   admin_rrhh: 'Admin RRHH',
@@ -34,6 +49,7 @@ const PermisosPage = () => {
   const { usuario, rolEfectivo, empresaVista } = useAuth();
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
+  const [auditoria, setAuditoria] = useState<AccionAuditoria[]>([]);
   const [modalAbierto, { open, close }] = useDisclosure(false);
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
@@ -45,6 +61,9 @@ const PermisosPage = () => {
   const cargar = useCallback(() => {
     void getUsuariosDeEmpresa().then(setUsuarios);
     void getEmpleados().then(setEmpleados);
+    void getAuditoria(20)
+      .then(setAuditoria)
+      .catch(() => setAuditoria([]));
   }, []);
 
   useEffect(cargar, [cargar]);
@@ -170,6 +189,19 @@ const PermisosPage = () => {
           Si esa persona se va o pierde el acceso, nadie más puede dar de alta
           colaboradores ni cargar recibos. Conviene nombrar a un segundo admin.
         </p>
+      )}
+
+      {auditoria.length > 0 && (
+        <ListaCard titulo="Actividad reciente">
+          {auditoria.map((a) => (
+            <ListaItem
+              key={a.id}
+              icono={IconShieldCheck}
+              principal={`${a.actorNombre} ${accionLabels[a.accion] ?? a.accion} ${entidadLabels[a.entidad] ?? a.entidad}`}
+              secundario={new Date(a.creadaEn).toLocaleString('es-AR')}
+            />
+          ))}
+        </ListaCard>
       )}
 
       <div className="flex flex-col gap-2 rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">

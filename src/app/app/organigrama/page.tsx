@@ -67,11 +67,22 @@ const OrganigramaPage = () => {
         parentId:
           e.supervisorId && ids.has(e.supervisorId) ? e.supervisorId : RAIZ,
         nombre: `${e.nombre} ${e.apellido}`,
-        puesto: e.puesto || e.sector || '',
+        puesto: e.puesto || '(sin puesto)',
+        sector: e.sector || undefined,
+        // Colgó de la raíz porque nunca tuvo supervisor (normal) vs porque
+        // su supervisorId apunta a alguien que ya no está (dato roto: p.
+        // ej. el supervisor fue dado de baja). Distinguirlo evita que se
+        // vea como "gerencia general" algo que en realidad es un huérfano.
+        supervisorRoto: Boolean(e.supervisorId && !ids.has(e.supervisorId)),
         iniciales: iniciales(e),
       })),
     ],
     [empleados, ids, empresaNombre]
+  );
+
+  const sinSector = useMemo(
+    () => empleados.filter((e) => !e.sector).length,
+    [empleados]
   );
 
   const sel = empleados.find((e) => e.id === selId) ?? null;
@@ -188,6 +199,16 @@ const OrganigramaPage = () => {
         de un nodo para plegar o desplegar sus ramas.
       </p>
 
+      {esAdmin && sinSector > 0 && (
+        <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-xs font-semibold text-amber-800">
+          {sinSector}{' '}
+          {sinSector === 1
+            ? 'colaborador no tiene sector asignado'
+            : 'colaboradores no tienen sector asignado'}
+          . Se ven marcados en el organigrama.
+        </p>
+      )}
+
       {empleados.length === 0 ? (
         <Panel>
           <p className="text-sm text-ink-soft">
@@ -207,10 +228,20 @@ const OrganigramaPage = () => {
         styles={{ title: { fontWeight: 800 } }}
       >
         <div className="flex flex-col gap-4">
-          <p className="text-sm text-ink-soft">
-            Elegí a quién reporta {sel?.nombre}. El organigrama se reacomoda
-            solo.
-          </p>
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm text-ink-soft">
+              Elegí a quién reporta {sel?.nombre}. El organigrama se reacomoda
+              solo.
+            </p>
+            {sel && (
+              <Link
+                href={`/colaboradores/${sel.id}`}
+                className="shrink-0 text-xs font-bold text-brand-700 underline"
+              >
+                Ver legajo
+              </Link>
+            )}
+          </div>
           <CampoSelect
             etiqueta="Reporta a"
             value={nuevoSupervisor}

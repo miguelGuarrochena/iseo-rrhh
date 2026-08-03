@@ -162,6 +162,52 @@ export const FAQ: FaqCategoria[] = [
       },
     ],
   },
+  {
+    titulo: 'Reportes',
+    items: [
+      {
+        pregunta: '¿Qué muestran los Reportes?',
+        respuesta:
+          'Ausentismo del mes, llegadas tarde y horas extras de la última semana, ausencias por tipo y presentismo del día. Podés exportarlos a CSV para llevarlos a la liquidación o a otro sistema.',
+        roles: GESTION,
+      },
+      {
+        pregunta:
+          'Como superadmin, ¿puedo ver el detalle de una empresa cliente puntual?',
+        respuesta:
+          'Sí, en "Detalle por empresa" elegís la empresa en el selector y el resto de la pantalla (tarde, extras, presentismo) se actualiza con sus datos.',
+        roles: ['superadmin'],
+      },
+    ],
+  },
+  {
+    titulo: 'Agenda',
+    items: [
+      {
+        pregunta: '¿Qué aparece en la Agenda además de lo que cargo yo?',
+        respuesta:
+          'Los vencimientos que el sistema calcula solo (fin de contrato a plazo fijo, documentos por vencer) aparecen automáticamente como tipo "Vencimiento", con link directo a la ficha del colaborador. No hace falta cargarlos a mano.',
+        roles: GESTION,
+      },
+    ],
+  },
+  {
+    titulo: 'Empresas y facturación (superadmin)',
+    items: [
+      {
+        pregunta: '¿Cómo doy de alta una empresa cliente nueva?',
+        respuesta:
+          'En Empresas tocá "Nueva empresa" y completá razón social, CUIT y plan. Después podés editar sus datos, suspenderla o reactivarla desde su ficha.',
+        roles: ['superadmin'],
+      },
+      {
+        pregunta: '¿Qué es Finanzas?',
+        respuesta:
+          'Es la facturación de ISEO a sus empresas clientes (lo que cobrás vos como proveedor del sistema): ingresos, gastos y si cada cliente está al día con su abono. No tiene relación con los sueldos que cada empresa le paga a su propio personal.',
+        roles: ['superadmin'],
+      },
+    ],
+  },
 ];
 
 /** Texto de la FAQ visible para un rol, en formato "Pregunta / Respuesta". */

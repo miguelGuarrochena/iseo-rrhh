@@ -8,11 +8,13 @@ import { Remuneracion } from '@/types/rrhh';
 const rem = (
   empleadoId: string,
   periodo: string,
-  montoBruto: number
+  montoBruto: number,
+  tipo: Remuneracion['tipo'] = 'mensual'
 ): Remuneracion => ({
-  id: `${empleadoId}-${periodo}`,
+  id: `${empleadoId}-${periodo}-${tipo}`,
   empleadoId,
   periodo,
+  tipo,
   montoBruto,
   montoNeto: Math.round(montoBruto * 0.83),
 });

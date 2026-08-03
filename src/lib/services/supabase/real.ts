@@ -4,6 +4,7 @@
  * entre una y otra la hace el facade src/lib/services/rrhh.ts.
  */
 import {
+  AccionAuditoria,
   Adelanto,
   Alerta,
   Ausencia,
@@ -16,6 +17,7 @@ import {
   DescriptorFacial,
   DescuentoRecurrente,
   DocumentoFirma,
+  DocumentoFirmaDestinatario,
   DocumentoLegajo,
   Empleado,
   Empresa,
@@ -109,6 +111,10 @@ const empresaId = (): string => {
   return id;
 };
 
+/** Como empresaId(), pero permite forzar otra empresa (superadmin mirando reportes de un cliente). */
+const empresaIdEfectiva = (override?: string): string =>
+  override ?? empresaId();
+
 /**
  * Traduce el error para la pantalla y guarda el crudo para soporte. El
  * mensaje que ve el cliente pierde a propósito el detalle técnico, así
@@ -158,13 +164,36 @@ const registrarAuditoria = async (
   }
 };
 
+/** Actividad reciente (quién hizo qué): solo gestores/superadmin la pueden leer (RLS). */
+export const getAuditoria = async (limite = 50): Promise<AccionAuditoria[]> => {
+  const { data, error } = await sb()
+    .from('auditoria_acciones')
+    .select('*')
+    .order('creada_en', { ascending: false })
+    .limit(limite);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    empresaId: r.empresa_id as string,
+    actorId: (r.actor_id as string) ?? undefined,
+    actorNombre: r.actor_nombre as string,
+    accion: r.accion as string,
+    entidad: r.entidad as string,
+    entidadId: (r.entidad_id as string) ?? undefined,
+    detalle: (r.detalle as Record<string, unknown>) ?? {},
+    creadaEn: r.creada_en as string,
+  }));
+};
+
 // ---------- Empresa ----------
 
-export const getEmpresa = async (): Promise<Empresa> => {
+export const getEmpresa = async (
+  empresaIdOverride?: string
+): Promise<Empresa> => {
   const { data, error } = await sb()
     .from('empresas')
     .select('*')
-    .eq('id', empresaId())
+    .eq('id', empresaIdEfectiva(empresaIdOverride))
     .single();
   return aEmpresa(oFalla(data, error));
 };
@@ -209,7 +238,11 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
     })
     .select()
     .single();
-  return aEmpresa(oFalla(data, error));
+  const empresaCreada = aEmpresa(oFalla(data, error));
+  await registrarAuditoria('crear', 'empresa', empresaCreada.id, {
+    nombre: empresaCreada.nombre,
+  });
+  return empresaCreada;
 };
 
 /** Edita la ficha comercial de un cliente (solo superadmin). */
@@ -238,7 +271,9 @@ export const actualizarDatosEmpresa = async (
     .eq('id', empresaId)
     .select()
     .single();
-  return aEmpresa(oFalla(data, error));
+  const empresaActualizada = aEmpresa(oFalla(data, error));
+  await registrarAuditoria('editar', 'empresa', empresaId, cambios);
+  return empresaActualizada;
 };
 
 export const cambiarEstadoEmpresa = async (
@@ -252,6 +287,7 @@ export const cambiarEstadoEmpresa = async (
     .select()
     .single();
   if (error) throw new Error(error.message);
+  await registrarAuditoria('cambiar_estado', 'empresa', id, { estado });
   return data ? aEmpresa(data) : null;
 };
 
@@ -284,7 +320,17 @@ export const getMetricasGlobales = async (): Promise<MetricasGlobales> => {
 
 export const actualizarEmpresa = async (
   datos: Partial<
-    Pick<Empresa, 'nombre' | 'logoUrl' | 'contactoNombre' | 'contactoEmail'>
+    Pick<
+      Empresa,
+      | 'nombre'
+      | 'logoUrl'
+      | 'contactoNombre'
+      | 'contactoEmail'
+      | 'contactoTelefono'
+      | 'cuit'
+      | 'razonSocial'
+      | 'domicilio'
+    >
   >
 ): Promise<Empresa> => {
   const cambios: Record<string, unknown> = {};
@@ -299,13 +345,20 @@ export const actualizarEmpresa = async (
     cambios.contacto_nombre = datos.contactoNombre;
   if (datos.contactoEmail !== undefined)
     cambios.contacto_email = datos.contactoEmail;
+  if (datos.contactoTelefono !== undefined)
+    cambios.contacto_telefono = datos.contactoTelefono;
+  if (datos.cuit !== undefined) cambios.cuit = datos.cuit;
+  if (datos.razonSocial !== undefined) cambios.razon_social = datos.razonSocial;
+  if (datos.domicilio !== undefined) cambios.domicilio = datos.domicilio;
   const { data, error } = await sb()
     .from('empresas')
     .update(cambios)
     .eq('id', empresaId())
     .select()
     .single();
-  return aEmpresa(oFalla(data, error));
+  const empresaActualizada = aEmpresa(oFalla(data, error));
+  await registrarAuditoria('editar', 'empresa', empresaId(), cambios);
+  return empresaActualizada;
 };
 
 export const actualizarConfigEmpresa = async (
@@ -395,11 +448,13 @@ const conFotosFirmadas = async (empleados: Empleado[]): Promise<Empleado[]> => {
   );
 };
 
-export const getEmpleados = async (): Promise<Empleado[]> => {
+export const getEmpleados = async (
+  empresaIdOverride?: string
+): Promise<Empleado[]> => {
   const { data, error } = await sb()
     .from('empleados')
     .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
-    .eq('empresa_id', empresaId())
+    .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
     .eq('activo', true)
     .order('apellido');
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
@@ -463,6 +518,7 @@ export const crearEmpleado = async (
       telefono: datos.telefono ?? '',
       email: datos.email ?? '',
       contacto_emergencia: datos.contactoEmergencia ?? {},
+      grupo_familiar: datos.grupoFamiliar ?? [],
       foto_url: fotoPath,
       fecha_ingreso: datos.fechaIngreso,
       puesto: datos.puesto,
@@ -689,6 +745,7 @@ export const cambiarRolUsuario = async (
     .select()
     .single();
   if (error) fallar(error.message);
+  await registrarAuditoria('cambiar_rol', 'usuario', usuarioId, { rol });
   return data ? aUsuario(data) : null;
 };
 
@@ -711,6 +768,10 @@ export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
     const { error } = (await res.json()) as { error?: string };
     throw new Error(error ?? 'No pudimos enviar la invitación.');
   }
+  await registrarAuditoria('invitar', 'usuario', undefined, {
+    email: datos.email,
+    rol: datos.rol,
+  });
   return {
     id: 'pendiente',
     email: datos.email,
@@ -723,11 +784,13 @@ export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
 
 // ---------- Ausencias ----------
 
-export const getAusencias = async (): Promise<Ausencia[]> => {
+export const getAusencias = async (
+  empresaIdOverride?: string
+): Promise<Ausencia[]> => {
   const { data, error } = await sb()
     .from('ausencias')
     .select('*')
-    .eq('empresa_id', empresaId())
+    .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
     .order('creada_en', { ascending: false });
   return oFalla(data, error).map(aAusencia);
 };
@@ -1042,11 +1105,13 @@ const inicioDeHoy = (): string => {
   return d.toISOString();
 };
 
-export const getFichajesDeHoy = async (): Promise<Fichaje[]> => {
+export const getFichajesDeHoy = async (
+  empresaIdOverride?: string
+): Promise<Fichaje[]> => {
   const { data, error } = await sb()
     .from('fichajes')
     .select('*')
-    .eq('empresa_id', empresaId())
+    .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
     .gte('ts', inicioDeHoy())
     .order('ts');
   return oFalla(data, error).map(aFichaje);
@@ -1425,30 +1490,34 @@ const calcularJornadas = (
   });
 };
 
-const fichajesUltimaSemana = async (): Promise<Fichaje[]> => {
+const fichajesUltimaSemana = async (
+  empresaIdOverride?: string
+): Promise<Fichaje[]> => {
   const desde = new Date();
   desde.setDate(desde.getDate() - 7);
   desde.setHours(0, 0, 0, 0);
   const { data, error } = await sb()
     .from('fichajes')
     .select('*')
-    .eq('empresa_id', empresaId())
+    .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
     .gte('ts', desde.toISOString())
     .order('ts');
   return oFalla(data, error).map(aFichaje);
 };
 
-export const getResumenControl = async (): Promise<ResumenControl> => {
+export const getResumenControl = async (
+  empresaIdOverride?: string
+): Promise<ResumenControl> => {
   const [empresa, empleados, fichajes, ausencias, recibosPend] =
     await Promise.all([
-      getEmpresa(),
-      getEmpleados(),
-      fichajesUltimaSemana(),
-      getAusencias(),
+      getEmpresa(empresaIdOverride),
+      getEmpleados(empresaIdOverride),
+      fichajesUltimaSemana(empresaIdOverride),
+      getAusencias(empresaIdOverride),
       sb()
         .from('recibos')
         .select('id', { count: 'exact', head: true })
-        .eq('empresa_id', empresaId())
+        .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
         .eq('estado_firma', 'pendiente'),
     ]);
 
@@ -1700,6 +1769,7 @@ export const cargarRemuneracion = async (
   datos: NuevaRemuneracion
 ): Promise<Remuneracion> => {
   const { aportes, neto } = calcularLiquidacion(datos);
+  const tipo = datos.tipo ?? 'mensual';
   const { data, error } = await sb()
     .from('remuneraciones')
     .upsert(
@@ -1707,6 +1777,7 @@ export const cargarRemuneracion = async (
         empresa_id: empresaId(),
         empleado_id: datos.empleadoId,
         periodo: datos.periodo,
+        tipo,
         monto_bruto: datos.montoBruto,
         no_remunerativo: datos.noRemunerativo ?? 0,
         otros_descuentos: datos.otrosDescuentos ?? 0,
@@ -1714,7 +1785,7 @@ export const cargarRemuneracion = async (
         aportes,
         monto_neto: neto,
       },
-      { onConflict: 'empleado_id,periodo' }
+      { onConflict: 'empleado_id,periodo,tipo' }
     )
     .select()
     .single();
@@ -1722,6 +1793,7 @@ export const cargarRemuneracion = async (
   await registrarAuditoria('cargar', 'remuneracion', remuneracion.id, {
     empleadoId: datos.empleadoId,
     periodo: datos.periodo,
+    tipo,
   });
   return remuneracion;
 };
@@ -2657,6 +2729,23 @@ export const getDocumentosFirma = async (): Promise<
     })
   );
   return conStats;
+};
+
+/** Lista nominal de a quién le falta firmar y quién ya firmó un documento. */
+export const getDestinatariosDocumento = async (
+  documentoId: string
+): Promise<DocumentoFirmaDestinatario[]> => {
+  const { data, error } = await sb()
+    .from('documento_firma_destinatarios')
+    .select('*')
+    .eq('documento_id', documentoId);
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    documentoId: r.documento_id as string,
+    empleadoId: r.empleado_id as string,
+    firmadoEn: (r.firmado_en as string) ?? undefined,
+  }));
 };
 
 export const getDocumentosFirmaPendientes = async (

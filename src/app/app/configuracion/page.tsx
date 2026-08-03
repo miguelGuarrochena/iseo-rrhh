@@ -37,6 +37,10 @@ const ConfiguracionPage = () => {
   const [nombreEmpresa, setNombreEmpresa] = useState('');
   const [contactoNombre, setContactoNombre] = useState('');
   const [contactoEmail, setContactoEmail] = useState('');
+  const [contactoTelefono, setContactoTelefono] = useState('');
+  const [cuit, setCuit] = useState('');
+  const [razonSocial, setRazonSocial] = useState('');
+  const [domicilioFiscal, setDomicilioFiscal] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | undefined>(undefined);
   const [guardando, setGuardando] = useState(false);
   const [guardado, setGuardado] = useState(false);
@@ -49,6 +53,10 @@ const ConfiguracionPage = () => {
       setNombreEmpresa(e.nombre);
       setContactoNombre(e.contactoNombre);
       setContactoEmail(e.contactoEmail);
+      setContactoTelefono(e.contactoTelefono ?? '');
+      setCuit(e.cuit ?? '');
+      setRazonSocial(e.razonSocial ?? '');
+      setDomicilioFiscal(e.domicilio ?? '');
       setLogoUrl(e.logoUrl);
     });
   }, []);
@@ -128,6 +136,10 @@ const ConfiguracionPage = () => {
         nombre: nombreEmpresa,
         contactoNombre,
         contactoEmail,
+        contactoTelefono: contactoTelefono || undefined,
+        cuit: cuit || undefined,
+        razonSocial: razonSocial || undefined,
+        domicilio: domicilioFiscal || undefined,
         logoUrl,
       });
       // El menú lee los módulos de un cache; sin esto, apagar una sección
@@ -210,6 +222,29 @@ const ConfiguracionPage = () => {
               onChange={(e) => setContactoEmail(e.target.value)}
               error={errores.contactoEmail}
             />
+            <Campo
+              etiqueta="Contacto (teléfono)"
+              value={contactoTelefono}
+              onChange={(e) => setContactoTelefono(e.target.value)}
+              placeholder="11-5555-0000"
+            />
+            <Campo
+              etiqueta="CUIT"
+              value={cuit}
+              onChange={(e) => setCuit(e.target.value)}
+              placeholder="30-12345678-9"
+            />
+            <Campo
+              etiqueta="Razón social"
+              value={razonSocial}
+              onChange={(e) => setRazonSocial(e.target.value)}
+              placeholder="Si difiere del nombre comercial"
+            />
+            <Campo
+              etiqueta="Domicilio fiscal"
+              value={domicilioFiscal}
+              onChange={(e) => setDomicilioFiscal(e.target.value)}
+            />
           </div>
         </Panel>
 
@@ -261,6 +296,35 @@ const ConfiguracionPage = () => {
 
         <Panel>
           <Terminales />
+        </Panel>
+
+        <Panel>
+          <h2 className="text-base font-bold text-ink">Remuneraciones</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Se usa para estimar el costo laboral total en Remuneraciones (masa
+            salarial + cargas).
+          </p>
+          <label className="mt-4 flex max-w-xs flex-col gap-1.5">
+            <span className="text-sm font-semibold text-ink">
+              Cargas patronales estimadas (%)
+            </span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              step={0.1}
+              value={
+                Math.round((config.cargasPatronalesPct ?? 0.27) * 1000) / 10
+              }
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  cargasPatronalesPct: Number(e.target.value) / 100,
+                })
+              }
+              className={campoClase}
+            />
+          </label>
         </Panel>
 
         <Panel>
