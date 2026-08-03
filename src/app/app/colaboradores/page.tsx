@@ -20,11 +20,13 @@ import {
   paginar,
   totalPaginasDe,
 } from '@/components/app/ui/Paginacion';
-import { getEmpleadosTodos } from '@/lib/services/rrhh';
+import { getEmpleadosConCuenta, getEmpleadosTodos } from '@/lib/services/rrhh';
 import { Empleado, ModalidadContratacion } from '@/types/rrhh';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { faltasDeEmpleado, resumirFaltas } from '@/lib/requisitos';
+import { ChipsFaltas } from '@/components/app/Faltas';
 
 const POR_PAGINA = 6;
 
@@ -58,6 +60,42 @@ const ColaboradoresPage = () => {
   const sectores = useMemo(
     () => Array.from(new Set(empleados.map((e) => e.sector))).sort(),
     [empleados]
+  );
+
+  // Qué le falta a cada uno. Se calcula una vez para toda la lista: si
+  // se hiciera dentro del map, cada render recorrería el catálogo por
+  // persona y por fila.
+  const cCuentas = useCarga(() => getEmpleadosConCuenta(), [], {
+    activo: rolEfectivo === 'admin_rrhh',
+    contexto: 'colaboradores/cuentas',
+    inicial: [] as string[],
+  });
+  const faltasPorEmpleado = useMemo(() => {
+    const cuentas = new Set(cCuentas.datos);
+    const sabemos = cCuentas.fase === 'ok';
+    return new Map(
+      empleados
+        .filter((e) => e.activo)
+        .map((e) => [
+          e.id,
+          faltasDeEmpleado(e, {
+            tieneCuenta: sabemos ? cuentas.has(e.id) : undefined,
+          }),
+        ])
+    );
+  }, [empleados, cCuentas.datos, cCuentas.fase]);
+
+  const resumen = useMemo(
+    () =>
+      resumirFaltas(
+        empleados
+          .filter((e) => e.activo)
+          .map((e) => ({
+            empleado: e,
+            faltas: faltasPorEmpleado.get(e.id) ?? [],
+          }))
+      ),
+    [empleados, faltasPorEmpleado]
   );
 
   const filtrados = useMemo(() => {
@@ -132,6 +170,24 @@ const ColaboradoresPage = () => {
           </div>
         )}
       </div>
+
+      {/* Una línea, no la lista entera: quién es está al lado de cada
+          nombre. Acá sólo hace falta saber que hay algo que mirar. */}
+      {resumen.personas > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5">
+          <p className="text-sm leading-relaxed text-amber-900">
+            <span className="font-bold">
+              {resumen.personas === 1
+                ? 'A 1 persona le falta un dato.'
+                : `A ${resumen.personas} personas les faltan datos.`}
+            </span>{' '}
+            {resumen.masComun &&
+              `Lo más repetido: ${resumen.masComun.titulo.toLowerCase()} (${resumen.masComun.cuantos}).`}{' '}
+            Mirá el cartel al lado de cada nombre y entrá a la ficha para
+            resolverlo.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -251,14 +307,23 @@ const ColaboradoresPage = () => {
                     <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
                       Baja
                     </span>
-                  ) : pendientes > 0 ? (
-                    <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
-                      {pendientes} doc. pendientes
-                    </span>
                   ) : (
-                    <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
-                      Legajo completo
-                    </span>
+                    // Dos cosas distintas: los documentos que faltan
+                    // subir y los datos que faltan cargar. Un legajo
+                    // puede tener todos los papeles y aun así dejar a
+                    // esa persona sin poder entrar a la app.
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                      <ChipsFaltas faltas={faltasPorEmpleado.get(e.id) ?? []} />
+                      {pendientes > 0 ? (
+                        <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+                          {pendientes} doc. pendientes
+                        </span>
+                      ) : (
+                        <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
+                          Legajo completo
+                        </span>
+                      )}
+                    </div>
                   )
                 }
               />

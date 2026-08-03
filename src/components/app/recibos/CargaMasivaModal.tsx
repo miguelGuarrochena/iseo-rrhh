@@ -22,6 +22,8 @@ import { PistaTramo } from '@/lib/recibosPdf';
 import { Empleado, ReciboSueldo, TipoRecibo } from '@/types/rrhh';
 import { tipoReciboLabels } from '@/lib/etiquetas';
 import { aOpciones } from '@/components/app/ui/Selector';
+import { Falta, faltasDeEmpleado } from '@/lib/requisitos';
+import { BloqueFaltasDeVarios, ChipsFaltas } from '@/components/app/Faltas';
 
 interface Fila {
   /** Estable: la lista se reordena y el nombre se puede editar. */
@@ -111,8 +113,23 @@ export const CargaMasivaModal = ({
       .catch(() => setConCuenta(null));
   }, [abierto, conCuenta]);
 
+  /**
+   * Qué le falta a esa persona para que el recibo le sirva. Si todavía
+   * no se sabe quién tiene cuenta, `tieneCuenta` va undefined y la regla
+   * no dispara: una advertencia inventada es peor que ninguna.
+   */
+  const faltasDe = (empleadoId: string): Falta[] => {
+    const e = empleados.find((x) => x.id === empleadoId);
+    if (!e) return [];
+    return faltasDeEmpleado(
+      e,
+      { tieneCuenta: conCuenta ? conCuenta.has(empleadoId) : undefined },
+      'recibos'
+    );
+  };
+
   const sinCuenta = (empleadoId: string): boolean =>
-    Boolean(conCuenta && empleadoId && !conCuenta.has(empleadoId));
+    faltasDe(empleadoId).some((f) => f.clave === 'sin_cuenta');
 
   const opciones = [
     { valor: '', etiqueta: 'Sin asignar — elegí…' },
@@ -307,8 +324,10 @@ export const CargaMasivaModal = ({
     (f) => yaCargado.get(f.empleadoId)?.estadoFirma === 'firmado'
   );
 
-  /** Asignados a alguien que todavía no puede entrar a la app. */
-  const mudos = listas.filter((f) => sinCuenta(f.empleadoId));
+  /** Asignados a alguien al que le falta algo para poder usarlo. */
+  const faltantes = [...new Set(listas.map((f) => f.empleadoId))]
+    .map((id) => ({ nombre: nombreDe(id), faltas: faltasDe(id) }))
+    .filter((x) => x.faltas.length > 0);
 
   const partidos = filas.filter((f) => f.vieneDe && f.empleadoId).length;
   const nominasPartidas = new Set(
@@ -476,25 +495,14 @@ export const CargaMasivaModal = ({
           </p>
         )}
 
-        {mudos.length > 0 && (
-          <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-amber-900">
-            <span className="font-bold">
-              {mudos.length === 1
-                ? '1 persona todavía no tiene cuenta en la app.'
-                : `${mudos.length} personas todavía no tienen cuenta en la app.`}
-            </span>{' '}
-            El recibo se guarda igual y queda asignado, pero{' '}
-            {mudos.length === 1 ? 'no lo va' : 'no lo van'} a poder ver ni{' '}
-            {mudos.length === 1 ? 'recibe' : 'reciben'} el aviso por mail hasta
-            que {mudos.length === 1 ? 'la invites' : 'las invites'} desde
-            Permisos:{' '}
-            {mudos
-              .slice(0, 3)
-              .map((f) => nombreDe(f.empleadoId))
-              .join(', ')}
-            {mudos.length > 3 && ` y ${mudos.length - 3} más`}.
-          </p>
-        )}
+        <BloqueFaltasDeVarios
+          items={faltantes}
+          titulo={
+            faltantes.length === 1
+              ? 'A 1 persona le falta algo para poder ver su recibo'
+              : `A ${faltantes.length} personas les falta algo para poder ver su recibo`
+          }
+        />
 
         {repetidos.size > 0 && (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-xs text-red-800">
@@ -633,13 +641,8 @@ export const CargaMasivaModal = ({
                     fila puede rectificar un recibo Y ser de alguien sin
                     cuenta, y esconder una atrás de la otra fue lo que
                     hizo que esto pasara desapercibido. */}
-                {f.estado !== 'subido' && sinCuenta(f.empleadoId) && (
-                  <span
-                    className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800"
-                    title="No tiene cuenta: el recibo se guarda, pero no lo va a ver ni le va a llegar el aviso hasta que la invites desde Permisos."
-                  >
-                    Sin cuenta
-                  </span>
+                {f.estado !== 'subido' && (
+                  <ChipsFaltas faltas={faltasDe(f.empleadoId)} />
                 )}
                 <button
                   type="button"

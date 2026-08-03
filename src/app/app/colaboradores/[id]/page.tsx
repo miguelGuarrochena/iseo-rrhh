@@ -42,6 +42,7 @@ import {
   agregarDocumento,
   darDeBajaEmpleado,
   getDocumentosDeEmpleado,
+  getEmpleadosConCuenta,
   quitarDocumento,
   toggleChecklistItem,
 } from '@/lib/services/rrhh';
@@ -73,6 +74,8 @@ import {
   DocumentoLegajo,
   Remuneracion,
 } from '@/types/rrhh';
+import { faltasDeEmpleado } from '@/lib/requisitos';
+import { BloqueFaltas } from '@/components/app/Faltas';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const ANIO_ACTUAL = new Date().getFullYear();
@@ -151,6 +154,26 @@ const FichaColaboradorPage = () => {
     inicial: [] as Remuneracion[],
   });
   const remuneraciones = cRemuneraciones.datos;
+
+  // Panorama completo de esta persona: sin ámbito, para que la ficha sea
+  // el lugar donde se ve todo junto y no haya que recorrer secciones
+  // para descubrir qué le falta.
+  const cCuentas = useCarga(() => getEmpleadosConCuenta(), [], {
+    activo: rolEfectivo === 'admin_rrhh',
+    contexto: 'ficha/cuentas',
+    inicial: [] as string[],
+  });
+  const faltas = useMemo(
+    () =>
+      empleado
+        ? faltasDeEmpleado(empleado, {
+            // Si la consulta falló no se afirma nada.
+            tieneCuenta:
+              cCuentas.fase === 'ok' ? cCuentas.datos.includes(id) : undefined,
+          })
+        : [],
+    [empleado, cCuentas.fase, cCuentas.datos, id]
+  );
 
   /**
    * Borrador de lo que hay que pagarle al irse. Se muestra al dar de
@@ -364,6 +387,14 @@ const FichaColaboradorPage = () => {
           </div>
         )}
       </div>
+
+      {/* Arriba de los indicadores: si a esta persona le falta un dato
+          que le impide cobrar, firmar o fichar, es más urgente que
+          cuántas llegadas tarde tuvo. Se muestra sólo a RRHH: el
+          colaborador no puede resolver ninguna de estas cosas. */}
+      {rolEfectivo === 'admin_rrhh' && empleado.activo && (
+        <BloqueFaltas faltas={faltas} titulo="Qué le falta a esta ficha" />
+      )}
 
       {/* Indicadores de control del empleado */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

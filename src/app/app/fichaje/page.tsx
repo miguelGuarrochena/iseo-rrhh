@@ -43,6 +43,8 @@ import { ActivarKioscoModal } from '@/components/app/fichaje/ActivarKioscoModal'
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { faltasDeEmpleado } from '@/lib/requisitos';
+import { BloqueFaltasDeVarios } from '@/components/app/Faltas';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
@@ -389,6 +391,17 @@ const FichajePage = () => {
               onReintentar={cFichajesHoy.recargar}
             />
           )}
+
+          {/* Explica una parte del "sin fichar": si la terminal no
+              reconoce a alguien porque nunca se le enroló el rostro, no
+              es que faltó. */}
+          <BloqueFaltasDeVarios
+            items={empleados.map((e) => ({
+              nombre: `${e.nombre} ${e.apellido}`,
+              faltas: faltasDeEmpleado(e, {}, 'fichaje'),
+            }))}
+            titulo="Hay gente que todavía no puede fichar"
+          />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <ListaCard

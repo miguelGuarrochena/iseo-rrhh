@@ -29,6 +29,8 @@ import {
 import { ConfigEmpresa } from '@/types/rrhh';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { faltasDeEmpresa } from '@/lib/requisitos';
+import { BloqueFaltas } from '@/components/app/Faltas';
 
 const campoClase =
   'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-600';
@@ -186,6 +188,10 @@ const ConfiguracionPage = () => {
           Parámetros de {nombreEmpresa}.
         </p>
       </div>
+
+      {/* Lo que le falta a la empresa, no a una persona. Va arriba de
+          todo porque son datos que rompen cosas en otras secciones. */}
+      {carga.datos && <BloqueFaltas faltas={faltasDeEmpresa(carga.datos)} />}
 
       <form onSubmit={guardar} className="flex flex-col gap-4">
         <Panel>

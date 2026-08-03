@@ -31,12 +31,15 @@ import {
   getDocumentosFirma,
   getDocumentosFirmaPendientes,
   getEmpleados,
+  getEmpleadosConCuenta,
 } from '@/lib/services/rrhh';
 import {
   DocumentoFirma,
   DocumentoFirmaDestinatario,
   Empleado,
 } from '@/types/rrhh';
+import { faltasDeEmpleado } from '@/lib/requisitos';
+import { BloqueFaltasDeVarios, ChipsFaltas } from '@/components/app/Faltas';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
@@ -111,6 +114,26 @@ const DocumentosFirmaPage = () => {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
 
+  const cCuentas = useCarga(() => getEmpleadosConCuenta(), [vistaAdmin], {
+    activo: vistaAdmin,
+    contexto: 'documentos-firma/cuentas',
+    inicial: [] as string[],
+  });
+  const faltasDe = (empleadoId: string) => {
+    const e = empleados.find((x) => x.id === empleadoId);
+    if (!e) return [];
+    return faltasDeEmpleado(
+      e,
+      {
+        // Si la consulta falló, no se afirma nada.
+        tieneCuenta:
+          cCuentas.fase === 'ok'
+            ? cCuentas.datos.includes(empleadoId)
+            : undefined,
+      },
+      'firma'
+    );
+  };
   const enviar = async (e: FormEvent) => {
     e.preventDefault();
     // Cada faltante se marca en su campo. Antes salía un solo aviso con
@@ -373,7 +396,10 @@ const DocumentosFirmaPage = () => {
                     checked={elegidos.includes(e.id)}
                     onChange={() => toggleEmpleado(e.id)}
                   />
-                  {e.apellido}, {e.nombre}
+                  <span className="min-w-0 flex-1 truncate">
+                    {e.apellido}, {e.nombre}
+                  </span>
+                  <ChipsFaltas faltas={faltasDe(e.id)} />
                 </label>
               ))}
             </div>
@@ -383,6 +409,17 @@ const DocumentosFirmaPage = () => {
               </span>
             )}
           </div>
+
+          {/* Después de elegir, no antes: mandar un documento a firmar a
+              alguien que no puede entrar es exactamente el mismo agujero
+              que había con los recibos. */}
+          <BloqueFaltasDeVarios
+            items={elegidos.map((id) => ({
+              nombre: nombreEmpleado(id),
+              faltas: faltasDe(id),
+            }))}
+            titulo="Ojo con estos destinatarios"
+          />
           <Boton type="submit" disabled={enviando}>
             {enviando ? 'Enviando…' : 'Enviar para firma'}
           </Boton>

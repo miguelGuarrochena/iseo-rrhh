@@ -188,3 +188,64 @@ persona está mirando.
 Las pendientes funcionan gracias a la capa 3 —ningún error queda en
 silencio— pero no distinguen "falló" de "está vacío". Migrarlas es
 mecánico siguiendo lo de arriba.
+
+---
+
+## Lo que no es un error: faltas (`src/lib/requisitos.ts`)
+
+Hay una segunda familia de problemas que este archivo no cubre y que
+durante mucho tiempo no cubrió nadie.
+
+Un **error** es "la acción falló y por qué". Una **falta** es distinta:
+la acción sale bien —el recibo se guarda, el documento se manda, el
+mensaje queda registrado— pero no tiene el efecto que quien la hizo
+esperaba, porque falta un dato en otro lado.
+
+El caso que lo destapó: RRHH subía cuarenta recibos, la app decía
+"cargados y visibles para el equipo", y quince de esas personas no
+tenían usuario. No hubo ningún error. Simplemente no le llegó a nadie, y
+se supo tres semanas después.
+
+### Dónde vive
+
+- **`src/lib/requisitos.ts`** — el catálogo. Una fila por falta, con qué
+  es, qué consecuencia tiene, cómo se arregla y a dónde ir. Funciones
+  puras: se testean sin base.
+- **`src/components/app/Faltas.tsx`** — cómo se ve. `ChipFalta` y
+  `ChipsFaltas` para las filas de una lista, `BloqueFaltas` para una
+  persona, `BloqueFaltasDeVarios` para un grupo (agrupa por falta, no por
+  persona: al subir cuarenta recibos importa "a estos quince les falta
+  cuenta", no el mismo párrafo repetido quince veces).
+
+### Bloquear o avisar
+
+Bloquear le cuesta caro a quien está trabajando, así que se reserva para
+cuando seguir hace daño que después no se puede deshacer: filtrar el dato
+de una persona a otra, o dejar un registro legal mal armado. Hoy la única
+falta que bloquea es el consentimiento biométrico (Ley 25.326).
+
+Todo lo demás avisa y deja seguir. Si el trabajo se conserva y el hueco
+se puede tapar mañana, frenar una carga entera porque tres personas no
+tienen usuario no salva nada.
+
+Lo que no existe es pasar en silencio.
+
+### Ámbitos
+
+Una falta importa según para qué. `faltasDeEmpleado(empleado, ctx,
+ambito)` filtra: avisarle a quien sube recibos que a esa persona le falta
+la geocerca es ruido. Sin `ambito` devuelve el panorama completo, que es
+lo que usa la ficha del colaborador.
+
+### Datos que todavía no se saben
+
+Si algo no se pudo consultar —por ejemplo, quién tiene cuenta— el
+contexto se pasa `undefined` y la regla **no dispara**. Una advertencia
+inventada es peor que no dar ninguna.
+
+### Agregar una falta nueva
+
+Se agrega una fila a `REGLAS` en `requisitos.ts` y aparece sola en la
+ficha, en la lista de Colaboradores y en la pantalla del ámbito que
+toque. Si la falta es de la empresa y no de una persona, va en
+`faltasDeEmpresa`.

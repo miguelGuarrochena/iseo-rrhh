@@ -13,6 +13,8 @@ import { aOpciones, Selector } from '@/components/app/ui/Selector';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { faltasDeEmpleado } from '@/lib/requisitos';
+import { BloqueFaltas } from '@/components/app/Faltas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { interpretarError } from '@/lib/errores';
 import {
@@ -22,6 +24,7 @@ import {
   getComunicacionesDeEmpleado,
   getComunicacionesSinLeer,
   getEmpleados,
+  getEmpleadosConCuenta,
   getMensajesComunicacion,
   marcarComunicacionLeida,
   responderComunicacion,
@@ -164,6 +167,25 @@ const ComunicacionesPage = () => {
   const nombreEmpleado = (id: string) => {
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.apellido}, ${e.nombre}` : 'Colaborador';
+  };
+
+  const cCuentas = useCarga(() => getEmpleadosConCuenta(), [soloMias], {
+    activo: !soloMias && Boolean(usuario),
+    contexto: 'comunicaciones/cuentas',
+    inicial: [] as string[],
+  });
+  const faltasDe = (id: string) => {
+    const e = empleados.find((x) => x.id === id);
+    if (!e) return [];
+    return faltasDeEmpleado(
+      e,
+      {
+        // Si la consulta falló, no se afirma nada.
+        tieneCuenta:
+          cCuentas.fase === 'ok' ? cCuentas.datos.includes(id) : undefined,
+      },
+      'comunicaciones'
+    );
   };
 
   const crear = async (e: FormEvent) => {
@@ -370,19 +392,24 @@ const ComunicacionesPage = () => {
       >
         <form onSubmit={crear} className="flex flex-col gap-3.5">
           {!esEmpleado && (
-            <CampoSelect
-              etiqueta="Colaborador *"
-              value={empleadoId}
-              onChange={setEmpleadoId}
-              error={errores.empleado}
-              opciones={[
-                { valor: '', etiqueta: 'Elegí…' },
-                ...empleados.map((e) => ({
-                  valor: e.id,
-                  etiqueta: `${e.apellido}, ${e.nombre}`,
-                })),
-              ]}
-            />
+            <>
+              <CampoSelect
+                etiqueta="Colaborador *"
+                value={empleadoId}
+                onChange={setEmpleadoId}
+                error={errores.empleado}
+                opciones={[
+                  { valor: '', etiqueta: 'Elegí…' },
+                  ...empleados.map((e) => ({
+                    valor: e.id,
+                    etiqueta: `${e.apellido}, ${e.nombre}`,
+                  })),
+                ]}
+              />
+              {/* Escribirle a alguien que no puede entrar es hablarle a
+                  una pared: el mensaje queda guardado y nadie lo lee. */}
+              <BloqueFaltas faltas={faltasDe(empleadoId)} />
+            </>
           )}
           <CampoSelect
             etiqueta="Tipo"
