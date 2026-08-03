@@ -28,6 +28,7 @@ import { iaVisible } from '@/lib/entorno';
 import { formatearFecha } from '@/lib/fechas';
 import { fetchProtegido } from '@/lib/api/fetchProtegido';
 import { Convenio } from '@/types/rrhh';
+import { RequireModulo } from '@/components/app/RequireModulo';
 
 const EjemplosPreguntas = [
   '¿Cuántos días corresponden por fallecimiento de un familiar?',
@@ -443,4 +444,12 @@ const ConvenioPage = () => {
   );
 };
 
-export default ConvenioPage;
+/** La empresa puede tener esta sección apagada: se bloquea la ruta,
+ * no sólo el link del menú. */
+const ConvenioPageProtegida = () => (
+  <RequireModulo modulo="convenio">
+    <ConvenioPage />
+  </RequireModulo>
+);
+
+export default ConvenioPageProtegida;

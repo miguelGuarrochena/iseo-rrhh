@@ -34,6 +34,7 @@ import {
   DocumentoFirmaDestinatario,
   Empleado,
 } from '@/types/rrhh';
+import { RequireModulo } from '@/components/app/RequireModulo';
 
 const POR_PAGINA = 8;
 
@@ -390,4 +391,12 @@ const DocumentosFirmaPage = () => {
   );
 };
 
-export default DocumentosFirmaPage;
+/** La empresa puede tener esta sección apagada: se bloquea la ruta,
+ * no sólo el link del menú. */
+const DocumentosFirmaPageProtegida = () => (
+  <RequireModulo modulo="documentos-firma">
+    <DocumentosFirmaPage />
+  </RequireModulo>
+);
+
+export default DocumentosFirmaPageProtegida;

@@ -62,6 +62,10 @@ export const actualizarDatosEmpresa = elegir(
   real.actualizarDatosEmpresa,
   demo.actualizarDatosEmpresa
 );
+export const actualizarModulosEmpresa = elegir(
+  real.actualizarModulosEmpresa,
+  demo.actualizarModulosEmpresa
+);
 export const getEmpresaPorId = elegir(
   real.getEmpresaPorId,
   demo.getEmpresaPorId
@@ -265,6 +269,10 @@ export const getResumenControl = elegir(
   demo.getResumenControl
 );
 export const getMiMes = elegir(real.getMiMes, demo.getMiMes);
+export const getHorasExtrasDelPeriodo = elegir(
+  real.getHorasExtrasDelPeriodo,
+  demo.getHorasExtrasDelPeriodo
+);
 
 // ---------- Remuneraciones y recibos ----------
 export const getRemuneraciones = elegir(
@@ -412,6 +420,18 @@ export const getMensajesComunicacion = elegir(
   real.getMensajesComunicacion,
   demo.getMensajesComunicacion
 );
+/**
+ * No pasa por `elegir` porque esa función devuelve una promesa y acá hay
+ * que entregar la baja de la suscripción de inmediato: el `useEffect`
+ * que la usa necesita la función de limpieza en el mismo tick.
+ */
+export const suscribirMensajes = (
+  comunicacionId: string,
+  alLlegar: () => void
+): (() => void) =>
+  haySesionReal()
+    ? real.suscribirMensajes(comunicacionId, alLlegar)
+    : demo.suscribirMensajes();
 export const responderComunicacion = elegir(
   real.responderComunicacion,
   demo.responderComunicacion

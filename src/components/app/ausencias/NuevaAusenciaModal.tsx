@@ -10,7 +10,13 @@ import { aOpciones } from '@/components/app/ui/Selector';
 import { diasEntre, formatearFecha, hoyISO } from '@/lib/fechas';
 import { TIPOS_AUSENCIA_JORNADA, tipoAusenciaLabels } from '@/lib/etiquetas';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
-import { Ausencia, Empleado, TipoAusencia } from '@/types/rrhh';
+import { getSaldoVacaciones } from '@/lib/services/rrhh';
+import {
+  Ausencia,
+  Empleado,
+  SaldoVacaciones,
+  TipoAusencia,
+} from '@/types/rrhh';
 
 interface NuevaAusenciaModalProps {
   abierto: boolean;
@@ -29,6 +35,8 @@ interface NuevaAusenciaModalProps {
   /** Carga desde Admin/RRHH: elige colaborador y queda aprobada. */
   modoAdmin?: boolean;
   empleados?: Empleado[];
+  /** Quién pide, cuando no es carga de admin: para controlar su saldo. */
+  empleadoIdActual?: string;
 }
 
 export const NuevaAusenciaModal = ({
@@ -39,6 +47,7 @@ export const NuevaAusenciaModal = ({
   nombreEmpleado,
   modoAdmin = false,
   empleados = [],
+  empleadoIdActual,
 }: NuevaAusenciaModalProps) => {
   const [empleadoId, setEmpleadoId] = useState('');
   const [tipo, setTipo] = useState<TipoAusencia>('vacaciones');
@@ -77,6 +86,42 @@ export const NuevaAusenciaModal = ({
     [fechaDesde, fechaHasta, tipo, vacacionesSector]
   );
 
+  /**
+   * Saldo de vacaciones de quien va a usar los días. Sin este control se
+   * podían pedir (y aprobar) 30 días teniendo 14: en una empresa con RRHH
+   * alguien lo frena, en una sin RRHH no lo frena nadie.
+   */
+  const idParaSaldo = modoAdmin ? empleadoId : empleadoIdActual;
+  const anioPedido = Number(fechaDesde.slice(0, 4));
+  const [saldo, setSaldo] = useState<SaldoVacaciones | null>(null);
+
+  useEffect(() => {
+    if (!abierto || tipo !== 'vacaciones' || !idParaSaldo || !anioPedido) {
+      setSaldo(null);
+      return;
+    }
+    let vigente = true;
+    void getSaldoVacaciones(idParaSaldo, anioPedido)
+      .then((s) => {
+        if (vigente) setSaldo(s);
+      })
+      .catch(() => {
+        if (vigente) setSaldo(null);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [abierto, tipo, idParaSaldo, anioPedido]);
+
+  /**
+   * Los días pendientes de aprobación ya están descontados del
+   * disponible: si no, pedir dos veces seguidas pasaría el control las
+   * dos veces.
+   */
+  const excede = Boolean(
+    saldo && tipo === 'vacaciones' && dias > saldo.diasDisponibles
+  );
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     // El faltante se marca en el campo, no sólo en el cartel de abajo:
@@ -86,7 +131,15 @@ export const NuevaAusenciaModal = ({
         ? validarRequerido(empleadoId, 'El colaborador')
         : null,
       fechaHasta:
-        dias < 1 ? 'No puede ser anterior a la fecha de inicio.' : null,
+        dias < 1
+          ? 'No puede ser anterior a la fecha de inicio.'
+          : // Al colaborador se le frena: pedir más días de los que tiene
+            // es un error, no una decisión. RRHH sí puede pasar por
+            // arriba (adelanto de vacaciones, acuerdo particular), pero
+            // con el aviso a la vista.
+            !modoAdmin && excede
+            ? `Te quedan ${saldo?.diasDisponibles} días de vacaciones y estás pidiendo ${dias}.`
+            : null,
     });
     setErrores(nuevos);
     if (Object.keys(nuevos).length > 0) return;
@@ -173,6 +226,37 @@ export const NuevaAusenciaModal = ({
           <p className="text-sm text-ink-soft">
             Total: <strong className="text-ink">{dias} días</strong>
           </p>
+        )}
+
+        {tipo === 'vacaciones' && saldo && (
+          <div
+            className={`rounded-xl px-4 py-3 text-xs ${
+              excede ? 'bg-amber-50 text-amber-900' : 'bg-paper text-ink-soft'
+            }`}
+          >
+            <p>
+              Le corresponden{' '}
+              <strong className="font-bold">
+                {saldo.diasCorresponden} días
+              </strong>{' '}
+              en {saldo.anio} por antigüedad (art. 150 LCT). Ya usó{' '}
+              {saldo.diasUtilizados}
+              {saldo.diasPendientesAprobacion > 0 &&
+                ` y tiene ${saldo.diasPendientesAprobacion} esperando aprobación`}
+              : quedan{' '}
+              <strong className="font-bold">
+                {saldo.diasDisponibles} disponibles
+              </strong>
+              .
+            </p>
+            {excede && (
+              <p className="mt-2 font-bold">
+                {modoAdmin
+                  ? `Estás cargando ${dias} días, ${dias - saldo.diasDisponibles} más de los que le quedan. Podés seguir, pero revisá que sea a propósito.`
+                  : `Estás pidiendo ${dias} días.`}
+              </p>
+            )}
+          </div>
         )}
 
         {tipo === 'vacaciones' && vacacionesSector.length > 0 && (

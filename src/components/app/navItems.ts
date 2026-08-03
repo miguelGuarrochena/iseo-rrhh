@@ -40,20 +40,162 @@ export interface NavItem {
   modulo?: ModuloOpcional;
 }
 
-/** Secciones que se pueden encender y apagar por empresa. */
-export type ModuloOpcional = 'organigrama';
+/**
+ * Secciones que se pueden encender y apagar por empresa.
+ *
+ * No están todas: Inicio, Mi legajo, Colaboradores, Ayuda, Permisos y
+ * Configuración no se negocian. Sin legajo no hay a quién liquidarle ni
+ * a quién darle acceso, y sin Permisos la empresa se queda sin forma de
+ * administrar sus propios usuarios.
+ */
+export type ModuloOpcional =
+  | 'fichaje'
+  | 'turnos'
+  | 'ausencias'
+  | 'recibos'
+  | 'remuneraciones'
+  | 'documentos-firma'
+  | 'organigrama'
+  | 'convenio'
+  | 'agenda'
+  | 'comunicaciones'
+  | 'reportes';
 
-/** Cómo se llaman en Configuración y qué hacen. */
-export const MODULOS_OPCIONALES: {
+/**
+ * Qué sección necesita a cuál. Se usa para avisar antes de apagar algo
+ * de lo que cuelga otra cosa.
+ *
+ * El riesgo real es apagar una sección y dejar a otra a medias sin que
+ * nadie lo note hasta que el cliente lo reporta. Por eso la pantalla de
+ * módulos lo muestra en vez de dejarlo a criterio de quien configura.
+ *
+ * Leer `a: [b]` como "si se apaga b, a queda incompleta".
+ */
+export const DEPENDENCIAS_SECCION: Partial<
+  Record<ModuloOpcional, ModuloOpcional[]>
+> = {
+  // El recibo es el PDF; los números (bruto, aportes, neto, adelantos,
+  // horas extras) salen de Remuneraciones. Sin ella, Recibos es un
+  // repositorio de archivos sin contexto.
+  recibos: ['remuneraciones'],
+  // El control de turnos compara lo planificado contra el fichaje real.
+  // Sin Fichaje no hay contra qué comparar: quedan horarios escritos.
+  turnos: ['fichaje'],
+  // Remuneraciones sugiere las horas extras a partir del fichaje.
+  // Funciona sin él, pero pierde ese cálculo y hay que cargarlo a mano.
+  remuneraciones: ['fichaje'],
+  // El calendario de Ausencias y el control de turnos se cruzan: una
+  // licencia aprobada no debe contar como ausencia injustificada.
+  ausencias: ['turnos'],
+};
+
+/** Qué se rompe si apago `modulo`: las secciones que dependen de él. */
+export const dependenDe = (modulo: ModuloOpcional): ModuloOpcional[] =>
+  (Object.keys(DEPENDENCIAS_SECCION) as ModuloOpcional[]).filter((seccion) =>
+    DEPENDENCIAS_SECCION[seccion]?.includes(modulo)
+  );
+
+export interface ModuloInfo {
   clave: ModuloOpcional;
   etiqueta: string;
+  /** Qué hace la sección, en una línea. */
   descripcion: string;
-}[] = [
+  /** Para quién tiene sentido apagarla. */
+  cuandoApagarla: string;
+}
+
+/**
+ * Catálogo de módulos. El texto está escrito para que quien configura
+ * pueda decidir sin conocer la app por dentro: qué hace y cuándo no
+ * sirve.
+ */
+export const MODULOS_OPCIONALES: ModuloInfo[] = [
+  {
+    clave: 'fichaje',
+    etiqueta: 'Fichaje',
+    descripcion:
+      'Registro de entrada y salida por celular, tablet con reconocimiento facial o carga manual.',
+    cuandoApagarla:
+      'Si no se controla horario: equipos por objetivos, todos remotos o gente que factura por su cuenta.',
+  },
+  {
+    clave: 'turnos',
+    etiqueta: 'Turnos',
+    descripcion:
+      'Horarios planificados por persona y control de lo cumplido contra lo fichado.',
+    cuandoApagarla:
+      'Si todos tienen el mismo horario fijo y no hay rotación ni francos que planificar.',
+  },
+  {
+    clave: 'ausencias',
+    etiqueta: 'Ausencias',
+    descripcion:
+      'Pedidos de vacaciones y licencias, con aprobación, saldo por antigüedad y calendario del equipo.',
+    cuandoApagarla:
+      'Casi nunca. Es de las que más se usan aun en empresas chicas.',
+  },
+  {
+    clave: 'recibos',
+    etiqueta: 'Recibos',
+    descripcion:
+      'Publicación de los recibos de sueldo y firma digital con constancia de recepción.',
+    cuandoApagarla:
+      'Si los recibos se siguen entregando en papel o los manda el estudio contable por otro medio.',
+  },
+  {
+    clave: 'remuneraciones',
+    etiqueta: 'Remuneraciones',
+    descripcion:
+      'Sueldos por período, adelantos, descuentos fijos, masa salarial y aguinaldo.',
+    cuandoApagarla:
+      'Si la liquidación la lleva enteramente el contador y no se quiere duplicar la información acá.',
+  },
+  {
+    clave: 'documentos-firma',
+    etiqueta: 'A firmar',
+    descripcion:
+      'Envío de documentos (políticas, notificaciones, acuerdos) para que el colaborador los firme.',
+    cuandoApagarla:
+      'Si no se circulan documentos para firmar más allá del recibo.',
+  },
   {
     clave: 'organigrama',
     etiqueta: 'Organigrama',
+    descripcion: 'Vista del "reporta a" de cada colaborador.',
+    cuandoApagarla:
+      'Si no hay una estructura de supervisión armada: queda un dibujo plano que no aporta.',
+  },
+  {
+    clave: 'convenio',
+    etiqueta: 'Convenio',
     descripcion:
-      'Vista del "reporta a" de cada colaborador. Si la empresa no tiene una estructura de supervisión armada, no aporta y conviene apagarla.',
+      'El texto del convenio colectivo, consultable y con asistente para preguntarle.',
+    cuandoApagarla:
+      'Si el personal está fuera de convenio o cada uno se rige por uno distinto.',
+  },
+  {
+    clave: 'agenda',
+    etiqueta: 'Agenda',
+    descripcion:
+      'Eventos, capacitaciones y cumpleaños, junto con los vencimientos que calcula el sistema.',
+    cuandoApagarla:
+      'Si la empresa ya lleva su calendario en otra herramienta y no quiere duplicarlo.',
+  },
+  {
+    clave: 'comunicaciones',
+    etiqueta: 'Comunicaciones',
+    descripcion:
+      'Canal de consultas, reclamos y pedidos entre el colaborador y RRHH, con historial.',
+    cuandoApagarla:
+      'Si la comunicación se maneja por otro canal y nadie va a mirar esta bandeja.',
+  },
+  {
+    clave: 'reportes',
+    etiqueta: 'Reportes',
+    descripcion:
+      'Indicadores de ausentismo, llegadas tarde y horas extras, con exportación a CSV.',
+    cuandoApagarla:
+      'Si nadie mira indicadores todavía. Se puede prender más adelante sin perder nada.',
   },
 ];
 
@@ -97,18 +239,21 @@ export const navItems: NavItem[] = [
     icono: IconPlaneDeparture,
     roles: OPERATIVOS,
     badgeKey: 'ausenciasPorResolver',
+    modulo: 'ausencias',
   },
   {
     etiqueta: 'Fichaje',
     href: '/fichaje',
     icono: IconClockCheck,
     roles: OPERATIVOS,
+    modulo: 'fichaje',
   },
   {
     etiqueta: 'Turnos',
     href: '/turnos',
     icono: IconCalendarClock,
     roles: OPERATIVOS,
+    modulo: 'turnos',
   },
   {
     etiqueta: 'Recibos',
@@ -116,18 +261,21 @@ export const navItems: NavItem[] = [
     icono: IconFileCertificate,
     roles: OPERATIVOS,
     badgeKey: 'recibosPorFirmar',
+    modulo: 'recibos',
   },
   {
     etiqueta: 'Remuneraciones',
     href: '/remuneraciones',
     icono: IconReportMoney,
     roles: OPERATIVOS,
+    modulo: 'remuneraciones',
   },
   {
     etiqueta: 'Agenda',
     href: '/agenda',
     icono: IconCalendarEvent,
     roles: OPERATIVOS,
+    modulo: 'agenda',
   },
   {
     etiqueta: 'Comunicaciones',
@@ -135,6 +283,7 @@ export const navItems: NavItem[] = [
     icono: IconMessages,
     roles: OPERATIVOS,
     badgeKey: 'comunicacionesSinLeer',
+    modulo: 'comunicaciones',
   },
   {
     etiqueta: 'A firmar',
@@ -142,6 +291,7 @@ export const navItems: NavItem[] = [
     icono: IconFileCheck,
     roles: OPERATIVOS,
     badgeKey: 'documentosPorFirmar',
+    modulo: 'documentos-firma',
   },
   {
     etiqueta: 'Organigrama',
@@ -155,12 +305,14 @@ export const navItems: NavItem[] = [
     href: '/convenio',
     icono: IconGavel,
     roles: OPERATIVOS,
+    modulo: 'convenio',
   },
   {
     etiqueta: 'Reportes',
     href: '/reportes',
     icono: IconChartBar,
     roles: GESTION,
+    modulo: 'reportes',
   },
   {
     etiqueta: 'Permisos',

@@ -62,6 +62,12 @@ export interface ConfigEmpresa {
    * estimación genérica.
    */
   cargasPatronalesPct?: number;
+  /**
+   * Horas mensuales con las que se divide el bruto para sacar el valor
+   * hora de las extras. 192 es la jornada legal (48 semanales), pero
+   * muchos convenios usan otra base, así que es configurable.
+   */
+  horasMensuales?: number;
 }
 
 export type EstadoEmpresa = 'activa' | 'suspendida';

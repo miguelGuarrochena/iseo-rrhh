@@ -38,6 +38,30 @@ export const calcularLiquidacion = (d: {
   return { aportes, neto };
 };
 
+/** Jornada legal: 48 hs semanales ≈ 192 mensuales (LCT art. 1 ley 11.544). */
+export const HORAS_MENSUALES = 192;
+
+/** Recargo de la hora extra común: 50% sobre la hora normal (LCT art. 201). */
+export const RECARGO_HORA_EXTRA = 1.5;
+
+/**
+ * Valor a pagar por las horas extras del período.
+ *
+ * Es una sugerencia, no una liquidación: toma el recargo del 50% (el de
+ * los días hábiles) y no distingue las del 100% (sábado después de las 13,
+ * domingos y feriados), que hay que cargar aparte. Tampoco contempla los
+ * adicionales del convenio, que cambian la base de cálculo.
+ */
+export const valorHorasExtras = (
+  montoBruto: number,
+  horasExtras: number,
+  horasMensuales: number = HORAS_MENSUALES
+): number => {
+  if (montoBruto <= 0 || horasExtras <= 0 || horasMensuales <= 0) return 0;
+  const valorHora = montoBruto / horasMensuales;
+  return Math.round(valorHora * RECARGO_HORA_EXTRA * horasExtras);
+};
+
 const semestreDe = (mes: number): 1 | 2 => (mes <= 6 ? 1 : 2);
 
 /** Primer y último día (inclusive) del semestre `sem` de `anio`. */

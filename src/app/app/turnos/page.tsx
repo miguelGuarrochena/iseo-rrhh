@@ -34,6 +34,7 @@ import {
 } from '@/lib/turnos';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { Ausencia, Empleado, Fichaje, Turno } from '@/types/rrhh';
+import { RequireModulo } from '@/components/app/RequireModulo';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -523,4 +524,12 @@ const TurnosPage = () => {
   );
 };
 
-export default TurnosPage;
+/** La empresa puede tener esta sección apagada: se bloquea la ruta,
+ * no sólo el link del menú. */
+const TurnosPageProtegida = () => (
+  <RequireModulo modulo="turnos">
+    <TurnosPage />
+  </RequireModulo>
+);
+
+export default TurnosPageProtegida;

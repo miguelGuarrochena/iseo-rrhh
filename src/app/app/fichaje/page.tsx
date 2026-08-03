@@ -41,6 +41,7 @@ import { FichajeManualModal } from '@/components/app/facial/FichajeManualModal';
 import { getTerminalLocal } from '@/lib/terminal';
 import { ActivarKioscoModal } from '@/components/app/fichaje/ActivarKioscoModal';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+import { RequireModulo } from '@/components/app/RequireModulo';
 
 const POR_PAGINA = 8;
 
@@ -436,4 +437,12 @@ const FichajePage = () => {
   );
 };
 
-export default FichajePage;
+/** La empresa puede tener esta sección apagada: se bloquea la ruta,
+ * no sólo el link del menú. */
+const FichajePageProtegida = () => (
+  <RequireModulo modulo="fichaje">
+    <FichajePage />
+  </RequireModulo>
+);
+
+export default FichajePageProtegida;

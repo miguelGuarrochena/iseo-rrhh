@@ -42,6 +42,7 @@ import { Empleado, ReciboSueldo, TipoRecibo } from '@/types/rrhh';
 import { tipoReciboLabels } from '@/lib/etiquetas';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+import { RequireModulo } from '@/components/app/RequireModulo';
 
 const POR_PAGINA = 8;
 
@@ -816,4 +817,12 @@ const RecibosPage = () => {
   );
 };
 
-export default RecibosPage;
+/** La empresa puede tener esta sección apagada: se bloquea la ruta,
+ * no sólo el link del menú. */
+const RecibosPageProtegida = () => (
+  <RequireModulo modulo="recibos">
+    <RecibosPage />
+  </RequireModulo>
+);
+
+export default RecibosPageProtegida;

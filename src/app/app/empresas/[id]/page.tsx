@@ -8,6 +8,7 @@ import {
   IconCash,
   IconCheck,
   IconClockExclamation,
+  IconLayoutGrid,
   IconLogin2,
   IconPencil,
   IconReceipt2,
@@ -169,6 +170,13 @@ const EmpresaDetallePage = () => {
           <Boton variante="secundario" onClick={() => setEditar(true)}>
             <IconPencil size={16} />
             Editar
+          </Boton>
+          <Boton
+            variante="secundario"
+            onClick={() => router.push(`/empresas/${empresa.id}/modulos`)}
+          >
+            <IconLayoutGrid size={16} />
+            Módulos
           </Boton>
           {activa && (
             <Boton variante="negro" onClick={ingresar}>

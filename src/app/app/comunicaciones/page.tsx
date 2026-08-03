@@ -22,6 +22,7 @@ import {
   getMensajesComunicacion,
   marcarComunicacionLeida,
   responderComunicacion,
+  suscribirMensajes,
 } from '@/lib/services/rrhh';
 import {
   Comunicacion,
@@ -30,6 +31,7 @@ import {
   EstadoComunicacion,
   TipoComunicacion,
 } from '@/types/rrhh';
+import { RequireModulo } from '@/components/app/RequireModulo';
 
 const tipoLabels: Record<TipoComunicacion, string> = {
   consulta: 'Consulta',
@@ -114,7 +116,17 @@ const ComunicacionesPage = () => {
       setMensajes([]);
       return;
     }
-    void getMensajesComunicacion(seleccion.id).then(setMensajes);
+    const id = seleccion.id;
+    const traer = () => {
+      void getMensajesComunicacion(id).then(setMensajes);
+    };
+    traer();
+
+    // Mientras la conversación está abierta, los mensajes del otro lado
+    // entran solos. Sin esto había que salir y volver a entrar para ver
+    // una respuesta que ya estaba escrita.
+    const cortar = suscribirMensajes(id, traer);
+    return cortar;
   }, [seleccion]);
 
   const nombreEmpleado = (id: string) => {
@@ -402,4 +414,12 @@ const ComunicacionesPage = () => {
   );
 };
 
-export default ComunicacionesPage;
+/** La empresa puede tener esta sección apagada: se bloquea la ruta,
+ * no sólo el link del menú. */
+const ComunicacionesPageProtegida = () => (
+  <RequireModulo modulo="comunicaciones">
+    <ComunicacionesPage />
+  </RequireModulo>
+);
+
+export default ComunicacionesPageProtegida;

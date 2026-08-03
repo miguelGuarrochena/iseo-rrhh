@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { Modal } from '@mantine/core';
@@ -15,6 +15,7 @@ import {
   IconClockPlus,
   IconPencil,
   IconPlaneDeparture,
+  IconUpload,
   IconUser,
   IconUserOff,
   IconX,
@@ -53,14 +54,24 @@ import {
   getAusenciasDeEmpleado,
   getEmpleado,
   getMiMes,
+  getRemuneraciones,
   getSaldoVacaciones,
   MiMes,
 } from '@/lib/services/rrhh';
+import { analizarSalario } from '@/lib/remuneraciones';
+import { armarLiquidacionFinal } from '@/lib/liquidacionFinal';
+import { formatearPesos } from '@/lib/formato';
+import {
+  categoriaDeChecklist,
+  documentoDeChecklist,
+} from '@/lib/checklistAlta';
 import {
   Ausencia,
   CategoriaDocumento,
+  ChecklistItem,
   DocumentoLegajo,
   Empleado,
+  Remuneracion,
   SaldoVacaciones,
 } from '@/types/rrhh';
 
@@ -95,12 +106,18 @@ const FichaColaboradorPage = () => {
   const [docArchivo, setDocArchivo] = useState<File | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
   const [docGuardando, setDocGuardando] = useState(false);
+  /** Ítem del checklist que disparó la subida, para tildarlo al guardar. */
+  const [checklistPendiente, setChecklistPendiente] = useState<string | null>(
+    null
+  );
   const [bajaAbierta, { open: abrirBaja, close: cerrarBaja }] =
     useDisclosure(false);
   const [motivoBaja, setMotivoBaja] = useState('');
   const [fechaBaja, setFechaBaja] = useState(hoyISO());
   const [errorBaja, setErrorBaja] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
+
+  const [remuneraciones, setRemuneraciones] = useState<Remuneracion[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -109,7 +126,31 @@ const FichaColaboradorPage = () => {
     void getMiMes(id).then(setControl);
     void getAusenciasDeEmpleado(id).then(setAusencias);
     void getDocumentosDeEmpleado(id).then(setDocumentos);
+    void getRemuneraciones(id)
+      .then(setRemuneraciones)
+      .catch(() => setRemuneraciones([]));
   }, [id]);
+
+  /**
+   * Borrador de lo que hay que pagarle al irse. Se muestra al dar de
+   * baja porque es el momento en que se decide, y hasta ahora la baja no
+   * disparaba ningún cálculo: quedaba todo a que alguien se acordara.
+   */
+  const borradorBaja = useMemo(() => {
+    if (!empleado || !fechaBaja) return null;
+    const analisis = analizarSalario(
+      remuneraciones,
+      new Date(`${fechaBaja}T00:00:00`),
+      empleado.fechaIngreso
+    );
+    return armarLiquidacionFinal({
+      fechaIngreso: empleado.fechaIngreso,
+      fechaBaja,
+      brutoMensual: analisis.ultima?.montoBruto ?? 0,
+      mejorBrutoSemestre: analisis.mejorSemestreBruto,
+      diasVacacionesGozados: saldo?.diasUtilizados ?? 0,
+    });
+  }, [empleado, fechaBaja, remuneraciones, saldo]);
 
   if (!usuario || rolEfectivo === 'empleado') {
     return (
@@ -134,6 +175,22 @@ const FichaColaboradorPage = () => {
     if (actualizado) setEmpleado({ ...actualizado });
   };
 
+  /**
+   * Abre el modal ya apuntando al ítem del checklist que falta: con la
+   * categoría y el nombre puestos, subirlo es elegir el archivo y listo.
+   */
+  const abrirDocDeChecklist = (item: ChecklistItem) => {
+    const categoria = categoriaDeChecklist(item);
+    if (!categoria) return;
+    setDocCategoria(categoria);
+    setDocNombre(item.etiqueta);
+    setDocVencimiento('');
+    setDocArchivo(null);
+    setDocError(null);
+    setChecklistPendiente(item.id);
+    abrirDoc();
+  };
+
   const guardarDocumento = async () => {
     if (!docNombre.trim()) {
       setDocError('Poné un nombre al documento.');
@@ -149,6 +206,21 @@ const FichaColaboradorPage = () => {
         fechaVencimiento: docVencimiento || undefined,
         archivo: docArchivo ?? undefined,
       });
+      // Si el documento venía de un ítem pendiente, se tilda solo: el
+      // documento está, tildarlo aparte era un paso manual que se olvida
+      // y deja el legajo marcado como incompleto sin serlo.
+      if (checklistPendiente) {
+        const item = empleado.checklistAlta.find(
+          (c) => c.id === checklistPendiente
+        );
+        if (item && !item.completo) {
+          const actualizado = await toggleChecklistItem(
+            empleado.id,
+            checklistPendiente
+          );
+          if (actualizado) setEmpleado({ ...actualizado });
+        }
+      }
       avisoExito('Documento guardado en el legajo');
     } catch (err) {
       setDocError(
@@ -161,6 +233,7 @@ const FichaColaboradorPage = () => {
     setDocNombre('');
     setDocVencimiento('');
     setDocArchivo(null);
+    setChecklistPendiente(null);
     cerrarDoc();
     recargarDocs();
   };
@@ -348,31 +421,73 @@ const FichaColaboradorPage = () => {
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel>
           <h2 className="text-base font-bold text-ink">Checklist del legajo</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Lo que falta se puede subir desde acá: no hace falta ir a otra
+            pantalla y volver.
+          </p>
           <div className="mt-4 flex flex-col gap-2">
-            {empleado.checklistAlta.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => void alternarChecklist(item.id)}
-                className={`flex items-center gap-3 rounded-xl bg-paper px-4 py-2.5 ${esAdmin ? 'cursor-pointer transition-colors hover:bg-brand-50/60' : ''}`}
-              >
-                <span
-                  className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-white ${
-                    item.completo ? 'bg-emerald-500' : 'bg-ink-soft/40'
-                  }`}
+            {empleado.checklistAlta.map((item) => {
+              const doc = documentoDeChecklist(item, documentos);
+              const categoria = categoriaDeChecklist(item);
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center gap-3 rounded-xl bg-paper px-4 py-2.5"
                 >
-                  {item.completo ? (
-                    <IconCheck size={14} />
-                  ) : (
-                    <IconX size={14} />
+                  <button
+                    type="button"
+                    onClick={() => void alternarChecklist(item.id)}
+                    disabled={!esAdmin}
+                    aria-label={`Marcar ${item.etiqueta} como ${item.completo ? 'pendiente' : 'completo'}`}
+                    className={`flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full border-0 text-white ${esAdmin ? 'cursor-pointer' : ''} ${
+                      item.completo ? 'bg-emerald-500' : 'bg-ink-soft/40'
+                    }`}
+                  >
+                    {item.completo ? (
+                      <IconCheck size={14} />
+                    ) : (
+                      <IconX size={14} />
+                    )}
+                  </button>
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={`text-sm font-medium ${item.completo ? 'text-ink' : 'text-ink-soft'}`}
+                    >
+                      {item.etiqueta}
+                    </p>
+                    {doc ? (
+                      <button
+                        type="button"
+                        onClick={() => verDocumento(doc)}
+                        className="cursor-pointer border-0 bg-transparent p-0 text-xs text-brand-700 underline-offset-2 hover:underline"
+                      >
+                        {doc.nombre}
+                      </button>
+                    ) : (
+                      item.completo &&
+                      categoria && (
+                        // Tildado pero sin nada adjunto: no es un error,
+                        // pero es lo que va a faltar el día que alguien
+                        // pida el legajo completo.
+                        <p className="text-xs text-amber-700">
+                          Sin documento adjunto
+                        </p>
+                      )
+                    )}
+                  </div>
+                  {esAdmin && !doc && categoria && (
+                    <Boton
+                      variante="secundario"
+                      tamano="sm"
+                      onClick={() => abrirDocDeChecklist(item)}
+                    >
+                      <IconUpload size={14} />
+                      Subir
+                    </Boton>
                   )}
-                </span>
-                <span
-                  className={`text-sm font-medium ${item.completo ? 'text-ink' : 'text-ink-soft'}`}
-                >
-                  {item.etiqueta}
-                </span>
-              </div>
-            ))}
+                </div>
+              );
+            })}
           </div>
         </Panel>
 
@@ -562,6 +677,55 @@ const FichaColaboradorPage = () => {
             value={fechaBaja}
             onChange={setFechaBaja}
           />
+
+          {borradorBaja && borradorBaja.conceptos.length > 0 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                Borrador de liquidación final
+              </p>
+              <div className="mt-2 flex flex-col divide-y divide-amber-200/70">
+                {borradorBaja.conceptos.map((c) => (
+                  <div key={c.concepto} className="py-1.5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 text-xs text-amber-900">
+                        {c.concepto}
+                      </span>
+                      <span className="shrink-0 text-xs font-bold text-amber-900">
+                        {formatearPesos(c.monto)}
+                      </span>
+                    </div>
+                    <p className="text-[0.65rem] text-amber-900/70">
+                      {c.detalle}
+                    </p>
+                  </div>
+                ))}
+                <div className="flex items-baseline justify-between gap-3 pt-2">
+                  <span className="text-xs font-bold text-amber-900">
+                    Total
+                  </span>
+                  <span className="text-sm font-extrabold text-amber-900">
+                    {formatearPesos(borradorBaja.total)}
+                  </span>
+                </div>
+              </div>
+              <p className="mt-2.5 text-[0.7rem] leading-relaxed text-amber-900/80">
+                Son solo los conceptos que salen de una cuenta con fechas y
+                sueldos.{' '}
+                <strong>
+                  No incluye preaviso ni indemnización por antigüedad
+                </strong>
+                : eso depende de la causal y lo tiene que definir tu contador o
+                abogado.
+              </p>
+            </div>
+          ) : (
+            <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
+              No podemos estimar la liquidación final porque no hay
+              remuneraciones cargadas para este colaborador. Cargá al menos un
+              período en Remuneraciones y va a aparecer acá.
+            </p>
+          )}
+
           <div className="flex gap-2">
             <Boton
               variante="rechazar"

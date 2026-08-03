@@ -161,6 +161,16 @@ export const getEmpresaPorId = async (
 ): Promise<Empresa | null> =>
   simular(empresasMock.find((e) => e.id === empresaId) ?? null);
 
+export const actualizarModulosEmpresa = async (
+  empresaId: string,
+  modulos: Record<string, boolean>
+): Promise<Empresa> => {
+  const empresa = empresasMock.find((e) => e.id === empresaId);
+  if (!empresa) throw new Error('Empresa no encontrada.');
+  empresa.config = { ...empresa.config, modulos };
+  return simular(empresa);
+};
+
 export const getEmpleadosDeEmpresaCount = async (
   empresaId: string
 ): Promise<number> => simular(empleadosActivosDe(empresaId));
@@ -1104,6 +1114,23 @@ export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
   });
 };
 
+/**
+ * Horas extras de un período (YYYY-MM), para sugerirlas al liquidar.
+ * El mock no tiene jornadas de varios meses, así que devuelve las que
+ * hay; en Supabase sí se filtra por el rango real del mes.
+ */
+export const getHorasExtrasDelPeriodo = async (
+  empleadoId: string,
+  periodo: string
+): Promise<number> => {
+  const jornadas = jornadasMock.filter(
+    (j) => j.empleadoId === empleadoId && j.fecha.startsWith(periodo)
+  );
+  return simular(
+    Math.round(jornadas.reduce((acc, j) => acc + j.horasExtras, 0) * 10) / 10
+  );
+};
+
 // ---------- Remuneraciones y recibos ----------
 
 export const getRemuneraciones = async (
@@ -1632,6 +1659,13 @@ export const crearComunicacion = async (datos: {
   comunicacionesMock.unshift(nueva);
   return simular(nueva);
 };
+
+/**
+ * En demo no hay servidor que empuje nada: los mensajes los escribe el
+ * mismo navegador. Se devuelve una baja vacía para que la pantalla no
+ * tenga que preguntar en qué modo está.
+ */
+export const suscribirMensajes = (): (() => void) => () => {};
 
 export const getMensajesComunicacion = async (
   comunicacionId: string

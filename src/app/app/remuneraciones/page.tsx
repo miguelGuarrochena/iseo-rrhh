@@ -42,6 +42,7 @@ import { descargarCSV } from '@/lib/csv';
 import { Boton } from '@/components/app/ui/Boton';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { avisoExito } from '@/lib/avisos';
+import { RequireModulo } from '@/components/app/RequireModulo';
 
 const POR_PAGINA = 10;
 
@@ -566,4 +567,12 @@ const RemuneracionesPage = () => {
   );
 };
 
-export default RemuneracionesPage;
+/** La empresa puede tener esta sección apagada: se bloquea la ruta,
+ * no sólo el link del menú. */
+const RemuneracionesPageProtegida = () => (
+  <RequireModulo modulo="remuneraciones">
+    <RemuneracionesPage />
+  </RequireModulo>
+);
+
+export default RemuneracionesPageProtegida;

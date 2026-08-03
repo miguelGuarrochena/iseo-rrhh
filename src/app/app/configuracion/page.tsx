@@ -6,6 +6,7 @@ import { IconCamera, IconCheck } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
+import { HORAS_MENSUALES } from '@/lib/remuneraciones';
 import { Terminales } from '@/components/app/configuracion/Terminales';
 import { CuposLicenciaPanel } from '@/components/app/configuracion/CuposLicenciaPanel';
 import { FeriadosPanel } from '@/components/app/configuracion/FeriadosPanel';
@@ -325,6 +326,30 @@ const ConfiguracionPage = () => {
               className={campoClase}
             />
           </label>
+          <label className="mt-4 flex max-w-xs flex-col gap-1.5">
+            <span className="text-sm font-semibold text-ink">
+              Horas mensuales para el valor hora
+            </span>
+            <input
+              type="number"
+              min={1}
+              max={400}
+              step={1}
+              value={config.horasMensuales ?? HORAS_MENSUALES}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  horasMensuales: Number(e.target.value) || HORAS_MENSUALES,
+                })
+              }
+              className={campoClase}
+            />
+            <span className="text-xs text-ink-soft">
+              Con esto se divide el bruto para sugerir el pago de las horas
+              extras al liquidar. {HORAS_MENSUALES} es la jornada legal (48 hs
+              semanales); si tu convenio usa otra base, cambiala acá.
+            </span>
+          </label>
         </Panel>
 
         <Panel>
@@ -351,39 +376,34 @@ const ConfiguracionPage = () => {
           </label>
         </Panel>
 
+        {/* Los módulos se administran desde Empresas → la ficha del
+            cliente → Módulos, y sólo los toca el dueño de ISEO: definen
+            el alcance de lo contratado. Tener el mismo interruptor en dos
+            lugares es la forma más rápida de que queden desincronizados. */}
         <Panel>
-          <h2 className="text-base font-bold text-ink">Secciones</h2>
+          <h2 className="text-base font-bold text-ink">Secciones activas</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            Apagá lo que esta empresa no usa: desaparece del menú para todo el
-            equipo. No se borra nada, se puede volver a prender cuando quieras.
+            Estas son las secciones que tiene habilitadas la empresa. Si
+            necesitás prender o apagar alguna, escribinos: forma parte del
+            alcance contratado.
           </p>
-          <div className="mt-4 flex flex-col gap-3">
-            {MODULOS_OPCIONALES.map((m) => (
-              <label key={m.clave} className="flex cursor-pointer gap-3">
-                <input
-                  type="checkbox"
-                  checked={config.modulos?.[m.clave] !== false}
-                  onChange={(e) =>
-                    setConfig({
-                      ...config,
-                      modulos: {
-                        ...(config.modulos ?? {}),
-                        [m.clave]: e.target.checked,
-                      },
-                    })
-                  }
-                  className="mt-0.5 h-4 w-4 shrink-0"
-                />
-                <span>
-                  <span className="text-sm font-semibold text-ink">
-                    {m.etiqueta}
-                  </span>
-                  <span className="mt-0.5 block text-xs text-ink-soft">
-                    {m.descripcion}
-                  </span>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {MODULOS_OPCIONALES.map((m) => {
+              const activo = config.modulos?.[m.clave] !== false;
+              return (
+                <span
+                  key={m.clave}
+                  title={m.descripcion}
+                  className={`rounded-full px-3 py-1.5 text-xs font-bold ${
+                    activo
+                      ? 'bg-brand-100 text-brand-800'
+                      : 'bg-paper text-ink-soft line-through'
+                  }`}
+                >
+                  {m.etiqueta}
                 </span>
-              </label>
-            ))}
+              );
+            })}
           </div>
         </Panel>
 

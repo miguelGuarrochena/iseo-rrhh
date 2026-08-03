@@ -276,6 +276,32 @@ export const actualizarDatosEmpresa = async (
   return empresaActualizada;
 };
 
+/**
+ * Prende y apaga secciones de una empresa concreta. Es del dueño de
+ * ISEO: por eso recibe el `empresaId` en vez de operar sobre la empresa
+ * de la sesión, como `actualizarConfigEmpresa`.
+ *
+ * Se guarda el objeto entero de config para no pisar lo que ya tenía
+ * (tolerancias, horarios, cargas patronales): `config` es un JSONB y un
+ * update parcial lo reemplazaría completo.
+ */
+export const actualizarModulosEmpresa = async (
+  empresaId: string,
+  modulos: Record<string, boolean>
+): Promise<Empresa> => {
+  const actual = await getEmpresaPorId(empresaId);
+  if (!actual) throw new Error('Empresa no encontrada.');
+  const { data, error } = await sb()
+    .from('empresas')
+    .update({ config: { ...actual.config, modulos } })
+    .eq('id', empresaId)
+    .select()
+    .single();
+  const empresa = aEmpresa(oFalla(data, error));
+  await registrarAuditoria('editar', 'empresa', empresaId, { modulos });
+  return empresa;
+};
+
 export const cambiarEstadoEmpresa = async (
   id: string,
   estado: Empresa['estado']
@@ -895,6 +921,36 @@ const notificarUsuarios = async (
 };
 
 /** Ids de usuario de los gestores (admin y supervisores) de la empresa. */
+/**
+ * Dispara el aviso por mail del evento. Deliberadamente "fire and
+ * forget": si Resend está caído o sin configurar, la acción que lo
+ * disparó (responder, publicar un recibo, resolver una ausencia) ya se
+ * guardó y no tiene por qué fallar arrastrada por el mail.
+ *
+ * Sólo viaja qué pasó y sobre qué registro: los destinatarios los
+ * resuelve el servidor en /api/avisos.
+ */
+const avisarPorMail = async (
+  evento: 'comunicacion_respondida' | 'recibo_disponible' | 'ausencia_resuelta',
+  id: string
+): Promise<void> => {
+  try {
+    const { data } = await sb().auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) return;
+    await fetch('/api/avisos', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ evento, id }),
+    });
+  } catch {
+    // El aviso dentro de la app ya quedó; el mail es el refuerzo.
+  }
+};
+
 const usuariosGestores = async (): Promise<string[]> => {
   const { data } = await sb()
     .from('usuarios')
@@ -1056,6 +1112,9 @@ export const resolverAusencia = async (
                 }`,
           link: '/ausencias',
         });
+      // Una ausencia resuelta cambia los planes de la persona: es de las
+      // que conviene que le lleguen aunque no entre a la app.
+      void avisarPorMail('ausencia_resuelta', ausenciaId);
     }
   } catch {
     // Si falla la notificación, la resolución igual queda registrada.
@@ -1595,6 +1654,39 @@ export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
   };
 };
 
+/**
+ * Horas extras de un período (YYYY-MM), para sugerirlas al liquidar.
+ * Se reconstruyen desde los fichajes con la misma función que usa el
+ * control de Turnos, así el número que ve RRHH al liquidar es el mismo
+ * que ve en Reportes.
+ */
+export const getHorasExtrasDelPeriodo = async (
+  empleadoId: string,
+  periodo: string
+): Promise<number> => {
+  const [anio, mes] = periodo.split('-').map(Number);
+  if (!anio || !mes) return 0;
+  const desde = new Date(anio, mes - 1, 1);
+  const hasta = new Date(anio, mes, 1);
+  const [{ data, error }, empresa] = await Promise.all([
+    sb()
+      .from('fichajes')
+      .select('*')
+      .eq('empleado_id', empleadoId)
+      .gte('ts', desde.toISOString())
+      .lt('ts', hasta.toISOString())
+      .order('ts'),
+    getEmpresa(),
+  ]);
+  const jornadas = calcularJornadas(
+    oFalla(data, error).map(aFichaje),
+    empresa.config
+  );
+  return (
+    Math.round(jornadas.reduce((acc, j) => acc + j.horasExtras, 0) * 10) / 10
+  );
+};
+
 // ---------- Alertas (derivadas de contratos y documentos) ----------
 
 export const getAlertas = async (): Promise<Alerta[]> => {
@@ -1870,7 +1962,10 @@ export const firmarRecibo = async (
 };
 
 /** Avisa al empleado que su recibo ya está disponible para firmar. */
-const avisarReciboDisponible = async (empleadoId: string): Promise<void> => {
+const avisarReciboDisponible = async (
+  empleadoId: string,
+  reciboId?: string
+): Promise<void> => {
   try {
     const { data: usuario } = await sb()
       .from('usuarios')
@@ -1885,6 +1980,9 @@ const avisarReciboDisponible = async (empleadoId: string): Promise<void> => {
         'Ya podés verlo y firmarlo desde la sección Recibos.',
         '/recibos'
       );
+      // El recibo es de las cosas que se esperan: si no entra a la app,
+      // no se entera de que ya está para firmar.
+      if (reciboId) void avisarPorMail('recibo_disponible', reciboId);
     }
   } catch {
     // La notificación nunca bloquea la carga.
@@ -1965,7 +2063,7 @@ export const cargarRecibo = async (
     empleadoId,
     periodo,
   });
-  if (publicar) await avisarReciboDisponible(empleadoId);
+  if (publicar) await avisarReciboDisponible(empleadoId, recibo.id);
   return recibo;
 };
 
@@ -1984,7 +2082,7 @@ export const firmarReciboEmpleador = async (
     empleadoId: recibo.empleadoId,
     periodo: recibo.periodo,
   });
-  await avisarReciboDisponible(recibo.empleadoId);
+  await avisarReciboDisponible(recibo.empleadoId, recibo.id);
   return recibo;
 };
 
@@ -2587,6 +2685,40 @@ export const crearComunicacion = async (datos: {
   return com;
 };
 
+/**
+ * Escucha los mensajes nuevos de una conversación abierta.
+ *
+ * Devuelve la función para cortar la suscripción: hay que llamarla al
+ * cambiar de conversación o al desmontar, si no quedan canales abiertos
+ * acumulándose y el mismo mensaje llega varias veces.
+ *
+ * Sólo avisa que hubo novedad; los mensajes se vuelven a pedir con
+ * `getMensajesComunicacion`, que pasa por RLS. Así el payload del canal
+ * no es una vía para leer lo que no corresponde.
+ */
+export const suscribirMensajes = (
+  comunicacionId: string,
+  alLlegar: () => void
+): (() => void) => {
+  const canal = sb()
+    .channel(`comunicacion-${comunicacionId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'comunicacion_mensajes',
+        filter: `comunicacion_id=eq.${comunicacionId}`,
+      },
+      () => alLlegar()
+    )
+    .subscribe();
+
+  return () => {
+    void sb().removeChannel(canal);
+  };
+};
+
 export const getMensajesComunicacion = async (
   comunicacionId: string
 ): Promise<ComunicacionMensaje[]> => {
@@ -2622,6 +2754,47 @@ export const responderComunicacion = async (
     .eq('id', comunicacionId);
   // Tu propia respuesta no te tiene que aparecer como novedad.
   await marcarComunicacionLeida(comunicacionId);
+
+  /**
+   * Avisarle al otro lado que le contestaron.
+   *
+   * Abrir una consulta ya notificaba a RRHH, pero responder no notificaba
+   * a nadie: el colaborador se enteraba sólo si volvía a entrar a la
+   * pantalla por las suyas. Ese silencio es lo que hace que la gente
+   * termine preguntando por WhatsApp.
+   */
+  try {
+    const { data: com } = await sb()
+      .from('comunicaciones')
+      .select('empleado_id, asunto')
+      .eq('id', comunicacionId)
+      .single();
+    if (com) {
+      const { data: duenio } = await sb()
+        .from('usuarios')
+        .select('id')
+        .eq('empleado_id', com.empleado_id)
+        .maybeSingle();
+      // Si responde un gestor, avisa al colaborador; si responde el
+      // colaborador, avisa a los gestores. `notificarUsuarios` ya
+      // descarta al autor, así que mandar a ambos lados es seguro.
+      const destinos = [
+        ...(duenio?.id ? [duenio.id as string] : []),
+        ...(await usuariosGestores()),
+      ];
+      await notificarUsuarios(
+        destinos,
+        'comunicacion',
+        'Respondieron tu comunicación',
+        String(com.asunto),
+        '/comunicaciones'
+      );
+      void avisarPorMail('comunicacion_respondida', comunicacionId);
+    }
+  } catch {
+    // No bloquea la respuesta: el mensaje ya quedó guardado.
+  }
+
   return aMensajeComunicacion(oFalla(data, error));
 };
 

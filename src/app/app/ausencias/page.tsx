@@ -52,6 +52,7 @@ import {
   TipoAusencia,
   VacacionSector,
 } from '@/types/rrhh';
+import { RequireModulo } from '@/components/app/RequireModulo';
 
 const ANIO_ACTUAL = new Date().getFullYear();
 const POR_PAGINA = 5;
@@ -547,6 +548,7 @@ const AusenciasPage = () => {
         nombreEmpleado={nombreEmpleado}
         modoAdmin={!esEmpleado}
         empleados={empleados}
+        empleadoIdActual={usuario.empleadoId ?? undefined}
       />
 
       {dialogoConfirmar}
@@ -554,4 +556,12 @@ const AusenciasPage = () => {
   );
 };
 
-export default AusenciasPage;
+/** La empresa puede tener esta sección apagada: se bloquea la ruta,
+ * no sólo el link del menú. */
+const AusenciasPageProtegida = () => (
+  <RequireModulo modulo="ausencias">
+    <AusenciasPage />
+  </RequireModulo>
+);
+
+export default AusenciasPageProtegida;

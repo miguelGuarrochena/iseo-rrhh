@@ -6,6 +6,7 @@ import {
   IconCashBanknote,
   IconCoins,
   IconPinned,
+  IconPlus,
   IconReceipt2,
 } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
@@ -16,9 +17,16 @@ import {
   cargarRemuneracion,
   getAdelantos,
   getDescuentosRecurrentes,
+  getEmpresa,
+  getHorasExtrasDelPeriodo,
 } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
-import { calcularLiquidacion, APORTES_TOTAL } from '@/lib/remuneraciones';
+import {
+  calcularLiquidacion,
+  APORTES_TOTAL,
+  HORAS_MENSUALES,
+  valorHorasExtras,
+} from '@/lib/remuneraciones';
 import { formatearPesos } from '@/lib/formato';
 import { formatearPeriodo, hoyISO } from '@/lib/fechas';
 import {
@@ -106,6 +114,8 @@ export const RemuneracionModal = ({
   const [error, setError] = useState<string | null>(null);
   const [recurrentes, setRecurrentes] = useState<DescuentoRecurrente[]>([]);
   const [adelantos, setAdelantos] = useState<Adelanto[]>([]);
+  const [horasExtras, setHorasExtras] = useState(0);
+  const [horasMensuales, setHorasMensuales] = useState(HORAS_MENSUALES);
 
   const empleadoActual = empleadoId ?? elegido;
 
@@ -134,6 +144,44 @@ export const RemuneracionModal = ({
       void getAdelantos(empleadoActual).then(setAdelantos);
     }
   }, [abierto, empleadoActual]);
+
+  /**
+   * Horas extras del período. Se venían calculando y mostrando en
+   * Reportes, Fichaje y el legajo, pero no llegaban hasta acá: había que
+   * mirarlas en otra pantalla y sumarlas a mano al bruto.
+   */
+  useEffect(() => {
+    if (!abierto || !empleadoActual || !periodo) {
+      setHorasExtras(0);
+      return;
+    }
+    let vigente = true;
+    void getHorasExtrasDelPeriodo(empleadoActual, periodo)
+      .then((h) => {
+        if (vigente) setHorasExtras(h);
+      })
+      .catch(() => {
+        if (vigente) setHorasExtras(0);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [abierto, empleadoActual, periodo]);
+
+  useEffect(() => {
+    if (!abierto) return;
+    void getEmpresa()
+      .then((e) =>
+        setHorasMensuales(e.config.horasMensuales ?? HORAS_MENSUALES)
+      )
+      .catch(() => setHorasMensuales(HORAS_MENSUALES));
+  }, [abierto]);
+
+  const sugeridoExtras = valorHorasExtras(
+    num(bruto),
+    horasExtras,
+    horasMensuales
+  );
 
   // Al elegir un colaborador desde el dropdown (acceso directo), el convenio
   // se autocompleta con el suyo, igual que cuando se carga desde la ficha.
@@ -293,6 +341,49 @@ export const RemuneracionModal = ({
               ayuda="Adicionales fuera de la base de aportes."
             />
           </div>
+
+          {horasExtras > 0 && (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-xs text-amber-900">
+                Tiene{' '}
+                <strong className="font-bold">
+                  {horasExtras} horas extras
+                </strong>{' '}
+                registradas en {formatearPeriodo(periodo)} según su fichaje.
+                {sugeridoExtras > 0 && (
+                  <>
+                    {' '}
+                    Al 50%, con una base de {horasMensuales} hs mensuales, son{' '}
+                    <strong className="font-bold">
+                      {formatearPesos(sugeridoExtras)}
+                    </strong>
+                    .
+                  </>
+                )}
+              </p>
+              {sugeridoExtras > 0 && (
+                <>
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    className="mt-2.5"
+                    onClick={() =>
+                      setBruto(String(num(bruto) + sugeridoExtras))
+                    }
+                  >
+                    <IconPlus size={14} />
+                    Sumar al bruto
+                  </Boton>
+                  <p className="mt-2 text-[0.7rem] leading-relaxed text-amber-900/80">
+                    Es una sugerencia para no tener que calcularlo aparte. No
+                    separa las extras al 100% (sábado después de las 13,
+                    domingos y feriados) ni los adicionales del convenio:
+                    revisalo con tu contador antes de liquidar.
+                  </p>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Descuentos fijos del colaborador: se gestionan acá para poder

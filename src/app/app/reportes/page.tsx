@@ -34,6 +34,7 @@ import {
   MetricasGlobales,
   ResumenControl,
 } from '@/types/rrhh';
+import { RequireModulo } from '@/components/app/RequireModulo';
 
 /**
  * Reportes con gráficos. Admin/supervisor: control de su empresa.
@@ -372,4 +373,12 @@ const ReportesPage = () => {
   );
 };
 
-export default ReportesPage;
+/** La empresa puede tener esta sección apagada: se bloquea la ruta,
+ * no sólo el link del menú. */
+const ReportesPageProtegida = () => (
+  <RequireModulo modulo="reportes">
+    <ReportesPage />
+  </RequireModulo>
+);
+
+export default ReportesPageProtegida;
