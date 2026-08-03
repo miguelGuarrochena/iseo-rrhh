@@ -10,8 +10,10 @@ import { enviarEmail } from '@/lib/email/resend';
  * se manda nada — un mail que dice "no tenés nada" entrena a la gente a
  * ignorar los mails.
  *
- * Se puede apagar por completo desde Plataforma
- * (`config_plataforma.resumenSemanalEmail`).
+ * Dos interruptores, los dos arrancan prendidos:
+ *   1. `empresas.config.resumenSemanal` — por empresa. Lo cambia RRHH
+ *      desde su Configuración o ISEO desde la ficha de la empresa.
+ *   2. `config_plataforma.resumenSemanalEmail` — corte general de ISEO.
  *
  * Seguridad: exige CRON_SECRET y "Authorization: Bearer …". Si falta el
  * secret en el entorno responde 401, igual que el cron de facturación.
@@ -101,12 +103,19 @@ const procesar = async (req: Request) => {
   let enviados = 0;
 
   for (const empresa of empresas ?? []) {
+    const cfg = (empresa.config ?? {}) as {
+      modulos?: Record<string, boolean>;
+      resumenSemanal?: boolean;
+    };
+
+    // Lo puede apagar RRHH desde su Configuración o ISEO desde la ficha
+    // de la empresa. Ausente = prendido.
+    if (cfg.resumenSemanal === false) continue;
+
     // Lo que no figura guardado está prendido, igual que en la pantalla
     // de módulos. Contar pendientes de una sección apagada sería mandar
     // a alguien a una pantalla que no tiene.
-    const modulos = ((
-      empresa.config as { modulos?: Record<string, boolean> } | null
-    )?.modulos ?? {}) as Record<string, boolean>;
+    const modulos = cfg.modulos ?? {};
     const activo = (clave: string) => modulos[clave] !== false;
 
     const { data: admins } = await admin

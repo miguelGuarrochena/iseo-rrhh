@@ -287,18 +287,22 @@ export const actualizarDatosEmpresa = async (
  */
 export const actualizarModulosEmpresa = async (
   empresaId: string,
-  modulos: Record<string, boolean>
+  modulos: Record<string, boolean>,
+  extras: Partial<Empresa['config']> = {}
 ): Promise<Empresa> => {
   const actual = await getEmpresaPorId(empresaId);
   if (!actual) throw new Error('Empresa no encontrada.');
   const { data, error } = await sb()
     .from('empresas')
-    .update({ config: { ...actual.config, modulos } })
+    .update({ config: { ...actual.config, ...extras, modulos } })
     .eq('id', empresaId)
     .select()
     .single();
   const empresa = aEmpresa(oFalla(data, error));
-  await registrarAuditoria('editar', 'empresa', empresaId, { modulos });
+  await registrarAuditoria('editar', 'empresa', empresaId, {
+    modulos,
+    ...extras,
+  });
   return empresa;
 };
 

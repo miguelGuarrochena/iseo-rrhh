@@ -135,6 +135,12 @@ export const ConfigPlataformaForm = () => {
           </span>
         </label>
         <p className="mt-3 text-xs leading-relaxed text-ink-soft">
+          Este es el corte general: si lo apagás no sale ningún resumen, para
+          ninguna empresa. Viene prendido para todas; cada empresa lo puede
+          apagar desde su Configuración, y vos también desde Empresas → la ficha
+          del cliente → Módulos.
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-ink-soft">
           Los avisos puntuales —te respondieron, tenés un recibo para firmar, te
           resolvieron una ausencia— se mandan siempre y no se configuran acá.
         </p>

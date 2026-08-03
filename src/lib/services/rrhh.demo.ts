@@ -163,11 +163,12 @@ export const getEmpresaPorId = async (
 
 export const actualizarModulosEmpresa = async (
   empresaId: string,
-  modulos: Record<string, boolean>
+  modulos: Record<string, boolean>,
+  extras: Partial<Empresa['config']> = {}
 ): Promise<Empresa> => {
   const empresa = empresasMock.find((e) => e.id === empresaId);
   if (!empresa) throw new Error('Empresa no encontrada.');
-  empresa.config = { ...empresa.config, modulos };
+  empresa.config = { ...empresa.config, ...extras, modulos };
   return simular(empresa);
 };
 

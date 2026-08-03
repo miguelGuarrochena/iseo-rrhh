@@ -39,6 +39,7 @@ const ModulosEmpresaPage = () => {
 
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [modulos, setModulos] = useState<Record<string, boolean>>({});
+  const [resumen, setResumen] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [cargando, setCargando] = useState(true);
 
@@ -58,6 +59,7 @@ const ModulosEmpresaPage = () => {
             ])
           )
         );
+        setResumen(e?.config.resumenSemanal !== false);
       })
       .finally(() => setCargando(false));
   }, [id]);
@@ -87,7 +89,7 @@ const ModulosEmpresaPage = () => {
     if (!id) return;
     setGuardando(true);
     try {
-      await actualizarModulosEmpresa(id, modulos);
+      await actualizarModulosEmpresa(id, modulos, { resumenSemanal: resumen });
       avisoExito(
         'Módulos actualizados',
         `${empresa?.nombre ?? 'La empresa'} ve ${prendidos} de ${MODULOS_OPCIONALES.length} secciones.`
@@ -224,11 +226,7 @@ const ModulosEmpresaPage = () => {
           })}
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          <Boton onClick={() => void guardar()} disabled={guardando}>
-            <IconDeviceFloppy size={16} />
-            {guardando ? 'Guardando…' : 'Guardar módulos'}
-          </Boton>
+        <div className="mt-5">
           <Boton
             variante="secundario"
             onClick={() =>
@@ -250,6 +248,41 @@ const ModulosEmpresaPage = () => {
           administrar sus propios usuarios.
         </p>
       </Panel>
+
+      {/* No es una sección de la app ni algo que se cobre: es una
+          preferencia de mail. Está acá porque es la única pantalla por
+          empresa que ves vos, para poder prendérselo o apagárselo a un
+          cliente que lo pide por teléfono sin tener que entrar como él. */}
+      <Panel>
+        <h2 className="text-base font-bold text-ink">Resumen semanal</h2>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-soft">
+          Los lunes le llega a quien administra RRHH en {empresa.nombre} un mail
+          con lo que quedó pendiente: ausencias sin resolver, recibos sin
+          firmar, consultas sin responder y vencimientos cercanos. Si la semana
+          no tiene nada pendiente, no se manda nada.
+        </p>
+        <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 py-3">
+          <Switch
+            checked={resumen}
+            onChange={(e) => setResumen(e.target.checked)}
+            etiquetaAccesible={`Resumen semanal: ${resumen ? 'prendido' : 'apagado'}`}
+          />
+          <span className="text-sm font-medium text-ink">
+            {empresa.nombre} recibe el resumen semanal
+          </span>
+        </label>
+        <p className="mt-3 text-xs leading-relaxed text-ink-soft">
+          Es el mismo interruptor que ve RRHH en su Configuración: si lo cambian
+          de su lado, acá se ve cambiado. No se cobra aparte.
+        </p>
+      </Panel>
+
+      <div>
+        <Boton onClick={() => void guardar()} disabled={guardando}>
+          <IconDeviceFloppy size={16} />
+          {guardando ? 'Guardando…' : 'Guardar cambios'}
+        </Boton>
+      </div>
     </div>
   );
 };

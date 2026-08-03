@@ -455,6 +455,32 @@ const ConfiguracionPage = () => {
           </label>
         </Panel>
 
+        {/* Ausente = prendido, para que las empresas que ya existen lo
+            tengan sin que nadie entre a activarlo. */}
+        <Panel>
+          <h2 className="text-base font-bold text-ink">Resumen semanal</h2>
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-soft">
+            Los lunes te llega un mail con lo que quedó pendiente: ausencias sin
+            resolver, recibos sin firmar, consultas sin responder y vencimientos
+            cercanos. Si la semana no tiene nada pendiente, no se manda nada.
+          </p>
+          <label className="mt-4 flex cursor-pointer items-center gap-3 rounded-xl bg-paper px-4 py-3">
+            <Switch
+              checked={config.resumenSemanal !== false}
+              onChange={(e) =>
+                setConfig({ ...config, resumenSemanal: e.target.checked })
+              }
+            />
+            <span className="text-sm font-medium text-ink">
+              Quiero recibir el resumen semanal
+            </span>
+          </label>
+          <p className="mt-3 text-xs leading-relaxed text-ink-soft">
+            Los avisos puntuales —te respondieron una consulta, hay un recibo
+            para firmar— se mandan siempre y no dependen de esto.
+          </p>
+        </Panel>
+
         <div className="flex items-center gap-3">
           <Boton type="submit" disabled={guardando}>
             {guardando ? 'Guardando…' : 'Guardar cambios'}

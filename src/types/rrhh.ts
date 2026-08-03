@@ -68,6 +68,17 @@ export interface ConfigEmpresa {
    * muchos convenios usan otra base, así que es configurable.
    */
   horasMensuales?: number;
+  /**
+   * Si la empresa recibe el resumen semanal por mail. Ausente = sí, así
+   * las empresas que ya existen lo tienen sin tocar nada.
+   *
+   * Es una sola clave y no dos (una de ISEO, otra del cliente) porque no
+   * se cobra: no hay un "servicio habilitado" separado de la preferencia
+   * de quien lo recibe. Lo pueden cambiar tanto RRHH desde su
+   * Configuración como ISEO desde la ficha de la empresa, y lo último
+   * que se guarda es lo que vale.
+   */
+  resumenSemanal?: boolean;
 }
 
 export type EstadoEmpresa = 'activa' | 'suspendida';
