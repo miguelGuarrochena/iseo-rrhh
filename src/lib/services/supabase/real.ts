@@ -71,6 +71,8 @@ import { registrarErrorApp } from '@/lib/erroresApp';
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
+import { armarJornadas, horasEntre, Jornada } from '@/lib/fichadas';
+import { traerTodo as traerTodoBase } from './paginado';
 import { aISOLocal, diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
 import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
@@ -133,6 +135,19 @@ const oFalla = <T>(data: T | null, error: { message: string } | null): T => {
   return data;
 };
 
+/**
+ * Trae todas las filas paginando. El helper vive en `paginado.ts` para
+ * poder testearlo sin base; acá sólo se le enchufa el traductor de
+ * errores de este módulo.
+ */
+const traerTodo = <T>(
+  consulta: (
+    desde: number,
+    hasta: number
+  ) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+  contexto: string
+): Promise<T[]> => traerTodoBase(consulta, contexto, fallar);
+
 const registrarAuditoria = async (
   accion: string,
   entidad: string,
@@ -188,15 +203,49 @@ export const getAuditoria = async (limite = 50): Promise<AccionAuditoria[]> => {
 
 // ---------- Empresa ----------
 
+/**
+ * Caché corta de la ficha de empresa.
+ *
+ * `getEmpresa()` se llama en casi todas las pantallas (el sidebar, la
+ * configuración, cada modal de remuneración) y hasta dentro de
+ * `cargarRemuneracion`, que la necesita para saber el régimen: en una
+ * carga masiva de 100 sueldos eran 100 consultas idénticas seguidas.
+ *
+ * La empresa cambia poquísimo, así que se guarda por unos segundos. El
+ * TTL es corto a propósito: no busca ahorrar consultas a lo largo del
+ * día, sino colapsar las ráfagas. Igual se invalida explícito en cada
+ * escritura, así que editar la ficha se ve al instante.
+ */
+const TTL_EMPRESA_MS = 30_000;
+let empresaCacheada: { id: string; empresa: Empresa; vence: number } | null =
+  null;
+
+/** Se llama después de cualquier escritura sobre `empresas`. */
+const invalidarEmpresa = (): void => {
+  empresaCacheada = null;
+};
+
 export const getEmpresa = async (
   empresaIdOverride?: string
 ): Promise<Empresa> => {
+  const id = empresaIdEfectiva(empresaIdOverride);
+  // El id entra en la comparación porque el superadmin salta entre
+  // empresas sin recargar la app: sin eso vería la ficha de la anterior.
+  if (
+    empresaCacheada &&
+    empresaCacheada.id === id &&
+    empresaCacheada.vence > Date.now()
+  ) {
+    return empresaCacheada.empresa;
+  }
   const { data, error } = await sb()
     .from('empresas')
     .select('*')
-    .eq('id', empresaIdEfectiva(empresaIdOverride))
+    .eq('id', id)
     .single();
-  return aEmpresa(oFalla(data, error));
+  const empresa = aEmpresa(oFalla(data, error));
+  empresaCacheada = { id, empresa, vence: Date.now() + TTL_EMPRESA_MS };
+  return empresa;
 };
 
 export const getEmpresas = async (): Promise<EmpresaResumen[]> => {
@@ -240,6 +289,7 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
     })
     .select()
     .single();
+  invalidarEmpresa();
   const empresaCreada = aEmpresa(oFalla(data, error));
   await registrarAuditoria('crear', 'empresa', empresaCreada.id, {
     nombre: empresaCreada.nombre,
@@ -274,6 +324,7 @@ export const actualizarDatosEmpresa = async (
     .eq('id', empresaId)
     .select()
     .single();
+  invalidarEmpresa();
   const empresaActualizada = aEmpresa(oFalla(data, error));
   await registrarAuditoria('editar', 'empresa', empresaId, cambios);
   return empresaActualizada;
@@ -301,6 +352,7 @@ export const actualizarModulosEmpresa = async (
     .eq('id', empresaId)
     .select()
     .single();
+  invalidarEmpresa();
   const empresa = aEmpresa(oFalla(data, error));
   await registrarAuditoria('editar', 'empresa', empresaId, {
     modulos,
@@ -319,6 +371,7 @@ export const cambiarEstadoEmpresa = async (
     .eq('id', id)
     .select()
     .single();
+  invalidarEmpresa();
   if (error) throw new Error(error.message);
   await registrarAuditoria('cambiar_estado', 'empresa', id, { estado });
   return data ? aEmpresa(data) : null;
@@ -391,6 +444,7 @@ export const actualizarEmpresa = async (
     .eq('id', empresaId())
     .select()
     .single();
+  invalidarEmpresa();
   const empresaActualizada = aEmpresa(oFalla(data, error));
   await registrarAuditoria('editar', 'empresa', empresaId(), cambios);
   return empresaActualizada;
@@ -405,6 +459,7 @@ export const actualizarConfigEmpresa = async (
     .eq('id', empresaId())
     .select()
     .single();
+  invalidarEmpresa();
   return aEmpresa(oFalla(data, error));
 };
 
@@ -486,13 +541,19 @@ const conFotosFirmadas = async (empleados: Empleado[]): Promise<Empleado[]> => {
 export const getEmpleados = async (
   empresaIdOverride?: string
 ): Promise<Empleado[]> => {
-  const { data, error } = await sb()
-    .from('empleados')
-    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
-    .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
-    .eq('activo', true)
-    .order('apellido');
-  return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('empleados')
+        .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+        .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
+        .eq('activo', true)
+        .order('apellido')
+        .order('id')
+        .range(d, h),
+    'colaboradores'
+  );
+  return conFotosFirmadas(filas.map(aEmpleado));
 };
 
 /**
@@ -941,23 +1002,65 @@ export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
 export const getAusencias = async (
   empresaIdOverride?: string
 ): Promise<Ausencia[]> => {
-  const { data, error } = await sb()
-    .from('ausencias')
-    .select('*')
-    .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
-    .order('creada_en', { ascending: false });
-  return oFalla(data, error).map(aAusencia);
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('ausencias')
+        .select('*')
+        .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
+        .order('creada_en', { ascending: false })
+        .order('id')
+        .range(d, h),
+    'ausencias'
+  );
+  return filas.map(aAusencia);
+};
+
+/**
+ * Ausencias que tocan un rango de fechas.
+ *
+ * Es el reemplazo de pedir `getAusencias()` entero cuando sólo interesa
+ * un período: el histórico de una empresa con años de uso son miles de
+ * filas que viajaban para filtrarse en el navegador. La condición es
+ * "se solapa con el rango", no "empieza dentro": unas vacaciones del 28
+ * de julio al 10 de agosto tienen que aparecer al mirar agosto.
+ */
+export const getAusenciasEntre = async (
+  desde: string,
+  hasta: string,
+  empresaIdOverride?: string
+): Promise<Ausencia[]> => {
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('ausencias')
+        .select('*')
+        .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
+        .lte('fecha_desde', hasta)
+        .gte('fecha_hasta', desde)
+        .order('fecha_desde')
+        .order('id')
+        .range(d, h),
+    'ausencias del rango'
+  );
+  return filas.map(aAusencia);
 };
 
 export const getAusenciasDeEmpleado = async (
   empleadoId: string
 ): Promise<Ausencia[]> => {
-  const { data, error } = await sb()
-    .from('ausencias')
-    .select('*')
-    .eq('empleado_id', empleadoId)
-    .order('creada_en', { ascending: false });
-  return oFalla(data, error).map(aAusencia);
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('ausencias')
+        .select('*')
+        .eq('empleado_id', empleadoId)
+        .order('creada_en', { ascending: false })
+        .order('id')
+        .range(d, h),
+    'ausencias del colaborador'
+  );
+  return filas.map(aAusencia);
 };
 
 export const getAusenciasPendientes = async (): Promise<Ausencia[]> => {
@@ -1380,30 +1483,125 @@ export const getFichajesDeHoy = async (
   return oFalla(data, error).map(aFichaje);
 };
 
+/** Extremos del rango en ISO, tomando el día completo de `hasta`. */
+const rangoISO = (desde: string, hasta: string) => ({
+  // Con un `lte` a medianoche se perdían todas las marcas del último día.
+  inicio: new Date(`${desde}T00:00:00`).toISOString(),
+  fin: new Date(`${hasta}T23:59:59.999`).toISOString(),
+});
+
 /**
- * Fichajes de la empresa entre dos fechas (inclusive), para el
- * historial. Hasta ahora la pantalla de Fichaje solo sabía mirar "hoy":
- * no había forma de revisar una semana pasada, que es justo lo que hace
- * falta al liquidar.
+ * Jornadas de la empresa en un rango: una fila por empleado y día.
  *
- * `hasta` se convierte al final del día para que el último día del
- * rango entre entero; con un `lte` a medianoche se perdían todas las
- * marcas de esa jornada.
+ * Antes esto se resolvía trayendo **todas** las marcas del período y
+ * agrupándolas en el navegador. Dos problemas: el volumen (un mes de 50
+ * personas son ~3000 filas para mostrar 50) y, sobre todo, que el
+ * `select` se cortaba en 1000 filas sin avisar, así que el resumen y el
+ * Excel salían incompletos en silencio.
+ *
+ * Ahora agrupa Postgres y esto pagina el resultado, que ya viene
+ * colapsado.
+ */
+export const getJornadas = async (
+  desde: string,
+  hasta: string,
+  empresaIdOverride?: string
+): Promise<Jornada[]> => {
+  const filas = await traerTodo<{
+    empleado_id: string;
+    fecha: string;
+    entrada: string | null;
+    salida: string | null;
+    marcas: number;
+    fuera_de_zona: boolean | null;
+  }>(
+    (d, h) =>
+      sb()
+        .rpc('jornadas_de_empresa', {
+          p_empresa_id: empresaIdEfectiva(empresaIdOverride),
+          p_desde: desde,
+          p_hasta: hasta,
+        })
+        .range(d, h),
+    'jornadas'
+  );
+  return filas.map((f) => ({
+    empleadoId: f.empleado_id,
+    fecha: String(f.fecha).slice(0, 10),
+    entrada: f.entrada ?? undefined,
+    salida: f.salida ?? undefined,
+    horas: horasEntre(f.entrada ?? undefined, f.salida ?? undefined),
+    incompleta: !f.entrada || !f.salida,
+    marcas: Number(f.marcas),
+    fueraDeZona: Boolean(f.fuera_de_zona),
+  }));
+};
+
+/**
+ * Fichajes sueltos de un rango, paginados desde el servidor.
+ *
+ * Es la vista "Movimientos" del historial: acá sí hacen falta las
+ * marcas una por una, así que en vez de traerlas todas se pide la
+ * página que se está mirando. Devuelve también el total para poder
+ * dibujar el paginador.
+ *
+ * El orden incluye `id` como desempate: sin un orden total, dos
+ * fichajes con el mismo `ts` pueden repetirse o saltearse entre página
+ * y página.
+ */
+export const getFichajesPagina = async (
+  desde: string,
+  hasta: string,
+  opciones: { pagina: number; porPagina: number; empleadoIds?: string[] }
+): Promise<{ fichajes: Fichaje[]; total: number }> => {
+  // Filtro vacío ≠ sin filtro: si la búsqueda no matcheó ningún
+  // colaborador, el resultado correcto es "nada", no "todo".
+  if (opciones.empleadoIds && opciones.empleadoIds.length === 0) {
+    return { fichajes: [], total: 0 };
+  }
+  const { inicio, fin } = rangoISO(desde, hasta);
+  const desdeFila = opciones.pagina * opciones.porPagina;
+  let q = sb()
+    .from('fichajes')
+    .select('*', { count: 'exact' })
+    .eq('empresa_id', empresaId())
+    .gte('ts', inicio)
+    .lte('ts', fin);
+  if (opciones.empleadoIds) q = q.in('empleado_id', opciones.empleadoIds);
+  const { data, error, count } = await q
+    .order('ts', { ascending: false })
+    .order('id', { ascending: false })
+    .range(desdeFila, desdeFila + opciones.porPagina - 1);
+  return {
+    fichajes: oFalla(data, error).map(aFichaje),
+    total: count ?? 0,
+  };
+};
+
+/**
+ * Todas las marcas de un rango. Sigue existiendo para la carga masiva y
+ * los casos que necesitan el detalle crudo, pero pagina: antes se
+ * cortaba en 1000 filas sin decir nada.
  */
 export const getFichajesEntre = async (
   desde: string,
   hasta: string
 ): Promise<Fichaje[]> => {
-  const inicio = new Date(`${desde}T00:00:00`);
-  const fin = new Date(`${hasta}T23:59:59.999`);
-  const { data, error } = await sb()
-    .from('fichajes')
-    .select('*')
-    .eq('empresa_id', empresaId())
-    .gte('ts', inicio.toISOString())
-    .lte('ts', fin.toISOString())
-    .order('ts');
-  return oFalla(data, error).map(aFichaje);
+  const { inicio, fin } = rangoISO(desde, hasta);
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('fichajes')
+        .select('*')
+        .eq('empresa_id', empresaId())
+        .gte('ts', inicio)
+        .lte('ts', fin)
+        .order('ts')
+        .order('id')
+        .range(d, h),
+    'fichajes'
+  );
+  return filas.map(aFichaje);
 };
 
 export const getFichajesDeEmpleadoHoy = async (
@@ -1634,13 +1832,20 @@ export const quitarTurno = async (id: string): Promise<void> => {
 export const getFichajesDeEmpleado = async (
   empleadoId: string
 ): Promise<Fichaje[]> => {
-  const { data, error } = await sb()
-    .from('fichajes')
-    .select('*')
-    .eq('empleado_id', empleadoId)
-    .order('ts');
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(aFichaje);
+  // Sin rango: son todas las marcas de la persona desde que entró. A
+  // dos por día son ~500 al año, así que a los dos años ya se cortaba.
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('fichajes')
+        .select('*')
+        .eq('empleado_id', empleadoId)
+        .order('ts')
+        .order('id')
+        .range(d, h),
+    'fichajes del colaborador'
+  );
+  return filas.map(aFichaje);
 };
 
 // ---------- Terminales de fichaje ----------
@@ -1719,7 +1924,8 @@ export const eliminarConvenio = async (id: string): Promise<void> => {
 
 // ---------- Jornadas calculadas (para reportes y "mi mes") ----------
 
-interface Jornada {
+/** La jornada de `fichadas.ts` más lo que sale de compararla con la config. */
+interface JornadaControl {
   empleadoId: string;
   fecha: string;
   horasTrabajadas: number;
@@ -1733,39 +1939,34 @@ const minutosDe = (hhmm: string): number => {
   return h * 60 + (m || 0);
 };
 
-/** Agrupa fichajes por empleado+día y calcula la jornada contra la config. */
-const calcularJornadas = (
-  fichajes: Fichaje[],
+/**
+ * Cruza las jornadas (que ya arma la base) con el horario configurado:
+ * llegadas tarde, horas extras y jornadas sin cerrar.
+ *
+ * Antes esta función además agrupaba las marcas, duplicando la lógica
+ * de `armarJornadas`. Eran dos implementaciones del mismo concepto que
+ * podían divergir —y de hecho redondeaban distinto—, así que ahora
+ * recibe la jornada ya armada y sólo hace la parte que le toca.
+ */
+const controlDeJornadas = (
+  jornadas: Jornada[],
   config: Empresa['config']
-): Jornada[] => {
-  const porDia = new Map<string, Fichaje[]>();
-  fichajes.forEach((f) => {
-    const fecha = new Date(f.timestamp);
-    const clave = `${f.empleadoId}|${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`;
-    porDia.set(clave, [...(porDia.get(clave) ?? []), f]);
-  });
+): JornadaControl[] => {
   const entrada = minutosDe(config.horaEntrada);
   const salida = minutosDe(config.horaSalida);
   const tolerancia = config.toleranciaLlegadaTardeMin;
+  const minutosLocal = (iso: string) => {
+    const d = new Date(iso);
+    return d.getHours() * 60 + d.getMinutes();
+  };
 
-  return [...porDia.entries()].map(([clave, movimientos]) => {
-    const [empleadoId, fecha] = clave.split('|');
-    const ingreso = movimientos.find((m) => m.tipo === 'ingreso');
-    const egreso = [...movimientos].reverse().find((m) => m.tipo === 'egreso');
-    const minutosLocal = (iso: string) => {
-      const d = new Date(iso);
-      return d.getHours() * 60 + d.getMinutes();
-    };
-    const minIngreso = ingreso ? minutosLocal(ingreso.timestamp) : null;
-    const minEgreso = egreso ? minutosLocal(egreso.timestamp) : null;
-    const horas =
-      minIngreso !== null && minEgreso !== null && minEgreso > minIngreso
-        ? (minEgreso - minIngreso) / 60
-        : 0;
+  return jornadas.map((j) => {
+    const minIngreso = j.entrada ? minutosLocal(j.entrada) : null;
+    const minEgreso = j.salida ? minutosLocal(j.salida) : null;
     return {
-      empleadoId,
-      fecha,
-      horasTrabajadas: Math.round(horas * 10) / 10,
+      empleadoId: j.empleadoId,
+      fecha: j.fecha,
+      horasTrabajadas: j.horas,
       horasExtras:
         minEgreso !== null && minEgreso > salida
           ? Math.round(((minEgreso - salida) / 60) * 10) / 10
@@ -1774,35 +1975,38 @@ const calcularJornadas = (
         minIngreso !== null && minIngreso > entrada + tolerancia
           ? minIngreso - entrada
           : 0,
-      incompleta: !ingreso || !egreso,
+      incompleta: j.incompleta,
     };
   });
 };
 
-const fichajesUltimaSemana = async (
-  empresaIdOverride?: string
-): Promise<Fichaje[]> => {
+/** Rango [hoy-7, hoy] en YYYY-MM-DD, que es la ventana del control. */
+const ultimaSemana = (): { desde: string; hasta: string } => {
+  const hasta = new Date();
   const desde = new Date();
   desde.setDate(desde.getDate() - 7);
-  desde.setHours(0, 0, 0, 0);
-  const { data, error } = await sb()
-    .from('fichajes')
-    .select('*')
-    .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
-    .gte('ts', desde.toISOString())
-    .order('ts');
-  return oFalla(data, error).map(aFichaje);
+  return { desde: aISOLocal(desde), hasta: aISOLocal(hasta) };
 };
 
 export const getResumenControl = async (
   empresaIdOverride?: string
 ): Promise<ResumenControl> => {
-  const [empresa, empleados, fichajes, ausencias, recibosPend] =
+  const { desde, hasta } = ultimaSemana();
+  // El ausentismo se mide sobre el mes en curso, así que sólo hacen
+  // falta las ausencias de ese mes: traer el histórico completo era
+  // bajarse años de datos para sumar una columna.
+  const mesActual = new Date().toISOString().slice(0, 7);
+  const inicioMes = `${mesActual}-01`;
+  const finMes = aISOLocal(
+    new Date(Number(mesActual.slice(0, 4)), Number(mesActual.slice(5, 7)), 0)
+  );
+
+  const [empresa, empleados, jornadas, ausencias, recibosPend] =
     await Promise.all([
       getEmpresa(empresaIdOverride),
       getEmpleados(empresaIdOverride),
-      fichajesUltimaSemana(empresaIdOverride),
-      getAusencias(empresaIdOverride),
+      getJornadas(desde, hasta, empresaIdOverride),
+      getAusenciasEntre(inicioMes, finMes, empresaIdOverride),
       sb()
         .from('recibos')
         .select('id', { count: 'exact', head: true })
@@ -1810,10 +2014,20 @@ export const getResumenControl = async (
         .eq('estado_firma', 'pendiente'),
     ]);
 
-  const jornadas = calcularJornadas(fichajes, empresa.config);
+  const control = controlDeJornadas(jornadas, empresa.config);
+  // Un índice por empleado evita recorrer todas las jornadas una vez
+  // por persona: con 300 empleados y una semana eso era ~600.000
+  // comparaciones para armar una tabla de 300 filas.
+  const porEmpleadoId = new Map<string, JornadaControl[]>();
+  control.forEach((j) => {
+    const previas = porEmpleadoId.get(j.empleadoId);
+    if (previas) previas.push(j);
+    else porEmpleadoId.set(j.empleadoId, [j]);
+  });
+
   const porEmpleado = empleados
     .map((e) => {
-      const propias = jornadas.filter((j) => j.empleadoId === e.id);
+      const propias = porEmpleadoId.get(e.id) ?? [];
       return {
         empleadoId: e.id,
         nombreCompleto: `${e.nombre} ${e.apellido}`,
@@ -1827,7 +2041,6 @@ export const getResumenControl = async (
     })
     .sort((a, b) => b.minutosTarde - a.minutosTarde);
 
-  const mesActual = new Date().toISOString().slice(0, 7);
   const diasAusencia = ausencias
     .filter(
       (a) => a.estado === 'aprobada' && a.fechaDesde.startsWith(mesActual)
@@ -1869,8 +2082,8 @@ export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
       .order('ts'),
     getEmpresa(),
   ]);
-  const jornadas = calcularJornadas(
-    oFalla(data, error).map(aFichaje),
+  const jornadas = controlDeJornadas(
+    armarJornadas(oFalla(data, error).map(aFichaje)),
     empresa.config
   );
   return {
@@ -1908,8 +2121,8 @@ export const getHorasExtrasDelPeriodo = async (
       .order('ts'),
     getEmpresa(),
   ]);
-  const jornadas = calcularJornadas(
-    oFalla(data, error).map(aFichaje),
+  const jornadas = controlDeJornadas(
+    armarJornadas(oFalla(data, error).map(aFichaje)),
     empresa.config
   );
   return (
@@ -2054,12 +2267,18 @@ export const crearEvento = async (
 export const getNotificaciones = async (
   usuarioId: string
 ): Promise<Notificacion[]> => {
-  const { data, error } = await sb()
-    .from('notificaciones')
-    .select('*')
-    .eq('usuario_id', usuarioId)
-    .order('creada_en', { ascending: false });
-  return oFalla(data, error).map(aNotificacion);
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('notificaciones')
+        .select('*')
+        .eq('usuario_id', usuarioId)
+        .order('creada_en', { ascending: false })
+        .order('id')
+        .range(d, h),
+    'notificaciones'
+  );
+  return filas.map(aNotificacion);
 };
 
 // ---------- Remuneraciones y recibos ----------
@@ -2077,13 +2296,20 @@ export const getRemuneraciones = async (
 
 /** Todas las remuneraciones de la empresa (vista admin). */
 export const getRemuneracionesTodas = async (): Promise<Remuneracion[]> => {
-  const { data, error } = await sb()
-    .from('remuneraciones')
-    .select('*')
-    .eq('empresa_id', empresaId())
-    .order('periodo', { ascending: false });
-  if (error) throw new Error(error.message);
-  return (data ?? []).map(aRemuneracion);
+  // Crece con empleados × meses: una empresa de 100 personas pasa las
+  // 1000 filas en menos de un año.
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('remuneraciones')
+        .select('*')
+        .eq('empresa_id', empresaId())
+        .order('periodo', { ascending: false })
+        .order('id')
+        .range(d, h),
+    'remuneraciones'
+  );
+  return filas.map(aRemuneracion);
 };
 
 /** Carga o actualiza la remuneración de un empleado para un período. */
@@ -2146,13 +2372,19 @@ export const getRecibos = async (
 };
 
 export const getRecibosTodos = async (): Promise<ReciboSueldo[]> => {
-  const { data, error } = await sb()
-    .from('recibos')
-    .select('*')
-    .eq('empresa_id', empresaId())
-    .is('archivado_en', null)
-    .order('periodo', { ascending: false });
-  return oFalla(data, error).map(aRecibo);
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('recibos')
+        .select('*')
+        .eq('empresa_id', empresaId())
+        .is('archivado_en', null)
+        .order('periodo', { ascending: false })
+        .order('id')
+        .range(d, h),
+    'recibos'
+  );
+  return filas.map(aRecibo);
 };
 
 /** Versiones anteriores de un recibo, para auditar una rectificación. */
@@ -2504,13 +2736,12 @@ export const abrirDocumento = async (doc: DocumentoLegajo): Promise<string> =>
 export const getMovimientos = async (
   periodo?: string
 ): Promise<MovimientoFinanciero[]> => {
-  let q = sb()
-    .from('movimientos_financieros')
-    .select('*')
-    .order('fecha', { ascending: false });
-  if (periodo) q = q.eq('periodo', periodo);
-  const { data, error } = await q;
-  return oFalla(data, error).map(aMovimiento);
+  const filas = await traerTodo((d, h) => {
+    let q = sb().from('movimientos_financieros').select('*');
+    if (periodo) q = q.eq('periodo', periodo);
+    return q.order('fecha', { ascending: false }).order('id').range(d, h);
+  }, 'movimientos financieros');
+  return filas.map(aMovimiento);
 };
 
 export const crearMovimiento = async (
@@ -2550,6 +2781,7 @@ export const actualizarAbonoEmpresa = async (
     .eq('id', empresaId)
     .select()
     .single();
+  invalidarEmpresa();
   return aEmpresa(oFalla(data, error));
 };
 

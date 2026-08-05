@@ -218,13 +218,71 @@ con el neto con el que se guardaron. La pantalla lo avisa.
 
 ---
 
-## 6. Antes de probar
+## 6. Rendimiento con más clientes (interno)
 
-Hay dos migraciones nuevas de base de datos que hay que correr:
+Esta sección no va para el cliente. Se arreglaron tres cosas que
+funcionan bien con 10 empleados y se rompen con 300.
+
+### El tope silencioso de 1000 filas
+
+PostgREST corta cualquier `select` sin paginar en 1000 filas **y no
+devuelve error**. Una empresa de 50 personas genera ~3000 fichajes por
+mes, así que el resumen y el Excel salían incompletos sin que nada
+fallara — el peor tipo de bug, porque el número está mal y parece bien.
+
+Se agregó `traerTodo()` (`src/lib/services/supabase/paginado.ts`), que
+pagina hasta agotar, y se aplicó a las tablas que crecen sin techo:
+fichajes, ausencias, empleados, remuneraciones, recibos, notificaciones
+y movimientos financieros.
+
+Dos detalles que importan:
+
+- Todas las consultas paginadas ordenan con un desempate (`ts` + `id`).
+  Sin orden total, dos filas con la misma clave se pueden repetir o
+  saltear entre páginas.
+- Hay un tope duro de 50.000 filas que corta con un error explícito. Un
+  rango de diez años no debe comerse la memoria del navegador en
+  silencio.
+
+### La agregación estaba en el navegador
+
+El historial y el resumen de control se bajaban **todas** las marcas del
+período para agruparlas en el cliente. Ahora las agrupa Postgres
+(`jornadas_de_empresa`), que devuelve una fila por empleado y día. Un
+mes de 300 personas pasó de ~18.000 filas a ~6.000, y la vista de
+Movimientos pagina contra el servidor en vez de traer el período entero
+para mostrar 15 filas.
+
+De paso se eliminó una duplicación: había dos implementaciones del mismo
+agrupado (una en `fichadas.ts` y otra en `real.ts`) que redondeaban
+distinto.
+
+### N+1
+
+`getEmpresa()` se llamaba en casi todas las pantallas y dentro de
+`cargarRemuneracion`, así que una carga masiva de 100 sueldos disparaba
+100 consultas idénticas. Se cachea 30 segundos, con invalidación
+explícita en cada escritura sobre `empresas` y con el id de la empresa
+en la clave (el superadmin salta entre clientes sin recargar).
+
+### Un bug de redondeo que apareció en el camino
+
+El total de horas sumaba las horas **ya redondeadas** de cada día. Una
+jornada de 8h58 se mostraba como 9,0 y, sobre veinte días, el total se
+iba casi media hora para arriba. En la planilla con la que se paga eso
+se nota. Ahora se suman los minutos exactos y se redondea una sola vez;
+el Excel además muestra 8:58 en vez de 9:00.
+
+---
+
+## 7. Antes de probar
+
+Hay tres migraciones nuevas de base de datos que hay que correr:
 
 ```
 supabase/migrations/20260805000044_regimen_laboral_empresa.sql
 supabase/migrations/20260805000045_vacaciones_pendientes.sql
+supabase/migrations/20260805000046_jornadas_en_sql.sql
 ```
 
 Sin eso, el régimen laboral y las vacaciones pendientes no van a andar.

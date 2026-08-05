@@ -14,7 +14,12 @@
  * `planillas.ts`: esa tiene vulnerabilidades sin fix.
  */
 import ExcelJS from 'exceljs';
-import { encabezadoDia, horaLocal, Resumen } from '@/lib/fichadas';
+import {
+  encabezadoDia,
+  horaLocal,
+  minutosAHhMm,
+  Resumen,
+} from '@/lib/fichadas';
 
 /** Columnas que se repiten para cada día del rango. */
 const COLUMNAS_DIA = [
@@ -102,13 +107,18 @@ export const descargarResumenFichadas = async ({
         d.ausencia ?? '',
         d.entrada ? horaLocal(d.entrada) : '',
         d.salida ? horaLocal(d.salida) : '',
-        // El total va como texto "H:MM" en vez de decimal: 8:30 se lee
-        // solo, 8,5 hay que traducirlo mentalmente.
-        d.horas > 0 ? aHhMm(d.horas) : '',
+        // Texto "H:MM" en vez de decimal: 8:30 se lee solo, 8,5 hay
+        // que traducirlo mentalmente. Sale de los minutos exactos, así
+        // que una jornada de 8h58 dice 8:58 y no 9:00.
+        d.minutos > 0 ? minutosAHhMm(d.minutos) : '',
         d.diaTrabajado
       );
     });
-    fila.push(f.feriadosTrabajados, aHhMm(f.horasTotales), f.diasTrabajados);
+    fila.push(
+      f.feriadosTrabajados,
+      minutosAHhMm(f.minutosTotales),
+      f.diasTrabajados
+    );
     hoja.addRow(fila);
   });
 
@@ -188,11 +198,6 @@ export const descargarResumenFichadas = async ({
 const aDdMmAaaa = (iso: string): string => {
   const [a, m, d] = iso.split('-');
   return `${d}/${m}/${a}`;
-};
-
-const aHhMm = (horas: number): string => {
-  const total = Math.round(horas * 60);
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
 };
 
 /** Nombre corto de la hoja: Excel no acepta más de 31 caracteres. */

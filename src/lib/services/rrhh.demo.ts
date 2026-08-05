@@ -58,6 +58,7 @@ import {
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { diasEntre, hoyISO } from '@/lib/fechas';
+import { armarJornadas, diaLocal, Jornada } from '@/lib/fichadas';
 import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import { dotacionMock, empresaMock, empresasMock } from '@/lib/mocks/empresa';
@@ -557,6 +558,21 @@ export const getAusencias = async (
     )
   );
 
+export const getAusenciasEntre = async (
+  desde: string,
+  hasta: string,
+  empresaIdOverride?: string
+): Promise<Ausencia[]> =>
+  simular(
+    ausenciasMock.filter(
+      (a) =>
+        esDeEmpresaDemo(a.empleadoId, empresaIdOverride) &&
+        // Se solapa con el rango, no "empieza dentro".
+        a.fechaDesde <= hasta &&
+        a.fechaHasta >= desde
+    )
+  );
+
 export const getAusenciasDeEmpleado = async (
   empleadoId: string
 ): Promise<Ausencia[]> =>
@@ -812,18 +828,53 @@ export const getFichajesDeHoy = async (
     fichajesMock.filter((f) => esDeEmpresaDemo(f.empleadoId, empresaIdOverride))
   );
 
+const enRango = (f: Fichaje, desde: string, hasta: string): boolean => {
+  const dia = diaLocal(f.timestamp);
+  return dia >= desde && dia <= hasta;
+};
+
 export const getFichajesEntre = async (
   desde: string,
   hasta: string
 ): Promise<Fichaje[]> =>
   simular(
     fichajesMock
-      .filter((f) => {
-        const dia = f.timestamp.slice(0, 10);
-        return dia >= desde && dia <= hasta;
-      })
+      .filter((f) => enRango(f, desde, hasta))
       .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
   );
+
+/**
+ * En la demo no hay Postgres, así que las jornadas se arman con la
+ * misma función que usa el resto de la app. Es justamente la referencia
+ * contra la que se testea que la versión SQL dé lo mismo.
+ */
+export const getJornadas = async (
+  desde: string,
+  hasta: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _empresaIdOverride?: string
+): Promise<Jornada[]> =>
+  simular(armarJornadas(fichajesMock.filter((f) => enRango(f, desde, hasta))));
+
+export const getFichajesPagina = async (
+  desde: string,
+  hasta: string,
+  opciones: { pagina: number; porPagina: number; empleadoIds?: string[] }
+): Promise<{ fichajes: Fichaje[]; total: number }> => {
+  if (opciones.empleadoIds && opciones.empleadoIds.length === 0) {
+    return simular({ fichajes: [], total: 0 });
+  }
+  const ids = opciones.empleadoIds ? new Set(opciones.empleadoIds) : null;
+  const todos = fichajesMock
+    .filter((f) => enRango(f, desde, hasta))
+    .filter((f) => !ids || ids.has(f.empleadoId))
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const inicio = opciones.pagina * opciones.porPagina;
+  return simular({
+    fichajes: todos.slice(inicio, inicio + opciones.porPagina),
+    total: todos.length,
+  });
+};
 
 export const getFichajesDeEmpleadoHoy = async (
   empleadoId: string

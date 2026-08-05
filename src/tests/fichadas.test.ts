@@ -43,7 +43,7 @@ describe('armarJornadas', () => {
     expect(jornadas).toHaveLength(1);
     expect(jornadas[0].horas).toBeCloseTo(9, 1);
     expect(jornadas[0].incompleta).toBe(false);
-    expect(jornadas[0].marcas).toHaveLength(4);
+    expect(jornadas[0].marcas).toBe(4);
   });
 
   it('marca incompleta la jornada sin salida', () => {
@@ -97,20 +97,28 @@ describe('armarResumen', () => {
   const empleados = [empleado('e1', 'Avalos', 'Andres')];
 
   it('suma horas y días trabajados del rango', () => {
-    const r = armarResumen('2026-07-27', '2026-07-28', empleados, [
-      marca('e1', '2026-07-27T07:00:00', 'ingreso'),
-      marca('e1', '2026-07-27T16:00:00', 'egreso'),
-      marca('e1', '2026-07-28T07:00:00', 'ingreso'),
-      marca('e1', '2026-07-28T16:00:00', 'egreso'),
-    ]);
+    const r = armarResumen(
+      '2026-07-27',
+      '2026-07-28',
+      empleados,
+      armarJornadas([
+        marca('e1', '2026-07-27T07:00:00', 'ingreso'),
+        marca('e1', '2026-07-27T16:00:00', 'egreso'),
+        marca('e1', '2026-07-28T07:00:00', 'ingreso'),
+        marca('e1', '2026-07-28T16:00:00', 'egreso'),
+      ])
+    );
     expect(r.filas[0].diasTrabajados).toBe(2);
     expect(r.filas[0].horasTotales).toBeCloseTo(18, 1);
   });
 
   it('la jornada sin cerrar no cuenta como día trabajado', () => {
-    const r = armarResumen('2026-07-27', '2026-07-27', empleados, [
-      marca('e1', '2026-07-27T07:00:00', 'ingreso'),
-    ]);
+    const r = armarResumen(
+      '2026-07-27',
+      '2026-07-27',
+      empleados,
+      armarJornadas([marca('e1', '2026-07-27T07:00:00', 'ingreso')])
+    );
     expect(r.filas[0].diasTrabajados).toBe(0);
     expect(r.filas[0].dias[0].incompleta).toBe(true);
   });
@@ -162,14 +170,36 @@ describe('armarResumen', () => {
       '2026-07-27',
       '2026-07-28',
       empleados,
-      [
+      armarJornadas([
         marca('e1', '2026-07-27T07:00:00', 'ingreso'),
         marca('e1', '2026-07-27T16:00:00', 'egreso'),
-      ],
+      ]),
       [],
       feriados
     );
     expect(r.filas[0].feriadosTrabajados).toBe(1);
+  });
+
+  it('el total no arrastra el redondeo de cada día', () => {
+    // Cinco jornadas de 8h58. Cada una se muestra como 9,0 hs, pero el
+    // total real es 44h50, no 45. Sumar las horas ya redondeadas de cada
+    // día inflaba la planilla con la que se paga.
+    const marcas = [0, 1, 2, 3, 4].flatMap((i) => {
+      const dia = `2026-07-${String(20 + i).padStart(2, '0')}`;
+      return [
+        marca('e1', `${dia}T07:04:00`, 'ingreso'),
+        marca('e1', `${dia}T16:02:00`, 'egreso'),
+      ];
+    });
+    const r = armarResumen(
+      '2026-07-20',
+      '2026-07-24',
+      empleados,
+      armarJornadas(marcas)
+    );
+    expect(r.filas[0].dias[0].horas).toBe(9);
+    expect(r.filas[0].minutosTotales).toBe(5 * 538);
+    expect(r.filas[0].horasTotales).toBeCloseTo(44.8, 1);
   });
 
   it('el empleado sin ninguna fichada aparece igual, en cero', () => {

@@ -12,28 +12,23 @@ import {
 } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
-import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
+import { Paginacion } from '@/components/app/ui/Paginacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { FiltrosFichadasModal, FiltrosFichadas } from './FiltrosFichadasModal';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { useCarga } from '@/lib/useCarga';
 import {
-  getAusencias,
+  getAusenciasEntre,
   getEmpleados,
   getEmpresa,
   getFeriados,
-  getFichajesEntre,
+  getFichajesPagina,
+  getJornadas,
 } from '@/lib/services/rrhh';
-import { armarResumen, diaLocal, horaLocal } from '@/lib/fichadas';
+import { armarResumen, diaLocal, horaLocal, Jornada } from '@/lib/fichadas';
 import { descargarResumenFichadas } from '@/lib/exportarFichadas';
 import { formatearFecha, hoyISO } from '@/lib/fechas';
-import {
-  Ausencia,
-  Empleado,
-  Feriado,
-  Fichaje,
-  MetodoFichaje,
-} from '@/types/rrhh';
+import { Ausencia, Empleado, Feriado, MetodoFichaje } from '@/types/rrhh';
 
 const POR_PAGINA = 15;
 
@@ -79,20 +74,31 @@ export const HistorialFichadas = () => {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [vista, setVista] = useState<'movimientos' | 'resumen'>('movimientos');
   const [exportando, setExportando] = useState(false);
+  // 1-based, como espera el componente <Paginacion> compartido. La
+  // conversión a offset la hace el llamado al servicio.
+  const [pagina, setPagina] = useState(1);
 
-  const cFichajes = useCarga(
-    () => getFichajesEntre(filtros.desde, filtros.hasta),
+  // Jornadas ya agrupadas por la base: una fila por empleado y día en
+  // vez de todas las marcas del período.
+  const cJornadas = useCarga(
+    () => getJornadas(filtros.desde, filtros.hasta),
     [filtros.desde, filtros.hasta],
-    { contexto: 'fichaje/historial', inicial: [] as Fichaje[] }
+    { contexto: 'fichaje/historial', inicial: [] as Jornada[] }
   );
   const cEmpleados = useCarga(() => getEmpleados(), [], {
     contexto: 'fichaje/historial-empleados',
     inicial: [] as Empleado[],
   });
-  const cAusencias = useCarga(() => getAusencias(), [], {
-    contexto: 'fichaje/historial-ausencias',
-    inicial: [] as Ausencia[],
-  });
+  // Sólo las que tocan el rango: el histórico completo de una empresa
+  // con años de uso son miles de filas para pintar unas pocas celdas.
+  const cAusencias = useCarga(
+    () => getAusenciasEntre(filtros.desde, filtros.hasta),
+    [filtros.desde, filtros.hasta],
+    {
+      contexto: 'fichaje/historial-ausencias',
+      inicial: [] as Ausencia[],
+    }
+  );
   const cFeriados = useCarga(() => getFeriados(), [], {
     contexto: 'fichaje/historial-feriados',
     inicial: [] as Feriado[],
@@ -129,13 +135,26 @@ export const HistorialFichadas = () => {
     [empleadosFiltrados]
   );
 
+  /**
+   * Ids a pedirle al servidor. `undefined` = sin filtro (no mandar el
+   * `in`, que con cientos de empleados haría una URL enorme); un array
+   * vacío significa "la búsqueda no matcheó a nadie".
+   */
+  const idsFiltrados = useMemo(
+    () =>
+      empleadosFiltrados.length === empleados.length
+        ? undefined
+        : empleadosFiltrados.map((e) => e.id),
+    [empleadosFiltrados, empleados.length]
+  );
+
   const resumen = useMemo(
     () =>
       armarResumen(
         filtros.desde,
         filtros.hasta,
         empleadosFiltrados,
-        cFichajes.datos.filter((f) => idsVisibles.has(f.empleadoId)),
+        cJornadas.datos.filter((j) => idsVisibles.has(j.empleadoId)),
         cAusencias.datos,
         cFeriados.datos
       ),
@@ -143,33 +162,73 @@ export const HistorialFichadas = () => {
       filtros.desde,
       filtros.hasta,
       empleadosFiltrados,
-      cFichajes.datos,
+      cJornadas.datos,
       idsVisibles,
       cAusencias.datos,
       cFeriados.datos,
     ]
   );
 
-  /** Movimientos sueltos, del más nuevo al más viejo. */
-  const movimientos = useMemo(() => {
-    const jornadasIncompletas = new Set(
-      resumen.filas.flatMap((f) =>
-        f.dias
-          .filter((d) => d.incompleta && (d.entrada || d.salida))
-          .map((d) => `${f.empleado.id}|${d.fecha}`)
-      )
-    );
-    return cFichajes.datos
-      .filter((f) => idsVisibles.has(f.empleadoId))
-      .filter(
+  /**
+   * Días con la jornada abierta, para el filtro "solo sin cerrar". Sale
+   * de las jornadas, que ya vienen agrupadas: no hace falta mirar marca
+   * por marca.
+   */
+  const diasIncompletos = useMemo(
+    () =>
+      new Set(
+        cJornadas.datos
+          .filter((j) => j.incompleta)
+          .map((j) => `${j.empleadoId}|${j.fecha}`)
+      ),
+    [cJornadas.datos]
+  );
+
+  // Al cambiar cualquier filtro se vuelve a la primera página: quedarse
+  // en la página 7 de un resultado que ahora tiene 2 muestra un vacío
+  // que parece un error.
+  const clavePagina = `${filtros.desde}|${filtros.hasta}|${filtros.nombre}|${filtros.sector}|${filtros.soloIncompletos}`;
+  const [claveAnterior, setClaveAnterior] = useState(clavePagina);
+  if (claveAnterior !== clavePagina) {
+    setClaveAnterior(clavePagina);
+    setPagina(1);
+  }
+
+  /**
+   * Movimientos sueltos: los pide el servidor de a una página. Antes se
+   * bajaba el período completo para mostrar 15 filas.
+   *
+   * El filtro "solo sin cerrar" se aplica sobre la página, no sobre la
+   * consulta: es una condición sobre la jornada del día, que Postgres no
+   * conoce a nivel de marca. Se avisa en pantalla cuando está activo.
+   */
+  const cMovimientos = useCarga(
+    () =>
+      getFichajesPagina(filtros.desde, filtros.hasta, {
+        pagina: pagina - 1,
+        porPagina: POR_PAGINA,
+        empleadoIds: idsFiltrados,
+      }),
+    [filtros.desde, filtros.hasta, pagina, idsFiltrados],
+    {
+      activo: vista === 'movimientos',
+      contexto: 'fichaje/historial-movimientos',
+      inicial: { fichajes: [], total: 0 },
+    }
+  );
+
+  const movimientos = useMemo(
+    () =>
+      cMovimientos.datos.fichajes.filter(
         (f) =>
           !filtros.soloIncompletos ||
-          jornadasIncompletas.has(`${f.empleadoId}|${diaLocal(f.timestamp)}`)
-      )
-      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  }, [cFichajes.datos, idsVisibles, filtros.soloIncompletos, resumen.filas]);
+          diasIncompletos.has(`${f.empleadoId}|${diaLocal(f.timestamp)}`)
+      ),
+    [cMovimientos.datos.fichajes, filtros.soloIncompletos, diasIncompletos]
+  );
 
-  const paginaMovimientos = usePaginacion(movimientos, POR_PAGINA);
+  const totalMovimientos = cMovimientos.datos.total;
+  const totalPaginas = Math.max(1, Math.ceil(totalMovimientos / POR_PAGINA));
 
   const descripcionFiltros = useMemo(() => {
     const lista: string[] = [];
@@ -204,7 +263,9 @@ export const HistorialFichadas = () => {
     setExportando(false);
   };
 
-  const cargando = cFichajes.fase === 'cargando';
+  const cargando =
+    cJornadas.fase === 'cargando' ||
+    (vista === 'movimientos' && cMovimientos.fase === 'cargando');
 
   return (
     <Panel className="flex flex-col gap-4">
@@ -215,8 +276,9 @@ export const HistorialFichadas = () => {
           </h2>
           <p className="mt-0.5 text-sm text-ink-soft">
             {formatearFecha(filtros.desde)} a {formatearFecha(filtros.hasta)} ·{' '}
-            {movimientos.length}{' '}
-            {movimientos.length === 1 ? 'movimiento' : 'movimientos'}
+            {vista === 'movimientos'
+              ? `${totalMovimientos} ${totalMovimientos === 1 ? 'movimiento' : 'movimientos'}`
+              : `${resumen.filas.length} ${resumen.filas.length === 1 ? 'colaborador' : 'colaboradores'}`}
             {descripcionFiltros.length > 0 && ' · con filtros'}
           </p>
         </div>
@@ -272,10 +334,16 @@ export const HistorialFichadas = () => {
         </div>
       </div>
 
-      {cFichajes.fase === 'error' && cFichajes.error && (
+      {cJornadas.fase === 'error' && cJornadas.error && (
         <BloqueError
-          error={cFichajes.error}
-          onReintentar={cFichajes.recargar}
+          error={cJornadas.error}
+          onReintentar={cJornadas.recargar}
+        />
+      )}
+      {cMovimientos.fase === 'error' && cMovimientos.error && (
+        <BloqueError
+          error={cMovimientos.error}
+          onReintentar={cMovimientos.recargar}
         />
       )}
 
@@ -283,6 +351,17 @@ export const HistorialFichadas = () => {
 
       {!cargando && vista === 'movimientos' && (
         <>
+          {/* El filtro de jornadas sin cerrar se aplica sobre la página
+              ya traída, así que puede dejar una página con menos filas
+              (o vacía) aunque haya resultados más adelante. Decirlo
+              evita que parezca que se perdieron datos. */}
+          {filtros.soloIncompletos && (
+            <p className="rounded-xl bg-paper px-4 py-2.5 text-xs text-ink-soft">
+              El filtro de jornadas sin cerrar se aplica sobre la página que
+              estás viendo. Para verlas todas juntas, usá la vista Resumen o
+              bajá el Excel.
+            </p>
+          )}
           {movimientos.length === 0 ? (
             <p className="py-6 text-sm text-ink-soft">
               No hay fichadas en ese rango con esos filtros.
@@ -301,7 +380,7 @@ export const HistorialFichadas = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {paginaMovimientos.visibles.map((f) => {
+                  {movimientos.map((f) => {
                     const e = empleadoDe.get(f.empleadoId);
                     const Icono = iconoMetodo(f.metodo);
                     return (
@@ -353,9 +432,9 @@ export const HistorialFichadas = () => {
             </div>
           )}
           <Paginacion
-            pagina={paginaMovimientos.pagina}
-            totalPaginas={paginaMovimientos.totalPaginas}
-            onCambiar={paginaMovimientos.setPagina}
+            pagina={pagina}
+            totalPaginas={totalPaginas}
+            onCambiar={setPagina}
           />
         </>
       )}

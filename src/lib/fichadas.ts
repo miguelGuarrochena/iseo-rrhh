@@ -11,7 +11,15 @@
  */
 import { Ausencia, Empleado, Feriado, Fichaje } from '@/types/rrhh';
 
-/** Una jornada armada a partir de las marcas de un empleado en un día. */
+/**
+ * Una jornada: lo que hizo una persona un día.
+ *
+ * Es la unidad con la que razonan el historial, el Excel y los
+ * reportes. La arma la base (`jornadas_de_empresa`) y, para los pocos
+ * casos donde ya se tienen las marcas en memoria, también
+ * `armarJornadas`. Las dos tienen que dar lo mismo: hay un test que lo
+ * verifica.
+ */
 export interface Jornada {
   empleadoId: string;
   /** YYYY-MM-DD, en hora local. */
@@ -24,9 +32,31 @@ export interface Jornada {
   horas: number;
   /** Falta la entrada o la salida: la jornada no cierra. */
   incompleta: boolean;
-  /** Cuántas marcas hubo, para poder mostrar las intermedias. */
-  marcas: Fichaje[];
+  /** Cuántas marcas hubo ese día (incluidas las intermedias). */
+  marcas: number;
+  /** Alguna de las marcas cayó fuera de la zona de trabajo. */
+  fueraDeZona?: boolean;
 }
+
+/**
+ * Horas entre dos marcas, redondeadas a un decimal. Se comparte entre
+ * el armado en memoria y el que viene de la base, para que no haya dos
+ * redondeos distintos dando números que no cierran entre pantallas.
+ */
+export const horasEntre = (entrada?: string, salida?: string): number =>
+  Math.round((minutosEntre(entrada, salida) / 60) * 10) / 10;
+
+/**
+ * Minutos exactos entre dos marcas, sin redondear a horas.
+ *
+ * Los totales se suman con esto y recién después se pasan a horas: si
+ * se suman las horas ya redondeadas de cada día, el error se acumula.
+ */
+export const minutosEntre = (entrada?: string, salida?: string): number => {
+  if (!entrada || !salida) return 0;
+  const ms = new Date(salida).getTime() - new Date(entrada).getTime();
+  return Math.round(Math.max(0, ms) / 60_000);
+};
 
 /** Fecha local YYYY-MM-DD de un timestamp ISO. */
 export const diaLocal = (iso: string): string => {
@@ -43,12 +73,17 @@ export const horaLocal = (iso: string): string => {
 };
 
 /**
- * Agrupa las marcas por empleado y día.
+ * Agrupa marcas sueltas en jornadas, en memoria.
+ *
+ * Para el historial y los reportes esto lo hace la base
+ * (`jornadas_de_empresa`), que evita traerse todas las marcas del
+ * período. Esta versión queda para los casos chicos donde las marcas ya
+ * están en memoria —el fichaje del día, la demo— y como referencia
+ * contra la que se testea que la SQL dé lo mismo.
  *
  * La entrada es la primera del día y la salida la última, a propósito:
  * en planta la gente ficha al salir a almorzar y al volver, y tomar el
- * primer egreso daría una jornada de cuatro horas. Las marcas
- * intermedias quedan igual en `marcas` para poder mostrarlas.
+ * primer egreso daría una jornada de cuatro horas.
  */
 export const armarJornadas = (fichajes: Fichaje[]): Jornada[] => {
   const porClave = new Map<string, Fichaje[]>();
@@ -58,38 +93,31 @@ export const armarJornadas = (fichajes: Fichaje[]): Jornada[] => {
   });
 
   return [...porClave.entries()]
-    .map(([clave, marcasSueltas]) => {
+    .map(([clave, marcasSueltas]): Jornada => {
       const [empleadoId, fecha] = clave.split('|');
       const marcas = [...marcasSueltas].sort((a, b) =>
         a.timestamp.localeCompare(b.timestamp)
       );
       const entrada = marcas.find((m) => m.tipo === 'ingreso');
       const salida = [...marcas].reverse().find((m) => m.tipo === 'egreso');
-      const horas =
-        entrada && salida
-          ? Math.max(
-              0,
-              (new Date(salida.timestamp).getTime() -
-                new Date(entrada.timestamp).getTime()) /
-                3_600_000
-            )
-          : 0;
       return {
         empleadoId,
         fecha,
         entrada: entrada?.timestamp,
         salida: salida?.timestamp,
-        horas: Math.round(horas * 10) / 10,
+        horas: horasEntre(entrada?.timestamp, salida?.timestamp),
         incompleta: !entrada || !salida,
-        marcas,
+        marcas: marcas.length,
+        fueraDeZona: marcas.some((m) => m.fueraDeZona),
       };
     })
-    .sort(
-      (a, b) =>
-        a.fecha.localeCompare(b.fecha) ||
-        (a.entrada ?? '').localeCompare(b.entrada ?? '')
-    );
+    .sort(ordenJornadas);
 };
+
+/** Orden estable: por día y, dentro del día, por hora de entrada. */
+export const ordenJornadas = (a: Jornada, b: Jornada): number =>
+  a.fecha.localeCompare(b.fecha) ||
+  (a.entrada ?? '').localeCompare(b.entrada ?? '');
 
 /** Todos los días del rango, inclusive, como YYYY-MM-DD. */
 export const diasDelRango = (desde: string, hasta: string): string[] => {
@@ -144,7 +172,10 @@ export interface CeldaDia {
   ausencia?: string;
   entrada?: string;
   salida?: string;
+  /** Redondeadas a un decimal, para mostrar. */
   horas: number;
+  /** Exactos, para sumar sin arrastrar el redondeo de cada día. */
+  minutos: number;
   /** 1 si tiene entrada y salida; 0 si no. */
   diaTrabajado: 0 | 1;
   incompleta: boolean;
@@ -156,7 +187,10 @@ export interface FilaResumen {
   dias: CeldaDia[];
   /** Feriados del rango en los que esta persona fichó. */
   feriadosTrabajados: number;
+  /** Redondeadas a un decimal, para mostrar en pantalla. */
   horasTotales: number;
+  /** Exactos. Es lo que hay que usar para formatear "H:MM". */
+  minutosTotales: number;
   diasTrabajados: number;
 }
 
@@ -197,12 +231,16 @@ export const armarResumen = (
   desde: string,
   hasta: string,
   empleados: Empleado[],
-  fichajes: Fichaje[],
+  /**
+   * Ya agrupadas (una por empleado y día). Antes recibía las marcas
+   * sueltas y las agrupaba acá, lo que obligaba a bajarse el período
+   * entero al navegador; ahora ese trabajo lo hace la base.
+   */
+  jornadas: Jornada[],
   ausencias: Ausencia[] = [],
   feriados: Feriado[] = []
 ): Resumen => {
   const dias = diasDelRango(desde, hasta);
-  const jornadas = armarJornadas(fichajes);
   const porEmpleadoDia = new Map<string, Jornada>();
   jornadas.forEach((j) => porEmpleadoDia.set(`${j.empleadoId}|${j.fecha}`, j));
 
@@ -227,10 +265,21 @@ export const armarResumen = (
           entrada: j?.entrada,
           salida: j?.salida,
           horas: j?.horas ?? 0,
+          // Minutos exactos, sin redondear, sólo para el total. Ver abajo.
+          minutos: minutosEntre(j?.entrada, j?.salida),
           diaTrabajado: j && !j.incompleta ? 1 : 0,
           incompleta: Boolean(j?.incompleta),
         };
       });
+
+      /**
+       * Se suman los minutos exactos y se redondea una sola vez al
+       * final. Sumar las horas ya redondeadas de cada día parece lo
+       * mismo pero no lo es: una jornada de 8h58 se muestra como 9,0 y,
+       * sobre veinte días, el total se iba casi media hora para arriba.
+       * En una planilla que se usa para pagar, ese error se nota.
+       */
+      const minutosTotales = celdas.reduce((acc, c) => acc + c.minutos, 0);
 
       return {
         empleado,
@@ -238,8 +287,8 @@ export const armarResumen = (
         feriadosTrabajados: celdas.filter(
           (c) => fechasFeriado.has(c.fecha) && c.entrada
         ).length,
-        horasTotales:
-          Math.round(celdas.reduce((acc, c) => acc + c.horas, 0) * 10) / 10,
+        horasTotales: Math.round((minutosTotales / 60) * 10) / 10,
+        minutosTotales,
         diasTrabajados: celdas.reduce((acc, c) => acc + c.diaTrabajado, 0),
       };
     })
@@ -253,8 +302,6 @@ export const armarResumen = (
   return { desde, hasta, dias, filas };
 };
 
-/** Horas decimales a "H:MM", que es como se leen en una planilla. */
-export const horasAHhMm = (horas: number): string => {
-  const total = Math.round(horas * 60);
-  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
-};
+/** Minutos a "H:MM", que es como se leen en una planilla. */
+export const minutosAHhMm = (minutos: number): string =>
+  `${Math.floor(minutos / 60)}:${String(minutos % 60).padStart(2, '0')}`;

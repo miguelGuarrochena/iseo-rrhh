@@ -155,6 +155,11 @@ export const invitarUsuario = elegir(real.invitarUsuario, demo.invitarUsuario);
 
 // ---------- Ausencias ----------
 export const getAusencias = elegir(real.getAusencias, demo.getAusencias);
+/** Las que se solapan con un rango. Evita traer el histórico entero. */
+export const getAusenciasEntre = elegir(
+  real.getAusenciasEntre,
+  demo.getAusenciasEntre
+);
 export const getAusenciasDeEmpleado = elegir(
   real.getAusenciasDeEmpleado,
   demo.getAusenciasDeEmpleado
@@ -205,6 +210,13 @@ export const getFichajesDeHoy = elegir(
 export const getFichajesEntre = elegir(
   real.getFichajesEntre,
   demo.getFichajesEntre
+);
+/** Una fila por empleado y día: lo agrupa la base, no el navegador. */
+export const getJornadas = elegir(real.getJornadas, demo.getJornadas);
+/** Movimientos sueltos, paginados del lado del servidor. */
+export const getFichajesPagina = elegir(
+  real.getFichajesPagina,
+  demo.getFichajesPagina
 );
 export const getFichajesDeEmpleadoHoy = elegir(
   real.getFichajesDeEmpleadoHoy,
