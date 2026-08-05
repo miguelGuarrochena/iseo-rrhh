@@ -184,6 +184,14 @@ export const resolverAusencia = elegir(
   real.resolverAusencia,
   demo.resolverAusencia
 );
+export const getVacacionesPendientes = elegir(
+  real.getVacacionesPendientes,
+  demo.getVacacionesPendientes
+);
+export const guardarVacacionesPendientes = elegir(
+  real.guardarVacacionesPendientes,
+  demo.guardarVacacionesPendientes
+);
 export const getSaldoVacaciones = elegir(
   real.getSaldoVacaciones,
   demo.getSaldoVacaciones
@@ -193,6 +201,10 @@ export const getSaldoVacaciones = elegir(
 export const getFichajesDeHoy = elegir(
   real.getFichajesDeHoy,
   demo.getFichajesDeHoy
+);
+export const getFichajesEntre = elegir(
+  real.getFichajesEntre,
+  demo.getFichajesEntre
 );
 export const getFichajesDeEmpleadoHoy = elegir(
   real.getFichajesDeEmpleadoHoy,

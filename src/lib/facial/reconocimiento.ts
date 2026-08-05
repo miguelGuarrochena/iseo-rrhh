@@ -14,8 +14,21 @@
 
 import type * as FaceApi from '@vladmandic/face-api';
 
-/** Modelos alojados en CDN (no hace falta bundle ni descargar nada). */
-const MODELOS_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model';
+/**
+ * Modelos servidos por la propia app desde `public/models`.
+ *
+ * Antes se bajaban de un CDN (jsdelivr). No funcionaba nunca en
+ * producción: la CSP de `next.config.js` tiene `connect-src 'self'` +
+ * Supabase, así que el navegador bloqueaba el fetch de los pesos. Los
+ * modelos no cargaban, `detectarRostro` explotaba y la pantalla mostraba
+ * "revisá tu conexión", que mandaba a buscar el problema al lugar
+ * equivocado.
+ *
+ * Servirlos desde el mismo origen además resuelve el caso real de uso:
+ * la tablet de planta, que puede tener internet malo o bloqueado, y
+ * ahora los cachea con el resto de los assets.
+ */
+const MODELOS_URL = '/models';
 
 /**
  * Umbrales de distancia euclidiana. Menor = más parecido.
@@ -46,22 +59,41 @@ let faceapi: typeof FaceApi | null = null;
 let modelosCargados = false;
 let cargando: Promise<void> | null = null;
 
-/** Carga perezosa de face-api y sus modelos (una sola vez). */
-export const cargarModelos = async (): Promise<void> => {
-  if (modelosCargados) return;
-  if (cargando) return cargando;
+/**
+ * Carga perezosa de face-api y sus modelos (una sola vez).
+ *
+ * No lanza: devuelve `false` si no pudo. Antes propagaba la excepción y
+ * terminaba en un `catch` genérico que culpaba a la conexión, y además
+ * dejaba la promesa fallada cacheada en `cargando`: el botón
+ * "Reintentar" no reintentaba nada porque se le devolvía siempre la
+ * misma promesa rota.
+ */
+export const cargarModelos = async (): Promise<boolean> => {
+  if (modelosCargados) return true;
+  if (cargando) {
+    await cargando;
+    return modelosCargados;
+  }
 
   cargando = (async () => {
-    faceapi = await import('@vladmandic/face-api');
-    await Promise.all([
-      faceapi.nets.tinyFaceDetector.loadFromUri(MODELOS_URL),
-      faceapi.nets.faceLandmark68Net.loadFromUri(MODELOS_URL),
-      faceapi.nets.faceRecognitionNet.loadFromUri(MODELOS_URL),
-    ]);
-    modelosCargados = true;
+    try {
+      faceapi = await import('@vladmandic/face-api');
+      await Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODELOS_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODELOS_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODELOS_URL),
+      ]);
+      modelosCargados = true;
+    } catch {
+      modelosCargados = false;
+    } finally {
+      // Se libera siempre, así el próximo intento vuelve a probar.
+      cargando = null;
+    }
   })();
 
-  return cargando;
+  await cargando;
+  return modelosCargados;
 };
 
 export type FuenteImagen =
@@ -96,8 +128,9 @@ const PASADAS = [
 export const detectarRostro = async (
   fuente: FuenteImagen
 ): Promise<ResultadoDeteccion> => {
-  await cargarModelos();
-  if (!faceapi) return { ok: false, motivo: 'sin_modelos', caras: 0 };
+  const listos = await cargarModelos();
+  if (!listos || !faceapi)
+    return { ok: false, motivo: 'sin_modelos', caras: 0 };
 
   let ultimasCaras = 0;
   for (const pasada of PASADAS) {

@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { IconLogin2 } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo } from '@/components/app/ui/Campo';
+import { Campo, CampoSelect } from '@/components/app/ui/Campo';
+import { aOpciones } from '@/components/app/ui/Selector';
 import { actualizarDatosEmpresa } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
@@ -14,7 +15,12 @@ import {
   validarEmail,
   validarRequerido,
 } from '@/lib/validaciones';
-import { DatosEmpresaCliente, Empresa } from '@/types/rrhh';
+import {
+  DatosEmpresaCliente,
+  Empresa,
+  RegimenLaboral,
+  REGIMEN_LABORAL_LABELS,
+} from '@/types/rrhh';
 
 interface EditarEmpresaModalProps {
   empresa: Empresa | null;
@@ -49,6 +55,7 @@ export const EditarEmpresaModal = ({
         contactoNombre: empresa.contactoNombre,
         contactoEmail: empresa.contactoEmail,
         contactoTelefono: empresa.contactoTelefono ?? '',
+        regimen: empresa.regimen ?? 'relacion_dependencia',
         plan: empresa.plan ?? '',
         abonoMensual: empresa.abonoMensual ?? 0,
       });
@@ -184,6 +191,32 @@ export const EditarEmpresaModal = ({
               value={datos.contactoTelefono ?? ''}
               onChange={set('contactoTelefono')}
             />
+          </div>
+
+          {/* Cambiarlo no recalcula lo ya liquidado: los períodos
+              cargados quedan con el neto con el que se guardaron. Se
+              avisa acá porque desde afuera parece que sí. */}
+          <div className="flex flex-col gap-2 rounded-2xl border border-line bg-paper/50 p-4">
+            <CampoSelect
+              etiqueta="Régimen laboral"
+              value={datos.regimen ?? 'relacion_dependencia'}
+              onChange={(v) =>
+                setDatos((prev) => ({ ...prev, regimen: v as RegimenLaboral }))
+              }
+              opciones={aOpciones(REGIMEN_LABORAL_LABELS)}
+            />
+            <p className="text-xs leading-relaxed text-ink-soft">
+              {datos.regimen === 'simplificado'
+                ? 'Sin descuentos de ley en Remuneraciones; se puede cargar el monotributo a cargo de la empresa y dejar colaboradores sin cuenta.'
+                : 'Liquidación con aportes de ley, recibos y documentos para firmar.'}
+              {(empresa.regimen ?? 'relacion_dependencia') !==
+                (datos.regimen ?? 'relacion_dependencia') && (
+                <strong className="mt-1 block font-semibold text-amber-800">
+                  Los períodos ya liquidados no se recalculan: quedan con el
+                  neto con el que se guardaron.
+                </strong>
+              )}
+            </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">

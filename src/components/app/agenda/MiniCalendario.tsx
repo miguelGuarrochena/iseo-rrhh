@@ -23,6 +23,8 @@ const DIAS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 interface MiniCalendarioProps {
   /** fechas (YYYY-MM-DD) que tienen eventos */
   fechasConEventos: Set<string>;
+  /** fechas que son feriado o día no laborable de la empresa */
+  fechasFeriado?: Set<string>;
   seleccionada: string | null;
   onSeleccionar: (fecha: string | null) => void;
 }
@@ -36,6 +38,7 @@ const iso = (anio: number, mes: number, dia: number) =>
  */
 export const MiniCalendario = ({
   fechasConEventos,
+  fechasFeriado,
   seleccionada,
   onSeleccionar,
 }: MiniCalendarioProps) => {
@@ -94,18 +97,25 @@ export const MiniCalendario = ({
           const dia = i + 1;
           const fecha = iso(anio, mes, dia);
           const conEvento = fechasConEventos.has(fecha);
+          const esFeriado = fechasFeriado?.has(fecha) ?? false;
           const esHoy = fecha === hoyStr;
           const activa = seleccionada === fecha;
           return (
             <button
               key={fecha}
+              title={esFeriado ? 'Feriado / día no laborable' : undefined}
               onClick={() => onSeleccionar(activa ? null : fecha)}
-              className={`relative mx-auto flex h-9 w-9 cursor-pointer flex-col items-center justify-center rounded-full border text-sm font-medium transition-colors ${
+              className={`relative mx-auto flex h-9 w-9 cursor-pointer flex-col items-center justify-center rounded-full border text-sm transition-colors ${
                 activa
                   ? 'border-brand-300 bg-brand-100 font-bold text-brand-800'
-                  : esHoy
-                    ? 'border-line bg-paper font-bold text-ink'
-                    : 'border-transparent text-ink hover:bg-paper'
+                  : esFeriado
+                    ? // El feriado se pinta el día entero, no con un punto:
+                      // lo que se busca al mirar el mes es "qué días no se
+                      // trabaja", y un punto más se confunde con un evento.
+                      'border-amber-200 bg-amber-50 font-bold text-amber-900 hover:bg-amber-100'
+                    : esHoy
+                      ? 'border-line bg-paper font-bold text-ink'
+                      : 'border-transparent font-medium text-ink hover:bg-paper'
               }`}
             >
               {dia}
@@ -115,6 +125,19 @@ export const MiniCalendario = ({
             </button>
           );
         })}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[0.65rem] text-ink-soft">
+        <span className="flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand-500" />
+          Con eventos
+        </span>
+        {fechasFeriado && fechasFeriado.size > 0 && (
+          <span className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full border border-amber-200 bg-amber-50" />
+            Feriado
+          </span>
+        )}
       </div>
 
       {seleccionada && (

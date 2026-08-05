@@ -38,3 +38,7 @@ next-env.d.ts
 
 # worker de pdf.js (lo copia scripts/copiar-worker-pdf.mjs en postinstall)
 /public/pdf.worker.min.mjs
+
+# modelos de reconocimiento facial, 6,8 MB (los copia
+# scripts/copiar-modelos-faciales.mjs en postinstall)
+/public/models/

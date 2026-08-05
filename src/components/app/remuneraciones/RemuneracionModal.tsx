@@ -25,6 +25,7 @@ import {
   calcularLiquidacion,
   APORTES_TOTAL,
   HORAS_MENSUALES,
+  tieneAportesDeLey,
   valorHorasExtras,
 } from '@/lib/remuneraciones';
 import { formatearPesos } from '@/lib/formato';
@@ -33,6 +34,7 @@ import {
   Adelanto,
   DescuentoRecurrente,
   Empleado,
+  RegimenLaboral,
   Remuneracion,
 } from '@/types/rrhh';
 import { useCarga } from '@/lib/useCarga';
@@ -115,6 +117,9 @@ export const RemuneracionModal = ({
   const [error, setError] = useState<string | null>(null);
   const [horasExtras, setHorasExtras] = useState(0);
   const [horasMensuales, setHorasMensuales] = useState(HORAS_MENSUALES);
+  const [regimen, setRegimen] = useState<RegimenLaboral>(
+    'relacion_dependencia'
+  );
 
   const empleadoActual = empleadoId ?? elegido;
 
@@ -179,11 +184,18 @@ export const RemuneracionModal = ({
   useEffect(() => {
     if (!abierto) return;
     void getEmpresa()
-      .then((e) =>
-        setHorasMensuales(e.config.horasMensuales ?? HORAS_MENSUALES)
-      )
-      .catch(() => setHorasMensuales(HORAS_MENSUALES));
+      .then((e) => {
+        setHorasMensuales(e.config.horasMensuales ?? HORAS_MENSUALES);
+        setRegimen(e.regimen ?? 'relacion_dependencia');
+      })
+      .catch(() => {
+        setHorasMensuales(HORAS_MENSUALES);
+        setRegimen('relacion_dependencia');
+      });
   }, [abierto]);
+
+  /** En el régimen simplificado no hay jubilación, PAMI ni obra social. */
+  const conAportes = tieneAportesDeLey(regimen);
 
   const sugeridoExtras = valorHorasExtras(
     num(bruto),
@@ -242,6 +254,7 @@ export const RemuneracionModal = ({
     montoBruto: num(bruto),
     noRemunerativo: num(noRem),
     otrosDescuentos: otrosTotal,
+    regimen,
   });
 
   const guardar = async () => {
@@ -328,12 +341,16 @@ export const RemuneracionModal = ({
           <TituloBloque icono={IconCoins} texto="Haberes" />
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Campo
-              etiqueta="Sueldo bruto (remunerativo)"
+              etiqueta={conAportes ? 'Sueldo bruto (remunerativo)' : 'Sueldo'}
               type="number"
               value={bruto}
               onChange={(e) => setBruto(e.target.value)}
               placeholder="0"
-              ayuda="Podés dejarlo en 0 si solo cargás no remunerativo."
+              ayuda={
+                conAportes
+                  ? 'Podés dejarlo en 0 si solo cargás no remunerativo.'
+                  : 'Lo que se le paga por el mes, antes de descuentos.'
+              }
               error={
                 error?.includes('bruto') || error?.includes('no remunerativo')
                   ? error
@@ -341,12 +358,20 @@ export const RemuneracionModal = ({
               }
             />
             <Campo
-              etiqueta="No remunerativo (opcional)"
+              etiqueta={
+                conAportes
+                  ? 'No remunerativo (opcional)'
+                  : 'Adicional (opcional)'
+              }
               type="number"
               value={noRem}
               onChange={(e) => setNoRem(e.target.value)}
               placeholder="0"
-              ayuda="Adicionales fuera de la base de aportes."
+              ayuda={
+                conAportes
+                  ? 'Adicionales fuera de la base de aportes.'
+                  : 'Premios, viáticos u otros pagos del mes.'
+              }
             />
           </div>
 
@@ -451,21 +476,25 @@ export const RemuneracionModal = ({
           <TituloBloque icono={IconCashBanknote} texto="Liquidación estimada" />
           <div className="mt-2 flex flex-col divide-y divide-brand-200/60">
             <Renglon
-              etiqueta="Remunerativo"
+              etiqueta={conAportes ? 'Remunerativo' : 'Sueldo'}
               valor={formatearPesos(num(bruto))}
             />
             {num(noRem) > 0 && (
               <Renglon
-                etiqueta="No remunerativo"
+                etiqueta={conAportes ? 'No remunerativo' : 'Adicional'}
                 valor={formatearPesos(num(noRem))}
               />
             )}
-            <Renglon
-              etiqueta="Aportes del empleado"
-              detalle={`jubilación + PAMI + obra social (${Math.round(APORTES_TOTAL * 100)}%)`}
-              valor={formatearPesos(aportes)}
-              resta
-            />
+            {/* En régimen simplificado el renglón directamente no va: un
+                "aportes: $0" invita a pensar que falta configurar algo. */}
+            {conAportes && (
+              <Renglon
+                etiqueta="Aportes del empleado"
+                detalle={`jubilación + PAMI + obra social (${Math.round(APORTES_TOTAL * 100)}%)`}
+                valor={formatearPesos(aportes)}
+                resta
+              />
+            )}
             {otrosTotal > 0 && (
               <Renglon
                 etiqueta="Descuentos del período"
@@ -475,14 +504,17 @@ export const RemuneracionModal = ({
             )}
           </div>
           <div className="mt-3 flex items-baseline justify-between border-t-2 border-brand-300 pt-3">
-            <span className="text-sm font-bold text-ink">Neto a cobrar</span>
+            <span className="text-sm font-bold text-ink">
+              {conAportes ? 'Neto a cobrar' : 'A pagar'}
+            </span>
             <span className="text-2xl font-extrabold tracking-tight text-ink">
               {formatearPesos(neto)}
             </span>
           </div>
           <p className="mt-2 text-xs text-ink-soft">
-            Estimación para gestión interna; la liquidación oficial la hace tu
-            contador.
+            {conAportes
+              ? 'Estimación para gestión interna; la liquidación oficial la hace tu contador.'
+              : 'Esta empresa está configurada como régimen simplificado: no se retienen aportes de ley. Si la empresa paga el monotributo, cargalo en la ficha del colaborador para que entre en el costo del mes.'}
           </p>
         </div>
 

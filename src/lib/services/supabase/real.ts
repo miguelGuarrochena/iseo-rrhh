@@ -47,6 +47,7 @@ import {
   ResumenControl,
   SaldoLicencia,
   SaldoVacaciones,
+  VacacionesPendientes,
   TipoAusencia,
   TipoComunicacion,
   TipoFeriado,
@@ -226,6 +227,7 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
       contacto_nombre: datos.contactoNombre,
       contacto_email: datos.contactoEmail,
       contacto_telefono: datos.contactoTelefono ?? null,
+      regimen: datos.regimen ?? 'relacion_dependencia',
       plan: datos.plan ?? null,
       abono_mensual: datos.abonoMensual ?? 0,
       config: {
@@ -258,6 +260,7 @@ export const actualizarDatosEmpresa = async (
     contactoNombre: 'contacto_nombre',
     contactoEmail: 'contacto_email',
     contactoTelefono: 'contacto_telefono',
+    regimen: 'regimen',
     plan: 'plan',
     abonoMensual: 'abono_mensual',
   };
@@ -360,6 +363,7 @@ export const actualizarEmpresa = async (
       | 'cuit'
       | 'razonSocial'
       | 'domicilio'
+      | 'regimen'
     >
   >
 ): Promise<Empresa> => {
@@ -380,6 +384,7 @@ export const actualizarEmpresa = async (
   if (datos.cuit !== undefined) cambios.cuit = datos.cuit;
   if (datos.razonSocial !== undefined) cambios.razon_social = datos.razonSocial;
   if (datos.domicilio !== undefined) cambios.domicilio = datos.domicilio;
+  if (datos.regimen !== undefined) cambios.regimen = datos.regimen;
   const { data, error } = await sb()
     .from('empresas')
     .update(cambios)
@@ -581,6 +586,7 @@ export const crearEmpleado = async (
       obra_social: datos.obraSocial ?? '',
       art: datos.art ?? '',
       convenio: datos.convenio ?? null,
+      sin_usuario: datos.sinUsuario ?? false,
       modo_fichaje: datos.modoFichaje ?? 'celular',
       geocerca: datos.geocerca ?? null,
       checklist_alta: CHECKLIST_ALTA,
@@ -588,6 +594,32 @@ export const crearEmpleado = async (
     .select()
     .single();
   return aEmpleado(oFalla(data, error));
+};
+
+/**
+ * Columnas de `empleados` declaradas `not null default …`. Un update
+ * parcial que manda `null` en cualquiera de ellas hace fallar TODO el
+ * update, no solo ese campo, con un mensaje de Postgres que al usuario
+ * no le dice nada ("violates not-null constraint"). Como el form de
+ * legajo manda el objeto entero —con los campos que el usuario todavía
+ * no completó en `undefined`— el valor se reemplaza por el default.
+ */
+const DEFAULTS_NO_NULOS: Record<string, unknown> = {
+  cuil: '',
+  estado_civil: 'soltero',
+  nivel_estudios: 'secundario',
+  domicilio: '',
+  telefono: '',
+  email: '',
+  contacto_emergencia: {},
+  grupo_familiar: [],
+  modalidad_contratacion: 'indeterminado',
+  modalidad_pago: 'mensual',
+  banco: '',
+  cbu: '',
+  obra_social: '',
+  art: '',
+  sin_usuario: false,
 };
 
 export const actualizarEmpleado = async (
@@ -635,14 +667,28 @@ export const actualizarEmpleado = async (
     obraSocial: 'obra_social',
     art: 'art',
     convenio: 'convenio',
+    sinUsuario: 'sin_usuario',
     modoFichaje: 'modo_fichaje',
     geocerca: 'geocerca',
   };
   Object.entries(datos).forEach(([clave, valor]) => {
     const col = mapa[clave];
-    if (col)
-      cambios[col] =
-        valor === '' && col.startsWith('fecha') ? null : (valor ?? null);
+    if (!col) return;
+    // Columnas `not null` con default: si el form manda el campo vacío o
+    // sin definir, hay que caer al default y no a null. El caso que lo
+    // destapó fue el legajo: editar cualquier dato sin tocar el grupo
+    // familiar mandaba `grupo_familiar: null` y Postgres rechazaba el
+    // update entero con "violates not-null constraint", así que no se
+    // podía guardar nada hasta cargar un familiar.
+    if (valor === undefined || valor === null) {
+      const porDefecto = DEFAULTS_NO_NULOS[col];
+      if (porDefecto !== undefined) {
+        cambios[col] = porDefecto;
+        return;
+      }
+    }
+    cambios[col] =
+      valor === '' && col.startsWith('fecha') ? null : (valor ?? null);
   });
   const { data, error } = await sb()
     .from('empleados')
@@ -1216,8 +1262,13 @@ export const getSaldoVacaciones = async (
 ): Promise<SaldoVacaciones | null> => {
   const empleado = await getEmpleado(empleadoId);
   if (!empleado) return null;
-  const ausencias = await getAusenciasDeEmpleado(empleadoId);
+  const [ausencias, arrastre] = await Promise.all([
+    getAusenciasDeEmpleado(empleadoId),
+    getVacacionesPendientes(empleadoId, anio),
+  ]);
   const corresponden = diasVacacionesPorAntiguedad(empleado.fechaIngreso, anio);
+  // Días que quedaron del año anterior y RRHH decidió acumular.
+  const ajuste = arrastre?.dias ?? 0;
   const deEsteAnio = ausencias.filter(
     (a) => a.tipo === 'vacaciones' && a.fechaDesde.startsWith(String(anio))
   );
@@ -1231,11 +1282,82 @@ export const getSaldoVacaciones = async (
     empleadoId,
     anio,
     diasCorresponden: corresponden,
-    diasAjuste: 0,
+    diasAjuste: ajuste,
     diasUtilizados: utilizados,
     diasPendientesAprobacion: pendientes,
-    diasDisponibles: corresponden - utilizados - pendientes,
+    diasDisponibles: corresponden + ajuste - utilizados - pendientes,
   };
+};
+
+// ---------- Vacaciones pendientes de años anteriores ----------
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+const aVacacionesPendientes = (f: any): VacacionesPendientes => ({
+  id: f.id,
+  empleadoId: f.empleado_id,
+  anio: Number(f.anio),
+  dias: Number(f.dias),
+  motivo: f.motivo ?? undefined,
+  creadoEn: String(f.creado_en).slice(0, 10),
+});
+
+/** Días arrastrados que le cargaron a alguien para un año. */
+export const getVacacionesPendientes = async (
+  empleadoId: string,
+  anio: number
+): Promise<VacacionesPendientes | null> => {
+  const { data, error } = await sb()
+    .from('vacaciones_pendientes')
+    .select('*')
+    .eq('empleado_id', empleadoId)
+    .eq('anio', anio)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? aVacacionesPendientes(data) : null;
+};
+
+/**
+ * Carga o corrige los días arrastrados. Con `dias = 0` se borra la
+ * fila: dejarla en cero solo ensucia el historial con un ajuste que no
+ * ajusta nada.
+ */
+export const guardarVacacionesPendientes = async (
+  empleadoId: string,
+  anio: number,
+  dias: number,
+  motivo?: string
+): Promise<VacacionesPendientes | null> => {
+  if (dias <= 0) {
+    const { error } = await sb()
+      .from('vacaciones_pendientes')
+      .delete()
+      .eq('empleado_id', empleadoId)
+      .eq('anio', anio);
+    if (error) throw new Error(error.message);
+    await registrarAuditoria('editar', 'empleado', empleadoId, {
+      vacacionesPendientes: { anio, dias: 0 },
+    });
+    return null;
+  }
+  const { data, error } = await sb()
+    .from('vacaciones_pendientes')
+    .upsert(
+      {
+        empresa_id: empresaId(),
+        empleado_id: empleadoId,
+        anio,
+        dias,
+        motivo: motivo?.trim() || null,
+      },
+      { onConflict: 'empleado_id,anio' }
+    )
+    .select()
+    .single();
+  const guardado = aVacacionesPendientes(oFalla(data, error));
+  await registrarAuditoria('editar', 'empleado', empleadoId, {
+    vacacionesPendientes: { anio, dias },
+  });
+  return guardado;
 };
 
 // ---------- Fichajes ----------
@@ -1254,6 +1376,32 @@ export const getFichajesDeHoy = async (
     .select('*')
     .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
     .gte('ts', inicioDeHoy())
+    .order('ts');
+  return oFalla(data, error).map(aFichaje);
+};
+
+/**
+ * Fichajes de la empresa entre dos fechas (inclusive), para el
+ * historial. Hasta ahora la pantalla de Fichaje solo sabía mirar "hoy":
+ * no había forma de revisar una semana pasada, que es justo lo que hace
+ * falta al liquidar.
+ *
+ * `hasta` se convierte al final del día para que el último día del
+ * rango entre entero; con un `lte` a medianoche se perdían todas las
+ * marcas de esa jornada.
+ */
+export const getFichajesEntre = async (
+  desde: string,
+  hasta: string
+): Promise<Fichaje[]> => {
+  const inicio = new Date(`${desde}T00:00:00`);
+  const fin = new Date(`${hasta}T23:59:59.999`);
+  const { data, error } = await sb()
+    .from('fichajes')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .gte('ts', inicio.toISOString())
+    .lte('ts', fin.toISOString())
     .order('ts');
   return oFalla(data, error).map(aFichaje);
 };
@@ -1942,7 +2090,15 @@ export const getRemuneracionesTodas = async (): Promise<Remuneracion[]> => {
 export const cargarRemuneracion = async (
   datos: NuevaRemuneracion
 ): Promise<Remuneracion> => {
-  const { aportes, neto } = calcularLiquidacion(datos);
+  // El neto se recalcula acá y no se confía en el que viene del form,
+  // así que el régimen de la empresa tiene que entrar en la cuenta: si
+  // no, en una empresa simplificada la pantalla mostraba "a pagar $100"
+  // y se guardaba $83 con aportes que nadie retiene.
+  const empresa = await getEmpresa();
+  const { aportes, neto } = calcularLiquidacion({
+    ...datos,
+    regimen: empresa.regimen,
+  });
   const tipo = datos.tipo ?? 'mensual';
   const { data, error } = await sb()
     .from('remuneraciones')
@@ -2562,6 +2718,7 @@ export const getFacturasMonotributo = async (
       empleadoId: f.empleado_id,
       periodo: f.periodo,
       monto: Number(f.monto),
+      aCargoEmpresa: Boolean(f.a_cargo_empresa),
       archivoUrl: f.archivo_url ?? undefined,
       creadoEn: String(f.creado_en).slice(0, 10),
     })
@@ -2572,7 +2729,8 @@ export const cargarFacturaMonotributo = async (
   empleadoId: string,
   periodo: string,
   monto: number,
-  archivo?: File
+  archivo?: File,
+  aCargoEmpresa = false
 ): Promise<FacturaMonotributo> => {
   // Corregir sólo el monto no debería borrar la factura ya adjunta: el
   // upsert mandaba `archivo_url: null` y dejaba el PDF huérfano en el
@@ -2600,6 +2758,7 @@ export const cargarFacturaMonotributo = async (
         empleado_id: empleadoId,
         periodo,
         monto,
+        a_cargo_empresa: aCargoEmpresa,
         archivo_url: archivoUrl,
       },
       { onConflict: 'empleado_id,periodo' }
@@ -2612,6 +2771,7 @@ export const cargarFacturaMonotributo = async (
     empleadoId: f.empleado_id,
     periodo: f.periodo,
     monto: Number(f.monto),
+    aCargoEmpresa: Boolean(f.a_cargo_empresa),
     archivoUrl: f.archivo_url ?? undefined,
     creadoEn: String(f.creado_en).slice(0, 10),
   };

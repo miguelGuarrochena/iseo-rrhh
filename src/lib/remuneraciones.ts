@@ -2,7 +2,7 @@
  * Cálculos del módulo de remuneraciones: evolución salarial, aguinaldo
  * (SAC) y masa salarial. Las cargas patronales son una estimación.
  */
-import { Remuneracion } from '@/types/rrhh';
+import { RegimenLaboral, Remuneracion } from '@/types/rrhh';
 
 /** Contribuciones patronales estimadas sobre el bruto (aprox.). */
 export const CARGAS_PATRONALES = 0.27;
@@ -23,19 +23,65 @@ export const calcularAportes = (remunerativo: number): number =>
   Math.round(Math.max(0, remunerativo) * APORTES_TOTAL);
 
 /**
+ * ¿A esta empresa se le descuentan aportes de ley?
+ *
+ * En el régimen simplificado (monotributo / pago directo) no hay
+ * jubilación, PAMI ni obra social que retener: descontarlos igual daba
+ * un "neto a cobrar" que no era la plata que la persona recibía, que es
+ * exactamente lo que hacía inservible la pantalla para esos clientes.
+ */
+export const tieneAportesDeLey = (regimen?: RegimenLaboral): boolean =>
+  (regimen ?? 'relacion_dependencia') === 'relacion_dependencia';
+
+/**
  * Calcula aportes y neto. Neto = remunerativo + no remunerativo − aportes −
  * otros descuentos.
+ *
+ * En régimen simplificado los aportes son 0 y el neto es bruto + no
+ * remunerativo − descuentos: lo que efectivamente se paga.
  */
 export const calcularLiquidacion = (d: {
   montoBruto: number;
   noRemunerativo?: number;
   otrosDescuentos?: number;
+  regimen?: RegimenLaboral;
 }): { aportes: number; neto: number } => {
-  const aportes = calcularAportes(d.montoBruto);
+  const aportes = tieneAportesDeLey(d.regimen)
+    ? calcularAportes(d.montoBruto)
+    : 0;
   const neto = Math.round(
     d.montoBruto + (d.noRemunerativo ?? 0) - aportes - (d.otrosDescuentos ?? 0)
   );
   return { aportes, neto };
+};
+
+/**
+ * Costo del período para la empresa.
+ *
+ * En relación de dependencia es el bruto más las cargas patronales
+ * estimadas. En el régimen simplificado no hay cargas: el costo es lo
+ * que se paga, más la cuota de monotributo si la empresa se la hace
+ * cargo. Es el ejemplo textual del cliente: sueldo $100 + monotributo
+ * $23 = $123 de costo, no $100.
+ */
+export const costoLaboral = (d: {
+  montoBruto: number;
+  noRemunerativo?: number;
+  regimen?: RegimenLaboral;
+  cargasPatronalesPct?: number;
+  /** Cuota de monotributo del período que paga la empresa. */
+  monotributoAcargoEmpresa?: number;
+}): { cargas: number; monotributo: number; total: number } => {
+  const base = d.montoBruto + (d.noRemunerativo ?? 0);
+  const cargas = tieneAportesDeLey(d.regimen)
+    ? Math.round(d.montoBruto * (d.cargasPatronalesPct ?? CARGAS_PATRONALES))
+    : 0;
+  const monotributo = Math.round(d.monotributoAcargoEmpresa ?? 0);
+  return {
+    cargas,
+    monotributo,
+    total: Math.round(base) + cargas + monotributo,
+  };
 };
 
 /** Jornada legal: 48 hs semanales ≈ 192 mensuales (LCT art. 1 ley 11.544). */

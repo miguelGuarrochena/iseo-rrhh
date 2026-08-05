@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useState } from 'react';
 import {
   Icon,
   IconAlertTriangle,
+  IconBeach,
   IconCake,
   IconCalendarEvent,
   IconPlus,
@@ -25,8 +26,9 @@ import {
   crearEvento,
   getAlertas,
   getEventosProximos,
+  getFeriados,
 } from '@/lib/services/rrhh';
-import { Alerta, EventoAgenda, TipoEvento } from '@/types/rrhh';
+import { Alerta, EventoAgenda, Feriado, TipoEvento } from '@/types/rrhh';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { BloqueError } from '@/components/app/EstadoCarga';
@@ -35,10 +37,18 @@ import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 8;
 
-/** Vista unificada: eventos cargados a mano + vencimientos que ya calcula el sistema (contrato, documentos). */
+/**
+ * Tipos que se muestran en la agenda. Son los de `EventoAgenda` más
+ * "feriado", que no es un evento cargado a mano sino una fila de la
+ * tabla `feriados`: se carga desde Configuración y hasta ahora no se
+ * veía en ningún calendario, que era justo para lo que se cargaba.
+ */
+type TipoItem = TipoEvento | 'feriado';
+
+/** Vista unificada: eventos cargados a mano + vencimientos que ya calcula el sistema (contrato, documentos) + feriados. */
 interface ItemAgenda {
   id: string;
-  tipo: TipoEvento;
+  tipo: TipoItem;
   titulo: string;
   fecha: string;
   descripcion?: string;
@@ -62,18 +72,45 @@ const deAlerta = (a: Alerta): ItemAgenda => ({
   href: a.empleadoId ? `/colaboradores/${a.empleadoId}` : '/colaboradores',
 });
 
-const tipoEventoLabels: Record<TipoEvento, string> = {
+const tipoFeriadoTexto: Record<Feriado['tipo'], string> = {
+  nacional: 'Feriado nacional',
+  puente: 'Puente turístico',
+  empresa: 'Día no laborable de la empresa',
+};
+
+const deFeriado = (f: Feriado): ItemAgenda => ({
+  id: `feriado-${f.id}`,
+  tipo: 'feriado',
+  titulo: f.nombre,
+  fecha: f.fecha,
+  descripcion: f.noLaborable
+    ? tipoFeriadoTexto[f.tipo]
+    : `${tipoFeriadoTexto[f.tipo]} · se trabaja con recargo`,
+  href: '/configuracion',
+});
+
+const tipoEventoLabels: Record<TipoItem, string> = {
   evento: 'Evento',
   capacitacion: 'Capacitación',
   cumpleanios: 'Cumpleaños',
   vencimiento: 'Vencimiento',
+  feriado: 'Feriado',
 };
 
-const tipoEventoIconos: Record<TipoEvento, Icon> = {
+const tipoEventoIconos: Record<TipoItem, Icon> = {
   evento: IconCalendarEvent,
   capacitacion: IconSchool,
   cumpleanios: IconCake,
   vencimiento: IconAlertTriangle,
+  feriado: IconBeach,
+};
+
+/** Los del combo "Nuevo evento": feriado no se carga desde acá. */
+const tipoEventoOpciones: Record<TipoEvento, string> = {
+  evento: 'Evento',
+  capacitacion: 'Capacitación',
+  cumpleanios: 'Cumpleaños',
+  vencimiento: 'Vencimiento',
 };
 
 const AgendaPage = () => {
@@ -81,7 +118,7 @@ const AgendaPage = () => {
   const puedeCrear =
     rolEfectivo === 'admin_rrhh' || rolEfectivo === 'supervisor';
 
-  const [filtro, setFiltro] = useState<TipoEvento | ''>('');
+  const [filtro, setFiltro] = useState<TipoItem | ''>('');
   const [diaSeleccionado, setDiaSeleccionado] = useState<string | null>(null);
   const [modalAbierto, { open, close }] = useDisclosure(false);
   const [titulo, setTitulo] = useState('');
@@ -110,10 +147,20 @@ const AgendaPage = () => {
   });
   const alertas = cargaAlertas.datos;
 
+  // Los feriados los ve todo el mundo: al colaborador le sirve igual para
+  // saber qué día no se trabaja. Se piden sin año para traer también los
+  // del año que viene ya cargados.
+  const cargaFeriados = useCarga(() => getFeriados(), [], {
+    contexto: 'agenda/feriados',
+    inicial: [] as Feriado[],
+  });
+  const feriados = cargaFeriados.datos;
+
   const cargar = useCallback(() => {
     cargaEventos.recargar();
     cargaAlertas.recargar();
-  }, [cargaEventos, cargaAlertas]);
+    cargaFeriados.recargar();
+  }, [cargaEventos, cargaAlertas, cargaFeriados]);
 
   // Los vencimientos de contrato/documentos ya calculados por el sistema se
   // suman a los eventos cargados a mano, para no vivir en dos pantallas
@@ -121,14 +168,25 @@ const AgendaPage = () => {
   const items: ItemAgenda[] = [
     ...eventos.map(deEvento),
     ...alertas.filter((a) => a.estado !== 'resuelta').map(deAlerta),
+    ...feriados.map(deFeriado),
   ].sort((a, b) => a.fecha.localeCompare(b.fecha));
 
+  const hoy = hoyISO();
   const visibles = items.filter((e) => {
     if (filtro && e.tipo !== filtro) return false;
-    if (diaSeleccionado && e.fecha !== diaSeleccionado) return false;
+    if (diaSeleccionado) return e.fecha === diaSeleccionado;
+    // Los feriados se cargan de todo el año (y del que viene): en la
+    // lista "Próximos" no tiene sentido arrastrar los que ya pasaron,
+    // aunque sí queden marcados en el calendario.
+    if (e.tipo === 'feriado' && e.fecha < hoy) return false;
     return true;
   });
-  const fechasConEventos = new Set(items.map((e) => e.fecha));
+  const fechasConEventos = new Set(
+    items.filter((e) => e.tipo !== 'feriado').map((e) => e.fecha)
+  );
+  const fechasFeriado = new Set(
+    items.filter((e) => e.tipo === 'feriado').map((e) => e.fecha)
+  );
 
   const {
     pagina,
@@ -183,7 +241,7 @@ const AgendaPage = () => {
 
       <Selector
         valor={filtro}
-        onCambiar={(v) => setFiltro(v as TipoEvento | '')}
+        onCambiar={(v) => setFiltro(v as TipoItem | '')}
         className="self-start"
         opciones={[
           { valor: '', etiqueta: 'Todo' },
@@ -202,6 +260,7 @@ const AgendaPage = () => {
         <Panel className="h-fit">
           <MiniCalendario
             fechasConEventos={fechasConEventos}
+            fechasFeriado={fechasFeriado}
             seleccionada={diaSeleccionado}
             onSeleccionar={setDiaSeleccionado}
           />
@@ -269,7 +328,7 @@ const AgendaPage = () => {
               etiqueta="Tipo"
               value={tipo}
               onChange={(v) => setTipo(v as TipoEvento)}
-              opciones={aOpciones(tipoEventoLabels)}
+              opciones={aOpciones(tipoEventoOpciones)}
             />
             <CampoFecha
               etiqueta="Fecha *"

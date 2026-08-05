@@ -28,6 +28,7 @@ import { EnrolamientoFacial } from '@/components/app/facial/EnrolamientoFacial';
 import { NotasInternas } from '@/components/app/colaboradores/NotasInternas';
 import { RemuneracionesEmpleado } from '@/components/app/remuneraciones/RemuneracionesEmpleado';
 import { MonotributoPanel } from '@/components/app/remuneraciones/MonotributoPanel';
+import { VacacionesPendientesPanel } from '@/components/app/colaboradores/VacacionesPendientes';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
@@ -54,6 +55,7 @@ import { tipoAusenciaIconos, tipoAusenciaLabels } from '@/lib/etiquetas';
 import {
   getAusenciasDeEmpleado,
   getEmpleado,
+  getEmpresa,
   getMiMes,
   getRemuneraciones,
   getSaldoVacaciones,
@@ -109,6 +111,12 @@ const FichaColaboradorPage = () => {
     contexto: 'ficha/saldo',
   });
   const saldo = cSaldo.datos ?? null;
+
+  // El régimen decide si esta ficha muestra el costo de monotributo.
+  const cEmpresa = useCarga(() => getEmpresa(), [], {
+    contexto: 'ficha/empresa',
+  });
+  const regimen = cEmpresa.datos?.regimen ?? 'relacion_dependencia';
 
   const cControl = useCarga(() => getMiMes(id), [id], {
     activo: Boolean(id),
@@ -412,7 +420,13 @@ const FichaColaboradorPage = () => {
         <StatCard
           etiqueta="Vacaciones"
           valor={saldo ? `${saldo.diasDisponibles}` : '…'}
-          detalle={`disponibles de ${saldo?.diasCorresponden ?? '—'}`}
+          // Si tiene días arrastrados hay que decirlo, si no el total no
+          // cierra contra la tabla de antigüedad y parece un error.
+          detalle={
+            saldo && saldo.diasAjuste > 0
+              ? `de ${saldo.diasCorresponden} + ${saldo.diasAjuste} acumulados`
+              : `disponibles de ${saldo?.diasCorresponden ?? '—'}`
+          }
           href={`/ausencias?empleado=${empleado.id}`}
           icono={IconBeach}
         />
@@ -583,7 +597,8 @@ const FichaColaboradorPage = () => {
               convenioEmpleado={empleado.convenio}
             />
 
-            {empleado.modalidadContratacion === 'monotributista' && (
+            {(empleado.modalidadContratacion === 'monotributista' ||
+              regimen === 'simplificado') && (
               <Panel>
                 <h2 className="text-base font-bold text-ink">
                   Costo monotributo
@@ -594,6 +609,18 @@ const FichaColaboradorPage = () => {
                 />
               </Panel>
             )}
+
+            {/* Al cerrar el año, los días que no se tomó se cargan acá y
+                se suman al saldo del período siguiente. */}
+            <Panel>
+              <h2 className="text-base font-bold text-ink">Vacaciones</h2>
+              <VacacionesPendientesPanel
+                empleadoId={empleado.id}
+                anio={ANIO_ACTUAL}
+                puedeEditar={esAdmin}
+                onGuardado={cSaldo.recargar}
+              />
+            </Panel>
           </>
         )}
 

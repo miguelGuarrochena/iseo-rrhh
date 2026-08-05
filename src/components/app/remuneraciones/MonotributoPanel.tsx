@@ -34,6 +34,7 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
   const [periodo, setPeriodo] = useState(hoyISO().slice(0, 7));
   const [monto, setMonto] = useState('');
   const [archivo, setArchivo] = useState<File | null>(null);
+  const [aCargoEmpresa, setACargoEmpresa] = useState(false);
   const [agregando, setAgregando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
@@ -61,11 +62,13 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
         empleadoId,
         periodo,
         m,
-        archivo ?? undefined
+        archivo ?? undefined,
+        aCargoEmpresa
       );
       avisoExito('Factura de monotributo cargada');
       setMonto('');
       setArchivo(null);
+      setACargoEmpresa(false);
       setAgregando(false);
       cargar();
     } catch (err) {
@@ -126,9 +129,16 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
               key={f.id}
               className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm"
             >
-              <span>
-                {formatearPeriodo(f.periodo)} ·{' '}
-                <strong>{formatearPesos(f.monto)}</strong>
+              <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+                <span>
+                  {formatearPeriodo(f.periodo)} ·{' '}
+                  <strong>{formatearPesos(f.monto)}</strong>
+                </span>
+                {f.aCargoEmpresa && (
+                  <span className="rounded-full bg-brand-50 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-brand-700">
+                    La paga la empresa
+                  </span>
+                )}
               </span>
               <span className="flex shrink-0 items-center gap-2">
                 {/* La factura se podía adjuntar pero no había forma de
@@ -184,6 +194,25 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
             accept=".pdf,image/*"
             onArchivo={setArchivo}
           />
+          {/* El ejemplo del pedido: "Pablo sueldo $100, la empresa paga
+              monotributo $23". Si la paga la empresa, es costo laboral
+              del mes; si la paga el colaborador, es solo un registro. */}
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-lg bg-surface px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={aCargoEmpresa}
+              onChange={(e) => setACargoEmpresa(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand-600"
+            />
+            <span>
+              <span className="text-xs font-semibold text-ink">
+                La paga la empresa
+              </span>
+              <span className="mt-0.5 block text-[0.7rem] leading-relaxed text-ink-soft">
+                Suma al costo laboral del período, además del sueldo.
+              </span>
+            </span>
+          </label>
           <div className="flex gap-2">
             <Boton
               tamano="sm"

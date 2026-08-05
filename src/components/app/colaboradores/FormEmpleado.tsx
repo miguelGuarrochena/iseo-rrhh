@@ -122,6 +122,7 @@ const desdeEmpleado = (e: Empleado): DatosEmpleado => ({
   obraSocial: e.obraSocial || undefined,
   art: e.art || undefined,
   convenio: e.convenio || undefined,
+  sinUsuario: e.sinUsuario ?? false,
   modoFichaje: e.modoFichaje ?? 'celular',
   geocerca: e.geocerca,
   fotoUrl: e.fotoUrl,
@@ -166,6 +167,10 @@ export const FormEmpleado = ({
 
   const set = (campo: keyof DatosEmpleado) => (valor: string) =>
     setDatos((prev) => ({ ...prev, [campo]: valor || undefined }));
+
+  /** Para los campos booleanos: `false` es un valor, no un campo vacío. */
+  const setBool = (campo: keyof DatosEmpleado) => (valor: boolean) =>
+    setDatos((prev) => ({ ...prev, [campo]: valor }));
 
   const setContacto = (
     campo: keyof NonNullable<DatosEmpleado['contactoEmergencia']>,
@@ -631,6 +636,30 @@ export const FormEmpleado = ({
             opciones={aOpciones(modosFichaje)}
           />
         </div>
+
+        {/* Pedido para el régimen simplificado: que la gente fiche en la
+            tablet sin tener acceso a la app. Se ofrece siempre porque
+            también sirve en una empresa en blanco (personal sin mail, o
+            que no usa celular). */}
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-paper p-4">
+          <input
+            type="checkbox"
+            checked={datos.sinUsuario ?? false}
+            onChange={(e) => setBool('sinUsuario')(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand-600"
+          />
+          <span>
+            <span className="text-sm font-semibold text-ink">
+              No le vamos a dar cuenta en la app
+            </span>
+            <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
+              Ficha en la terminal y RRHH le carga ausencias y remuneración. No
+              se le manda invitación, no ve sus recibos ni recibe documentos
+              para firmar, y deja de aparecer en los avisos de &quot;sin
+              cuenta&quot;.
+            </span>
+          </span>
+        </label>
 
         {datos.modoFichaje === 'celular' && (
           <div className="mt-4 rounded-xl bg-paper p-4">

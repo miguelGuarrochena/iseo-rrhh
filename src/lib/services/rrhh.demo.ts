@@ -51,6 +51,7 @@ import {
   Remuneracion,
   ResumenControl,
   SaldoVacaciones,
+  VacacionesPendientes,
   Usuario,
   VacacionSector,
 } from '@/types/rrhh';
@@ -294,6 +295,8 @@ export interface NuevoEmpleado {
   obraSocial?: string;
   art?: string;
   convenio?: string;
+  /** No va a tener cuenta en la app (régimen simplificado). */
+  sinUsuario?: boolean;
   // Fichaje: dónde y cómo ficha
   modoFichaje?: Empleado['modoFichaje'];
   geocerca?: Empleado['geocerca'];
@@ -744,15 +747,60 @@ export const getSaldoVacaciones = async (
     .filter((a) => a.estado === 'pendiente')
     .reduce((acc, a) => acc + a.dias, 0);
 
+  const ajuste =
+    vacacionesPendientesMock.find(
+      (v) => v.empleadoId === empleadoId && v.anio === anio
+    )?.dias ?? 0;
+
   return simular({
     empleadoId,
     anio,
     diasCorresponden: corresponden,
-    diasAjuste: 0,
+    diasAjuste: ajuste,
     diasUtilizados: utilizados,
     diasPendientesAprobacion: pendientes,
-    diasDisponibles: corresponden - utilizados - pendientes,
+    diasDisponibles: corresponden + ajuste - utilizados - pendientes,
   });
+};
+
+// ---------- Vacaciones pendientes de años anteriores ----------
+
+const vacacionesPendientesMock: VacacionesPendientes[] = [];
+
+export const getVacacionesPendientes = async (
+  empleadoId: string,
+  anio: number
+): Promise<VacacionesPendientes | null> =>
+  simular(
+    vacacionesPendientesMock.find(
+      (v) => v.empleadoId === empleadoId && v.anio === anio
+    ) ?? null
+  );
+
+export const guardarVacacionesPendientes = async (
+  empleadoId: string,
+  anio: number,
+  dias: number,
+  motivo?: string
+): Promise<VacacionesPendientes | null> => {
+  const i = vacacionesPendientesMock.findIndex(
+    (v) => v.empleadoId === empleadoId && v.anio === anio
+  );
+  if (dias <= 0) {
+    if (i >= 0) vacacionesPendientesMock.splice(i, 1);
+    return simular(null);
+  }
+  const registro: VacacionesPendientes = {
+    id: i >= 0 ? vacacionesPendientesMock[i].id : `vp-${Date.now()}`,
+    empleadoId,
+    anio,
+    dias,
+    motivo: motivo?.trim() || undefined,
+    creadoEn: hoyISO(),
+  };
+  if (i >= 0) vacacionesPendientesMock[i] = registro;
+  else vacacionesPendientesMock.push(registro);
+  return simular(registro);
 };
 
 // ---------- Fichajes ----------
@@ -762,6 +810,19 @@ export const getFichajesDeHoy = async (
 ): Promise<Fichaje[]> =>
   simular(
     fichajesMock.filter((f) => esDeEmpresaDemo(f.empleadoId, empresaIdOverride))
+  );
+
+export const getFichajesEntre = async (
+  desde: string,
+  hasta: string
+): Promise<Fichaje[]> =>
+  simular(
+    fichajesMock
+      .filter((f) => {
+        const dia = f.timestamp.slice(0, 10);
+        return dia >= desde && dia <= hasta;
+      })
+      .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
   );
 
 export const getFichajesDeEmpleadoHoy = async (
@@ -1570,13 +1631,15 @@ export const cargarFacturaMonotributo = async (
   periodo: string,
   monto: number,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _archivo?: File
+  _archivo?: File,
+  aCargoEmpresa = false
 ): Promise<FacturaMonotributo> => {
   const existente = facturasMonoMock.find(
     (f) => f.empleadoId === empleadoId && f.periodo === periodo
   );
   if (existente) {
     existente.monto = monto;
+    existente.aCargoEmpresa = aCargoEmpresa;
     return simular(existente);
   }
   const nueva: FacturaMonotributo = {
@@ -1584,6 +1647,7 @@ export const cargarFacturaMonotributo = async (
     empleadoId,
     periodo,
     monto,
+    aCargoEmpresa,
     creadoEn: hoyISO(),
   };
   facturasMonoMock.push(nueva);

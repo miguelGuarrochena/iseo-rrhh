@@ -235,12 +235,30 @@ const aFalta = (r: Regla, e: Empleado): Falta => ({
  * está por hacer, porque avisarle a alguien que sube recibos que a esa
  * persona le falta la geocerca es ruido.
  */
+/**
+ * Faltas que dejan de serlo cuando el colaborador está marcado para no
+ * tener cuenta: no le falta el usuario, es que se decidió que no va a
+ * tener. Avisarlo igual convierte la lista en ruido y esconde las
+ * faltas reales.
+ */
+const AMBITOS_DE_CUENTA: Ambito[] = [
+  'cuenta',
+  'recibos',
+  'firma',
+  'comunicaciones',
+];
+
 export const faltasDeEmpleado = (
   empleado: Empleado,
   contexto: ContextoEmpleado = {},
   ambito?: Ambito
 ): Falta[] =>
   REGLAS.filter((r) => !ambito || r.ambitos.includes(ambito))
+    .filter(
+      (r) =>
+        !empleado.sinUsuario ||
+        !r.ambitos.every((a) => AMBITOS_DE_CUENTA.includes(a))
+    )
     .filter((r) => r.falta(empleado, contexto))
     .map((r) => aFalta(r, empleado));
 

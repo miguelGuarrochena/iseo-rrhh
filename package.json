@@ -5,9 +5,9 @@
   "private": true,
   "packageManager": "npm@10.9.2",
   "scripts": {
-    "postinstall": "node scripts/copiar-worker-pdf.mjs",
+    "postinstall": "node scripts/copiar-worker-pdf.mjs && node scripts/copiar-modelos-faciales.mjs",
     "dev": "next dev",
-    "build": "node scripts/copiar-worker-pdf.mjs --estricto && next build",
+    "build": "node scripts/copiar-worker-pdf.mjs --estricto && node scripts/copiar-modelos-faciales.mjs --estricto && next build",
     "start": "next start",
     "lint": "next lint",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",

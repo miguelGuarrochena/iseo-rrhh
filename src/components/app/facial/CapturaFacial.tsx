@@ -106,7 +106,7 @@ export const CapturaFacial = ({
           deteccion.motivo === 'varias_caras'
             ? `Detectamos ${deteccion.caras} caras. Que quede una sola persona frente a la cámara.`
             : deteccion.motivo === 'sin_modelos'
-              ? 'No pudimos cargar el modelo de reconocimiento. Revisá la conexión a internet del dispositivo.'
+              ? 'No pudimos cargar el modelo de reconocimiento facial. Recargá la página; si sigue igual, avisale a soporte.'
               : 'No detectamos ninguna cara. Acercate, mirá de frente, sacate los lentes de sol y buscá mejor luz (que no venga de atrás tuyo).'
         );
         return;
@@ -120,7 +120,7 @@ export const CapturaFacial = ({
       onCaptura(Array.from(descriptor), foto);
     } catch {
       setMensaje(
-        'No pudimos iniciar el reconocimiento facial. Revisá tu conexión e intentá de nuevo.'
+        'No pudimos procesar la imagen. Intentá de nuevo; si se repite, recargá la página.'
       );
     } finally {
       setAnalizando(false);

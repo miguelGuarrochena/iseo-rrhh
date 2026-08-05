@@ -44,6 +44,18 @@ const nextConfig = {
           { key: 'Content-Security-Policy', value: csp },
         ],
       },
+      {
+        // Los pesos del reconocimiento facial son ~6,8 MB y no cambian
+        // salvo que se actualice face-api. Sin cache larga, la tablet de
+        // planta se los vuelve a bajar en cada arranque.
+        source: '/models/:archivo*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
     ];
   },
   webpack: (config) => {

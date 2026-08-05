@@ -3,14 +3,19 @@
 import { FormEvent, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo } from '@/components/app/ui/Campo';
+import { Campo, CampoSelect } from '@/components/app/ui/Campo';
+import { aOpciones } from '@/components/app/ui/Selector';
 import {
   juntarErrores,
   validarCuit,
   validarEmail,
   validarRequerido,
 } from '@/lib/validaciones';
-import { NuevaEmpresa } from '@/types/rrhh';
+import {
+  NuevaEmpresa,
+  RegimenLaboral,
+  REGIMEN_LABORAL_LABELS,
+} from '@/types/rrhh';
 
 interface NuevaEmpresaModalProps {
   abierto: boolean;
@@ -31,6 +36,7 @@ export const NuevaEmpresaModal = ({
     contactoNombre: '',
     contactoEmail: '',
     contactoTelefono: '',
+    regimen: 'relacion_dependencia',
     plan: '',
     abonoMensual: 0,
   };
@@ -103,6 +109,35 @@ export const NuevaEmpresaModal = ({
             placeholder="Calle, ciudad, provincia"
           />
         </div>
+        {/* El régimen define cómo se liquida y qué ve la empresa en
+            Remuneraciones. Se elige al dar de alta porque cambiarlo con
+            períodos ya cargados obliga a recalcular netos hacia atrás,
+            aunque se puede corregir después desde la ficha. */}
+        <div className="flex flex-col gap-2 rounded-2xl border border-line bg-paper/50 p-4">
+          <CampoSelect
+            etiqueta="Régimen laboral"
+            value={datos.regimen ?? 'relacion_dependencia'}
+            onChange={(v) => set('regimen')(v as RegimenLaboral)}
+            opciones={aOpciones(REGIMEN_LABORAL_LABELS)}
+          />
+          <p className="text-xs leading-relaxed text-ink-soft">
+            {datos.regimen === 'simplificado' ? (
+              <>
+                Sin descuentos de ley: el neto es lo que se paga. Se puede
+                cargar el monotributo a cargo de la empresa como costo del
+                período, y los colaboradores pueden quedar sin cuenta en la app
+                (fichan en la terminal y RRHH carga todo).
+              </>
+            ) : (
+              <>
+                Liquidación con aportes de ley (jubilación, PAMI, obra social),
+                recibos de sueldo y documentos para firmar. Cada colaborador
+                tiene su usuario.
+              </>
+            )}
+          </p>
+        </div>
+
         <div className="grid gap-3.5 sm:grid-cols-2">
           <Campo
             etiqueta="Plan"

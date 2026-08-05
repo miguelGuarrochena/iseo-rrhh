@@ -83,6 +83,26 @@ export interface ConfigEmpresa {
 
 export type EstadoEmpresa = 'activa' | 'suspendida';
 
+/**
+ * Cómo liquida la empresa. Define qué se le muestra en Remuneraciones y
+ * si los colaboradores tienen cuenta en la app.
+ *
+ * - `relacion_dependencia`: lo de siempre. Aportes de ley, recibo de
+ *   sueldo, documentos para firmar, cada colaborador con su usuario.
+ * - `simplificado`: monotributo o pago directo. Sin descuentos de ley
+ *   —el neto es lo que se paga— y con la cuota de monotributo como
+ *   costo aparte si la paga la empresa. Los colaboradores pueden no
+ *   tener cuenta: fichan en la terminal y RRHH carga todo.
+ *
+ * Todo lo demás (fichaje, ausencias, feriados, reportes) es igual.
+ */
+export type RegimenLaboral = 'relacion_dependencia' | 'simplificado';
+
+export const REGIMEN_LABORAL_LABELS: Record<RegimenLaboral, string> = {
+  relacion_dependencia: 'Relación de dependencia',
+  simplificado: 'Simplificado (monotributo / pago directo)',
+};
+
 export interface Empresa {
   id: string;
   /** Nombre comercial / cómo se muestra. */
@@ -98,6 +118,8 @@ export interface Empresa {
   /** Teléfono del responsable/contacto. */
   contactoTelefono?: string;
   config: ConfigEmpresa;
+  /** Cómo liquida. Ausente = relación de dependencia. */
+  regimen?: RegimenLaboral;
   /** Nombre del plan contratado (ej. "Básico", "Full"). */
   plan?: string;
   /** Abono mensual que la empresa le paga a ISEO (facturación). */
@@ -114,6 +136,7 @@ export interface NuevaEmpresa {
   contactoNombre: string;
   contactoEmail: string;
   contactoTelefono?: string;
+  regimen?: RegimenLaboral;
   plan?: string;
   abonoMensual?: number;
 }
@@ -129,6 +152,7 @@ export type DatosEmpresaCliente = Partial<
     | 'contactoNombre'
     | 'contactoEmail'
     | 'contactoTelefono'
+    | 'regimen'
     | 'plan'
     | 'abonoMensual'
   >
@@ -251,6 +275,13 @@ export interface Empleado {
   fechaBaja?: string;
   motivoBaja?: string;
   checklistAlta: ChecklistItem[];
+  /**
+   * No va a tener cuenta en la app: ficha en la terminal y RRHH le
+   * carga ausencias y remuneración. No recibe invitación ni documentos
+   * para firmar. Es la opción que pidieron para el régimen
+   * simplificado, donde el cliente prefiere no darle acceso.
+   */
+  sinUsuario?: boolean;
   // Fichaje
   /** Cómo ficha este empleado (default: 'celular'). */
   modoFichaje?: ModoFichaje;
@@ -347,6 +378,12 @@ export interface FacturaMonotributo {
   empleadoId: string;
   periodo: string;
   monto: number;
+  /**
+   * La cuota la paga la empresa, no el colaborador. Cambia el costo
+   * laboral del período: el caso del pedido es "Pablo sueldo $100, la
+   * empresa paga monotributo $23" → el costo del mes es 123, no 100.
+   */
+  aCargoEmpresa?: boolean;
   archivoUrl?: string;
   creadoEn: string;
 }
@@ -505,10 +542,30 @@ export interface SaldoVacaciones {
   anio: number;
   /** según antigüedad, LCT art. 150 */
   diasCorresponden: number;
+  /**
+   * Días arrastrados de períodos anteriores, cargados a mano por RRHH.
+   * Suman a los que corresponden por antigüedad.
+   */
   diasAjuste: number;
   diasUtilizados: number;
   diasPendientesAprobacion: number;
   diasDisponibles: number;
+}
+
+/**
+ * Días de vacaciones que quedaron sin usar y se suman al período
+ * siguiente. Se cargan a mano al cerrar el año: la LCT (art. 164) sólo
+ * permite arrastrar hasta un tercio del período anterior, y qué se
+ * acumula y qué caduca lo decide la empresa, no la app.
+ */
+export interface VacacionesPendientes {
+  id: string;
+  empleadoId: string;
+  /** Año al que se le suman los días. */
+  anio: number;
+  dias: number;
+  motivo?: string;
+  creadoEn: string;
 }
 
 // ---------- Fichaje ----------

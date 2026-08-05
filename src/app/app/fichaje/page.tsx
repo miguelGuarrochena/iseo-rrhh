@@ -40,6 +40,7 @@ import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
 import { FichajeManualModal } from '@/components/app/facial/FichajeManualModal';
 import { getTerminalLocal } from '@/lib/terminal';
 import { ActivarKioscoModal } from '@/components/app/fichaje/ActivarKioscoModal';
+import { HistorialFichadas } from '@/components/app/fichaje/HistorialFichadas';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
@@ -303,7 +304,7 @@ const FichajePage = () => {
               onClick={() => void exportarNovedades()}
             >
               <IconDownload size={18} />
-              Exportar novedades
+              Novedades de la semana
             </Boton>
           </div>
         )}
@@ -483,6 +484,11 @@ const FichajePage = () => {
               )}
             </ListaCard>
           </div>
+
+          {/* Ver hacia atrás con filtros y bajar el Excel. Va debajo del
+              hoy y no en otra ruta: es la misma pregunta ("quién fichó y
+              cuándo"), solo que con otro rango. */}
+          <HistorialFichadas />
         </>
       )}
     </div>
