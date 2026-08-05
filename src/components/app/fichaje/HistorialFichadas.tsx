@@ -170,19 +170,25 @@ export const HistorialFichadas = () => {
   );
 
   /**
-   * Días con la jornada abierta, para el filtro "solo sin cerrar". Sale
-   * de las jornadas, que ya vienen agrupadas: no hace falta mirar marca
-   * por marca.
+   * Filas del resumen con sus contadores.
+   *
+   * Acá el filtro "solo sin cerrar" SÍ se puede aplicar en memoria sin
+   * perder nada: `cJornadas` trae el rango completo (paginado hasta
+   * agotar), no una página. El problema estaba en Movimientos, que sí
+   * está paginado y por eso ahora filtra en SQL.
    */
-  const diasIncompletos = useMemo(
-    () =>
-      new Set(
-        cJornadas.datos
-          .filter((j) => j.incompleta)
-          .map((j) => `${j.empleadoId}|${j.fecha}`)
-      ),
-    [cJornadas.datos]
-  );
+  const filasResumen = useMemo(() => {
+    const conContadores = resumen.filas.map((fila) => ({
+      fila,
+      sinCerrar: fila.dias.filter(
+        (d) => d.incompleta && (d.entrada || d.salida)
+      ).length,
+      enCurso: fila.dias.filter((d) => d.enCurso).length,
+    }));
+    return filtros.soloIncompletos
+      ? conContadores.filter((f) => f.sinCerrar > 0)
+      : conContadores;
+  }, [resumen.filas, filtros.soloIncompletos]);
 
   // Al cambiar cualquier filtro se vuelve a la primera página: quedarse
   // en la página 7 de un resultado que ahora tiene 2 muestra un vacío
@@ -195,12 +201,13 @@ export const HistorialFichadas = () => {
   }
 
   /**
-   * Movimientos sueltos: los pide el servidor de a una página. Antes se
-   * bajaba el período completo para mostrar 15 filas.
+   * Movimientos sueltos: los pide el servidor de a una página, con
+   * TODOS los filtros aplicados en SQL —incluido "solo sin cerrar"—.
    *
-   * El filtro "solo sin cerrar" se aplica sobre la página, no sobre la
-   * consulta: es una condición sobre la jornada del día, que Postgres no
-   * conoce a nivel de marca. Se avisa en pantalla cuando está activo.
+   * Antes ese filtro se aplicaba acá, sobre la página ya traída, y por
+   * eso no funcionaba: una jornada abierta que caía en la página 4 no
+   * aparecía nunca, y el contador del paginador contaba filas que
+   * después se descartaban.
    */
   const cMovimientos = useCarga(
     () =>
@@ -208,8 +215,15 @@ export const HistorialFichadas = () => {
         pagina: pagina - 1,
         porPagina: POR_PAGINA,
         empleadoIds: idsFiltrados,
+        soloAbiertas: filtros.soloIncompletos,
       }),
-    [filtros.desde, filtros.hasta, pagina, idsFiltrados],
+    [
+      filtros.desde,
+      filtros.hasta,
+      filtros.soloIncompletos,
+      pagina,
+      idsFiltrados,
+    ],
     {
       activo: vista === 'movimientos',
       contexto: 'fichaje/historial-movimientos',
@@ -217,16 +231,7 @@ export const HistorialFichadas = () => {
     }
   );
 
-  const movimientos = useMemo(
-    () =>
-      cMovimientos.datos.fichajes.filter(
-        (f) =>
-          !filtros.soloIncompletos ||
-          diasIncompletos.has(`${f.empleadoId}|${diaLocal(f.timestamp)}`)
-      ),
-    [cMovimientos.datos.fichajes, filtros.soloIncompletos, diasIncompletos]
-  );
-
+  const movimientos = cMovimientos.datos.fichajes;
   const totalMovimientos = cMovimientos.datos.total;
   const totalPaginas = Math.max(1, Math.ceil(totalMovimientos / POR_PAGINA));
 
@@ -278,7 +283,7 @@ export const HistorialFichadas = () => {
             {formatearFecha(filtros.desde)} a {formatearFecha(filtros.hasta)} ·{' '}
             {vista === 'movimientos'
               ? `${totalMovimientos} ${totalMovimientos === 1 ? 'movimiento' : 'movimientos'}`
-              : `${resumen.filas.length} ${resumen.filas.length === 1 ? 'colaborador' : 'colaboradores'}`}
+              : `${filasResumen.length} ${filasResumen.length === 1 ? 'colaborador' : 'colaboradores'}`}
             {descripcionFiltros.length > 0 && ' · con filtros'}
           </p>
         </div>
@@ -351,17 +356,6 @@ export const HistorialFichadas = () => {
 
       {!cargando && vista === 'movimientos' && (
         <>
-          {/* El filtro de jornadas sin cerrar se aplica sobre la página
-              ya traída, así que puede dejar una página con menos filas
-              (o vacía) aunque haya resultados más adelante. Decirlo
-              evita que parezca que se perdieron datos. */}
-          {filtros.soloIncompletos && (
-            <p className="rounded-xl bg-paper px-4 py-2.5 text-xs text-ink-soft">
-              El filtro de jornadas sin cerrar se aplica sobre la página que
-              estás viendo. Para verlas todas juntas, usá la vista Resumen o
-              bajá el Excel.
-            </p>
-          )}
           {movimientos.length === 0 ? (
             <p className="py-6 text-sm text-ink-soft">
               No hay fichadas en ese rango con esos filtros.
@@ -441,9 +435,11 @@ export const HistorialFichadas = () => {
 
       {!cargando && vista === 'resumen' && (
         <>
-          {resumen.filas.length === 0 ? (
+          {filasResumen.length === 0 ? (
             <p className="py-6 text-sm text-ink-soft">
-              Ningún colaborador coincide con esos filtros.
+              {filtros.soloIncompletos
+                ? 'Nadie tiene jornadas sin cerrar en ese período. Está todo listo para liquidar.'
+                : 'Ningún colaborador coincide con esos filtros.'}
             </p>
           ) : (
             <div className="-mx-2 overflow-x-auto">
@@ -456,16 +452,14 @@ export const HistorialFichadas = () => {
                     <th className="px-2 py-2 text-right">
                       Jornadas sin cerrar
                     </th>
+                    <th className="px-2 py-2 text-right">En curso</th>
                     <th className="px-2 py-2 text-right">
                       Feriados trabajados
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {resumen.filas.map((f) => {
-                    const sinCerrar = f.dias.filter(
-                      (d) => d.incompleta && (d.entrada || d.salida)
-                    ).length;
+                  {filasResumen.map(({ fila: f, sinCerrar, enCurso }) => {
                     return (
                       <tr
                         key={f.empleado.id}
@@ -486,6 +480,18 @@ export const HistorialFichadas = () => {
                           }`}
                         >
                           {sinCerrar}
+                        </td>
+                        <td className="px-2 py-2.5 text-right">
+                          {enCurso > 0 ? (
+                            <span
+                              title="Entró y todavía no salió: está trabajando, no es un error para corregir."
+                              className="rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-bold text-emerald-800"
+                            >
+                              {enCurso} en curso
+                            </span>
+                          ) : (
+                            <span className="text-ink-soft">—</span>
+                          )}
                         </td>
                         <td className="px-2 py-2.5 text-right text-ink-soft">
                           {f.feriadosTrabajados}

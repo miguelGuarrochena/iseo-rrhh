@@ -275,14 +275,38 @@ el Excel además muestra 8:58 en vez de 9:00.
 
 ---
 
-## 7. Antes de probar
+## 7. Turno nocturno y jornadas sin cerrar
 
-Hay tres migraciones nuevas de base de datos que hay que correr:
+Dos cosas que se arreglaron juntas porque eran el mismo problema.
+
+**El filtro "solo jornadas sin cerrar" no funcionaba con paginación.** Se
+aplicaba sobre la página que estabas viendo, así que una jornada abierta
+que caía en la página 4 no aparecía nunca. Ahora filtra la base antes de
+paginar.
+
+**El turno nocturno daba números falsos.** Alguien que entraba a las
+22:00 y salía a las 06:00 quedaba partido en dos días: uno con entrada
+sin salida y otro con salida sin entrada, los dos con cero horas y los
+dos marcados como error. Ahora es una sola jornada de 8 horas, fechada el
+día que entró.
+
+**Y una distinción nueva: "en curso".** Quien entró esta mañana y todavía
+no salió aparece etiquetado aparte, no como error a corregir. Antes, a
+las 10 de la mañana el filtro te devolvía a toda la planta.
+
+El detalle técnico está en `docs/jornadas-y-filtro-sin-cerrar.md`.
+
+---
+
+## 8. Antes de probar
+
+Hay cuatro migraciones nuevas de base de datos que hay que correr:
 
 ```
 supabase/migrations/20260805000044_regimen_laboral_empresa.sql
 supabase/migrations/20260805000045_vacaciones_pendientes.sql
 supabase/migrations/20260805000046_jornadas_en_sql.sql
+supabase/migrations/20260805000047_jornadas_por_sesion.sql
 ```
 
 Sin eso, el régimen laboral y las vacaciones pendientes no van a andar.

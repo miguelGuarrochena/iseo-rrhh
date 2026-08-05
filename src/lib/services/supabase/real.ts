@@ -1490,8 +1490,15 @@ const rangoISO = (desde: string, hasta: string) => ({
   fin: new Date(`${hasta}T23:59:59.999`).toISOString(),
 });
 
+export interface OpcionesJornadas {
+  /** Sólo las que hay que corregir: sin cerrar y sin nadie adentro. */
+  soloAbiertas?: boolean;
+  empleadoIds?: string[];
+  empresaIdOverride?: string;
+}
+
 /**
- * Jornadas de la empresa en un rango: una fila por empleado y día.
+ * Jornadas de la empresa en un rango: una fila por sesión de trabajo.
  *
  * Antes esto se resolvía trayendo **todas** las marcas del período y
  * agrupándolas en el navegador. Dos problemas: el volumen (un mes de 50
@@ -1499,14 +1506,17 @@ const rangoISO = (desde: string, hasta: string) => ({
  * `select` se cortaba en 1000 filas sin avisar, así que el resumen y el
  * Excel salían incompletos en silencio.
  *
- * Ahora agrupa Postgres y esto pagina el resultado, que ya viene
- * colapsado.
+ * `soloAbiertas` se aplica como filtro sobre el resultado de la
+ * función, que PostgREST traduce a un WHERE **antes** del LIMIT. Eso es
+ * lo que arregla el bug del filtro: filtrando en el cliente, una
+ * jornada abierta que caía en otra página no aparecía nunca.
  */
 export const getJornadas = async (
   desde: string,
   hasta: string,
-  empresaIdOverride?: string
+  opciones: OpcionesJornadas = {}
 ): Promise<Jornada[]> => {
+  if (opciones.empleadoIds && opciones.empleadoIds.length === 0) return [];
   const filas = await traerTodo<{
     empleado_id: string;
     fecha: string;
@@ -1514,24 +1524,29 @@ export const getJornadas = async (
     salida: string | null;
     marcas: number;
     fuera_de_zona: boolean | null;
-  }>(
-    (d, h) =>
-      sb()
-        .rpc('jornadas_de_empresa', {
-          p_empresa_id: empresaIdEfectiva(empresaIdOverride),
-          p_desde: desde,
-          p_hasta: hasta,
-        })
-        .range(d, h),
-    'jornadas'
-  );
+    cerrada: boolean;
+    en_curso: boolean;
+  }>((d, h) => {
+    let q = sb().rpc('jornadas_de_empresa', {
+      p_empresa_id: empresaIdEfectiva(opciones.empresaIdOverride),
+      p_desde: desde,
+      p_hasta: hasta,
+      p_empleado_ids: opciones.empleadoIds ?? null,
+    });
+    if (opciones.soloAbiertas) {
+      q = q.eq('cerrada', false).eq('en_curso', false);
+    }
+    return q.range(d, h);
+  }, 'jornadas');
   return filas.map((f) => ({
     empleadoId: f.empleado_id,
     fecha: String(f.fecha).slice(0, 10),
     entrada: f.entrada ?? undefined,
     salida: f.salida ?? undefined,
     horas: horasEntre(f.entrada ?? undefined, f.salida ?? undefined),
-    incompleta: !f.entrada || !f.salida,
+    cerrada: f.cerrada,
+    enCurso: f.en_curso,
+    incompleta: !f.cerrada && !f.en_curso,
     marcas: Number(f.marcas),
     fueraDeZona: Boolean(f.fuera_de_zona),
   }));
@@ -1552,23 +1567,38 @@ export const getJornadas = async (
 export const getFichajesPagina = async (
   desde: string,
   hasta: string,
-  opciones: { pagina: number; porPagina: number; empleadoIds?: string[] }
+  opciones: {
+    pagina: number;
+    porPagina: number;
+    empleadoIds?: string[];
+    /** Sólo las marcas que pertenecen a una jornada sin cerrar. */
+    soloAbiertas?: boolean;
+  }
 ): Promise<{ fichajes: Fichaje[]; total: number }> => {
   // Filtro vacío ≠ sin filtro: si la búsqueda no matcheó ningún
   // colaborador, el resultado correcto es "nada", no "todo".
   if (opciones.empleadoIds && opciones.empleadoIds.length === 0) {
     return { fichajes: [], total: 0 };
   }
-  const { inicio, fin } = rangoISO(desde, hasta);
   const desdeFila = opciones.pagina * opciones.porPagina;
-  let q = sb()
-    .from('fichajes')
-    .select('*', { count: 'exact' })
-    .eq('empresa_id', empresaId())
-    .gte('ts', inicio)
-    .lte('ts', fin);
-  if (opciones.empleadoIds) q = q.in('empleado_id', opciones.empleadoIds);
-  const { data, error, count } = await q
+  // Va por la función y no por un select sobre la tabla porque
+  // "pertenece a una jornada sin cerrar" no es una condición sobre la
+  // marca: depende de las otras marcas de la misma sesión. Postgres lo
+  // resuelve y filtra antes del LIMIT; en el cliente era imposible.
+  const { data, error, count } = await sb()
+    .rpc(
+      'fichajes_del_periodo',
+      {
+        p_empresa_id: empresaId(),
+        p_desde: desde,
+        p_hasta: hasta,
+        p_empleado_ids: opciones.empleadoIds ?? null,
+        p_solo_abiertas: opciones.soloAbiertas ?? false,
+      },
+      { count: 'exact' }
+    )
+    // Orden total (`ts` + `id`): sin desempate, dos marcas del mismo
+    // instante pueden repetirse o saltearse entre páginas.
     .order('ts', { ascending: false })
     .order('id', { ascending: false })
     .range(desdeFila, desdeFila + opciones.porPagina - 1);
@@ -2005,7 +2035,7 @@ export const getResumenControl = async (
     await Promise.all([
       getEmpresa(empresaIdOverride),
       getEmpleados(empresaIdOverride),
-      getJornadas(desde, hasta, empresaIdOverride),
+      getJornadas(desde, hasta, { empresaIdOverride }),
       getAusenciasEntre(inicioMes, finMes, empresaIdOverride),
       sb()
         .from('recibos')

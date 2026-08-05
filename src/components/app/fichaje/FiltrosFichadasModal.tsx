@@ -123,8 +123,9 @@ export const FiltrosFichadasModal = ({
               Solo jornadas sin cerrar
             </span>
             <span className="mt-0.5 block text-xs leading-relaxed text-ink-soft">
-              Días con entrada pero sin salida (o al revés). Son los que hay que
-              corregir antes de liquidar.
+              Jornadas con entrada pero sin salida (o al revés). Son las que hay
+              que corregir antes de liquidar. No incluye a quien está trabajando
+              en este momento.
             </span>
           </span>
         </label>

@@ -12,27 +12,59 @@
 import { Ausencia, Empleado, Feriado, Fichaje } from '@/types/rrhh';
 
 /**
- * Una jornada: lo que hizo una persona un día.
+ * Hueco a partir del cual dos marcas pertenecen a jornadas distintas.
+ *
+ * Tiene que ser el mismo valor que `corte_jornada()` en la base: son
+ * dos implementaciones de la misma regla y si divergen, la demo y
+ * producción agrupan distinto. El test `probar-jornadas.mjs` lo
+ * verifica contra un Postgres real.
+ *
+ * Seis horas está elegido entre dos cotas: el corte más largo DENTRO
+ * de una jornada es el almuerzo (una o dos horas), y el descanso más
+ * corto ENTRE jornadas son las 12 que exige la LCT (art. 197).
+ */
+export const CORTE_JORNADA_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * Duración máxima plausible de una jornada abierta. Distingue a quien
+ * está trabajando ahora de una jornada que quedó mal cargada.
+ * Equivale a `max_jornada()` en la base.
+ */
+export const MAX_JORNADA_MS = 16 * 60 * 60 * 1000;
+
+/**
+ * Una jornada: una sesión de trabajo, no un día de calendario.
+ *
+ * La distinción importa: un turno que entra el lunes 22:00 y sale el
+ * martes 06:00 es UNA jornada del lunes, no dos medias jornadas rotas.
+ * Agrupar por fecha lo partía en dos y las dos mitades quedaban "sin
+ * cerrar" y con cero horas.
  *
  * Es la unidad con la que razonan el historial, el Excel y los
- * reportes. La arma la base (`jornadas_de_empresa`) y, para los pocos
- * casos donde ya se tienen las marcas en memoria, también
- * `armarJornadas`. Las dos tienen que dar lo mismo: hay un test que lo
- * verifica.
+ * reportes. La arma la base (`jornadas_de_empresa`) y, para los casos
+ * donde ya se tienen las marcas en memoria, también `armarJornadas`.
  */
 export interface Jornada {
   empleadoId: string;
-  /** YYYY-MM-DD, en hora local. */
+  /** YYYY-MM-DD del ingreso, en hora local. */
   fecha: string;
-  /** Primer ingreso del día, ISO. */
+  /** Ingreso que abre la jornada, ISO. */
   entrada?: string;
-  /** Último egreso del día, ISO. */
+  /** Último egreso de la jornada, ISO. */
   salida?: string;
   /** Horas entre entrada y salida, con un decimal. */
   horas: number;
-  /** Falta la entrada o la salida: la jornada no cierra. */
+  /** Tiene entrada y salida. */
+  cerrada: boolean;
+  /**
+   * Está abierta porque la persona sigue adentro, no porque falte
+   * corregirla. Se separa de `incompleta` a propósito: quien entró hace
+   * dos horas no es un error que haya que arreglar antes de liquidar.
+   */
+  enCurso: boolean;
+  /** Falta la entrada o la salida, y no es alguien trabajando ahora. */
   incompleta: boolean;
-  /** Cuántas marcas hubo ese día (incluidas las intermedias). */
+  /** Cuántas marcas hubo (incluidas las intermedias del almuerzo). */
   marcas: number;
   /** Alguna de las marcas cayó fuera de la zona de trabajo. */
   fueraDeZona?: boolean;
@@ -75,43 +107,124 @@ export const horaLocal = (iso: string): string => {
 /**
  * Agrupa marcas sueltas en jornadas, en memoria.
  *
- * Para el historial y los reportes esto lo hace la base
- * (`jornadas_de_empresa`), que evita traerse todas las marcas del
- * período. Esta versión queda para los casos chicos donde las marcas ya
- * están en memoria —el fichaje del día, la demo— y como referencia
- * contra la que se testea que la SQL dé lo mismo.
+ * Espejo exacto de `jornadas_de_empresa` + `marcas_numeradas` en la
+ * base, que es la que corre en producción. Esta versión queda para los
+ * casos donde las marcas ya están en memoria —el fichaje del día, la
+ * demo— y como referencia contra la que se compara la SQL.
  *
- * La entrada es la primera del día y la salida la última, a propósito:
- * en planta la gente ficha al salir a almorzar y al volver, y tomar el
- * primer egreso daría una jornada de cuatro horas.
+ * La regla: una marca abre jornada nueva si es un ingreso y (es la
+ * primera de esa persona o pasó `CORTE_JORNADA_MS` desde la anterior).
+ * Todo lo demás continúa la jornada abierta. Eso resuelve solo:
+ *
+ *   - Salida y vuelta del almuerzo → hueco corto, misma jornada.
+ *   - Turno nocturno → una sola jornada, fechada el día que entró.
+ *   - Se olvidó de fichar la salida → la jornada anterior queda
+ *     abierta y la del día siguiente arranca aparte.
+ *   - Egresos sin ingreso previo → jornada sin entrada.
+ *
+ * `ahora` se inyecta para poder testear `enCurso` sin depender del
+ * reloj de la máquina.
  */
-export const armarJornadas = (fichajes: Fichaje[]): Jornada[] => {
-  const porClave = new Map<string, Fichaje[]>();
+export const armarJornadas = (
+  fichajes: Fichaje[],
+  ahora: number = Date.now()
+): Jornada[] =>
+  agruparMarcas(fichajes, ahora)
+    .map((g) => g.jornada)
+    .sort(ordenJornadas);
+
+/**
+ * Igual que `armarJornadas`, pero devolviendo también qué marcas
+ * componen cada jornada.
+ *
+ * Hace falta para responder "¿esta marca pertenece a una jornada sin
+ * cerrar?", que es lo que necesita el listado de movimientos. En la
+ * base eso lo resuelve `fichajes_del_periodo`.
+ */
+export const agruparMarcas = (
+  fichajes: Fichaje[],
+  ahora: number = Date.now()
+): { jornada: Jornada; marcas: Fichaje[] }[] => {
+  const porEmpleado = new Map<string, Fichaje[]>();
   fichajes.forEach((f) => {
-    const clave = `${f.empleadoId}|${diaLocal(f.timestamp)}`;
-    porClave.set(clave, [...(porClave.get(clave) ?? []), f]);
+    const previas = porEmpleado.get(f.empleadoId);
+    if (previas) previas.push(f);
+    else porEmpleado.set(f.empleadoId, [f]);
   });
 
-  return [...porClave.entries()]
-    .map(([clave, marcasSueltas]): Jornada => {
-      const [empleadoId, fecha] = clave.split('|');
-      const marcas = [...marcasSueltas].sort((a, b) =>
-        a.timestamp.localeCompare(b.timestamp)
-      );
-      const entrada = marcas.find((m) => m.tipo === 'ingreso');
-      const salida = [...marcas].reverse().find((m) => m.tipo === 'egreso');
-      return {
-        empleadoId,
-        fecha,
-        entrada: entrada?.timestamp,
-        salida: salida?.timestamp,
-        horas: horasEntre(entrada?.timestamp, salida?.timestamp),
-        incompleta: !entrada || !salida,
-        marcas: marcas.length,
-        fueraDeZona: marcas.some((m) => m.fueraDeZona),
-      };
-    })
-    .sort(ordenJornadas);
+  const grupos: { jornada: Jornada; marcas: Fichaje[] }[] = [];
+
+  porEmpleado.forEach((marcasDelEmpleado, empleadoId) => {
+    // El orden tiene que ser total (ts y después id), igual que en la
+    // base: con dos marcas en el mismo instante, un orden inestable
+    // cambia a qué jornada va cada una.
+    const marcas = [...marcasDelEmpleado].sort(
+      (a, b) =>
+        a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id)
+    );
+
+    let grupo: Fichaje[] = [];
+    const cerrarGrupo = () => {
+      if (grupo.length > 0) {
+        grupos.push({
+          jornada: aJornada(empleadoId, grupo, ahora),
+          marcas: grupo,
+        });
+      }
+      grupo = [];
+    };
+
+    marcas.forEach((m, i) => {
+      const previa = marcas[i - 1];
+      const huecoLargo =
+        !previa ||
+        new Date(m.timestamp).getTime() -
+          new Date(previa.timestamp).getTime() >=
+          CORTE_JORNADA_MS;
+      if (m.tipo === 'ingreso' && huecoLargo) cerrarGrupo();
+      grupo.push(m);
+    });
+    cerrarGrupo();
+  });
+
+  return grupos;
+};
+
+/** Colapsa las marcas de una jornada en la fila que consume la app. */
+const aJornada = (
+  empleadoId: string,
+  marcas: Fichaje[],
+  ahora: number
+): Jornada => {
+  const entrada = marcas.find((m) => m.tipo === 'ingreso');
+  const salida = [...marcas].reverse().find((m) => m.tipo === 'egreso');
+  /**
+   * Cierra si la ÚLTIMA marca es un egreso, no si hay alguno suelto en
+   * el medio. La diferencia importa en un caso muy común: entró a las
+   * 7, salió a almorzar a las 12, volvió 12:30 y no fichó la salida.
+   * Tiene ingreso y egreso, pero la jornada quedó abierta.
+   */
+  const cerrada =
+    Boolean(entrada) && marcas[marcas.length - 1].tipo === 'egreso';
+  // Abierta pero reciente: la persona está adentro ahora mismo.
+  const enCurso =
+    Boolean(entrada) &&
+    !cerrada &&
+    ahora - new Date(entrada!.timestamp).getTime() < MAX_JORNADA_MS;
+  return {
+    empleadoId,
+    // La jornada se fecha por su ingreso; si no hay (egreso huérfano),
+    // por la primera marca que tenga.
+    fecha: diaLocal((entrada ?? marcas[0]).timestamp),
+    entrada: entrada?.timestamp,
+    salida: salida?.timestamp,
+    horas: horasEntre(entrada?.timestamp, salida?.timestamp),
+    cerrada,
+    enCurso,
+    incompleta: !cerrada && !enCurso,
+    marcas: marcas.length,
+    fueraDeZona: marcas.some((m) => m.fueraDeZona),
+  };
 };
 
 /** Orden estable: por día y, dentro del día, por hora de entrada. */
@@ -178,7 +291,10 @@ export interface CeldaDia {
   minutos: number;
   /** 1 si tiene entrada y salida; 0 si no. */
   diaTrabajado: 0 | 1;
+  /** Le falta entrada o salida y hay que corregirla. */
   incompleta: boolean;
+  /** Abierta porque la persona sigue trabajando: no es un error. */
+  enCurso: boolean;
 }
 
 /** Una fila del resumen: la persona y sus días. */
@@ -267,8 +383,9 @@ export const armarResumen = (
           horas: j?.horas ?? 0,
           // Minutos exactos, sin redondear, sólo para el total. Ver abajo.
           minutos: minutosEntre(j?.entrada, j?.salida),
-          diaTrabajado: j && !j.incompleta ? 1 : 0,
+          diaTrabajado: j?.cerrada ? 1 : 0,
           incompleta: Boolean(j?.incompleta),
+          enCurso: Boolean(j?.enCurso),
         };
       });
 

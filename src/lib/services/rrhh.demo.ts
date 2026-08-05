@@ -58,7 +58,12 @@ import {
 import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { diasEntre, hoyISO } from '@/lib/fechas';
-import { armarJornadas, diaLocal, Jornada } from '@/lib/fichadas';
+import {
+  agruparMarcas,
+  armarJornadas,
+  diaLocal,
+  Jornada,
+} from '@/lib/fichadas';
 import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import { dotacionMock, empresaMock, empresasMock } from '@/lib/mocks/empresa';
@@ -851,24 +856,68 @@ export const getFichajesEntre = async (
 export const getJornadas = async (
   desde: string,
   hasta: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _empresaIdOverride?: string
-): Promise<Jornada[]> =>
-  simular(armarJornadas(fichajesMock.filter((f) => enRango(f, desde, hasta))));
+  opciones: {
+    soloAbiertas?: boolean;
+    empleadoIds?: string[];
+    empresaIdOverride?: string;
+  } = {}
+): Promise<Jornada[]> => {
+  if (opciones.empleadoIds && opciones.empleadoIds.length === 0) {
+    return simular([]);
+  }
+  const ids = opciones.empleadoIds ? new Set(opciones.empleadoIds) : null;
+  // Se lee un día de más a cada lado, igual que la SQL, para no partir
+  // las jornadas que cruzan el borde del rango.
+  const margen = (fecha: string, dias: number): string => {
+    const d = new Date(`${fecha}T00:00:00`);
+    d.setDate(d.getDate() + dias);
+    return diaLocal(d.toISOString());
+  };
+  const jornadas = armarJornadas(
+    fichajesMock
+      .filter((f) => enRango(f, margen(desde, -1), margen(hasta, 1)))
+      .filter((f) => !ids || ids.has(f.empleadoId))
+  )
+    // Una jornada pertenece al período en el que empezó.
+    .filter((j) => j.fecha >= desde && j.fecha <= hasta)
+    .filter((j) => !opciones.soloAbiertas || j.incompleta);
+  return simular(jornadas);
+};
 
 export const getFichajesPagina = async (
   desde: string,
   hasta: string,
-  opciones: { pagina: number; porPagina: number; empleadoIds?: string[] }
+  opciones: {
+    pagina: number;
+    porPagina: number;
+    empleadoIds?: string[];
+    soloAbiertas?: boolean;
+  }
 ): Promise<{ fichajes: Fichaje[]; total: number }> => {
   if (opciones.empleadoIds && opciones.empleadoIds.length === 0) {
     return simular({ fichajes: [], total: 0 });
   }
   const ids = opciones.empleadoIds ? new Set(opciones.empleadoIds) : null;
-  const todos = fichajesMock
+  let candidatos = fichajesMock
     .filter((f) => enRango(f, desde, hasta))
-    .filter((f) => !ids || ids.has(f.empleadoId))
-    .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+    .filter((f) => !ids || ids.has(f.empleadoId));
+
+  if (opciones.soloAbiertas) {
+    // Espejo de `fichajes_del_periodo`: se arman las jornadas y se
+    // dejan sólo las marcas de las que quedaron sin cerrar. El filtro
+    // va ANTES de cortar la página, que es justamente lo que estaba mal
+    // cuando esto se hacía en el componente.
+    const idsAbiertas = new Set(
+      agruparMarcas(candidatos)
+        .filter((g) => g.jornada.incompleta)
+        .flatMap((g) => g.marcas.map((m) => m.id))
+    );
+    candidatos = candidatos.filter((f) => idsAbiertas.has(f.id));
+  }
+
+  const todos = candidatos.sort((a, b) =>
+    b.timestamp.localeCompare(a.timestamp)
+  );
   const inicio = opciones.pagina * opciones.porPagina;
   return simular({
     fichajes: todos.slice(inicio, inicio + opciones.porPagina),
