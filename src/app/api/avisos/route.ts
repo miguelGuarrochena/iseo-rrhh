@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enviarEmail } from '@/lib/email/resend';
+import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 
 /**
  * Avisos por mail de los eventos que no pueden esperar a que la persona
@@ -22,6 +23,25 @@ type Evento = (typeof EVENTOS)[number];
 
 const esEvento = (v: unknown): v is Evento =>
   typeof v === 'string' && (EVENTOS as readonly string[]).includes(v);
+
+/**
+ * Quién puede disparar cada aviso.
+ *
+ * Antes acá sólo se validaba que el registro fuera de la misma empresa,
+ * no el rol. Con eso, cualquier `empleado` con sesión podía mandarle
+ * mails a sus compañeros sobre recibos o ausencias ajenas, y además usar
+ * la diferencia entre "enviado" y "no enviado" para averiguar qué ids
+ * existen en su empresa.
+ *
+ * El criterio es quién realiza la acción que se está avisando: los
+ * recibos son sólo de RRHH (ver migración 32), y las ausencias y
+ * comunicaciones las resuelve cualquier gestor.
+ */
+const ROLES_POR_EVENTO: Record<Evento, readonly string[]> = {
+  comunicacion_respondida: ['admin_rrhh', 'supervisor'],
+  recibo_disponible: ['admin_rrhh'],
+  ausencia_resuelta: ['admin_rrhh', 'supervisor'],
+};
 
 const plantilla = (titulo: string, cuerpo: string, ruta: string) => `
   <div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:520px;margin:0 auto;padding:24px;color:#2f2e3a">
@@ -68,9 +88,33 @@ export const POST = async (req: Request) => {
     return NextResponse.json({ error: 'Sin perfil.' }, { status: 403 });
   }
 
-  const cuerpo = (await req.json()) as { evento?: unknown; id?: unknown };
+  // Un body que no es JSON válido es un 400, no un 500 sin controlar.
+  let cuerpo: { evento?: unknown; id?: unknown };
+  try {
+    cuerpo = (await req.json()) as { evento?: unknown; id?: unknown };
+  } catch {
+    return NextResponse.json({ error: 'Cuerpo inválido.' }, { status: 400 });
+  }
   if (!esEvento(cuerpo.evento) || typeof cuerpo.id !== 'string') {
     return NextResponse.json({ error: 'Evento inválido.' }, { status: 400 });
+  }
+
+  // El rol se chequea antes de tocar la base: si no corresponde, ni
+  // siquiera se confirma que el id exista.
+  if (!ROLES_POR_EVENTO[cuerpo.evento].includes(perfil.rol as string)) {
+    return NextResponse.json(
+      { error: 'No tenés permisos para enviar este aviso.' },
+      { status: 403 }
+    );
+  }
+
+  // Enviar mails cuesta plata y quema reputación de dominio. El límite es
+  // por usuario y best-effort (ver limiteDeUso), pero corta el loop.
+  if (!dentroDelLimite(`avisos:${auth.user.id}`, 30)) {
+    return NextResponse.json(
+      { error: 'Demasiados avisos seguidos. Esperá un minuto.' },
+      { status: 429 }
+    );
   }
 
   const origen = new URL(req.url).origin;

@@ -57,6 +57,41 @@ jobs:
       - name: Build de producción
         run: npm run build
 
+  # La lógica que vive en SQL no la toca ningún test de Jest, y una
+  # migración se **aplica** sin validar el cuerpo de sus funciones
+  # plpgsql: un error de tipos adentro de un RPC pasa el deploy en verde y
+  # revienta en la primera llamada real. Ya ocurrió una vez.
+  #
+  # Además, al mergear a main las migraciones se aplican solas a la base
+  # productiva (ver supabase/config.toml), así que este job es la última
+  # oportunidad de que fallen en un lugar que no le duela a nadie.
+  base-de-datos:
+    name: Migraciones y RPC
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Levantar Postgres local
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,pooler
+
+      # Aplica las 53 migraciones desde cero. Acá se cae cualquier error
+      # de sintaxis o de orden entre migraciones.
+      - name: Aplicar migraciones desde cero
+        run: supabase db reset
+
+      # Y acá, lo que la sintaxis no ve: que las funciones hagan lo que
+      # dicen. Cada assert que falla corta con exit ≠ 0.
+      - name: Probar funciones y triggers
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/rpc.test.sql
+
   # Informativo: no frena el merge, pero deja el estado a la vista en
   # cada PR en vez de que alguien se acuerde de correrlo cada tanto.
   dependencias:

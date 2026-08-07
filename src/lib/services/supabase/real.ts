@@ -3590,46 +3590,45 @@ export const crearDocumentoFirma = async (datos: {
   empleadoIds: string[];
 }): Promise<DocumentoFirma> => {
   const path = await subirDocumentoLegajo('firma-docs', datos.archivo);
-  const uid = useAuthStore.getState().usuario?.id ?? null;
+  // El documento y sus destinatarios se crean en una transacción (RPC de
+  // la migración 53). Antes eran dos inserts sueltos: si el segundo
+  // fallaba quedaba un documento sin nadie a quien pedirle la firma,
+  // contando como enviado.
   const { data, error } = await sb()
-    .from('documentos_firma')
-    .insert({
-      empresa_id: empresaId(),
-      titulo: datos.titulo,
-      descripcion: datos.descripcion ?? null,
-      archivo_url: path,
-      creado_por: uid,
+    .rpc('crear_documento_firma', {
+      p_titulo: datos.titulo,
+      p_descripcion: datos.descripcion ?? '',
+      p_archivo_url: path,
+      p_empleado_ids: datos.empleadoIds,
     })
-    .select()
     .single();
-  const doc = aDocumentoFirma(oFalla(data, error));
-  if (datos.empleadoIds.length > 0) {
-    await sb()
-      .from('documento_firma_destinatarios')
-      .insert(
-        datos.empleadoIds.map((empleadoId) => ({
-          documento_id: doc.id,
-          empleado_id: empleadoId,
-        }))
+  if (error) {
+    // El PDF ya está arriba y la fila no existe: sin esto queda huérfano
+    // en el bucket ocupando el espacio contratado. ('firma-docs' es la
+    // carpeta dentro del bucket `documentos`, no un bucket aparte.)
+    await borrarDeStorage('documentos', [path]);
+    throw new Error(mensajeDeErrorDb(error.message));
+  }
+  const doc = aDocumentoFirma(data as Parameters<typeof aDocumentoFirma>[0]);
+
+  // Las notificaciones son best-effort y van fuera de la transacción: si
+  // el mail o la campanita fallan, el documento igual quedó bien creado.
+  try {
+    const { data: usuarios } = await sb()
+      .from('usuarios')
+      .select('id')
+      .in('empleado_id', datos.empleadoIds);
+    if (usuarios?.length) {
+      await notificarUsuarios(
+        usuarios.map((u) => u.id),
+        'documento_firma',
+        'Documento para firmar',
+        datos.titulo,
+        '/documentos-firma'
       );
-    // Notificar a usuarios vinculados
-    try {
-      const { data: usuarios } = await sb()
-        .from('usuarios')
-        .select('id')
-        .in('empleado_id', datos.empleadoIds);
-      if (usuarios?.length) {
-        await notificarUsuarios(
-          usuarios.map((u) => u.id),
-          'documento_firma',
-          'Documento para firmar',
-          datos.titulo,
-          '/documentos-firma'
-        );
-      }
-    } catch {
-      // no bloquea
     }
+  } catch {
+    // no bloquea
   }
   return doc;
 };

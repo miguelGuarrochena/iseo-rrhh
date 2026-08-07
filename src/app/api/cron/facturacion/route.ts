@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enviarEmail } from '@/lib/email/resend';
 import { formatearPesos } from '@/lib/formato';
+import { logError, logInfo } from '@/lib/api/registro';
 
 /**
  * Proceso diario de facturación (Vercel Cron).
@@ -70,6 +71,8 @@ const procesar = async (req: Request) => {
 
   let recordatorios = 0;
   let notificados = 0;
+  /** Avisos que no se pudieron entregar. Se devuelven para poder alertar. */
+  let fallos = 0;
 
   // Marca dedup: intenta insertar; si choca con el unique, ya se hizo.
   const yaHecho = async (empresaId: string, tipo: string): Promise<boolean> => {
@@ -102,13 +105,28 @@ const procesar = async (req: Request) => {
             vence,
           }),
         });
-        if (ok) recordatorios += 1;
+        if (ok) {
+          recordatorios += 1;
+        } else {
+          // La marca de dedup ya se insertó, así que este recordatorio no
+          // se reintenta nunca. Sin registrarlo, la empresa se queda sin
+          // el aviso de cobro y no queda rastro de por qué.
+          fallos += 1;
+          logError(
+            'No se pudo enviar el recordatorio de pago',
+            new Error('enviarEmail devolvió false'),
+            { ruta: '/api/cron/facturacion', empresaId: e.id, periodo }
+          );
+        }
       }
     }
 
     if (vencido && superadmins.length > 0) {
       if (!(await yaHecho(e.id, 'vencido'))) {
-        await admin.from('notificaciones').insert(
+        // Antes esto sumaba a `notificados` sin mirar el resultado: si el
+        // insert fallaba, la respuesta del cron informaba avisos que no
+        // existían y nadie se enteraba de nada.
+        const { error: errorNotif } = await admin.from('notificaciones').insert(
           superadmins.map((s) => ({
             usuario_id: s.id,
             tipo: 'vencimiento',
@@ -117,15 +135,36 @@ const procesar = async (req: Request) => {
             link: '/finanzas',
           }))
         );
-        notificados += 1;
+        if (errorNotif) {
+          fallos += 1;
+          logError('No se pudo notificar el vencimiento', errorNotif, {
+            ruta: '/api/cron/facturacion',
+            empresaId: e.id,
+            periodo,
+          });
+        } else {
+          notificados += 1;
+        }
       }
     }
   }
+
+  // Una línea por corrida: sin esto, saber si el cron corrió y qué hizo
+  // depende de que alguien pase por la consola de Vercel en el momento.
+  logInfo('Facturación procesada', {
+    ruta: '/api/cron/facturacion',
+    periodo,
+    impagas: impagas.length,
+    recordatorios,
+    notificados,
+    fallos,
+  });
 
   return NextResponse.json({
     ok: true,
     periodo,
     impagas: impagas.length,
+    fallos,
     recordatorios,
     notificados,
   });

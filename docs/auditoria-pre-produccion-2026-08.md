@@ -13,19 +13,23 @@ con clientes reales.
 > Suite en verde: 32 suites, 317 tests (eran 270 en 31 suites, con 12
 > rojos). Typecheck, lint y build limpios; CI montado.
 >
-> **Lo que NO está verificado.** Todo lo que se probó es estático o de
-> lógica pura: tipos, lint, tests unitarios y build. **Nada que toque la
-> base de datos ni el navegador se ejecutó**, porque no había Postgres
-> (Docker apagado) ni forma de manejar una cámara desde acá. Sin correr
-> quedan:
+> **Migraciones 48 y 49: probadas contra Postgres real (2026-08-07).**
+> Se levantó el stack local (`supabase start`), se aplicaron **las 49
+> migraciones desde cero** (`supabase db reset`) y se ejercitó cada rama
+> de las funciones nuevas. Al hacerlo aparecieron **cuatro errores** que
+> la revisión a ojo no había encontrado; están corregidos y reverificados.
+> Detalle en C1.
 >
-> - Las **migraciones 48 y 49** — nunca se ejecutaron, así que pueden
->   tener errores de SQL. Riesgo alto: son ~250 líneas de plpgsql.
-> - El **flujo de fichaje facial completo** (RPC + liveness + cámara).
-> - Las consultas nuevas de C5 (`getTurnosEntre` y los tres consumidores).
-> - La pantalla de baja de colaborador (C4) renderizada de verdad.
+> **Lo que sigue sin verificarse**, porque no se puede desde acá:
 >
-> Detalle y plan de prueba en la sección "Cómo verificar lo que falta".
+> - El **liveness con una cámara real** (la lógica pura tiene 14 tests,
+>   pero nadie parpadeó frente a una webcam).
+> - Las pantallas renderizadas de verdad: baja de colaborador (C4) y el
+>   modal de remuneración (C5).
+> - Las consultas de C5 (`getTurnosEntre` y sus tres consumidores) contra
+>   datos reales.
+>
+> Plan de prueba en "Cómo verificar lo que falta".
 
 ## Veredicto
 
@@ -104,16 +108,44 @@ convenios, kiosco, organigrama, validaciones) pasan enteras.
 > la foto impresa o la pantalla de otro celular. 14 tests, incluidos los
 > casos "foto con ojos abiertos" y "foto con ojos cerrados".
 >
-> **Salvedades, importantes:**
+> **Verificación contra Postgres real (2026-08-07).** Las 49 migraciones
+> aplican limpio desde cero. Probar de verdad encontró **cuatro errores
+> que leer el código no había encontrado** — vale registrarlos porque tres
+> de los cuatro habrían llegado a producción:
 >
-> 1. **No pude ejecutar las dos migraciones** (48 y 49) contra un Postgres
->    real: Docker no estaba corriendo en esta máquina. Están escritas y
->    revisadas, pero **hay que aplicarlas en un entorno de prueba antes de
->    producción** y verificar el flujo de fichaje de punta a punta.
-> 2. Esto es el **nivel 1** que acordamos: el descriptor lo sigue
+> | # | Qué estaba mal | Consecuencia si llegaba a producción |
+> |---|---|---|
+> | 1 | El trigger guardaba `metodo like 'facial%'`, pero el fichaje facial **desde el celular** usa método `celular`/`remoto` | El agujero seguía abierto por esa ruta: `confianza: 1` por insert directo. **Era el bug más grave** |
+> | 2 | `returns fichajes` en vez de `returns setof fichajes` | PostgREST devolvía un objeto donde `.single()` espera un arreglo: **el fichaje facial no habría funcionado nunca** |
+> | 3 | `v_tipo` y `v_ultimo` declarados `text`, pero las columnas son enums (`tipo_fichaje`, `metodo_fichaje`) | El `insert` fallaba siempre: *"column tipo is of type tipo_fichaje but expression is of type text"* |
+> | 4 | `if v_mejor is null` en vez de `if not found` | Funcionaba de casualidad; frágil |
+>
+> Corregidos y reverificados. Qué se ejercitó, todo pasando:
+>
+> - **Matemática:** `distancia_descriptores` (√50 = 7,0711) y
+>   `distancia_metros` (1° de latitud = 111.195 m).
+> - **Consentimiento (mig. 48):** rechaza sin consentimiento, con
+>   `aceptado:false` y sin fecha; acepta completo; deja editar otros
+>   campos de una ficha ya enrolada; deja borrar siempre (ARCO).
+> - **Guardia de fichajes (mig. 49):** rechaza el insert directo con
+>   `confianza` y con `fuera_de_zona`; deja pasar el fichaje manual.
+> - **RPC:** ingreso/egreso alternando, confianza calculada por el
+>   servidor (0,965 = 1 − 0,0173/0,5, correcto), geocerca dentro y fuera,
+>   rostro desconocido rechazado, descriptor vacío rechazado, modo 1:1,
+>   margen entre dos rostros parecidos (se niega a elegir) y exclusión de
+>   empleados inactivos.
+> - **Contrato REST:** `POST /rest/v1/rpc/fichar_con_rostro` con un JWT
+>   real devuelve arreglo por defecto y objeto con el `Accept` que usa
+>   `.single()`.
+>
+> **Salvedades que quedan:**
+>
+> 1. Esto es el **nivel 1** que acordamos: el descriptor lo sigue
 >    calculando el navegador, así que un cliente modificado podría enviar
 >    uno inventado. Cortar eso requiere mandar la imagen y calcular el
 >    embedding en el servidor, con el costo que se discutió.
+> 2. El **liveness no se probó con una cámara real** — sólo su lógica
+>    pura (14 tests).
 > 3. `getDescriptoresFaciales()` ya no la usa ninguna pantalla, pero sigue
 >    expuesta en el facade y en la base. Conviene quitarla en una limpieza
 >    aparte; hoy sólo la tocan los tests.
@@ -772,39 +804,14 @@ Ninguno bloquea la salida a producción; todos crecen con el volumen.
 
 Lo de abajo **no está probado**. En orden de riesgo.
 
-### 1. Las migraciones (riesgo alto)
+### 1. Las migraciones — ✅ hecho
 
-Nunca se ejecutaron. Con Docker corriendo:
+Aplicadas y ejercitadas contra el Postgres local el 2026-08-07 (ver C1).
+Para repetirlo:
 
 ```bash
-supabase db reset
+supabase start && supabase db reset
 ```
-
-Eso aplica las 49 migraciones desde cero contra el Postgres local y es lo
-que va a revelar cualquier error de sintaxis. Si `db reset` pasa, probar
-el RPC a mano:
-
-```sql
-select * from fichar_con_rostro(
-  (select descriptor_facial from empleados where descriptor_facial is not null limit 1),
-  'facial_tablet', null, -34.7203, -58.2542, null
-);
-```
-
-Y que el trigger efectivamente frene el atajo:
-
-```sql
--- Tiene que fallar con "la confianza del rostro y la geocerca las calcula el servidor"
-insert into fichajes (empresa_id, empleado_id, tipo, metodo, confianza)
-select empresa_id, id, 'ingreso', 'celular', 1 from empleados limit 1;
-```
-
-Puntos del SQL que más vale mirar, porque son los que no pude comprobar:
-
-- `distancia_descriptores` — el `with ordinality` y el join por posición.
-- Que `auth_empresa()` resuelva bien desde adentro de un `security
-  definer` con `search_path = public`.
-- Que `.rpc().single()` lea bien el `setof fichajes`.
 
 ### 2. El fichaje facial de punta a punta
 

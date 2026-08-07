@@ -156,7 +156,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     };
     void restaurar();
 
-    if (!supabaseConfigurado()) return () => undefined;
+    /**
+     * Sincroniza lo que pasa en otras pestañas.
+     *
+     * `localStorage` sólo avisa a las **otras** pestañas, nunca a la que
+     * escribió. Sin esto: cerrar sesión en una dejaba a las demás
+     * operando con el usuario en memoria, y —más grave en un producto
+     * multiempresa— un superadmin que entraba a otra empresa en una
+     * pestaña dejaba a la otra creyendo que seguía en la anterior.
+     * Como `empresaOperativaId()` se resuelve fuera de React, una acción
+     * podía terminar escribiendo sobre la empresa equivocada.
+     */
+    const alCambiarOtraPestania = (e: StorageEvent) => {
+      if (e.key === SESSION_KEY && e.newValue === null) {
+        set({ usuario: null, sesionReal: false, empresaVista: null });
+        return;
+      }
+      if (e.key === EMPRESA_VISTA_KEY) {
+        try {
+          set({
+            empresaVista: e.newValue
+              ? (JSON.parse(e.newValue) as Empresa)
+              : null,
+          });
+        } catch {
+          set({ empresaVista: null });
+        }
+      }
+    };
+    window.addEventListener('storage', alCambiarOtraPestania);
+    const quitarStorage = () =>
+      window.removeEventListener('storage', alCambiarOtraPestania);
+
+    if (!supabaseConfigurado()) return quitarStorage;
     const { data: sub } = supabase().auth.onAuthStateChange(
       (evento, sesion) => {
         if (evento === 'SIGNED_IN' && sesion) {
@@ -167,7 +199,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         if (evento === 'SIGNED_OUT') set({ usuario: null, sesionReal: false });
       }
     );
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      quitarStorage();
+      sub.subscription.unsubscribe();
+    };
   },
 
   login: async (email, password) => {
