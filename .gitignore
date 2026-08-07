@@ -42,3 +42,8 @@ next-env.d.ts
 # modelos de reconocimiento facial, 6,8 MB (los copia
 # scripts/copiar-modelos-faciales.mjs en postinstall)
 /public/models/
+
+# Artefactos locales del CLI de Supabase (rama activa, versión cacheada).
+# No son del proyecto: los genera `supabase start` en cada máquina.
+supabase/.branches/
+supabase/.temp/

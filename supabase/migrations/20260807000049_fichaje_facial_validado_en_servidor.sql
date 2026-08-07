@@ -150,8 +150,11 @@ declare
   v_segunda double precision;
   v_geocerca jsonb;
   v_fuera boolean := null;
-  v_tipo text;
-  v_ultimo text;
+  -- `tipo` y `metodo` son enums en la tabla, no texto: declararlos como
+  -- text hace que el insert falle con "column tipo is of type
+  -- tipo_fichaje but expression is of type text".
+  v_tipo tipo_fichaje;
+  v_ultimo tipo_fichaje;
   v_fila fichajes;
 begin
   if v_empresa is null then
@@ -221,7 +224,7 @@ begin
 
   -- ---- Ingreso o egreso, según la última marca del día ----
   if p_tipo is not null then
-    v_tipo := p_tipo;
+    v_tipo := p_tipo::tipo_fichaje;
   else
     select f.tipo into v_ultimo
       from fichajes f
@@ -229,7 +232,8 @@ begin
        and f.ts >= date_trunc('day', now())
      order by f.ts desc
      limit 1;
-    v_tipo := case when v_ultimo = 'ingreso' then 'egreso' else 'ingreso' end;
+    v_tipo := case when v_ultimo = 'ingreso' then 'egreso' else 'ingreso' end
+              ::tipo_fichaje;
   end if;
 
   -- Habilita el insert para el trigger de más arriba, sólo en esta
@@ -242,7 +246,7 @@ begin
     v_empresa,
     v_mejor.id,
     v_tipo,
-    p_metodo,
+    p_metodo::metodo_fichaje,
     -- Confianza derivada de la distancia real, no de lo que diga el cliente.
     greatest(0, least(1, 1 - (v_mejor.dist / v_umbral))),
     case when p_lat is not null and p_lng is not null
