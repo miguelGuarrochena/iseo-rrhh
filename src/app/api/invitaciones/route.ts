@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 interface CuerpoInvitacion {
@@ -77,7 +78,21 @@ export const POST = async (req: Request) => {
     );
   }
 
-  const cuerpo = (await req.json()) as CuerpoInvitacion;
+  // Cada invitación dispara un mail de Supabase Auth: se acota para que
+  // una cuenta comprometida no la use como saliente de spam.
+  if (!dentroDelLimite(`invitaciones:${auth.user.id}`, 20)) {
+    return NextResponse.json(
+      { error: 'Demasiadas invitaciones seguidas. Esperá un minuto.' },
+      { status: 429 }
+    );
+  }
+
+  let cuerpo: CuerpoInvitacion;
+  try {
+    cuerpo = (await req.json()) as CuerpoInvitacion;
+  } catch {
+    return NextResponse.json({ error: 'Cuerpo inválido.' }, { status: 400 });
+  }
   if (!cuerpo.email || !cuerpo.nombreCompleto || !cuerpo.rol) {
     return NextResponse.json({ error: 'Faltan datos.' }, { status: 400 });
   }

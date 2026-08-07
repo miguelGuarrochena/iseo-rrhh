@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 /**
@@ -39,10 +40,22 @@ export const POST = async (req: Request) => {
     );
   }
 
-  const cuerpo = (await req.json()) as {
-    email?: unknown;
-    nombreCompleto?: unknown;
-  };
+  if (!dentroDelLimite(`equipo-iseo:${auth.user.id}`, 20)) {
+    return NextResponse.json(
+      { error: 'Demasiadas invitaciones seguidas. Esperá un minuto.' },
+      { status: 429 }
+    );
+  }
+
+  let cuerpo: { email?: unknown; nombreCompleto?: unknown };
+  try {
+    cuerpo = (await req.json()) as {
+      email?: unknown;
+      nombreCompleto?: unknown;
+    };
+  } catch {
+    return NextResponse.json({ error: 'Cuerpo inválido.' }, { status: 400 });
+  }
   const email = typeof cuerpo.email === 'string' ? cuerpo.email.trim() : '';
   const nombreCompleto =
     typeof cuerpo.nombreCompleto === 'string'
