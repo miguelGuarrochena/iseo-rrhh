@@ -335,10 +335,8 @@ const FichajePage = () => {
           onCerrar={() => setFacialAbierto(false)}
           modo="verificar"
           empleadoId={miEmpleado.id}
-          descriptorEmpleado={miEmpleado.descriptorFacial}
           metodoRegistro={modoEmp === 'remoto' ? 'remoto' : 'celular'}
           pedirUbicacion={modoEmp === 'celular'}
-          geocerca={miEmpleado.geocerca}
           onFichado={(marca) => trasFichar(marca)}
         />
       )}

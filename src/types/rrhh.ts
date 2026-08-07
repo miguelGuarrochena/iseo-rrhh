@@ -291,10 +291,25 @@ export interface Empleado {
   /** Descriptor facial (128 números) del rostro enrolado. Dato sensible. */
   descriptorFacial?: number[];
   /** Consentimiento del empleado para usar su rostro (Ley 25.326). */
-  consentimientoBiometrico?: {
-    aceptado: boolean;
-    fecha: string;
-  };
+  consentimientoBiometrico?: ConsentimientoBiometrico;
+}
+
+/**
+ * Constancia de que el titular autorizó el uso de su rostro.
+ *
+ * No alcanza con un booleano: si mañana alguien reclama, hay que poder
+ * mostrar qué se aceptó, cuándo y quién lo registró. La base no deja
+ * guardar un descriptor facial sin esto (trigger
+ * `exigir_consentimiento_biometrico`).
+ */
+export interface ConsentimientoBiometrico {
+  aceptado: boolean;
+  /** YYYY-MM-DD en que se otorgó. */
+  fecha: string;
+  /** Usuario que registró el consentimiento (suele ser quien opera la ficha). */
+  otorgadoPor?: string;
+  /** Texto exacto que se aceptó, para poder acreditar qué se informó. */
+  texto?: string;
 }
 
 // ---------- Legajo digital ----------

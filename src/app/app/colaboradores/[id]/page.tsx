@@ -62,6 +62,7 @@ import {
 } from '@/lib/services/rrhh';
 import { analizarSalario } from '@/lib/remuneraciones';
 import { armarLiquidacionFinal } from '@/lib/liquidacionFinal';
+import { diasVacacionesGozadosEn } from '@/lib/vacaciones';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
 import { formatearPesos } from '@/lib/formato';
@@ -195,12 +196,37 @@ const FichaColaboradorPage = () => {
   );
 
   /**
+   * Días de vacaciones ya gozados **en el año de la baja**.
+   *
+   * No sale de `cSaldo`: ese saldo es del año en curso porque alimenta la
+   * tarjeta de vacaciones y el panel de pendientes, que hablan del año
+   * corriente. La liquidación final necesita otro año: `armarLiquidacionFinal`
+   * calcula lo que corresponde sobre `fechaBaja.getFullYear()`, así que los
+   * días ya tomados tienen que ser de ese mismo año.
+   *
+   * Cuando no coincidían —baja retroactiva, o cargada después de fin de
+   * año— la liquidación descontaba los días de un año donde el empleado
+   * todavía no había tomado ninguno, y la empresa terminaba pagando de
+   * nuevo vacaciones que ya se había tomado.
+   *
+   * Se deriva de `ausencias`, que ya está en memoria, con el mismo
+   * criterio que usa `getSaldoVacaciones`.
+   */
+  const diasGozadosEnAnioBaja = useMemo(
+    () => diasVacacionesGozadosEn(ausencias, fechaBaja.slice(0, 4)),
+    [ausencias, fechaBaja]
+  );
+
+  /**
    * Borrador de lo que hay que pagarle al irse. Se muestra al dar de
    * baja porque es el momento en que se decide, y hasta ahora la baja no
    * disparaba ningún cálculo: quedaba todo a que alguien se acordara.
+   *
+   * Si las ausencias no se pudieron leer no se arma: sin ellas no se sabe
+   * cuántos días de vacaciones ya se tomó, y suponer cero paga de más.
    */
   const borradorBaja = useMemo(() => {
-    if (!empleado || !fechaBaja) return null;
+    if (!empleado || !fechaBaja || cAusencias.fase !== 'ok') return null;
     const analisis = analizarSalario(
       remuneraciones,
       new Date(`${fechaBaja}T00:00:00`),
@@ -211,9 +237,15 @@ const FichaColaboradorPage = () => {
       fechaBaja,
       brutoMensual: analisis.ultima?.montoBruto ?? 0,
       mejorBrutoSemestre: analisis.mejorSemestreBruto,
-      diasVacacionesGozados: saldo?.diasUtilizados ?? 0,
+      diasVacacionesGozados: diasGozadosEnAnioBaja,
     });
-  }, [empleado, fechaBaja, remuneraciones, saldo]);
+  }, [
+    empleado,
+    fechaBaja,
+    remuneraciones,
+    diasGozadosEnAnioBaja,
+    cAusencias.fase,
+  ]);
 
   if (!usuario || rolEfectivo === 'empleado') {
     return (
@@ -815,6 +847,13 @@ const FichaColaboradorPage = () => {
                 abogado.
               </p>
             </div>
+          ) : cAusencias.fase !== 'ok' ? (
+            <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
+              No podemos estimar la liquidación final porque no se pudieron leer
+              las ausencias de este colaborador, y sin ellas no sabemos cuántos
+              días de vacaciones ya se tomó. Podés dar la baja igual y
+              calcularla después.
+            </p>
           ) : (
             <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
               No podemos estimar la liquidación final porque no hay

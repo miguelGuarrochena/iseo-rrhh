@@ -13,6 +13,11 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/src/$1',
     // Dependencia opcional de supabase-js (buckets analíticos): no la usamos.
     '^iceberg-js$': '<rootDir>/src/tests/mocks/moduloVacio.js',
+    // En jsdom las animaciones no aportan nada y la librería real sólo
+    // agrega ruido. El stub renderiza el contenido y ya. Centralizado acá
+    // para que ningún test tenga que mantener su propia lista de
+    // elementos `motion.*` (ver el comentario del archivo).
+    '^framer-motion$': '<rootDir>/src/tests/mocks/framerMotion.tsx',
   },
   collectCoverageFrom: [
     'src/**/*.{js,jsx,ts,tsx}',

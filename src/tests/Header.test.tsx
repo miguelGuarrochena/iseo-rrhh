@@ -20,12 +20,16 @@ describe('Header', () => {
 
   it('renderiza los enlaces de navegación y el CTA', () => {
     renderWithMantine(<Header />);
-    expect(
-      screen.getAllByRole('button', { name: /¿qué ofrecemos\?/i }).length
-    ).toBeGreaterThan(0);
-    expect(
-      screen.getAllByRole('button', { name: /¿por qué elegirnos\?/i }).length
-    ).toBeGreaterThan(0);
+    for (const etiqueta of [
+      /¿qué ofrecemos\?/i,
+      /la plataforma/i,
+      /beneficios/i,
+      /cómo empezar/i,
+    ]) {
+      expect(
+        screen.getAllByRole('button', { name: etiqueta }).length
+      ).toBeGreaterThan(0);
+    }
     expect(
       screen.getAllByRole('button', { name: /^contactanos$/i }).length
     ).toBeGreaterThan(0);

@@ -39,7 +39,9 @@ import {
   NuevaEmpresa,
   NuevaRemuneracion,
   NuevoConvenio,
+  MetodoFichaje,
   OpcionesFichaje,
+  TipoFichaje,
   PendientesResumen,
   ReciboSueldo,
   Remuneracion,
@@ -58,6 +60,7 @@ import {
   VacacionSector,
 } from '@/types/rrhh';
 import type {
+  HorasExtrasPeriodo,
   MiMes,
   NuevaAusencia,
   NuevaNotaInterna,
@@ -72,6 +75,7 @@ import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { armarJornadas, horasEntre, Jornada } from '@/lib/fichadas';
+import { claveTurno, controlarJornada, indexarTurnos } from '@/lib/turnos';
 import { traerTodo as traerTodoBase } from './paginado';
 import { aISOLocal, diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
 import { supabase } from '@/lib/supabase/cliente';
@@ -765,6 +769,21 @@ export const actualizarEmpleado = async (
   return aEmpleado(data);
 };
 
+/**
+ * Baja del colaborador. El legajo y el historial se conservan (hay
+ * obligación de guardarlos), pero **la biometría se borra en el mismo
+ * movimiento**.
+ *
+ * El rostro se recolectó para una finalidad concreta —registrar la
+ * asistencia— que con la baja deja de existir, y la Ley 25.326 obliga a
+ * eliminar el dato cuando eso pasa. Antes la baja sólo marcaba
+ * `activo: false` y el descriptor quedaba guardado para siempre: había un
+ * botón "borrar rostro" en la ficha, pero era un paso aparte que nadie
+ * estaba obligado a apretar.
+ *
+ * La foto de perfil **no** se toca: es parte del legajo que se conserva,
+ * no un dato biométrico.
+ */
 export const darDeBajaEmpleado = async (
   id: string,
   motivo: string,
@@ -772,13 +791,22 @@ export const darDeBajaEmpleado = async (
 ): Promise<Empleado | null> => {
   const { data, error } = await sb()
     .from('empleados')
-    .update({ activo: false, motivo_baja: motivo, fecha_baja: fecha })
+    .update({
+      activo: false,
+      motivo_baja: motivo,
+      fecha_baja: fecha,
+      descriptor_facial: null,
+      consentimiento_biometrico: null,
+    })
     .eq('id', id)
     .select()
     .single();
   if (error) throw new Error(error.message);
   if (!data) return null;
-  await registrarAuditoria('dar_baja', 'empleado', id, { fecha });
+  await registrarAuditoria('dar_baja', 'empleado', id, {
+    fecha,
+    biometriaBorrada: true,
+  });
   return aEmpleado(data);
 };
 
@@ -1685,11 +1713,66 @@ export const ficharAhora = async (
   return fichaje;
 };
 
-/** Enrola (o actualiza) el rostro de un empleado con su consentimiento. */
+/**
+ * Ficha validando el rostro en el servidor.
+ *
+ * Reemplaza al camino viejo, en el que el navegador decidía a quién
+ * reconocía y con cuánta confianza, calculaba si estaba dentro de la
+ * geocerca, y mandaba las tres cosas ya resueltas para que se guardaran
+ * tal cual. Eso hacía que la fichada valiera lo que valía la palabra del
+ * cliente: con un `curl` y `confianza: 1` se podía fichar por cualquiera.
+ *
+ * Ahora sólo viajan datos crudos —el descriptor y las coordenadas— y el
+ * RPC `fichar_con_rostro` (migración 49) hace el match contra los rostros
+ * enrolados, calcula la geocerca e inserta la fichada. De paso, los
+ * descriptores de la empresa dejan de bajarse a la tablet.
+ *
+ * `empleadoId` distingue los dos modos: con id es verificación 1:1, sin
+ * id es identificación 1:N (la tablet de planta).
+ */
+export const ficharConRostro = async (
+  descriptor: number[],
+  opciones: {
+    metodo?: MetodoFichaje;
+    empleadoId?: string;
+    geo?: { lat: number; lng: number };
+    tipo?: TipoFichaje;
+  } = {}
+): Promise<Fichaje> => {
+  const { data, error } = await sb()
+    .rpc('fichar_con_rostro', {
+      p_descriptor: descriptor,
+      p_metodo: opciones.metodo ?? 'facial_tablet',
+      p_empleado_id: opciones.empleadoId ?? null,
+      p_lat: opciones.geo?.lat ?? null,
+      p_lng: opciones.geo?.lng ?? null,
+      p_tipo: opciones.tipo ?? null,
+    })
+    .single();
+  // El RPC devuelve una fila de `fichajes`, pero el tipado de `.rpc()` la
+  // da como `unknown`: se afirma acá, que es donde se sabe.
+  return aFichaje(oFalla(data, error) as Parameters<typeof aFichaje>[0]);
+};
+
+/**
+ * Enrola (o actualiza) el rostro de un empleado.
+ *
+ * El consentimiento es un parámetro y no algo que esta función invente:
+ * antes escribía `{ aceptado: true }` siempre, con lo cual el sistema
+ * daba por otorgado un consentimiento que podía no haber existido. La
+ * base tampoco lo acepta ya sin él (trigger
+ * `exigir_consentimiento_biometrico`, migración 48).
+ */
 export const enrolarRostro = async (
   empleadoId: string,
-  descriptor: number[]
+  descriptor: number[],
+  consentimiento: { aceptado: boolean; texto: string }
 ): Promise<Empleado | null> => {
+  if (!consentimiento.aceptado) {
+    throw new Error(
+      'No se puede registrar el rostro sin el consentimiento del titular.'
+    );
+  }
   const { data, error } = await sb()
     .from('empleados')
     .update({
@@ -1697,6 +1780,10 @@ export const enrolarRostro = async (
       consentimiento_biometrico: {
         aceptado: true,
         fecha: hoyISO(),
+        // Quién lo registró y qué se aceptó: sin esto la constancia no
+        // sirve para acreditar nada.
+        otorgadoPor: useAuthStore.getState().usuario?.id ?? null,
+        texto: consentimiento.texto,
       },
     })
     .eq('id', empleadoId)
@@ -1788,6 +1875,30 @@ export const getTurnos = async (): Promise<Turno[]> => {
     .select('*')
     .eq('empresa_id', empresaId())
     .order('fecha');
+  if (error) throw new Error(error.message);
+  return (data ?? []).map(aTurno);
+};
+
+/**
+ * Turnos de un rango de fechas, para cruzar contra las jornadas.
+ *
+ * `getTurnos()` trae todos los de la empresa sin filtrar por fecha: sirve
+ * para la grilla de Turnos, pero para controlar una semana o un mes
+ * traería años de historial.
+ */
+const getTurnosEntre = async (
+  desde: string,
+  hasta: string,
+  opciones: { empleadoId?: string; empresaIdOverride?: string } = {}
+): Promise<Turno[]> => {
+  let q = sb()
+    .from('turnos')
+    .select('*')
+    .eq('empresa_id', empresaIdEfectiva(opciones.empresaIdOverride))
+    .gte('fecha', desde)
+    .lte('fecha', hasta);
+  if (opciones.empleadoId) q = q.eq('empleado_id', opciones.empleadoId);
+  const { data, error } = await q.order('fecha');
   if (error) throw new Error(error.message);
   return (data ?? []).map(aTurno);
 };
@@ -1954,57 +2065,67 @@ export const eliminarConvenio = async (id: string): Promise<void> => {
 
 // ---------- Jornadas calculadas (para reportes y "mi mes") ----------
 
-/** La jornada de `fichadas.ts` más lo que sale de compararla con la config. */
+/** La jornada de `fichadas.ts` más lo que sale de compararla con su horario. */
 interface JornadaControl {
   empleadoId: string;
   fecha: string;
   horasTrabajadas: number;
+  /** Horas fuera de horario detectadas, estén aprobadas o no. */
   horasExtras: number;
+  /**
+   * De `horasExtras`, las que el supervisor aprobó para pagar.
+   *
+   * Se separan porque son dos preguntas distintas: Reportes muestra lo
+   * que pasó, y la liquidación paga lo que se autorizó. Sólo un turno
+   * asignado puede aprobarse, así que un día sin turno detecta extras
+   * pero no las da por aprobadas.
+   */
+  horasExtrasAprobadas: number;
   llegadaTardeMin: number;
   incompleta: boolean;
 }
 
-const minutosDe = (hhmm: string): number => {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + (m || 0);
-};
-
 /**
- * Cruza las jornadas (que ya arma la base) con el horario configurado:
- * llegadas tarde, horas extras y jornadas sin cerrar.
+ * Cruza las jornadas (que ya arma la base) con el horario que le tocaba
+ * a cada persona: llegadas tarde, horas extras y jornadas sin cerrar.
  *
  * Antes esta función además agrupaba las marcas, duplicando la lógica
  * de `armarJornadas`. Eran dos implementaciones del mismo concepto que
  * podían divergir —y de hecho redondeaban distinto—, así que ahora
  * recibe la jornada ya armada y sólo hace la parte que le toca.
+ *
+ * El horario esperado sale del **turno asignado** a esa persona ese día,
+ * y sólo si no tiene turno se cae al horario general de la empresa.
+ * Antes usaba siempre el general: quien tenía turno noche aparecía con
+ * cientos de minutos de llegada tarde por día, y las horas extras que se
+ * sugerían al liquidar no eran las suyas.
  */
 const controlDeJornadas = (
   jornadas: Jornada[],
-  config: Empresa['config']
+  config: Empresa['config'],
+  turnos: Turno[] = []
 ): JornadaControl[] => {
-  const entrada = minutosDe(config.horaEntrada);
-  const salida = minutosDe(config.horaSalida);
-  const tolerancia = config.toleranciaLlegadaTardeMin;
-  const minutosLocal = (iso: string) => {
-    const d = new Date(iso);
-    return d.getHours() * 60 + d.getMinutes();
+  const porTurno = indexarTurnos(turnos);
+  const horarioGeneral = {
+    horaEntrada: config.horaEntrada,
+    horaSalida: config.horaSalida,
   };
 
   return jornadas.map((j) => {
-    const minIngreso = j.entrada ? minutosLocal(j.entrada) : null;
-    const minEgreso = j.salida ? minutosLocal(j.salida) : null;
+    const turno = porTurno.get(claveTurno(j.empleadoId, j.fecha));
+    const { llegadaTardeMin, extrasMin } = controlarJornada(
+      j,
+      turno ?? horarioGeneral,
+      config.toleranciaLlegadaTardeMin
+    );
+    const horasExtras = Math.round((extrasMin / 60) * 10) / 10;
     return {
       empleadoId: j.empleadoId,
       fecha: j.fecha,
       horasTrabajadas: j.horas,
-      horasExtras:
-        minEgreso !== null && minEgreso > salida
-          ? Math.round(((minEgreso - salida) / 60) * 10) / 10
-          : 0,
-      llegadaTardeMin:
-        minIngreso !== null && minIngreso > entrada + tolerancia
-          ? minIngreso - entrada
-          : 0,
+      horasExtras,
+      horasExtrasAprobadas: turno?.extrasAprobadas ? horasExtras : 0,
+      llegadaTardeMin,
       incompleta: j.incompleta,
     };
   });
@@ -2031,11 +2152,12 @@ export const getResumenControl = async (
     new Date(Number(mesActual.slice(0, 4)), Number(mesActual.slice(5, 7)), 0)
   );
 
-  const [empresa, empleados, jornadas, ausencias, recibosPend] =
+  const [empresa, empleados, jornadas, turnos, ausencias, recibosPend] =
     await Promise.all([
       getEmpresa(empresaIdOverride),
       getEmpleados(empresaIdOverride),
       getJornadas(desde, hasta, { empresaIdOverride }),
+      getTurnosEntre(desde, hasta, { empresaIdOverride }),
       getAusenciasEntre(inicioMes, finMes, empresaIdOverride),
       sb()
         .from('recibos')
@@ -2044,7 +2166,7 @@ export const getResumenControl = async (
         .eq('estado_firma', 'pendiente'),
     ]);
 
-  const control = controlDeJornadas(jornadas, empresa.config);
+  const control = controlDeJornadas(jornadas, empresa.config, turnos);
   // Un índice por empleado evita recorrer todas las jornadas una vez
   // por persona: con 300 empleados y una semana eso era ~600.000
   // comparaciones para armar una tabla de 300 filas.
@@ -2103,7 +2225,7 @@ export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
   const desde = new Date();
   desde.setDate(desde.getDate() - 7);
   desde.setHours(0, 0, 0, 0);
-  const [{ data, error }, empresa] = await Promise.all([
+  const [{ data, error }, empresa, turnos] = await Promise.all([
     sb()
       .from('fichajes')
       .select('*')
@@ -2111,10 +2233,12 @@ export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
       .gte('ts', desde.toISOString())
       .order('ts'),
     getEmpresa(),
+    getTurnosEntre(aISOLocal(desde), hoyISO(), { empleadoId }),
   ]);
   const jornadas = controlDeJornadas(
     armarJornadas(oFalla(data, error).map(aFichaje)),
-    empresa.config
+    empresa.config,
+    turnos
   );
   return {
     horasTrabajadas:
@@ -2129,19 +2253,26 @@ export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
 
 /**
  * Horas extras de un período (YYYY-MM), para sugerirlas al liquidar.
- * Se reconstruyen desde los fichajes con la misma función que usa el
- * control de Turnos, así el número que ve RRHH al liquidar es el mismo
- * que ve en Reportes.
+ *
+ * Se reconstruyen desde los fichajes con la misma función que usa
+ * Reportes, contra el turno de cada día cuando lo hay.
+ *
+ * Devuelve las detectadas y las aprobadas por separado: al bruto sólo se
+ * ofrece sumar las aprobadas, pero mostrar las detectadas evita que un
+ * cero se lea como "no hizo extras" cuando en realidad nadie las aprobó
+ * todavía en Turnos.
  */
 export const getHorasExtrasDelPeriodo = async (
   empleadoId: string,
   periodo: string
-): Promise<number> => {
+): Promise<HorasExtrasPeriodo> => {
   const [anio, mes] = periodo.split('-').map(Number);
-  if (!anio || !mes) return 0;
+  if (!anio || !mes) return { detectadas: 0, aprobadas: 0 };
   const desde = new Date(anio, mes - 1, 1);
   const hasta = new Date(anio, mes, 1);
-  const [{ data, error }, empresa] = await Promise.all([
+  // El último día del mes: `hasta` es el 1º del siguiente.
+  const ultimoDia = new Date(anio, mes, 0);
+  const [{ data, error }, empresa, turnos] = await Promise.all([
     sb()
       .from('fichajes')
       .select('*')
@@ -2150,14 +2281,20 @@ export const getHorasExtrasDelPeriodo = async (
       .lt('ts', hasta.toISOString())
       .order('ts'),
     getEmpresa(),
+    getTurnosEntre(aISOLocal(desde), aISOLocal(ultimoDia), { empleadoId }),
   ]);
   const jornadas = controlDeJornadas(
     armarJornadas(oFalla(data, error).map(aFichaje)),
-    empresa.config
+    empresa.config,
+    turnos
   );
-  return (
-    Math.round(jornadas.reduce((acc, j) => acc + j.horasExtras, 0) * 10) / 10
-  );
+  const redondear = (n: number) => Math.round(n * 10) / 10;
+  return {
+    detectadas: redondear(jornadas.reduce((acc, j) => acc + j.horasExtras, 0)),
+    aprobadas: redondear(
+      jornadas.reduce((acc, j) => acc + j.horasExtrasAprobadas, 0)
+    ),
+  };
 };
 
 // ---------- Alertas (derivadas de contratos y documentos) ----------

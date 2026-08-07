@@ -20,6 +20,7 @@ import {
   getEmpresa,
   getHorasExtrasDelPeriodo,
 } from '@/lib/services/rrhh';
+import type { HorasExtrasPeriodo } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   calcularLiquidacion,
@@ -115,7 +116,10 @@ export const RemuneracionModal = ({
   const [convenio, setConvenio] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [horasExtras, setHorasExtras] = useState(0);
+  const [extras, setExtras] = useState<HorasExtrasPeriodo>({
+    detectadas: 0,
+    aprobadas: 0,
+  });
   const [horasMensuales, setHorasMensuales] = useState(HORAS_MENSUALES);
   const [regimen, setRegimen] = useState<RegimenLaboral>(
     'relacion_dependencia'
@@ -164,17 +168,18 @@ export const RemuneracionModal = ({
    * mirarlas en otra pantalla y sumarlas a mano al bruto.
    */
   useEffect(() => {
+    const vacio = { detectadas: 0, aprobadas: 0 };
     if (!abierto || !empleadoActual || !periodo) {
-      setHorasExtras(0);
+      setExtras(vacio);
       return;
     }
     let vigente = true;
     void getHorasExtrasDelPeriodo(empleadoActual, periodo)
       .then((h) => {
-        if (vigente) setHorasExtras(h);
+        if (vigente) setExtras(h);
       })
       .catch(() => {
-        if (vigente) setHorasExtras(0);
+        if (vigente) setExtras(vacio);
       });
     return () => {
       vigente = false;
@@ -197,9 +202,13 @@ export const RemuneracionModal = ({
   /** En el régimen simplificado no hay jubilación, PAMI ni obra social. */
   const conAportes = tieneAportesDeLey(regimen);
 
+  /**
+   * Sólo se ofrece sumar al bruto lo que el supervisor aprobó en Turnos.
+   * Las detectadas sin aprobar se muestran, pero no se pagan solas.
+   */
   const sugeridoExtras = valorHorasExtras(
     num(bruto),
-    horasExtras,
+    extras.aprobadas,
     horasMensuales
   );
 
@@ -375,22 +384,40 @@ export const RemuneracionModal = ({
             />
           </div>
 
-          {horasExtras > 0 && (
+          {extras.detectadas > 0 && (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
               <p className="text-xs text-amber-900">
                 Tiene{' '}
                 <strong className="font-bold">
-                  {horasExtras} horas extras
+                  {extras.detectadas} horas extras
                 </strong>{' '}
                 registradas en {formatearPeriodo(periodo)} según su fichaje.
-                {sugeridoExtras > 0 && (
+                {extras.aprobadas > 0 ? (
                   <>
                     {' '}
-                    Al 50%, con una base de {horasMensuales} hs mensuales, son{' '}
-                    <strong className="font-bold">
-                      {formatearPesos(sugeridoExtras)}
-                    </strong>
+                    Están aprobadas{' '}
+                    <strong className="font-bold">{extras.aprobadas} hs</strong>
                     .
+                    {sugeridoExtras > 0 && (
+                      <>
+                        {' '}
+                        Al 50%, con una base de {horasMensuales} hs mensuales,
+                        son{' '}
+                        <strong className="font-bold">
+                          {formatearPesos(sugeridoExtras)}
+                        </strong>
+                        .
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {' '}
+                    <strong className="font-bold">
+                      Todavía no hay ninguna aprobada
+                    </strong>
+                    , así que no se pueden sumar al bruto desde acá. Se aprueban
+                    en Turnos, en el día que corresponda.
                   </>
                 )}
               </p>

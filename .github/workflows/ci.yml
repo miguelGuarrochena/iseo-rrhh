@@ -1,0 +1,75 @@
+name: CI
+
+# Todo lo que hay que verificar antes de que un cambio entre a main.
+# Hasta ahora esto se corría a mano, y así llegaron 12 tests rotos a la
+# rama principal sin que nadie se enterara.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Permite dispararlo a mano desde la pestaña Actions.
+  workflow_dispatch:
+
+# Si se pushea dos veces seguidas, cancela la corrida vieja: no tiene
+# sentido esperar el resultado de un commit que ya quedó atrás.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Typecheck · Lint · Tests · Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # El build no necesita credenciales reales: los clientes de
+      # Supabase se crean de forma lazy (ver src/lib/supabase/cliente.ts),
+      # así que alcanza con que las variables existan. Nada acá toca la
+      # base: no hay secretos de producción en CI.
+      NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci
+      # Silencia el aviso de telemetría en los logs.
+      NEXT_TELEMETRY_DISABLED: '1'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # `npm ci` corre el postinstall, que copia el worker de pdf.js y
+      # los modelos faciales a public/. El build los da por hechos.
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm run test:ci
+
+      - name: Build de producción
+        run: npm run build
+
+  # Informativo: no frena el merge, pero deja el estado a la vista en
+  # cada PR en vez de que alguien se acuerde de correrlo cada tanto.
+  dependencias:
+    name: Vulnerabilidades conocidas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: npm audit (dependencias de producción)
+        run: npm audit --omit=dev --audit-level=high

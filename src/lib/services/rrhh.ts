@@ -11,6 +11,7 @@ import * as real from './supabase/real';
 
 // Tipos compartidos por ambas implementaciones
 export type {
+  HorasExtrasPeriodo,
   MiMes,
   NuevaAusencia,
   NuevaNotaInterna,
@@ -223,6 +224,11 @@ export const getFichajesDeEmpleadoHoy = elegir(
   demo.getFichajesDeEmpleadoHoy
 );
 export const ficharAhora = elegir(real.ficharAhora, demo.ficharAhora);
+/** Fichaje facial: el rostro y la geocerca los valida el servidor. */
+export const ficharConRostro = elegir(
+  real.ficharConRostro,
+  demo.ficharConRostro
+);
 
 // ---------- Reconocimiento facial ----------
 export const enrolarRostro = elegir(real.enrolarRostro, demo.enrolarRostro);

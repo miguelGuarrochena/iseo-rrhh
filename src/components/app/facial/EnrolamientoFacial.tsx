@@ -30,15 +30,38 @@ export const EnrolamientoFacial = ({
   const enrolado = Boolean(empleado.descriptorFacial?.length);
   const nombre = empleado.nombre;
 
+  /**
+   * El texto exacto que se acepta. Se guarda junto al consentimiento: si
+   * mañana hay un reclamo, hay que poder mostrar qué se informó, no sólo
+   * que alguien tildó una casilla.
+   */
+  const textoConsentimiento =
+    `${empleado.nombre} ${empleado.apellido} autoriza el uso de sus datos ` +
+    `biométricos (rostro) para registrar su asistencia, conforme a la Ley ` +
+    `25.326 de Protección de Datos Personales.`;
+
   const abrir = () => {
     setConsiente(false);
     open();
   };
 
   const capturar = async (descriptor: number[]) => {
+    // La pantalla no habilita la cámara sin el tilde, pero el chequeo va
+    // igual acá: el consentimiento es la condición para guardar el dato,
+    // no para mostrar un botón.
+    if (!consiente) {
+      avisoError(
+        'Falta el consentimiento',
+        'Sin la autorización del titular no podemos registrar el rostro.'
+      );
+      return;
+    }
     setGuardando(true);
     try {
-      const actualizado = await enrolarRostro(empleado.id, descriptor);
+      const actualizado = await enrolarRostro(empleado.id, descriptor, {
+        aceptado: true,
+        texto: textoConsentimiento,
+      });
       if (actualizado) {
         onActualizado(actualizado);
         avisoExito(
@@ -132,11 +155,7 @@ export const EnrolamientoFacial = ({
               onChange={(e) => setConsiente(e.target.checked)}
               className="mt-0.5 h-4 w-4 shrink-0 accent-brand-600"
             />
-            <span className="text-sm text-ink">
-              {nombre} autoriza el uso de sus datos biométricos (rostro) para
-              registrar su asistencia, conforme a la Ley 25.326 de Protección de
-              Datos Personales.
-            </span>
+            <span className="text-sm text-ink">{textoConsentimiento}</span>
           </label>
 
           {consiente ? (

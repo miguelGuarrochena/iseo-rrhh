@@ -108,6 +108,78 @@ export const controlarTurno = (
   };
 };
 
+/** Horario que se espera de una jornada. */
+export interface HorarioEsperado {
+  horaEntrada: string;
+  horaSalida: string;
+}
+
+export interface ControlDeJornada {
+  /** Minutos de llegada tarde, 0 si entró dentro de la tolerancia. */
+  llegadaTardeMin: number;
+  /** Minutos trabajados después de la hora de salida esperada. */
+  extrasMin: number;
+}
+
+/** "2026-08-07T22:15:00Z" → minutos desde medianoche, en hora local. */
+const minutosDelISO = (iso: string): number => {
+  const d = new Date(iso);
+  return d.getHours() * 60 + d.getMinutes();
+};
+
+/**
+ * Compara una jornada real contra el horario que le correspondía.
+ *
+ * El horario puede venir del turno asignado a esa persona ese día o, si
+ * no tiene turno, del horario general de la empresa. Quien llama decide
+ * cuál corresponde; acá sólo se hace la cuenta.
+ *
+ * **Sólo cuenta como extra la salida tardía**, no la entrada anticipada:
+ * llegar veinte minutos antes suele ser el colectivo, no trabajo pedido.
+ *
+ * Los turnos que cruzan medianoche (22:00–06:00) se detectan porque la
+ * salida es menor o igual que la entrada, y se corrigen sumando un día.
+ * Sin eso, un turno noche daba cientos de minutos de llegada tarde todos
+ * los días y las extras salían cualquier cosa.
+ */
+export const controlarJornada = (
+  jornada: { entrada?: string | null; salida?: string | null },
+  horario: HorarioEsperado,
+  toleranciaMin = 0
+): ControlDeJornada => {
+  const entradaEsperada = aMinutos(horario.horaEntrada);
+  let salidaEsperada = aMinutos(horario.horaSalida);
+  // Salida menor o igual que la entrada sólo tiene sentido si el turno
+  // termina al día siguiente.
+  if (salidaEsperada <= entradaEsperada) salidaEsperada += 24 * 60;
+
+  const ingresoMin = jornada.entrada ? minutosDelISO(jornada.entrada) : null;
+  let egresoMin = jornada.salida ? minutosDelISO(jornada.salida) : null;
+  // Si salió "antes" de haber entrado, es que cruzó la medianoche.
+  if (ingresoMin !== null && egresoMin !== null && egresoMin < ingresoMin) {
+    egresoMin += 24 * 60;
+  }
+
+  return {
+    llegadaTardeMin:
+      ingresoMin !== null && ingresoMin > entradaEsperada + toleranciaMin
+        ? ingresoMin - entradaEsperada
+        : 0,
+    extrasMin:
+      egresoMin !== null && egresoMin > salidaEsperada
+        ? egresoMin - salidaEsperada
+        : 0,
+  };
+};
+
+/** Clave para encontrar el turno de una persona en un día. */
+export const claveTurno = (empleadoId: string, fecha: string): string =>
+  `${empleadoId}|${fecha}`;
+
+/** Índice de turnos por empleado y fecha, para no recorrer la lista por jornada. */
+export const indexarTurnos = (turnos: Turno[]): Map<string, Turno> =>
+  new Map(turnos.map((t) => [claveTurno(t.empleadoId, t.fecha), t]));
+
 export interface ResumenControl {
   ausencias: number;
   llegadasTarde: number;

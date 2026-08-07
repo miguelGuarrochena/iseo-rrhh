@@ -1,4 +1,11 @@
-import { controlarTurno, resumirControlTurnos, aMinutos } from '@/lib/turnos';
+import {
+  aMinutos,
+  claveTurno,
+  controlarJornada,
+  controlarTurno,
+  indexarTurnos,
+  resumirControlTurnos,
+} from '@/lib/turnos';
 import { Fichaje, Turno } from '@/types/rrhh';
 
 const turno = (fecha: string, entrada: string, salida: string): Turno => ({
@@ -85,5 +92,93 @@ describe('resumirControlTurnos', () => {
 describe('aMinutos', () => {
   it('convierte HH:MM a minutos', () => {
     expect(aMinutos('08:30')).toBe(510);
+  });
+});
+
+describe('controlarJornada', () => {
+  /** Los timestamps van sin zona para que se lean como hora local. */
+  const jornada = (entrada?: string, salida?: string) => ({
+    entrada: entrada ? `2026-07-06T${entrada}:00` : null,
+    salida: salida ? `2026-07-06T${salida}:00` : null,
+  });
+
+  const diurno = { horaEntrada: '08:00', horaSalida: '17:00' };
+
+  it('sin llegada tarde ni extras cuando entra y sale en horario', () => {
+    const c = controlarJornada(jornada('08:00', '17:00'), diurno);
+    expect(c.llegadaTardeMin).toBe(0);
+    expect(c.extrasMin).toBe(0);
+  });
+
+  it('cuenta la llegada tarde completa, no la que excede la tolerancia', () => {
+    const c = controlarJornada(jornada('08:20', '17:00'), diurno, 10);
+    expect(c.llegadaTardeMin).toBe(20);
+  });
+
+  it('dentro de la tolerancia no es llegada tarde', () => {
+    const c = controlarJornada(jornada('08:08', '17:00'), diurno, 10);
+    expect(c.llegadaTardeMin).toBe(0);
+  });
+
+  it('cuenta como extra sólo lo que se queda después de la salida', () => {
+    const c = controlarJornada(jornada('08:00', '19:30'), diurno);
+    expect(c.extrasMin).toBe(150);
+  });
+
+  /** Decisión de negocio: entrar antes no se paga como extra. */
+  it('entrar antes de hora NO cuenta como extra', () => {
+    const c = controlarJornada(jornada('06:00', '17:00'), diurno);
+    expect(c.extrasMin).toBe(0);
+    expect(c.llegadaTardeMin).toBe(0);
+  });
+
+  it('una jornada sin cerrar no genera extras', () => {
+    const c = controlarJornada(jornada('08:00', undefined), diurno);
+    expect(c.extrasMin).toBe(0);
+    expect(c.llegadaTardeMin).toBe(0);
+  });
+
+  describe('turno noche (cruza medianoche)', () => {
+    const noche = { horaEntrada: '22:00', horaSalida: '06:00' };
+
+    /**
+     * El bug que motivó todo esto: con el horario general de la empresa
+     * (08:00) un turno noche daba 840 minutos de llegada tarde por día.
+     * Contra su propio turno, entrar 22:00 es puntual.
+     */
+    it('entrar 22:00 en un turno 22-06 no es llegar tarde', () => {
+      const c = controlarJornada(
+        { entrada: '2026-07-06T22:00:00', salida: '2026-07-07T06:00:00' },
+        noche
+      );
+      expect(c.llegadaTardeMin).toBe(0);
+      expect(c.extrasMin).toBe(0);
+    });
+
+    it('salir 07:30 en un turno 22-06 son 90 minutos de extra', () => {
+      const c = controlarJornada(
+        { entrada: '2026-07-06T22:00:00', salida: '2026-07-07T07:30:00' },
+        noche
+      );
+      expect(c.extrasMin).toBe(90);
+    });
+
+    it('llegar 22:45 a un turno 22-06 son 45 minutos tarde', () => {
+      const c = controlarJornada(
+        { entrada: '2026-07-06T22:45:00', salida: '2026-07-07T06:00:00' },
+        noche
+      );
+      expect(c.llegadaTardeMin).toBe(45);
+    });
+  });
+});
+
+describe('indexarTurnos', () => {
+  it('encuentra el turno de una persona en un día', () => {
+    const t = turno('2026-07-06', '08:00', '17:00');
+    const indice = indexarTurnos([t]);
+    expect(indice.get(claveTurno('e1', '2026-07-06'))).toBe(t);
+    expect(indice.get(claveTurno('e1', '2026-07-07'))).toBeUndefined();
+    expect(indice.get(claveTurno('e2', '2026-07-06'))).toBeUndefined();
   });
 });

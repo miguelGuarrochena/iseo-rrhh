@@ -5,14 +5,10 @@ import { Modal } from '@mantine/core';
 import { IconCircleCheck } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { CapturaFacial } from './CapturaFacial';
-import {
-  UMBRAL_VERIFICACION,
-  distancia,
-  mejorCoincidencia,
-} from '@/lib/facial/reconocimiento';
-import { distanciaMetros, obtenerUbicacion } from '@/lib/facial/ubicacion';
-import { ficharAhora, getDescriptoresFaciales } from '@/lib/services/rrhh';
-import { Fichaje, Geocerca, MetodoFichaje } from '@/types/rrhh';
+import { obtenerUbicacion } from '@/lib/facial/ubicacion';
+import { ficharConRostro } from '@/lib/services/rrhh';
+import { interpretarError } from '@/lib/errores';
+import { Fichaje, MetodoFichaje } from '@/types/rrhh';
 
 type Modo = 'verificar' | 'identificar';
 
@@ -21,18 +17,18 @@ interface FichajeFacialModalProps {
   onCerrar: () => void;
   /** 'verificar' = 1:1 (celular propio); 'identificar' = 1:N (tablet). */
   modo: Modo;
-  /** Requeridos en modo 'verificar'. */
+  /** Requerido en modo 'verificar': a quién se está confirmando. */
   empleadoId?: string;
-  descriptorEmpleado?: number[];
   /** Nombre a mostrar dado un id (para el modo tablet). */
   resolverNombre?: (empleadoId: string) => string;
   /** Método con que se registra (celular/remoto en verificar; tablet en identificar). */
   metodoRegistro?: MetodoFichaje;
   /** Si captura ubicación GPS (celular y tablet sí; remoto no). */
   pedirUbicacion?: boolean;
-  /** Zona de trabajo a validar (modo celular). */
-  geocerca?: Geocerca;
   onFichado: (fichaje: Fichaje, empleadoId: string) => void;
+  // Ya no recibe `descriptorEmpleado` ni `geocerca`: el rostro enrolado y
+  // la zona de trabajo viven en el servidor y no bajan al cliente. Es lo
+  // que impide falsear la confianza o el "dentro de zona" desde acá.
 }
 
 interface Resultado {
@@ -51,11 +47,9 @@ export const FichajeFacialModal = ({
   onCerrar,
   modo,
   empleadoId,
-  descriptorEmpleado,
   resolverNombre,
   metodoRegistro,
   pedirUbicacion = true,
-  geocerca,
   onFichado,
 }: FichajeFacialModalProps) => {
   const [procesando, setProcesando] = useState(false);
@@ -68,81 +62,52 @@ export const FichajeFacialModal = ({
     onCerrar();
   };
 
-  const fichar = async (empId: string, confianza: number, foto: string) => {
-    const metodo: MetodoFichaje =
-      modo === 'identificar' ? 'facial_tablet' : (metodoRegistro ?? 'celular');
-
-    let geo: { lat: number; lng: number } | undefined;
-    let fueraDeZona: boolean | undefined;
-    if (pedirUbicacion) {
-      geo = await obtenerUbicacion();
-      if (geo && geocerca) {
-        fueraDeZona = distanciaMetros(geo, geocerca) > geocerca.radioM;
-      }
-    }
-
-    const fichaje = await ficharAhora(empId, {
-      metodo,
-      confianza,
-      geo,
-      fotoUrl: foto,
-      fueraDeZona,
-    });
-    setResultado({
-      tipo: fichaje.tipo,
-      nombre: resolverNombre?.(empId),
-      confianza,
-      fueraDeZona,
-    });
-    onFichado(fichaje, empId);
-  };
-
-  const procesar = async (descriptor: number[], foto: string) => {
+  /**
+   * Manda el descriptor y las coordenadas crudas; el resto lo decide el
+   * servidor.
+   *
+   * Antes esta pantalla comparaba el rostro contra los descriptores de
+   * toda la empresa, calculaba la confianza y la geocerca, y mandaba las
+   * tres cosas ya resueltas para que se guardaran tal cual. Es decir: la
+   * fichada valía lo que valía la palabra del navegador. Ahora el match
+   * y la geocerca los hace el RPC `fichar_con_rostro`, que además nunca
+   * baja los rostros enrolados a la tablet.
+   */
+  const procesar = async (descriptor: number[]) => {
     setError(null);
     setProcesando(true);
     try {
-      if (modo === 'verificar') {
-        if (!empleadoId || !descriptorEmpleado?.length) {
-          setError('Todavía no registraste tu rostro. Pedíselo a RRHH.');
-          return;
-        }
-        const d = distancia(descriptor, descriptorEmpleado);
-        if (d > UMBRAL_VERIFICACION) {
-          // Se muestra qué tan lejos quedó: si es apenas por encima, casi
-          // siempre alcanza con reintentar de frente y con mejor luz. Si
-          // es muy alto, conviene volver a registrar la cara.
-          const cerca = d < UMBRAL_VERIFICACION * 1.3;
-          setError(
-            cerca
-              ? 'Casi. Acercate, mirá de frente y buscá mejor luz (que no venga de atrás tuyo).'
-              : 'No te reconocimos. Si cambiaste mucho de aspecto (barba, anteojos nuevos), pedile a RRHH que registre tu cara de nuevo.'
-          );
-          return;
-        }
-        await fichar(
-          empleadoId,
-          Math.max(0, 1 - d / UMBRAL_VERIFICACION),
-          foto
-        );
-      } else {
-        const candidatos = await getDescriptoresFaciales();
-        if (candidatos.length === 0) {
-          setError(
-            'Todavía no hay rostros registrados. Registrá la cara de los colaboradores desde su ficha para poder fichar en planta.'
-          );
-          return;
-        }
-        const match = mejorCoincidencia(descriptor, candidatos);
-        if (!match) {
-          setError(
-            'No reconocimos a nadie con seguridad. Acercate, mirá de frente y con buena luz. Si el problema sigue, fichá con tu celular y avisale a RRHH.'
-          );
-          return;
-        }
-        await fichar(match.empleadoId, match.confianza, foto);
+      if (modo === 'verificar' && !empleadoId) {
+        setError('Todavía no registraste tu rostro. Pedíselo a RRHH.');
+        return;
       }
-    } catch {
-      setError('No pudimos registrar el fichaje. Probá de nuevo.');
+
+      // Sólo las coordenadas: si está dentro de la zona lo resuelve el
+      // servidor contra la geocerca guardada, no el cliente.
+      const geo = pedirUbicacion ? await obtenerUbicacion() : undefined;
+
+      const fichaje = await ficharConRostro(descriptor, {
+        metodo:
+          modo === 'identificar'
+            ? 'facial_tablet'
+            : (metodoRegistro ?? 'celular'),
+        empleadoId: modo === 'verificar' ? empleadoId : undefined,
+        geo,
+      });
+
+      setResultado({
+        tipo: fichaje.tipo,
+        nombre: resolverNombre?.(fichaje.empleadoId),
+        confianza: fichaje.confianza ?? 0,
+        fueraDeZona: fichaje.fueraDeZona,
+      });
+      onFichado(fichaje, fichaje.empleadoId);
+    } catch (err) {
+      // El servidor distingue "no te reconocí" de "se cayó la conexión";
+      // mostrar siempre "probá de nuevo" hacía que la persona insistiera
+      // contra la cámara cuando el problema era otro.
+      const { detalle, titulo } = interpretarError(err);
+      setError(detalle || titulo);
     } finally {
       setProcesando(false);
     }
@@ -215,9 +180,10 @@ export const FichajeFacialModal = ({
           )}
 
           <CapturaFacial
-            onCaptura={(descriptor, foto) => void procesar(descriptor, foto)}
+            onCaptura={(descriptor) => void procesar(descriptor)}
             procesando={procesando}
             textoBoton="Fichar"
+            exigirLiveness
           />
         </div>
       )}

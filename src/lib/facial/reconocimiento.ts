@@ -13,6 +13,7 @@
  */
 
 import type * as FaceApi from '@vladmandic/face-api';
+import type { Punto } from './liveness';
 
 /**
  * Modelos servidos por la propia app desde `public/models`.
@@ -105,7 +106,17 @@ export type FuenteImagen =
 export type MotivoSinDescriptor = 'sin_modelos' | 'sin_cara' | 'varias_caras';
 
 export type ResultadoDeteccion =
-  | { ok: true; descriptor: Float32Array; caras: 1 }
+  | {
+      ok: true;
+      descriptor: Float32Array;
+      caras: 1;
+      /**
+       * Puntos de los ojos, para la prueba de vida (`lib/facial/liveness`).
+       * Vienen del mismo pase de detección: pedirlos aparte significaría
+       * correr los modelos dos veces sobre el mismo cuadro.
+       */
+      ojos: { izquierdo: Punto[]; derecho: Punto[] };
+    }
   | { ok: false; motivo: MotivoSinDescriptor; caras: number };
 
 /**
@@ -141,7 +152,16 @@ export const detectarRostro = async (
 
     ultimasCaras = detecciones.length;
     if (detecciones.length === 1) {
-      return { ok: true, descriptor: detecciones[0].descriptor, caras: 1 };
+      const cara = detecciones[0];
+      return {
+        ok: true,
+        descriptor: cara.descriptor,
+        caras: 1,
+        ojos: {
+          izquierdo: cara.landmarks.getLeftEye(),
+          derecho: cara.landmarks.getRightEye(),
+        },
+      };
     }
     // Con varias caras no sirve insistir: hay que despejar el encuadre.
     if (detecciones.length > 1) {

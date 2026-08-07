@@ -37,7 +37,9 @@ import {
   NuevaRemuneracion,
   NuevoConvenio,
   NuevoTurno,
+  MetodoFichaje,
   OpcionesFichaje,
+  TipoFichaje,
   Notificacion,
   NuevaEmpresa,
   PendientesResumen,
@@ -379,6 +381,10 @@ export const darDeBajaEmpleado = async (
     empleado.activo = false;
     empleado.motivoBaja = motivo;
     empleado.fechaBaja = fecha;
+    // La finalidad por la que se recolectó el rostro termina con la baja
+    // (Ley 25.326). Mismo criterio que en la implementación real.
+    empleado.descriptorFacial = undefined;
+    empleado.consentimientoBiometrico = undefined;
   }
   return simular(empleado ?? null);
 };
@@ -966,15 +972,57 @@ export const ficharAhora = async (
   return simular(nuevo);
 };
 
+/**
+ * Ficha validando el rostro. En la implementación real esto lo resuelve
+ * un RPC en Postgres; acá se emula el mismo contrato para que la demo
+ * recorra el mismo camino que la app conectada.
+ */
+export const ficharConRostro = async (
+  descriptor: number[],
+  opciones: {
+    metodo?: MetodoFichaje;
+    empleadoId?: string;
+    geo?: { lat: number; lng: number };
+    tipo?: TipoFichaje;
+  } = {}
+): Promise<Fichaje> => {
+  // El mock no compara descriptores: identifica por el id cuando viene, y
+  // si no, toma el primer empleado con rostro enrolado.
+  const empleado = opciones.empleadoId
+    ? empleadosMock.find((e) => e.id === opciones.empleadoId)
+    : empleadosMock.find((e) => e.descriptorFacial?.length);
+  if (!empleado) throw new Error('No reconocimos el rostro.');
+
+  return ficharAhora(empleado.id, {
+    metodo: opciones.metodo ?? 'facial_tablet',
+    geo: opciones.geo,
+    tipo: opciones.tipo,
+    confianza: 0.9,
+  });
+};
+
 /** Enrola (o actualiza) el rostro de un empleado con su consentimiento. */
 export const enrolarRostro = async (
   empleadoId: string,
-  descriptor: number[]
+  descriptor: number[],
+  consentimiento: { aceptado: boolean; texto: string }
 ): Promise<Empleado | null> => {
+  // Misma regla que en Supabase (trigger de la migración 48): sin
+  // consentimiento no hay enrolamiento.
+  if (!consentimiento.aceptado) {
+    throw new Error(
+      'No se puede registrar el rostro sin el consentimiento del titular.'
+    );
+  }
   const empleado = empleadosMock.find((e) => e.id === empleadoId);
   if (empleado) {
     empleado.descriptorFacial = descriptor;
-    empleado.consentimientoBiometrico = { aceptado: true, fecha: hoyISO() };
+    empleado.consentimientoBiometrico = {
+      aceptado: true,
+      fecha: hoyISO(),
+      otorgadoPor: 'demo',
+      texto: consentimiento.texto,
+    };
   }
   return simular(empleado ?? null);
 };
@@ -1298,6 +1346,21 @@ export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
   });
 };
 
+export interface HorasExtrasPeriodo {
+  /** Horas fuera de horario detectadas en el período. */
+  detectadas: number;
+  /**
+   * De esas, las que el supervisor aprobó en Turnos.
+   *
+   * Es lo único que se ofrece sumar al bruto: aprobar las extras es una
+   * decisión de quien supervisa, no del reloj. Las detectadas se
+   * muestran igual para que se vea la diferencia — si no, un cero
+   * pelado se lee como "no hizo extras" cuando en realidad son
+   * "todavía nadie las aprobó".
+   */
+  aprobadas: number;
+}
+
 /**
  * Horas extras de un período (YYYY-MM), para sugerirlas al liquidar.
  * El mock no tiene jornadas de varios meses, así que devuelve las que
@@ -1306,13 +1369,15 @@ export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
 export const getHorasExtrasDelPeriodo = async (
   empleadoId: string,
   periodo: string
-): Promise<number> => {
+): Promise<HorasExtrasPeriodo> => {
   const jornadas = jornadasMock.filter(
     (j) => j.empleadoId === empleadoId && j.fecha.startsWith(periodo)
   );
-  return simular(
-    Math.round(jornadas.reduce((acc, j) => acc + j.horasExtras, 0) * 10) / 10
-  );
+  const detectadas =
+    Math.round(jornadas.reduce((acc, j) => acc + j.horasExtras, 0) * 10) / 10;
+  // El mock no modela la aprobación por turno: las da todas por aprobadas
+  // para que la pantalla de demo muestre el flujo completo.
+  return simular({ detectadas, aprobadas: detectadas });
 };
 
 // ---------- Remuneraciones y recibos ----------

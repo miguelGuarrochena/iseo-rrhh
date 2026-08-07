@@ -3,25 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { FeaturesSection } from '@/components/FeaturesSection';
 
-jest.mock('framer-motion', () => ({
-  motion: {
-    div: ({
-      children,
-      ...props
-    }: React.PropsWithChildren<Record<string, unknown>>) => {
-      const domProps = { ...props };
-      delete domProps.initial;
-      delete domProps.whileInView;
-      delete domProps.viewport;
-      delete domProps.transition;
-      return (
-        <div {...(domProps as React.HTMLAttributes<HTMLDivElement>)}>
-          {children}
-        </div>
-      );
-    },
-  },
-}));
+// framer-motion se stubea globalmente en jest.config.js.
 
 const renderWithMantine = (component: React.ReactElement) =>
   render(<MantineProvider>{component}</MantineProvider>);
@@ -29,29 +11,26 @@ const renderWithMantine = (component: React.ReactElement) =>
 describe('FeaturesSection', () => {
   it('renderiza el titular de la sección', () => {
     renderWithMantine(<FeaturesSection />);
-    expect(screen.getByText(/¿qué\s+ofrecemos\?/i)).toBeInTheDocument();
+    const titular = screen.getByRole('heading', { level: 2 });
+    expect(titular).toHaveTextContent(/una plataforma simple/i);
+    expect(titular).toHaveTextContent(/para tu negocio/i);
     expect(
-      screen.getByText(/claridad, previsibilidad y cultura organizacional/i)
+      screen.getByText(/herramientas esenciales para gestionar tu equipo/i)
     ).toBeInTheDocument();
   });
 
-  it('renderiza las cuatro tarjetas', () => {
+  // Las cuatro ventajas se renderizan como <span>, no como headings, así
+  // que se buscan por texto. Convertirlas en <h3> les daría estructura a
+  // los lectores de pantalla, pero es un cambio de markup y va aparte.
+  it('renderiza las cuatro ventajas', () => {
     renderWithMantine(<FeaturesSection />);
 
+    expect(screen.getByText(/ahorra tiempo y recursos/i)).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /diagnóstico inicial/i })
+      screen.getByText(/todo en la nube, siempre disponible/i)
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', {
-        name: /implementación de nuestra herramienta online/i,
-      })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: /visitas programadas/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole('heading', { name: /procesos claros y a medida/i })
-    ).toBeInTheDocument();
+    expect(screen.getByText(/adaptado a tu empresa/i)).toBeInTheDocument();
+    expect(screen.getByText(/probalo sin compromiso/i)).toBeInTheDocument();
   });
 
   it('expone el id "features" para la navegación', () => {

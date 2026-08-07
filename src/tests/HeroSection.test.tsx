@@ -4,13 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { HeroSection } from '@/components/HeroSection';
 
-jest.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, ...props }: React.PropsWithChildren<object>) => (
-      <div {...props}>{children}</div>
-    ),
-  },
-}));
+// framer-motion se stubea globalmente en jest.config.js.
 
 const renderWithMantine = (component: React.ReactElement) =>
   render(<MantineProvider>{component}</MantineProvider>);
@@ -23,35 +17,55 @@ describe('HeroSection', () => {
   it('renderiza el titular principal', () => {
     renderWithMantine(<HeroSection />);
     const heading = screen.getByRole('heading', { level: 1 });
-    expect(heading).toHaveTextContent(/organizá tu empresa/i);
+    expect(heading).toHaveTextContent(/somos tu área de/i);
     expect(heading).toHaveTextContent(/recursos humanos/i);
   });
 
   it('renderiza los párrafos descriptivos', () => {
     renderWithMantine(<HeroSection />);
     expect(
-      screen.getByText(/no cuentan con un área de recursos humanos/i)
+      screen.getByText(/aliado en la gestión y organización del personal/i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/acompañamos a las empresas en la gestión integral/i)
+      screen.getByText(/plataforma pensada para pequeñas y medianas empresas/i)
     ).toBeInTheDocument();
   });
 
-  it('renderiza el CTA "Contactanos"', () => {
+  it('renderiza los dos CTA', () => {
     renderWithMantine(<HeroSection />);
     expect(
-      screen.getByRole('button', { name: /contactanos/i })
+      screen.getByRole('button', { name: /solicitar una demo/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /conocé la plataforma/i })
     ).toBeInTheDocument();
   });
 
-  it('hace scroll al contacto al tocar el CTA', async () => {
+  it('el CTA principal hace scroll al contacto', async () => {
     const user = userEvent.setup();
     const target = document.createElement('div');
     target.id = 'contact';
     document.body.appendChild(target);
 
     renderWithMantine(<HeroSection />);
-    await user.click(screen.getByRole('button', { name: /contactanos/i }));
+    await user.click(
+      screen.getByRole('button', { name: /solicitar una demo/i })
+    );
+
+    expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
+    document.body.removeChild(target);
+  });
+
+  it('el CTA secundario hace scroll a la sección de producto', async () => {
+    const user = userEvent.setup();
+    const target = document.createElement('div');
+    target.id = 'producto';
+    document.body.appendChild(target);
+
+    renderWithMantine(<HeroSection />);
+    await user.click(
+      screen.getByRole('button', { name: /conocé la plataforma/i })
+    );
 
     expect(target.scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth' });
     document.body.removeChild(target);

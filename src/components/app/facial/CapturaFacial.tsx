@@ -4,6 +4,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { IconCamera, IconFaceId, IconRefresh } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { cargarModelos, detectarRostro } from '@/lib/facial/reconocimiento';
+import {
+  aperturaDeCuadro,
+  CUADROS_MINIMOS,
+  evaluarLiveness,
+} from '@/lib/facial/liveness';
 
 interface CapturaFacialProps {
   /** Se llama con el descriptor (128 nros) y una foto JPEG (dataURL). */
@@ -11,7 +16,20 @@ interface CapturaFacialProps {
   /** Estado ocupado externo (ej. mientras se guarda / se ficha). */
   procesando?: boolean;
   textoBoton?: string;
+  /**
+   * Pide un parpadeo antes de aceptar la captura.
+   *
+   * Se usa al fichar, no al enrolar: al registrar el rostro hay alguien
+   * de RRHH presente mirando, pero en la tablet de planta no, y sin esto
+   * una foto impresa fichaba por su dueño.
+   */
+  exigirLiveness?: boolean;
 }
+
+/** Cuánto se mira a la persona esperando el parpadeo. */
+const MS_LIVENESS = 4000;
+/** Cada cuánto se toma un cuadro durante ese rato. */
+const MS_ENTRE_CUADROS = 180;
 
 type Estado =
   | 'iniciando'
@@ -39,12 +57,15 @@ export const CapturaFacial = ({
   onCaptura,
   procesando = false,
   textoBoton = 'Capturar',
+  exigirLiveness = false,
 }: CapturaFacialProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [estado, setEstado] = useState<Estado>('iniciando');
   const [analizando, setAnalizando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  /** Se muestra durante la prueba de vida para que sepa qué hacer. */
+  const [pidiendoParpadeo, setPidiendoParpadeo] = useState(false);
 
   const iniciarCamara = useCallback(async () => {
     setEstado('iniciando');
@@ -95,11 +116,59 @@ export const CapturaFacial = ({
     };
   }, [iniciarCamara]);
 
+  /**
+   * Mira a la persona unos segundos esperando un parpadeo.
+   *
+   * Una foto impresa o una pantalla mostrando una cara tienen los ojos
+   * siempre igual; una persona parpadea. No frena a alguien decidido con
+   * un video, pero sí el caso común, que es la foto en el celular.
+   */
+  const comprobarLiveness = async (
+    video: HTMLVideoElement
+  ): Promise<{ vivo: boolean; mensaje?: string }> => {
+    setPidiendoParpadeo(true);
+    const aperturas: number[] = [];
+    const hasta = Date.now() + MS_LIVENESS;
+    try {
+      while (Date.now() < hasta) {
+        const cuadro = await detectarRostro(video);
+        if (cuadro.ok) {
+          aperturas.push(
+            aperturaDeCuadro(cuadro.ojos.izquierdo, cuadro.ojos.derecho)
+          );
+          // Con el parpadeo ya visto no tiene sentido seguir esperando.
+          if (evaluarLiveness(aperturas).vivo) return { vivo: true };
+        }
+        await new Promise((r) => setTimeout(r, MS_ENTRE_CUADROS));
+      }
+
+      const veredicto = evaluarLiveness(aperturas);
+      if (veredicto.vivo) return { vivo: true };
+      return {
+        vivo: false,
+        mensaje:
+          veredicto.motivo === 'pocos_cuadros' ||
+          aperturas.length < CUADROS_MINIMOS
+            ? 'No llegamos a verte bien. Quedate quieto frente a la cámara y probá de nuevo.'
+            : 'Necesitamos confirmar que sos vos en persona: mirá a la cámara y parpadeá.',
+      };
+    } finally {
+      setPidiendoParpadeo(false);
+    }
+  };
+
   const capturar = async () => {
     if (!videoRef.current || analizando || procesando) return;
     setAnalizando(true);
     setMensaje(null);
     try {
+      if (exigirLiveness) {
+        const prueba = await comprobarLiveness(videoRef.current);
+        if (!prueba.vivo) {
+          setMensaje(prueba.mensaje ?? 'No pudimos confirmar que sos vos.');
+          return;
+        }
+      }
       const deteccion = await detectarRostro(videoRef.current);
       if (!deteccion.ok) {
         setMensaje(
@@ -162,6 +231,18 @@ export const CapturaFacial = ({
         {estado === 'iniciando' && (
           <div className="absolute inset-0 flex items-center justify-center bg-surface/80 text-sm text-ink-soft">
             Encendiendo la cámara…
+          </div>
+        )}
+        {/*
+          Sin esta indicación la persona se queda mirando fijo esperando
+          que pase algo, que es justo lo contrario de lo que necesitamos.
+        */}
+        {pidiendoParpadeo && (
+          <div
+            aria-live="polite"
+            className="absolute inset-x-0 bottom-0 bg-ink/75 px-4 py-2.5 text-center text-sm font-semibold text-white"
+          >
+            Parpadeá una vez, mirando a la cámara
           </div>
         )}
       </div>

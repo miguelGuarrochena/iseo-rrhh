@@ -4,25 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { ContactSection } from '@/components/ContactSection';
 
-jest.mock('framer-motion', () => ({
-  motion: {
-    div: ({
-      children,
-      ...props
-    }: React.PropsWithChildren<Record<string, unknown>>) => {
-      const domProps = { ...props };
-      delete domProps.initial;
-      delete domProps.whileInView;
-      delete domProps.viewport;
-      delete domProps.transition;
-      return (
-        <div {...(domProps as React.HTMLAttributes<HTMLDivElement>)}>
-          {children}
-        </div>
-      );
-    },
-  },
-}));
+// framer-motion se stubea globalmente en jest.config.js.
 
 const renderWithMantine = (component: React.ReactElement) =>
   render(<MantineProvider>{component}</MantineProvider>);
