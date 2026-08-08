@@ -31,6 +31,25 @@ describe('validaciones', () => {
     expect(validarCuit('123')).not.toBeNull();
   });
 
+  /**
+   * Un CUIT real de AFIP, como control de que el algoritmo es el correcto
+   * y no una implementación que "da bien" sólo con los casos de arriba.
+   */
+  it('acepta un CUIT real conocido', () => {
+    expect(validarCuit('33-69345023-9')).toBeNull();
+  });
+
+  it('sugiere el dígito correcto en vez de sólo decir que está mal', () => {
+    // Caso reportado por el cliente: tipearon 2 donde iba 0.
+    const error = validarCuit('20-31525471-2');
+    expect(error).not.toBeNull();
+    expect(error).toContain('20-31525471-0');
+  });
+
+  it('el CUIT sugerido es válido', () => {
+    expect(validarCuit('20-31525471-0')).toBeNull();
+  });
+
   it('cbu', () => {
     expect(validarCbu('0110599520000001234501')).toBeNull();
     expect(validarCbu('123')).not.toBeNull();
