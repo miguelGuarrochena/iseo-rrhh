@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logError } from '@/lib/api/registro';
 import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
@@ -76,16 +77,22 @@ export const POST = async (req: Request) => {
   }
 
   const origen = new URL(req.url).origin;
-  const { error } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${origen}/crear-contrasena`,
-    data: {
-      nombre_completo: nombreCompleto,
-      // El rol se fija acá, nunca desde el body.
-      rol: 'superadmin',
-      empresa_id: '',
-      empleado_id: '',
-    },
-  });
+  const { data: invitado, error } = await admin.auth.admin.inviteUserByEmail(
+    email,
+    {
+      redirectTo: `${origen}/crear-contrasena`,
+      data: {
+        nombre_completo: nombreCompleto,
+        // Informativo: el rol real lo escribe esta ruta más abajo. El
+        // trigger `crear_perfil_usuario` ignora `rol: superadmin` a
+        // propósito desde la migración 33, para que nadie pueda hacerse
+        // superadmin metiendo metadata en una invitación.
+        rol: 'superadmin',
+        empresa_id: '',
+        empleado_id: '',
+      },
+    }
+  );
 
   if (error) {
     const m = error.message.toLowerCase();
@@ -102,6 +109,48 @@ export const POST = async (req: Request) => {
       );
     }
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  /**
+   * El perfil lo crea esta ruta, no el trigger.
+   *
+   * Desde la migración 33 `crear_perfil_usuario` ignora las invitaciones
+   * con `rol: superadmin` — es la defensa contra que alguien se haga
+   * superadmin mandando metadata. Pero esta ruta seguía confiando en el
+   * trigger, así que la invitación creaba la cuenta en `auth.users` y
+   * nunca la fila en `public.usuarios`: la persona ponía su contraseña,
+   * entraba, y se encontraba con "tu cuenta existe pero todavía no tiene
+   * un perfil asignado". En Permisos figuraba la invitación en el
+   * historial y "Usuarios (0)" en la lista.
+   *
+   * Acá es seguro: quien llama ya fue verificado como superadmin contra
+   * la base (no contra el body), y el rol se escribe fijo.
+   */
+  if (invitado?.user) {
+    const { error: errorPerfil } = await admin.from('usuarios').insert({
+      id: invitado.user.id,
+      email,
+      rol: 'superadmin',
+      nombre_completo: nombreCompleto,
+      empresa_id: null,
+    });
+    if (errorPerfil) {
+      // Sin perfil la cuenta no sirve para nada y la persona igual
+      // recibiría el mail de invitación. Se deshace el alta para no
+      // dejarla a mitad de camino.
+      await admin.auth.admin.deleteUser(invitado.user.id);
+      logError('No se pudo crear el perfil de superadmin', errorPerfil, {
+        ruta: '/api/equipo-iseo',
+        email,
+      });
+      return NextResponse.json(
+        {
+          error:
+            'No pudimos completar el alta. No se envió la invitación; probá de nuevo.',
+        },
+        { status: 500 }
+      );
+    }
   }
 
   // Queda constancia de quién sumó a quién al equipo. `empresa_id` nulo

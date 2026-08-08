@@ -299,6 +299,64 @@ begin
   assert v_faltan is null, 'faltan índices: ' || coalesce(v_faltan, '');
 end $$;
 
+-- ---------------------------------------------------------------------
+-- crear_perfil_usuario: qué invitaciones generan perfil y cuáles no
+--
+-- Este bloque fija el contrato que rompió el alta del equipo de ISEO.
+-- La migración 33 hizo que el trigger **ignore** `rol: superadmin` en la
+-- metadata —bien: si no, cualquiera se haría superadmin por invitación—
+-- pero `/api/equipo-iseo` seguía esperando que el trigger le creara el
+-- perfil. Resultado: cuenta en auth.users, nada en public.usuarios, y la
+-- persona entrando a un "tu cuenta no tiene un perfil asignado".
+--
+-- Si alguien vuelve a hacer que el trigger cree superadmins, este test
+-- falla y hay que mirar de nuevo la escalada de privilegios.
+-- ---------------------------------------------------------------------
+do $$
+begin
+  insert into auth.users (id, instance_id, email, aud, role, invited_at,
+    raw_user_meta_data)
+  values ('aaaaaaaa-0000-0000-0000-00000000000a',
+    '00000000-0000-0000-0000-000000000000', 'emp@t.com', 'authenticated',
+    'authenticated', now(),
+    '{"rol":"empleado","empresa_id":"11111111-1111-1111-1111-111111111111",
+      "nombre_completo":"Emp"}'::jsonb);
+
+  assert exists (select 1 from usuarios
+                  where id = 'aaaaaaaa-0000-0000-0000-00000000000a'),
+    'una invitación normal con empresa sí tiene que crear el perfil';
+end $$;
+
+do $$
+begin
+  insert into auth.users (id, instance_id, email, aud, role, invited_at,
+    raw_user_meta_data)
+  values ('aaaaaaaa-0000-0000-0000-00000000000b',
+    '00000000-0000-0000-0000-000000000000', 'super@iseo.com', 'authenticated',
+    'authenticated', now(),
+    '{"rol":"superadmin","empresa_id":"","nombre_completo":"Pablo"}'::jsonb);
+
+  assert not exists (select 1 from usuarios
+                      where id = 'aaaaaaaa-0000-0000-0000-00000000000b'),
+    'el trigger NO debe crear superadmins desde metadata (escalada de '
+    'privilegios). El perfil lo crea /api/equipo-iseo con la clave de '
+    'servicio, después de verificar que quien invita ya es superadmin.';
+end $$;
+
+do $$
+begin
+  -- Alta sin invitación (signup abierto): tampoco crea perfil.
+  insert into auth.users (id, instance_id, email, aud, role, raw_user_meta_data)
+  values ('aaaaaaaa-0000-0000-0000-00000000000c',
+    '00000000-0000-0000-0000-000000000000', 'suelto@t.com', 'authenticated',
+    'authenticated',
+    '{"rol":"admin_rrhh","empresa_id":"11111111-1111-1111-1111-111111111111"}'::jsonb);
+
+  assert not exists (select 1 from usuarios
+                      where id = 'aaaaaaaa-0000-0000-0000-00000000000c'),
+    'un alta sin invited_at no puede auto-asignarse empresa ni rol';
+end $$;
+
 rollback;
 
 \echo ''
