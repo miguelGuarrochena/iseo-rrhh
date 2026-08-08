@@ -1,6 +1,9 @@
 'use client';
 
 import { FormEvent, useRef, useState } from 'react';
+import { interpretarError } from '@/lib/errores';
+import { campoDeErrorDb } from '@/lib/erroresDb';
+import { avisoError } from '@/lib/avisos';
 import {
   IconCamera,
   IconMapPin,
@@ -241,6 +244,15 @@ export const FormEmpleado = ({
     lector.readAsDataURL(archivo);
   };
 
+  /** Lleva la vista al primer campo marcado con error. */
+  const alPrimerError = () => {
+    setTimeout(() => {
+      document
+        .querySelector('[data-error-campo]')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+  };
+
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     const nuevos = juntarErrores({
@@ -284,17 +296,32 @@ export const FormEmpleado = ({
     });
     setErrores(nuevos);
     if (Object.keys(nuevos).length > 0) {
-      // Llevar la vista al primer campo con error.
-      setTimeout(() => {
-        document
-          .querySelector('[data-error-campo]')
-          ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 50);
+      alPrimerError();
       return;
     }
     setEnviando(true);
-    await onGuardar(datos);
-    setEnviando(false);
+    try {
+      await onGuardar(datos);
+    } catch (err) {
+      /**
+       * Sin este catch, un DNI o CUIL repetido —lo más común al cargar
+       * gente a mano— dejaba el botón trabado en "Guardando…" para
+       * siempre y el error salía por la red de seguridad como un
+       * "algo no salió bien" que no decía qué campo corregir.
+       */
+      const { titulo, detalle } = interpretarError(err);
+      const campo = campoDeErrorDb(
+        err instanceof Error ? err.message : String(err)
+      );
+      if (campo) {
+        setErrores({ [campo]: detalle || titulo });
+        alPrimerError();
+      } else {
+        avisoError(titulo, detalle);
+      }
+    } finally {
+      setEnviando(false);
+    }
   };
 
   /** Nombres legibles de los campos con error, para el aviso de abajo. */
