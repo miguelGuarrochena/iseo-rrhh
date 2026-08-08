@@ -1,6 +1,11 @@
 import {
+  aDiasCorridos,
   diasVacacionesGozadosEn,
   diasVacacionesPorAntiguedad,
+  ESCALA_LCT,
+  erroresDeEscala,
+  escalaDe,
+  unidadVacacionesDe,
 } from '@/lib/vacaciones';
 import type { Ausencia } from '@/types/rrhh';
 
@@ -103,5 +108,125 @@ describe('diasVacacionesGozadosEn', () => {
 
     expect(diasVacacionesGozadosEn(ausencias, anioDeLaBaja)).toBe(12);
     expect(diasVacacionesGozadosEn(ausencias, anioEnCurso)).toBe(0);
+  });
+});
+
+describe('unidad de vacaciones (corridos vs hábiles)', () => {
+  it('sin configurar, la empresa cuenta días corridos (LCT)', () => {
+    expect(unidadVacacionesDe(undefined)).toBe('corridos');
+    expect(unidadVacacionesDe(null)).toBe('corridos');
+    expect(unidadVacacionesDe({ vacacionesDiasHabiles: false })).toBe(
+      'corridos'
+    );
+  });
+
+  it('con el switch activo, cuenta hábiles', () => {
+    expect(unidadVacacionesDe({ vacacionesDiasHabiles: true })).toBe('habiles');
+  });
+
+  it('en corridos no convierte nada', () => {
+    expect(aDiasCorridos(14, 'corridos')).toBe(14);
+  });
+
+  /**
+   * Cinco hábiles cubren una semana corrida. 14 hábiles son unas tres
+   * semanas de ausencia real, y es sobre esa ausencia que el art. 155
+   * calcula la plata.
+   */
+  it('en hábiles convierte a corridos para poder pagar', () => {
+    expect(aDiasCorridos(5, 'habiles')).toBe(7);
+    expect(aDiasCorridos(10, 'habiles')).toBe(14);
+    expect(aDiasCorridos(14, 'habiles')).toBeCloseTo(19.6, 1);
+  });
+
+  it('convertir cero da cero en cualquier unidad', () => {
+    expect(aDiasCorridos(0, 'habiles')).toBe(0);
+    expect(aDiasCorridos(0, 'corridos')).toBe(0);
+  });
+});
+
+describe('escala configurable de vacaciones', () => {
+  it('en corridos siempre rige la LCT, aunque haya escala cargada', () => {
+    const escala = escalaDe({
+      vacacionesDiasHabiles: false,
+      // Aunque quede guardado de cuando estaba en hábiles, se ignora.
+      vacacionesEscala: { hasta5: 30 },
+    });
+    expect(escala).toEqual(ESCALA_LCT);
+  });
+
+  it('sin configurar nada, la empresa usa la escala de la LCT', () => {
+    expect(escalaDe(undefined)).toEqual(ESCALA_LCT);
+  });
+
+  /** 14 corridos ≈ 10 hábiles: el mismo tiempo de ausencia. */
+  it('en hábiles el default es el equivalente al mínimo legal', () => {
+    expect(escalaDe({ vacacionesDiasHabiles: true })).toEqual({
+      hasta5: 10,
+      hasta10: 15,
+      hasta20: 20,
+      masDe20: 25,
+    });
+  });
+
+  it('en hábiles se puede mejorar un tramo y el resto queda en el mínimo', () => {
+    const escala = escalaDe({
+      vacacionesDiasHabiles: true,
+      vacacionesEscala: { hasta5: 15 },
+    });
+    expect(escala.hasta5).toBe(15);
+    expect(escala.hasta10).toBe(15);
+    expect(escala.masDe20).toBe(25);
+  });
+
+  it('la escala elegida es la que se usa para calcular los días', () => {
+    const generosa = { hasta5: 20, hasta10: 25, hasta20: 30, masDe20: 40 };
+    expect(diasVacacionesPorAntiguedad('2023-01-01', 2026, generosa)).toBe(20);
+    expect(diasVacacionesPorAntiguedad('2010-01-01', 2026, generosa)).toBe(30);
+  });
+
+  describe('piso legal', () => {
+    it('rechaza un tramo por debajo del mínimo', () => {
+      const errores = erroresDeEscala(
+        { hasta5: 8, hasta10: 15, hasta20: 20, masDe20: 25 },
+        'habiles'
+      );
+      expect(errores.hasta5).toContain('10');
+      expect(errores.hasta10).toBeUndefined();
+    });
+
+    it('acepta el mínimo exacto y cualquier mejora', () => {
+      expect(
+        erroresDeEscala(
+          { hasta5: 10, hasta10: 15, hasta20: 20, masDe20: 25 },
+          'habiles'
+        )
+      ).toEqual({});
+      expect(
+        erroresDeEscala(
+          { hasta5: 20, hasta10: 25, hasta20: 30, masDe20: 40 },
+          'habiles'
+        )
+      ).toEqual({});
+    });
+
+    /** Un monotributista no está en relación de dependencia: no rige la LCT. */
+    it('no valida nada en régimen simplificado', () => {
+      expect(
+        erroresDeEscala(
+          { hasta5: 5, hasta10: 5, hasta20: 5, masDe20: 5 },
+          'habiles',
+          'simplificado'
+        )
+      ).toEqual({});
+    });
+
+    it('un valor no numérico se trata como inválido', () => {
+      const errores = erroresDeEscala(
+        { hasta5: NaN, hasta10: 15, hasta20: 20, masDe20: 25 },
+        'habiles'
+      );
+      expect(errores.hasta5).toBeDefined();
+    });
   });
 });

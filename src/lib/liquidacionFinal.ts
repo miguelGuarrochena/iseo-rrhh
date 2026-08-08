@@ -10,7 +10,13 @@
  * causa, mutuo acuerdo) y son materia litigiosa. Un número mal puesto ahí
  * sale caro, así que esa parte queda para el contador o el abogado.
  */
-import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
+import {
+  aDiasCorridos,
+  diasVacacionesPorAntiguedad,
+  ESCALA_LCT,
+  type EscalaVacaciones,
+  type UnidadVacaciones,
+} from '@/lib/vacaciones';
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
@@ -22,7 +28,8 @@ const MS_POR_DIA = 1000 * 60 * 60 * 24;
 export const diasVacacionesProporcionales = (
   fechaIngresoISO: string,
   fechaBajaISO: string,
-  diasYaGozados: number
+  diasYaGozados: number,
+  escala: EscalaVacaciones = ESCALA_LCT
 ): number => {
   const baja = new Date(`${fechaBajaISO}T00:00:00`);
   const ingreso = new Date(`${fechaIngresoISO}T00:00:00`);
@@ -31,7 +38,8 @@ export const diasVacacionesProporcionales = (
   const anio = baja.getFullYear();
   const correspondenPorAnio = diasVacacionesPorAntiguedad(
     fechaIngresoISO,
-    anio
+    anio,
+    escala
   );
   // Si entró este mismo año, el proporcional se cuenta desde su ingreso,
   // no desde el 1 de enero.
@@ -111,21 +119,41 @@ export const armarLiquidacionFinal = (datos: {
   mejorBrutoSemestre: number;
   /** Días de vacaciones ya tomados en el año de la baja. */
   diasVacacionesGozados: number;
+  /**
+   * Unidad en que la empresa cuenta las vacaciones. Por defecto
+   * `corridos`, que es lo que dice la LCT.
+   */
+  unidadVacaciones?: UnidadVacaciones;
+  /** Días por tramo de la empresa. Por defecto, la escala de la LCT. */
+  escalaVacaciones?: EscalaVacaciones;
 }): BorradorLiquidacionFinal => {
   const conceptos: ConceptoLiquidacion[] = [];
+  const unidad = datos.unidadVacaciones ?? 'corridos';
 
   const dias = diasVacacionesProporcionales(
     datos.fechaIngreso,
     datos.fechaBaja,
-    datos.diasVacacionesGozados
+    datos.diasVacacionesGozados,
+    datos.escalaVacaciones ?? ESCALA_LCT
   );
+  /**
+   * `valorDiaVacaciones` es bruto ÷ 25 por día **corrido** (art. 155).
+   * Si la empresa lleva el cupo en días hábiles, `dias` viene en hábiles
+   * y hay que pasarlo a corridos antes de multiplicar: si no, se paga
+   * alrededor de un 30% menos de lo que corresponde por los mismos días
+   * de ausencia.
+   */
+  const diasParaPagar = aDiasCorridos(dias, unidad);
   const montoVacaciones = Math.round(
-    dias * valorDiaVacaciones(datos.brutoMensual)
+    diasParaPagar * valorDiaVacaciones(datos.brutoMensual)
   );
   if (montoVacaciones > 0) {
     conceptos.push({
       concepto: 'Vacaciones proporcionales no gozadas',
-      detalle: `${dias.toFixed(2)} días × (bruto ÷ 25) — art. 156 LCT`,
+      detalle:
+        unidad === 'habiles'
+          ? `${dias.toFixed(2)} días hábiles (≈ ${diasParaPagar.toFixed(2)} corridos) × (bruto ÷ 25) — art. 156 LCT`
+          : `${dias.toFixed(2)} días × (bruto ÷ 25) — art. 156 LCT`,
       monto: montoVacaciones,
     });
     // El SAC sobre vacaciones se olvida seguido y siempre en contra del

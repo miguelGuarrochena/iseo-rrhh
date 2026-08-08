@@ -111,3 +111,50 @@ describe('armarLiquidacionFinal', () => {
     expect(r.conceptos).toHaveLength(0);
   });
 });
+
+describe('armarLiquidacionFinal según la unidad de vacaciones', () => {
+  const base = {
+    fechaIngreso: '2020-01-01',
+    fechaBaja: '2026-12-31',
+    brutoMensual: 1000000,
+    mejorBrutoSemestre: 1000000,
+    diasVacacionesGozados: 0,
+  };
+  const vacacionesDe = (b: ReturnType<typeof armarLiquidacionFinal>) =>
+    b.conceptos.find((c) => c.concepto.startsWith('Vacaciones'))?.monto ?? 0;
+
+  it('por defecto liquida en días corridos (LCT)', () => {
+    const sinUnidad = vacacionesDe(armarLiquidacionFinal(base));
+    const corridos = vacacionesDe(
+      armarLiquidacionFinal({ ...base, unidadVacaciones: 'corridos' })
+    );
+    expect(sinUnidad).toBe(corridos);
+    expect(sinUnidad).toBeGreaterThan(0);
+  });
+
+  /**
+   * El bug: con la empresa contando hábiles, el cupo viene en hábiles y
+   * multiplicarlo por bruto÷25 (que es por día corrido) pagaba de menos
+   * por los mismos días de ausencia.
+   */
+  it('en hábiles paga más que en corridos, por la misma ausencia', () => {
+    const corridos = vacacionesDe(
+      armarLiquidacionFinal({ ...base, unidadVacaciones: 'corridos' })
+    );
+    const habiles = vacacionesDe(
+      armarLiquidacionFinal({ ...base, unidadVacaciones: 'habiles' })
+    );
+    expect(habiles).toBeGreaterThan(corridos);
+    // 7/5 más, que es la relación entre una semana y sus días hábiles.
+    expect(habiles / corridos).toBeCloseTo(1.4, 1);
+  });
+
+  it('el detalle aclara la conversión para que el número sea auditable', () => {
+    const b = armarLiquidacionFinal({ ...base, unidadVacaciones: 'habiles' });
+    const detalle =
+      b.conceptos.find((c) => c.concepto.startsWith('Vacaciones'))?.detalle ??
+      '';
+    expect(detalle).toContain('hábiles');
+    expect(detalle).toContain('corridos');
+  });
+});

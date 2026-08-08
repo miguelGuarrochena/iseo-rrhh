@@ -27,6 +27,12 @@ import {
   getEmpresa,
 } from '@/lib/services/rrhh';
 import { ConfigEmpresa } from '@/types/rrhh';
+import {
+  erroresDeEscala,
+  escalaDe,
+  escalaMinima,
+  TRAMOS_VACACIONES,
+} from '@/lib/vacaciones';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
 import { faltasDeEmpresa } from '@/lib/requisitos';
@@ -125,8 +131,24 @@ const ConfiguracionPage = () => {
     return <p className="text-sm text-ink-soft">Cargando configuración…</p>;
   }
 
+  /** Escala vigente y su piso legal, para los campos y la validación. */
+  const escalaActual = escalaDe(config);
+  const minimaHabiles = escalaMinima('habiles');
+  const erroresEscala = config.vacacionesDiasHabiles
+    ? erroresDeEscala(escalaActual, 'habiles', carga.datos?.regimen)
+    : {};
+
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
+    // Un tramo por debajo del mínimo no se guarda: sería una config
+    // ilegal cargada sin querer, y el que la paga es el empleado.
+    if (Object.keys(erroresEscala).length > 0) {
+      avisoError(
+        'Revisá los días de vacaciones',
+        'Hay tramos por debajo del mínimo que fija la ley.'
+      );
+      return;
+    }
     const nuevos = juntarErrores({
       nombreEmpresa: validarRequerido(nombreEmpresa, 'El nombre de la empresa'),
       contactoNombre: validarRequerido(contactoNombre, 'El contacto'),
@@ -378,8 +400,17 @@ const ConfiguracionPage = () => {
         <Panel>
           <h2 className="text-base font-bold text-ink">Vacaciones</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            Por defecto se cuentan días corridos (LCT). Algunas empresas otorgan
-            días hábiles.
+            Por defecto se cuentan días corridos, que es lo que fija la LCT
+            (art. 150). Algunas empresas otorgan días hábiles: es más generoso
+            —los mismos 14 días cubren unas tres semanas— y por eso está
+            permitido, porque la ley marca un piso y no un techo.
+          </p>
+          <p className="mt-2 text-sm text-ink-soft">
+            La opción cambia cómo se descuentan los días de cada licencia,
+            cuántos quedan disponibles y cuánto se paga de vacaciones no gozadas
+            en la liquidación final. Conviene definirla al empezar: si se cambia
+            con licencias ya cargadas, las viejas quedan contadas con el
+            criterio anterior.
           </p>
           <label className="mt-4 flex cursor-pointer items-center gap-3">
             <Switch
@@ -395,6 +426,44 @@ const ConfiguracionPage = () => {
               Contar vacaciones en días hábiles (lun–vie)
             </span>
           </label>
+
+          {/*
+            Los días sólo se eligen en hábiles. En corridos rige la escala
+            de la LCT y no hay nada que acordar; mostrar campos editables
+            ahí invitaría a cargar algo por debajo del mínimo legal.
+          */}
+          {config.vacacionesDiasHabiles && (
+            <div className="mt-5 border-t border-line pt-5">
+              <p className="text-sm font-semibold text-ink">
+                Días por antigüedad
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+                Arrancan en el equivalente al mínimo de ley. Subilos a lo que
+                hayan acordado; no se puede bajar del mínimo.
+              </p>
+              <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
+                {TRAMOS_VACACIONES.map(({ clave, etiqueta }) => (
+                  <Campo
+                    key={clave}
+                    etiqueta={etiqueta}
+                    type="number"
+                    value={String(escalaActual[clave])}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        vacacionesEscala: {
+                          ...config.vacacionesEscala,
+                          [clave]: Number(e.target.value),
+                        },
+                      })
+                    }
+                    error={erroresEscala[clave]}
+                    ayuda={`Mínimo legal: ${minimaHabiles[clave]}`}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </Panel>
 
         {/* Los módulos se administran desde Empresas → la ficha del
