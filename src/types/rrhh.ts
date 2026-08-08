@@ -48,6 +48,23 @@ export interface ConfigEmpresa {
    */
   vacacionesDiasHabiles?: boolean;
   /**
+   * Días por tramo de antigüedad, **sólo cuando se cuentan en hábiles**.
+   *
+   * En días corridos rige la escala de la LCT y no hay nada que
+   * configurar. En hábiles la empresa ya está dando algo mejor que el
+   * mínimo legal, así que define cuánto: arranca en el equivalente al
+   * piso (10/15/20/25) y puede subirlo a lo que haya acordado.
+   *
+   * Lo que no figure acá cae al mínimo, así que una empresa que sólo
+   * mejora un tramo guarda un solo número.
+   */
+  vacacionesEscala?: Partial<{
+    hasta5: number;
+    hasta10: number;
+    hasta20: number;
+    masDe20: number;
+  }>;
+  /**
    * Secciones que la empresa decide no usar. La clave es el `modulo` del
    * NavItem y sólo se guarda cuando está apagada: lo que no figura acá
    * queda encendido, así las empresas que ya existen no cambian.

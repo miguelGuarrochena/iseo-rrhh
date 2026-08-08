@@ -57,7 +57,7 @@ import {
   Usuario,
   VacacionSector,
 } from '@/types/rrhh';
-import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
+import { diasVacacionesPorAntiguedad, escalaDe } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { diasEntre, hoyISO } from '@/lib/fechas';
 import {
@@ -760,7 +760,12 @@ export const getSaldoVacaciones = async (
   const empleado = empleadosMock.find((e) => e.id === empleadoId);
   if (!empleado) return simular(null);
 
-  const corresponden = diasVacacionesPorAntiguedad(empleado.fechaIngreso, anio);
+  // Misma escala que en Supabase: la de la empresa activa del mock.
+  const corresponden = diasVacacionesPorAntiguedad(
+    empleado.fechaIngreso,
+    anio,
+    escalaDe(empresaMock.config)
+  );
   const deEsteAnio = ausenciasMock.filter(
     (a) =>
       a.empleadoId === empleadoId &&

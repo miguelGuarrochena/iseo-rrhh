@@ -71,7 +71,7 @@ import type {
 } from '@/lib/services/rrhh.demo';
 import { mensajeDeErrorDb } from '@/lib/erroresDb';
 import { registrarErrorApp } from '@/lib/erroresApp';
-import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
+import { diasVacacionesPorAntiguedad, escalaDe } from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { armarJornadas, horasEntre, Jornada } from '@/lib/fichadas';
@@ -1393,11 +1393,18 @@ export const getSaldoVacaciones = async (
 ): Promise<SaldoVacaciones | null> => {
   const empleado = await getEmpleado(empleadoId);
   if (!empleado) return null;
-  const [ausencias, arrastre] = await Promise.all([
+  const [ausencias, arrastre, empresa] = await Promise.all([
     getAusenciasDeEmpleado(empleadoId),
     getVacacionesPendientes(empleadoId, anio),
+    getEmpresa(),
   ]);
-  const corresponden = diasVacacionesPorAntiguedad(empleado.fechaIngreso, anio);
+  // La escala sale de la empresa: en días corridos es la de la LCT, y en
+  // hábiles la que la empresa haya acordado (mínimo, el equivalente legal).
+  const corresponden = diasVacacionesPorAntiguedad(
+    empleado.fechaIngreso,
+    anio,
+    escalaDe(empresa.config)
+  );
   // Días que quedaron del año anterior y RRHH decidió acumular.
   const ajuste = arrastre?.dias ?? 0;
   const deEsteAnio = ausencias.filter(

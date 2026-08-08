@@ -13,6 +13,8 @@
 import {
   aDiasCorridos,
   diasVacacionesPorAntiguedad,
+  ESCALA_LCT,
+  type EscalaVacaciones,
   type UnidadVacaciones,
 } from '@/lib/vacaciones';
 
@@ -26,7 +28,8 @@ const MS_POR_DIA = 1000 * 60 * 60 * 24;
 export const diasVacacionesProporcionales = (
   fechaIngresoISO: string,
   fechaBajaISO: string,
-  diasYaGozados: number
+  diasYaGozados: number,
+  escala: EscalaVacaciones = ESCALA_LCT
 ): number => {
   const baja = new Date(`${fechaBajaISO}T00:00:00`);
   const ingreso = new Date(`${fechaIngresoISO}T00:00:00`);
@@ -35,7 +38,8 @@ export const diasVacacionesProporcionales = (
   const anio = baja.getFullYear();
   const correspondenPorAnio = diasVacacionesPorAntiguedad(
     fechaIngresoISO,
-    anio
+    anio,
+    escala
   );
   // Si entró este mismo año, el proporcional se cuenta desde su ingreso,
   // no desde el 1 de enero.
@@ -120,6 +124,8 @@ export const armarLiquidacionFinal = (datos: {
    * `corridos`, que es lo que dice la LCT.
    */
   unidadVacaciones?: UnidadVacaciones;
+  /** Días por tramo de la empresa. Por defecto, la escala de la LCT. */
+  escalaVacaciones?: EscalaVacaciones;
 }): BorradorLiquidacionFinal => {
   const conceptos: ConceptoLiquidacion[] = [];
   const unidad = datos.unidadVacaciones ?? 'corridos';
@@ -127,7 +133,8 @@ export const armarLiquidacionFinal = (datos: {
   const dias = diasVacacionesProporcionales(
     datos.fechaIngreso,
     datos.fechaBaja,
-    datos.diasVacacionesGozados
+    datos.diasVacacionesGozados,
+    datos.escalaVacaciones ?? ESCALA_LCT
   );
   /**
    * `valorDiaVacaciones` es bruto ÷ 25 por día **corrido** (art. 155).

@@ -64,6 +64,7 @@ import { analizarSalario } from '@/lib/remuneraciones';
 import { armarLiquidacionFinal } from '@/lib/liquidacionFinal';
 import {
   diasVacacionesGozadosEn,
+  escalaDe,
   UNIDAD_VACACIONES_LABELS,
   unidadVacacionesDe,
 } from '@/lib/vacaciones';
@@ -248,6 +249,7 @@ const FichaColaboradorPage = () => {
       // Si la empresa cuenta en días hábiles, el cupo y lo gozado vienen
       // en esa unidad y hay que pasarlos a corridos para la plata.
       unidadVacaciones: unidadVacacionesDe(cEmpresa.datos?.config),
+      escalaVacaciones: escalaDe(cEmpresa.datos?.config),
     });
   }, [
     empleado,
