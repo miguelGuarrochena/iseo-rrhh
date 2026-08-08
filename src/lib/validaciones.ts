@@ -51,9 +51,19 @@ export const validarCuit = (valor: string): string | null => {
   );
   const resto = suma % 11;
   const verificador = resto === 0 ? 0 : resto === 1 ? 9 : 11 - resto;
-  return verificador === Number(digitos[10])
-    ? null
-    : 'El CUIT/CUIL no es válido (dígito verificador incorrecto).';
+  if (verificador === Number(digitos[10])) return null;
+
+  /**
+   * Se sugiere el número correcto en vez de sólo decir que está mal.
+   *
+   * El dígito verificador ya lo calculamos para comparar, así que
+   * guardárnoslo era dejar a la persona adivinando cuál de los once
+   * números tipeó mal. En la práctica casi siempre es el último, y con
+   * la sugerencia se corrige de una: el caso que lo motivó era un
+   * 20-31525471-**2** que tenía que ser 20-31525471-**0**.
+   */
+  const sugerido = `${digitos.slice(0, 2)}-${digitos.slice(2, 10)}-${verificador}`;
+  return `El CUIT/CUIL no es válido. Si el número es ${digitos.slice(0, 2)}-${digitos.slice(2, 10)}, el dígito final debería ser ${verificador} (${sugerido}).`;
 };
 
 export const validarCbu = (valor: string): string | null => {

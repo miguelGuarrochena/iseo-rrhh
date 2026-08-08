@@ -20,6 +20,35 @@ const UNICAS: Record<string, string> = {
     'Ya hay un cupo cargado para ese tipo de licencia.',
   documento_firma_destinatarios_documento_id_empleado_id_key:
     'Ese colaborador ya estaba en la lista de destinatarios del documento.',
+  empresas_cuit_key:
+    'Ya hay una empresa cargada con ese CUIT. Buscala en la lista (aparece aunque esté suspendida): si es la misma, editala o reactivala en vez de crearla de nuevo.',
+};
+
+/**
+ * Constraint → campo del formulario al que corresponde el error.
+ *
+ * Sirve para marcar el campo en vez de tirar un toast. Un aviso flotante
+ * que dice "ese dato ya está cargado" obliga a adivinar cuál de los diez
+ * campos es el repetido; el error al lado del CUIT se entiende solo.
+ */
+const CAMPO_DE_CONSTRAINT: Record<string, string> = {
+  empresas_cuit_key: 'cuit',
+  empleados_empresa_id_dni_key: 'dni',
+  empleados_empresa_id_cuil_key: 'cuil',
+  usuarios_email_key: 'email',
+};
+
+/**
+ * Si el error viene de una constraint que se puede atribuir a un campo
+ * concreto, devuelve cuál. Si no, `null` y el error va como aviso.
+ */
+export const campoDeErrorDb = (mensaje: string): string | null => {
+  const m = mensaje ?? '';
+  if (!contiene(m, 'duplicate key value', 'violates unique constraint')) {
+    return null;
+  }
+  const nombre = m.match(/"([^"]+)"/)?.[1] ?? '';
+  return CAMPO_DE_CONSTRAINT[nombre] ?? null;
 };
 
 const contiene = (texto: string, ...claves: string[]): boolean =>
