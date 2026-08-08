@@ -1,6 +1,9 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import { interpretarError } from '@/lib/errores';
+import { campoDeErrorDb } from '@/lib/erroresDb';
+import { avisoError } from '@/lib/avisos';
 import { Modal } from '@mantine/core';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
@@ -64,9 +67,34 @@ export const NuevaEmpresaModal = ({
     if (Object.keys(nuevos).length > 0) return;
 
     setEnviando(true);
-    await onCrear({ ...datos, abonoMensual: Number(datos.abonoMensual) || 0 });
-    setEnviando(false);
-    setDatos(inicial);
+    try {
+      await onCrear({
+        ...datos,
+        abonoMensual: Number(datos.abonoMensual) || 0,
+      });
+      setDatos(inicial);
+    } catch (err) {
+      /**
+       * Sin este catch el error se escapaba como promesa sin atrapar: la
+       * red de seguridad mostraba "algo no salió bien", el modal quedaba
+       * abierto con el botón trabado en "Creando…" y no se decía qué
+       * había pasado. El caso real era un CUIT ya cargado.
+       */
+      const { titulo, detalle } = interpretarError(err);
+      const campo = campoDeErrorDb(
+        err instanceof Error ? err.message : String(err)
+      );
+      if (campo) {
+        // El error es de un campo concreto: se marca ahí, que es donde la
+        // persona lo puede corregir.
+        setErrores({ [campo]: detalle || titulo });
+      } else {
+        avisoError(titulo, detalle);
+      }
+    } finally {
+      // En `finally` para que el botón se destrabe también cuando falla.
+      setEnviando(false);
+    }
   };
 
   return (

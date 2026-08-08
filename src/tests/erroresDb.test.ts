@@ -1,4 +1,4 @@
-import { mensajeDeErrorDb } from '@/lib/erroresDb';
+import { campoDeErrorDb, mensajeDeErrorDb } from '@/lib/erroresDb';
 import { normalizarCuit, validarCuit, validarDni } from '@/lib/validaciones';
 
 describe('mensajeDeErrorDb', () => {
@@ -56,5 +56,33 @@ describe('normalización de documentos', () => {
     expect(validarDni('25.123.456')).toBeNull();
     expect(validarDni('25123456')).toBeNull();
     expect(validarDni('123')).not.toBeNull();
+  });
+});
+
+describe('empresas_cuit_key (caso reportado en producción)', () => {
+  const crudo =
+    'duplicate key value violates unique constraint "empresas_cuit_key"';
+
+  it('explica que la empresa ya existe en vez del mensaje genérico', () => {
+    const m = mensajeDeErrorDb(crudo);
+    expect(m).toContain('CUIT');
+    expect(m).not.toContain('duplicate key');
+    expect(m).not.toContain('Ese dato ya está cargado');
+  });
+
+  it('lo atribuye al campo cuit para poder marcarlo en el formulario', () => {
+    expect(campoDeErrorDb(crudo)).toBe('cuit');
+  });
+
+  it('una constraint que no se puede atribuir a un campo devuelve null', () => {
+    expect(
+      campoDeErrorDb(
+        'duplicate key value violates unique constraint "cupos_licencia_empresa_id_tipo_key"'
+      )
+    ).toBeNull();
+  });
+
+  it('un error que no es de unicidad no marca ningún campo', () => {
+    expect(campoDeErrorDb('violates row-level security policy')).toBeNull();
   });
 });
