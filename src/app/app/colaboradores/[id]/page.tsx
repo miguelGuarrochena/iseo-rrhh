@@ -62,7 +62,11 @@ import {
 } from '@/lib/services/rrhh';
 import { analizarSalario } from '@/lib/remuneraciones';
 import { armarLiquidacionFinal } from '@/lib/liquidacionFinal';
-import { diasVacacionesGozadosEn } from '@/lib/vacaciones';
+import {
+  diasVacacionesGozadosEn,
+  UNIDAD_VACACIONES_LABELS,
+  unidadVacacionesDe,
+} from '@/lib/vacaciones';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
 import { formatearPesos } from '@/lib/formato';
@@ -118,6 +122,9 @@ const FichaColaboradorPage = () => {
     contexto: 'ficha/empresa',
   });
   const regimen = cEmpresa.datos?.regimen ?? 'relacion_dependencia';
+  /** Corridos o hábiles: cambia qué significan los números de vacaciones. */
+  const unidadEmpresa =
+    UNIDAD_VACACIONES_LABELS[unidadVacacionesDe(cEmpresa.datos?.config)];
 
   const cControl = useCarga(() => getMiMes(id), [id], {
     activo: Boolean(id),
@@ -238,6 +245,9 @@ const FichaColaboradorPage = () => {
       brutoMensual: analisis.ultima?.montoBruto ?? 0,
       mejorBrutoSemestre: analisis.mejorSemestreBruto,
       diasVacacionesGozados: diasGozadosEnAnioBaja,
+      // Si la empresa cuenta en días hábiles, el cupo y lo gozado vienen
+      // en esa unidad y hay que pasarlos a corridos para la plata.
+      unidadVacaciones: unidadVacacionesDe(cEmpresa.datos?.config),
     });
   }, [
     empleado,
@@ -245,6 +255,7 @@ const FichaColaboradorPage = () => {
     remuneraciones,
     diasGozadosEnAnioBaja,
     cAusencias.fase,
+    cEmpresa.datos?.config,
   ]);
 
   if (!usuario || rolEfectivo === 'empleado') {
@@ -453,11 +464,13 @@ const FichaColaboradorPage = () => {
           etiqueta="Vacaciones"
           valor={saldo ? `${saldo.diasDisponibles}` : '…'}
           // Si tiene días arrastrados hay que decirlo, si no el total no
-          // cierra contra la tabla de antigüedad y parece un error.
+          // cierra contra la tabla de antigüedad y parece un error. Y se
+          // aclara la unidad: "14" significa cosas distintas según la
+          // empresa cuente corridos o hábiles.
           detalle={
             saldo && saldo.diasAjuste > 0
-              ? `de ${saldo.diasCorresponden} + ${saldo.diasAjuste} acumulados`
-              : `disponibles de ${saldo?.diasCorresponden ?? '—'}`
+              ? `${unidadEmpresa} · de ${saldo.diasCorresponden} + ${saldo.diasAjuste} acumulados`
+              : `${unidadEmpresa} · de ${saldo?.diasCorresponden ?? '—'}`
           }
           href={`/ausencias?empleado=${empleado.id}`}
           icono={IconBeach}

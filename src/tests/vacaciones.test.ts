@@ -1,6 +1,8 @@
 import {
+  aDiasCorridos,
   diasVacacionesGozadosEn,
   diasVacacionesPorAntiguedad,
+  unidadVacacionesDe,
 } from '@/lib/vacaciones';
 import type { Ausencia } from '@/types/rrhh';
 
@@ -103,5 +105,39 @@ describe('diasVacacionesGozadosEn', () => {
 
     expect(diasVacacionesGozadosEn(ausencias, anioDeLaBaja)).toBe(12);
     expect(diasVacacionesGozadosEn(ausencias, anioEnCurso)).toBe(0);
+  });
+});
+
+describe('unidad de vacaciones (corridos vs hábiles)', () => {
+  it('sin configurar, la empresa cuenta días corridos (LCT)', () => {
+    expect(unidadVacacionesDe(undefined)).toBe('corridos');
+    expect(unidadVacacionesDe(null)).toBe('corridos');
+    expect(unidadVacacionesDe({ vacacionesDiasHabiles: false })).toBe(
+      'corridos'
+    );
+  });
+
+  it('con el switch activo, cuenta hábiles', () => {
+    expect(unidadVacacionesDe({ vacacionesDiasHabiles: true })).toBe('habiles');
+  });
+
+  it('en corridos no convierte nada', () => {
+    expect(aDiasCorridos(14, 'corridos')).toBe(14);
+  });
+
+  /**
+   * Cinco hábiles cubren una semana corrida. 14 hábiles son unas tres
+   * semanas de ausencia real, y es sobre esa ausencia que el art. 155
+   * calcula la plata.
+   */
+  it('en hábiles convierte a corridos para poder pagar', () => {
+    expect(aDiasCorridos(5, 'habiles')).toBe(7);
+    expect(aDiasCorridos(10, 'habiles')).toBe(14);
+    expect(aDiasCorridos(14, 'habiles')).toBeCloseTo(19.6, 1);
+  });
+
+  it('convertir cero da cero en cualquier unidad', () => {
+    expect(aDiasCorridos(0, 'habiles')).toBe(0);
+    expect(aDiasCorridos(0, 'corridos')).toBe(0);
   });
 });

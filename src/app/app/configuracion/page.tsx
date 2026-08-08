@@ -378,8 +378,17 @@ const ConfiguracionPage = () => {
         <Panel>
           <h2 className="text-base font-bold text-ink">Vacaciones</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            Por defecto se cuentan días corridos (LCT). Algunas empresas otorgan
-            días hábiles.
+            Por defecto se cuentan días corridos, que es lo que fija la LCT
+            (art. 150). Algunas empresas otorgan días hábiles: es más generoso
+            —los mismos 14 días cubren unas tres semanas— y por eso está
+            permitido, porque la ley marca un piso y no un techo.
+          </p>
+          <p className="mt-2 text-sm text-ink-soft">
+            La opción cambia cómo se descuentan los días de cada licencia,
+            cuántos quedan disponibles y cuánto se paga de vacaciones no gozadas
+            en la liquidación final. Conviene definirla al empezar: si se cambia
+            con licencias ya cargadas, las viejas quedan contadas con el
+            criterio anterior.
           </p>
           <label className="mt-4 flex cursor-pointer items-center gap-3">
             <Switch

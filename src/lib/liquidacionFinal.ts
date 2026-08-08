@@ -10,7 +10,11 @@
  * causa, mutuo acuerdo) y son materia litigiosa. Un número mal puesto ahí
  * sale caro, así que esa parte queda para el contador o el abogado.
  */
-import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
+import {
+  aDiasCorridos,
+  diasVacacionesPorAntiguedad,
+  type UnidadVacaciones,
+} from '@/lib/vacaciones';
 
 const MS_POR_DIA = 1000 * 60 * 60 * 24;
 
@@ -111,21 +115,38 @@ export const armarLiquidacionFinal = (datos: {
   mejorBrutoSemestre: number;
   /** Días de vacaciones ya tomados en el año de la baja. */
   diasVacacionesGozados: number;
+  /**
+   * Unidad en que la empresa cuenta las vacaciones. Por defecto
+   * `corridos`, que es lo que dice la LCT.
+   */
+  unidadVacaciones?: UnidadVacaciones;
 }): BorradorLiquidacionFinal => {
   const conceptos: ConceptoLiquidacion[] = [];
+  const unidad = datos.unidadVacaciones ?? 'corridos';
 
   const dias = diasVacacionesProporcionales(
     datos.fechaIngreso,
     datos.fechaBaja,
     datos.diasVacacionesGozados
   );
+  /**
+   * `valorDiaVacaciones` es bruto ÷ 25 por día **corrido** (art. 155).
+   * Si la empresa lleva el cupo en días hábiles, `dias` viene en hábiles
+   * y hay que pasarlo a corridos antes de multiplicar: si no, se paga
+   * alrededor de un 30% menos de lo que corresponde por los mismos días
+   * de ausencia.
+   */
+  const diasParaPagar = aDiasCorridos(dias, unidad);
   const montoVacaciones = Math.round(
-    dias * valorDiaVacaciones(datos.brutoMensual)
+    diasParaPagar * valorDiaVacaciones(datos.brutoMensual)
   );
   if (montoVacaciones > 0) {
     conceptos.push({
       concepto: 'Vacaciones proporcionales no gozadas',
-      detalle: `${dias.toFixed(2)} días × (bruto ÷ 25) — art. 156 LCT`,
+      detalle:
+        unidad === 'habiles'
+          ? `${dias.toFixed(2)} días hábiles (≈ ${diasParaPagar.toFixed(2)} corridos) × (bruto ÷ 25) — art. 156 LCT`
+          : `${dias.toFixed(2)} días × (bruto ÷ 25) — art. 156 LCT`,
       monto: montoVacaciones,
     });
     // El SAC sobre vacaciones se olvida seguido y siempre en contra del
