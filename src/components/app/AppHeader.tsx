@@ -109,10 +109,14 @@ export const AppHeader = () => {
         <BuscadorGlobal />
 
         <div className="flex shrink-0 items-center gap-2">
+          {/* En un celular angosto cuatro controles no entran sin comerse
+              el nombre. El tema se cambia una vez y no se toca más: abajo
+              de `sm` se accede desde el menú del avatar, que lo ofrece en
+              todos los tamaños. */}
           <button
             aria-label="Cambiar tema"
             onClick={() => setColorScheme(oscuro ? 'light' : 'dark')}
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+            className="hidden h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-ink-soft transition-colors hover:bg-paper hover:text-ink sm:flex"
           >
             {oscuro ? (
               <IconSun size={20} stroke={1.8} />
@@ -205,6 +209,14 @@ export const AppHeader = () => {
                 onClick={() => router.push('/mi-cuenta')}
               >
                 Mi cuenta
+              </Menu.Item>
+              <Menu.Item
+                leftSection={
+                  oscuro ? <IconSun size={16} /> : <IconMoon size={16} />
+                }
+                onClick={() => setColorScheme(oscuro ? 'light' : 'dark')}
+              >
+                {oscuro ? 'Tema claro' : 'Tema oscuro'}
               </Menu.Item>
               <Menu.Item
                 leftSection={<IconDeviceMobileDown size={16} />}

@@ -8,6 +8,11 @@
 # testing
 /coverage
 
+# salida de Playwright: capturas y reportes que se regeneran al correr
+/e2e/capturas/
+/test-results/
+/playwright-report/
+
 # next.js
 /.next/
 /out/

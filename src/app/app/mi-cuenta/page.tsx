@@ -5,6 +5,7 @@ import { IconLock, IconUser } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
+import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoPassword } from '@/components/app/ui/CampoPassword';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
@@ -111,6 +112,11 @@ const MiCuentaPage = () => {
   return (
     <div className="flex flex-col gap-6">
       <div>
+        {/* Se llega desde el menú del avatar, no desde la navegación: sin
+            esto la única salida era el botón del navegador. */}
+        <Breadcrumbs
+          items={[{ etiqueta: 'Inicio', href: '/' }, { etiqueta: 'Mi cuenta' }]}
+        />
         <h1 className="text-2xl font-bold tracking-tight text-ink">
           Mi cuenta
         </h1>
