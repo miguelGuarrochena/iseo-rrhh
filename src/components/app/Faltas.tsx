@@ -147,6 +147,15 @@ export const BloqueFaltasDeVarios = ({
   const grupos = [...porClave.values()].sort(
     (a, b) => b.nombres.length - a.nombres.length
   );
+
+  /**
+   * Algunas rutas llevan a la pantalla ya cargada con esa persona
+   * (`/permisos?empleado=ple-3`). Acá el grupo es de varias y la de la
+   * query es sólo la primera: se manda a la pantalla pelada, que es lo
+   * que corresponde cuando el aviso habla de quince.
+   */
+  const destinoDe = (falta: Falta, cuantos: number) =>
+    cuantos > 1 ? falta.ruta?.split('?')[0] : falta.ruta;
   const frena = grupos.some((g) => g.falta.severidad === 'bloquea');
   const Icono = frena ? IconAlertTriangle : IconInfoCircle;
 
@@ -183,7 +192,7 @@ export const BloqueFaltasDeVarios = ({
             {g.falta.detalle}{' '}
             {g.falta.ruta ? (
               <Link
-                href={g.falta.ruta}
+                href={destinoDe(g.falta, g.nombres.length) ?? g.falta.ruta}
                 className={`font-semibold underline underline-offset-2 ${
                   frena ? 'text-red-900' : 'text-amber-900'
                 }`}

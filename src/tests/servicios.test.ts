@@ -5,7 +5,10 @@ import {
   getDescriptoresFaciales,
   getEmpleados,
   getSaldoVacaciones,
+  getEstadoDeCuentas,
+  invitarUsuario,
   loginConEmail,
+  quitarAcceso,
   vincularUsuarioAEmpleado,
 } from '@/lib/services/rrhh';
 
@@ -40,6 +43,31 @@ describe('servicios (mocks)', () => {
     expect(
       (await vincularUsuarioAEmpleado('usr-empleado', 'ple-3'))?.empleadoId
     ).toBe('ple-3');
+  });
+
+  // Desde `usuarios` las dos se ven igual, y son cosas distintas: a una
+  // hay que reenviarle la invitación y a la otra no.
+  it('distingue la cuenta recién invitada de la que ya se usa', async () => {
+    await invitarUsuario({
+      email: 'nuevo@bombasdelsur.com',
+      nombreCompleto: 'Nuevo Ingreso',
+      rol: 'empleado',
+    });
+    const cuentas = await getEstadoDeCuentas();
+    expect(
+      cuentas.find((c) => c.email === 'nuevo@bombasdelsur.com')?.estado
+    ).toBe('pendiente');
+    expect(
+      cuentas.find((c) => c.email === 'rrhh@bombasdelsur.com')?.estado
+    ).toBe('activa');
+  });
+
+  it('quitar el acceso saca la cuenta y libera el email', async () => {
+    await quitarAcceso('nuevo@bombasdelsur.com');
+    const cuentas = await getEstadoDeCuentas();
+    expect(cuentas.some((c) => c.email === 'nuevo@bombasdelsur.com')).toBe(
+      false
+    );
   });
 
   it('getSaldoVacaciones descuenta usadas y pendientes', async () => {

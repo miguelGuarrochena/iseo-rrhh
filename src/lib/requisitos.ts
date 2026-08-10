@@ -108,8 +108,11 @@ const REGLAS: Regla[] = [
     titulo: 'Sin cuenta',
     detalle:
       'No puede entrar a la app: no ve sus recibos ni los documentos que le mandás a firmar, no puede escribirte y no le llega ningún aviso por mail.',
-    comoSeArregla: 'Invitala desde Permisos con su email.',
-    ruta: () => '/permisos',
+    comoSeArregla:
+      'Invitala desde Permisos: el mail le da acceso y el vínculo con esta ficha es lo que la deja ver lo suyo.',
+    // Con el id, Permisos abre la invitación ya cargada con sus datos y
+    // vinculada a esta ficha: es el paso que se saltaba al invitar a mano.
+    ruta: (e) => `/permisos?empleado=${e.id}`,
     falta: (_e, ctx) => ctx.tieneCuenta === false,
   },
   {

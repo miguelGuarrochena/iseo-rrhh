@@ -1,7 +1,12 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { IconAlertTriangle, IconRefresh } from '@tabler/icons-react';
+import Link from 'next/link';
+import {
+  IconAlertTriangle,
+  IconBuildingFactory2,
+  IconRefresh,
+} from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { ErrorInterpretado } from '@/lib/errores';
 import { Carga } from '@/lib/useCarga';
@@ -42,6 +47,19 @@ export const BloqueError = ({
         <IconRefresh size={14} />
         Reintentar
       </Boton>
+    )}
+    {/* "Elegí una empresa" sin nada más era un cartel sin salida: en una
+        tablet, donde no está el menú lateral, no había forma de llegar a
+        la lista de clientes. El aviso que dice qué falta tiene que llevar
+        al lugar donde se arregla. */}
+    {error.tipo === 'empresa' && (
+      <Link
+        href="/empresas"
+        className="presionable inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-surface px-3 py-1.5 text-xs font-bold text-amber-900 no-underline"
+      >
+        <IconBuildingFactory2 size={14} />
+        Ver empresas
+      </Link>
     )}
   </div>
 );

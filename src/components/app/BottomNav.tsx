@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconMenu2 } from '@tabler/icons-react';
+import { IconLogout2, IconMenu2 } from '@tabler/icons-react';
 import { navItemsPorRol } from './navItems';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useModulos } from '@/lib/auth/useModulos';
@@ -26,9 +26,10 @@ const Badge = ({ n }: { n: number }) =>
  * que tabs, la última es "Más" y abre el resto en un panel.
  */
 export const BottomNav = () => {
-  const { usuario, rolEfectivo } = useAuth();
+  const { usuario, rolEfectivo, empresaVista, salirDeEmpresa } = useAuth();
   const modulos = useModulos();
   const pathname = usePathname();
+  const router = useRouter();
   const [masAbierto, { open: abrirMas, close: cerrarMas }] =
     useDisclosure(false);
   const [pendientes, setPendientes] = useState<PendientesResumen | null>(null);
@@ -54,7 +55,22 @@ export const BottomNav = () => {
   };
 
   const items = navItemsPorRol(rolEfectivo, modulos);
-  const conMas = items.length > MAX_TABS;
+
+  /**
+   * El dueño de ISEO adentro de un cliente navega con el menú de esa
+   * empresa —su rol efectivo es el de admin— y por eso "Empresas" no
+   * está en la barra. Sin esta salida, en un celular o una tablet no
+   * había forma de volver a la lista de clientes: el menú lateral, que
+   * es donde vivía, no se muestra abajo de `lg`.
+   */
+  const enEmpresa = usuario.rol === 'superadmin' && empresaVista !== null;
+  const salir = () => {
+    cerrarMas();
+    salirDeEmpresa();
+    router.push('/empresas');
+  };
+
+  const conMas = items.length > MAX_TABS || enEmpresa;
   const tabs = conMas ? items.slice(0, MAX_TABS - 1) : items;
   const resto = conMas ? items.slice(MAX_TABS - 1) : [];
   const badgeMas = resto.reduce((acc, i) => acc + badgeDe(i.badgeKey), 0);
@@ -109,7 +125,7 @@ export const BottomNav = () => {
         opened={masAbierto}
         onClose={cerrarMas}
         position="bottom"
-        title="Más secciones"
+        title={enEmpresa ? empresaVista.nombre : 'Más secciones'}
         overlayProps={{ backgroundOpacity: 0.35, blur: 2 }}
         styles={{
           title: { fontWeight: 800 },
@@ -140,6 +156,16 @@ export const BottomNav = () => {
               </Link>
             );
           })}
+
+          {enEmpresa && (
+            <button
+              onClick={salir}
+              className="mt-2 flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 text-[0.95rem] font-semibold text-ink transition-colors hover:border-brand-300"
+            >
+              <IconLogout2 size={20} stroke={1.8} />
+              Salir de la empresa
+            </button>
+          )}
         </div>
       </Drawer>
     </>

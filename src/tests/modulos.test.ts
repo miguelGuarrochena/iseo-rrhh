@@ -81,6 +81,22 @@ describe('catálogo de módulos', () => {
       '/configuracion',
     ].forEach((href) => expect(apagables.has(href)).toBe(false));
   });
+
+  /**
+   * El dueño de ISEO adentro de un cliente navega como admin de esa
+   * empresa, así que "Empresas" desaparece del menú. Eso está bien —no
+   * es una sección de la empresa— pero deja la salida fuera de la
+   * navegación: tiene que existir en otro lado (el menú del avatar y el
+   * panel "Más"), o en una tablet no hay forma de volver a la lista de
+   * clientes. Este test fija el porqué.
+   */
+  it('adentro de una empresa el menú no lleva de vuelta a Empresas', () => {
+    const hrefs = navItemsPorRol('admin_rrhh').map((i) => i.href);
+    expect(hrefs).not.toContain('/empresas');
+    expect(navItemsPorRol('superadmin').map((i) => i.href)).toContain(
+      '/empresas'
+    );
+  });
 });
 
 describe('dependenDe', () => {

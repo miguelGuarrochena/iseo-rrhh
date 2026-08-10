@@ -157,6 +157,15 @@ export const vincularUsuarioAEmpleado = elegir(
   real.vincularUsuarioAEmpleado,
   demo.vincularUsuarioAEmpleado
 );
+export const getEstadoDeCuentas = elegir(
+  real.getEstadoDeCuentas,
+  demo.getEstadoDeCuentas
+);
+export const reenviarInvitacion = elegir(
+  real.reenviarInvitacion,
+  demo.reenviarInvitacion
+);
+export const quitarAcceso = elegir(real.quitarAcceso, demo.quitarAcceso);
 
 // ---------- Ausencias ----------
 export const getAusencias = elegir(real.getAusencias, demo.getAusencias);

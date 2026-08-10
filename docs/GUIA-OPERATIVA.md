@@ -97,8 +97,12 @@ entrar (ven "acceso suspendido, comunicate con ISEO RH"). Cuando paga:
 
 ### Reenviar una invitación vencida
 
-Las invitaciones vencen a las 24 h. Volvé a invitar desde Permisos con
-el mismo email; Supabase reenvía el mail.
+Las invitaciones vencen a las 24 h. En **Permisos**, la cuenta figura con
+el cartel **"Invitación pendiente"**: entrá a **Gestionar → Reenviar
+invitación** y le llega un mail nuevo. El link anterior deja de servir.
+
+No sirve volver a invitarla desde "Invitar usuario": un email vale para
+una sola cuenta en toda la plataforma, así que eso da error.
 
 ### El colaborador tiene cuenta pero figura "sin cuenta"
 
@@ -107,17 +111,26 @@ distintas: el legajo se marca sólo si la cuenta está **vinculada** a esa
 ficha. Si se invitó sin elegir colaborador, la persona entra a la app
 igual, pero no ve sus recibos ni su ficha.
 
-Se arregla desde la app: **Permisos → fila del usuario → Vincular**, y se
-elige el colaborador. Desde el mismo botón se cambia o se quita el
-vínculo. Un legajo admite una sola cuenta: si aparece ocupado, hay que
-desvincular la anterior primero.
+Se arregla desde la app: **Permisos → Gestionar → Colaborador
+vinculado**. Un legajo admite una sola cuenta: si el colaborador no
+aparece en la lista es porque ya está tomado, y hay que desvincular la
+otra cuenta primero.
+
+Atajo: el aviso "Sin cuenta" de la ficha del colaborador abre Permisos
+con la invitación ya cargada con su nombre, su email y el vínculo puesto.
+
+### Sacar a alguien de la plataforma
+
+**Permisos → Gestionar → Quitar acceso.** No puede entrar más y su email
+queda libre para otra alta. El legajo, los recibos y todo lo cargado se
+conservan. Al único admin de una empresa no se lo deja sacar.
 
 ### Usuario que no puede entrar — diagnóstico rápido
 
 1. ¿"Email o contraseña incorrectos"? → que use "¿La olvidaste?".
-2. ¿"Sin perfil asignado"? → el alta quedó a medias: en Supabase → SQL Editor revisá `select * from usuarios where email = '...'` y completá el insert, o borrá el usuario en Authentication → Users y reinvitá desde la app.
+2. ¿"Sin perfil asignado"? → el alta quedó a medias. En **Permisos** aparece arriba de todo, en **"Cuentas que quedaron a medias"**: **Rehacer invitación** la vuelve a crear bien. Ya no hace falta tocar Supabase.
 3. ¿"Acceso suspendido"? → la empresa está suspendida en tu panel.
-4. ¿No le llegó el mail? → carpeta de spam; verificá en Resend → Logs si salió.
+4. ¿No le llegó el mail? → carpeta de spam; verificá en Resend → Logs si salió. Si venció, reenviala desde Gestionar.
 
 ### Cambiar los emails de invitación/recuperación
 

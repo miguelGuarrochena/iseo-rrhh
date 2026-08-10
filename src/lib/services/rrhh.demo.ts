@@ -11,6 +11,7 @@ import {
   ComunicacionMensaje,
   ConfigPlataforma,
   Convenio,
+  CuentaDeAcceso,
   CupoLicencia,
   DatosEmpresaCliente,
   DescriptorFacial,
@@ -513,7 +514,44 @@ export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
     nombreCompleto: datos.nombreCompleto,
   };
   usuariosMock.push(nuevo);
+  invitadasEnLaSesion.add(nuevo.email);
   return simular(nuevo);
+};
+
+/**
+ * En demo no hay Auth: se considera que las cuentas de arranque ya se
+ * usaron y que las invitadas durante la sesión están pendientes, que es
+ * lo que hace falta para ver la pantalla como se ve con datos reales.
+ */
+const invitadasEnLaSesion = new Set<string>();
+
+export const getEstadoDeCuentas = async (): Promise<CuentaDeAcceso[]> =>
+  simular(
+    usuariosMock
+      .filter((u) => u.empresaId === empresaDemo())
+      .map((u) => ({
+        email: u.email,
+        usuarioId: u.id,
+        nombre: u.nombreCompleto,
+        estado: invitadasEnLaSesion.has(u.email)
+          ? ('pendiente' as const)
+          : ('activa' as const),
+        ultimoAcceso: invitadasEnLaSesion.has(u.email)
+          ? undefined
+          : new Date().toISOString(),
+      }))
+  );
+
+export const reenviarInvitacion = async (email: string): Promise<void> => {
+  invitadasEnLaSesion.add(email);
+  return simular(undefined);
+};
+
+export const quitarAcceso = async (email: string): Promise<void> => {
+  const i = usuariosMock.findIndex((u) => u.email === email);
+  if (i >= 0) usuariosMock.splice(i, 1);
+  invitadasEnLaSesion.delete(email);
+  return simular(undefined);
 };
 
 export const vincularUsuarioAEmpleado = async (

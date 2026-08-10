@@ -5,8 +5,10 @@ import { Avatar, Menu, useMantineColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
   IconBell,
+  IconBuildingFactory2,
   IconDeviceMobileDown,
   IconLogout,
+  IconLogout2,
   IconMoon,
   IconSun,
   IconUserCog,
@@ -40,7 +42,7 @@ const iniciales = (nombreCompleto: string): string =>
  * Barra superior de la app: notificaciones y menú de usuario.
  */
 export const AppHeader = () => {
-  const { usuario, logout, empresaVista } = useAuth();
+  const { usuario, logout, empresaVista, salirDeEmpresa } = useAuth();
   const router = useRouter();
   const { colorScheme, setColorScheme } = useMantineColorScheme();
   const [instalarAbierto, { open: abrirInstalar, close: cerrarInstalar }] =
@@ -77,14 +79,31 @@ export const AppHeader = () => {
     router.replace('/login');
   };
 
+  /**
+   * Entrar y salir de una empresa vivía sólo en el menú lateral, que
+   * abajo de `lg` no existe. En una tablet o un celular el dueño de ISEO
+   * entraba a un cliente y quedaba encerrado: su rol pasa a ser el de
+   * admin de esa empresa, así que "Empresas" también desaparece de la
+   * barra de abajo. El menú del avatar está en todos los tamaños, y por
+   * eso la salida vive acá.
+   */
+  const esSuperadmin = usuario.rol === 'superadmin';
+  const salirDeLaEmpresa = () => {
+    salirDeEmpresa();
+    router.push('/empresas');
+  };
+
   return (
     <header className="sticky top-0 z-30 px-4 pt-3 sm:px-6">
       <div className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface/80 px-4 py-2.5 backdrop-blur-md sm:px-5">
-        <div className="min-w-0 shrink-0">
+        {/* `flex-1` y no `shrink-0`: con un nombre largo en un celular
+            angosto, un bloque que no se encoge empuja los botones fuera
+            de la pantalla en vez de recortarse. */}
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-ink">
             {usuario.nombreCompleto}
           </p>
-          <p className="text-xs text-ink-soft">{subtitulo}</p>
+          <p className="truncate text-xs text-ink-soft">{subtitulo}</p>
         </div>
 
         <BuscadorGlobal />
@@ -156,6 +175,31 @@ export const AppHeader = () => {
             </Menu.Target>
             <Menu.Dropdown>
               <Menu.Label>{usuario.email}</Menu.Label>
+              {esSuperadmin && (
+                <>
+                  <Menu.Label>
+                    {empresaVista
+                      ? `Estás dentro de ${empresaVista.nombre}`
+                      : 'Sin empresa elegida'}
+                  </Menu.Label>
+                  {empresaVista ? (
+                    <Menu.Item
+                      leftSection={<IconLogout2 size={16} />}
+                      onClick={salirDeLaEmpresa}
+                    >
+                      Salir de la empresa
+                    </Menu.Item>
+                  ) : (
+                    <Menu.Item
+                      leftSection={<IconBuildingFactory2 size={16} />}
+                      onClick={() => router.push('/empresas')}
+                    >
+                      Elegir una empresa
+                    </Menu.Item>
+                  )}
+                  <Menu.Divider />
+                </>
+              )}
               <Menu.Item
                 leftSection={<IconUserCog size={16} />}
                 onClick={() => router.push('/mi-cuenta')}

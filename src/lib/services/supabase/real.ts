@@ -12,6 +12,7 @@ import {
   ComunicacionMensaje,
   ConfigPlataforma,
   Convenio,
+  CuentaDeAcceso,
   CupoLicencia,
   DatosEmpresaCliente,
   DescriptorFacial,
@@ -1073,10 +1074,66 @@ export const vincularUsuarioAEmpleado = async (
   return data ? aUsuario(data) : null;
 };
 
-export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
+const tokenDeSesion = async (): Promise<string> => {
   const { data } = await sb().auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('Sesión vencida: volvé a ingresar.');
+  return token;
+};
+
+/**
+ * Estado de las invitaciones de la empresa.
+ *
+ * Va por API porque vive en `auth.users`, que el navegador no puede leer:
+ * desde `usuarios` no hay forma de distinguir a quien nunca abrió el mail
+ * de quien entra todos los días.
+ */
+export const getEstadoDeCuentas = async (): Promise<CuentaDeAcceso[]> => {
+  const token = await tokenDeSesion();
+  const res = await fetch(`/api/cuentas?empresa=${empresaId()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const cuerpo = (await res.json()) as {
+    cuentas?: CuentaDeAcceso[];
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(
+      cuerpo.error ?? 'No pudimos leer el estado de las cuentas.'
+    );
+  }
+  return cuerpo.cuentas ?? [];
+};
+
+const accionDeCuenta = async (
+  accion: 'reenviar' | 'quitar',
+  email: string
+): Promise<void> => {
+  const token = await tokenDeSesion();
+  const res = await fetch('/api/cuentas', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ accion, email, empresaId: empresaId() }),
+  });
+  if (!res.ok) {
+    const { error } = (await res.json()) as { error?: string };
+    throw new Error(error ?? 'No pudimos completar la acción.');
+  }
+};
+
+/** Rehace la invitación de quien todavía no creó su contraseña. */
+export const reenviarInvitacion = (email: string): Promise<void> =>
+  accionDeCuenta('reenviar', email);
+
+/** Saca a alguien de la plataforma y libera su email para otra alta. */
+export const quitarAcceso = (email: string): Promise<void> =>
+  accionDeCuenta('quitar', email);
+
+export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
+  const token = await tokenDeSesion();
   const res = await fetch('/api/invitaciones', {
     method: 'POST',
     headers: {

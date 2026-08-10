@@ -37,7 +37,7 @@ const traducirErrorInvitacion = (mensaje: string): string => {
     m.includes('already') &&
     (m.includes('registered') || m.includes('exists'))
   ) {
-    return 'Ese email ya tiene una cuenta en la plataforma (cada email puede usarse una sola vez, aunque sea en otra empresa). Usá otro email o borrá el usuario anterior desde Supabase → Authentication → Users.';
+    return 'Ese email ya tiene una cuenta en la plataforma (cada email puede usarse una sola vez, aunque sea en otra empresa). Si es de esta empresa, buscala en la lista de arriba: desde “Gestionar” podés reenviarle la invitación, vincularla a un colaborador o quitarle el acceso para liberar el email.';
   }
   if (m.includes('invalid') && m.includes('email')) {
     return 'El email no tiene un formato válido. Revisá que no tenga espacios ni errores de tipeo.';

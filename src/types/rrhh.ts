@@ -20,6 +20,28 @@ export interface Usuario {
   avatarUrl?: string;
 }
 
+/**
+ * En qué anda una invitación. Vive en Auth, no en `usuarios`: la fila del
+ * perfil existe desde que se manda el mail, así que por sí sola no
+ * distingue a quien ya entró de quien nunca abrió la invitación.
+ *
+ *  - `activa`: entró al menos una vez y tiene contraseña.
+ *  - `pendiente`: se le mandó el mail y todavía no la usó.
+ *  - `sin_perfil`: la cuenta quedó a medias. Puede entrar pero la app no
+ *    sabe quién es; hay que rehacer la invitación.
+ */
+export type EstadoDeCuenta = 'activa' | 'pendiente' | 'sin_perfil';
+
+export interface CuentaDeAcceso {
+  email: string;
+  /** Falta cuando la cuenta quedó sin perfil. */
+  usuarioId?: string;
+  nombre: string;
+  estado: EstadoDeCuenta;
+  invitadaEn?: string;
+  ultimoAcceso?: string;
+}
+
 // ---------- Empresa (tenant) ----------
 
 /** Cómo quedó registrado un fichaje. 'manual' = carga a mano por RRHH/supervisor. */
