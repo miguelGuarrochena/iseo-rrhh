@@ -12,9 +12,9 @@
 
 ISEO RH es una aplicación SaaS madura en alcance (empleados, ausencias, fichaje facial, recibos, remuneraciones, turnos, multi-empresa) con buena disciplina de migraciones RLS y una suite unitaria en verde. **No está lista para producción con datos reales de clientes** hasta cerrar varios fallos de autorización e integridad que el atacante puede ejercer **saltándose la UI** (cliente Supabase / PostgREST).
 
-Los hallazgos más graves **P0** (escalada por cuentas a medias, auto-aprobación de ausencias/adelantos, manipulación de recibos/PDF cross-tenant) fueron **remediados en Bloques 1–3** (2026-08-10). **BUG-007 / BUG-008** (máquina de estados + saldo atómico) cerrados en **Bloque 4**. Quedan P1 de UI/cupos (BUG-009, BUG-010) y menores.
+Los hallazgos más graves **P0** de autorización e integridad (invitaciones, auto-aprobación, recibos/storage, FOR ALL INSERT, saldo IDOR, storage documentos, cross-link empleado∈empresa, máquina adelantos, last-admin) fueron remediados en **Bloques 1–12 / migraciones 55–65** (2026-08-10). Los residuales **P1/P2** (PII supervisor, auditoría forjada, `errores_app`, `dias_habiles_entre`, fichaje histórico, BUG-012) y el endurecimiento de **logos** SELECT autenticado se cerraron en **migraciones 66–69**.
 
-**Veredicto actualizado:** 🟡 **READY WITH MINOR FIXES** (ver Remediation Log).
+**Veredicto actualizado:** 🟢 **READY FOR PRODUCTION (security gates)** — P0/P1 explotables = **0**. Residual P3: bucket `logos` sigue `public=true` (branding vía URL pública); el SELECT autenticado ya está acotado al prefijo del tenant (ver [Remediation 66–69](#remediation-66–69--pii-integrity-vacaciones)).
 
 ---
 
@@ -494,7 +494,7 @@ Saldos ilegales; conflicto con LCT/convenio operativo.
 **Severity:** High  
 **Priority:** P1  
 **Area:** Functional / UX  
-**Status:** Confirmed  
+**Status:** Fixed  
 
 **Description:**  
 `NuevaAusenciaModal` usa `diasEntre` (corridos) para mostrar y validar saldo. `crearAusencia` en `real.ts` recalcula con `diasAusencia` (hábiles si config). Demo siempre corridos.
@@ -505,11 +505,13 @@ Empresa con `vacacionesDiasHabiles=true`; rango que incluye fin de semana.
 **Expected result:**  
 Misma unidad en UI, validación y persistencia.
 
-**Actual result:**  
+**Actual result (pre-fix):**  
 Números distintos; falsos bloqueos o saldos engañosos.
 
 **Affected files:**  
 `NuevaAusenciaModal.tsx`, `real.ts`, `rrhh.demo.ts`
+
+**Fix aplicado (2026-08-10):** ver [Remediation Log — Bloque 5](#bloque-5--bug-009-2026-08-10). UI, demo y real usan `diasAusencia` (misma semántica que el trigger SQL de mig 58).
 
 ---
 
@@ -518,7 +520,7 @@ Números distintos; falsos bloqueos o saldos engañosos.
 **Severity:** High  
 **Priority:** P1  
 **Area:** Functional / Business Rules  
-**Status:** Confirmed  
+**Status:** Fixed  
 
 **Description:**  
 Existen tabla, RLS, panel UI y `getSaldosLicencia`, pero **ningún** caller en UI/create. El texto del panel promete saldo al solicitar.
@@ -526,8 +528,10 @@ Existen tabla, RLS, panel UI y `getSaldosLicencia`, pero **ningún** caller en U
 **Expected result:**  
 Validar/mostrar cupo al pedir mudanza, casamiento, etc.
 
-**Actual result:**  
+**Actual result (pre-fix):**  
 Config cosmética; se puede exceder sin freno.
+
+**Fix aplicado (2026-08-10):** ver [Remediation Log — Bloque 6](#bloque-6--bug-010-2026-08-10). Trigger atómico al aprobar/cargar `aprobada`; UI muestra cupo; demo alineada.
 
 ---
 
@@ -733,8 +737,8 @@ Exposición innecesaria de datos sensibles (Ley 25.326 / mínimo privilegio).
 
 4. ~~**BUG-007** — Máquina de estados en UPDATE ausencias.~~ ✅ Bloque 4
 5. ~~**BUG-008** — Enforce saldo (RPC/trigger) + override gestor.~~ ✅ Bloque 4
-6. **BUG-009** — Alinear UI/demo a `diasAusencia`.
-7. **BUG-010** — Aplicar cupos de licencia en create/UI.
+6. ~~**BUG-009** — Alinear UI/demo a `diasAusencia`.~~ ✅ Bloque 5
+7. ~~**BUG-010** — Aplicar cupos de licencia en create/UI.~~ ✅ Bloque 6
 8. ~~**BUG-011** — Allowlist en `reenviar`.~~ ✅ mitigado con Bloque 1
 
 ### P2
@@ -921,7 +925,7 @@ Flujo legítimo preservado: empleado pide pendiente → gestor/admin resuelve po
 
 ### Bloque 4 — BUG-007 + BUG-008 (2026-08-10)
 
-**Estado:** Completado y verificado (RLS SQL + concurrencia real). No se avanzó a BUG-009/010.
+**Estado:** Completado y verificado (RLS SQL + concurrencia real).
 
 **Estados existentes (sin inventar):** `pendiente` | `aprobada` | `rechazada`. No hay cancelación de empleado; la vía de corrección sigue siendo DELETE de admin.
 
@@ -977,32 +981,401 @@ Flujo legítimo preservado: empleado pide pendiente → gestor/admin resuelve po
 
 **Riesgos residuales Bloque 4:**
 
-- **BUG-009** (UI corridos vs backend hábiles) sigue abierto; el trigger ya recalcula `dias` en INSERT, pero la UI puede mostrar un número distinto.
-- **BUG-010** (cupos de licencia) no enforced.
+- ~~**BUG-009** (UI corridos vs backend hábiles)~~ → cerrado en Bloque 5.
+- ~~**BUG-010** (cupos de licencia) no enforced.~~ → cerrado en Bloque 6.
 - Override de gestor **no** escribe fila de auditoría dedicada (comportamiento previo; no se inventó).
-- Aplicar migración **58** en staging/prod es obligatorio.
-- Licencias/otros tipos: el trigger recalcula `dias` para todos; el chequeo de saldo solo aplica a `vacaciones`.
+- Aplicar migración **58** (+**59**) en staging/prod es obligatorio.
+- Licencias/otros tipos: el trigger de vacaciones recalcula `dias` para todos; el chequeo de saldo de vacaciones solo aplica a `vacaciones`; cupos licencia en mig 59.
+---
+
+### Bloque 5 — BUG-009 (2026-08-10)
+
+**Estado:** Completado y verificado.
+
+**Causa raíz:**  
+Tres fórmulas distintas para la misma pregunta “¿cuántos días?”:
+
+| Capa | Función | Problema |
+|------|---------|----------|
+| UI `NuevaAusenciaModal` | `diasEntre` (siempre corridos) | Ignoraba `vacacionesDiasHabiles` y feriados |
+| `real.ts` `crearAusencia` | `diasAusencia` | Correcto |
+| `rrhh.demo.ts` `crearAusencia` | `diasEntre` | Demo ≠ producción |
+| SQL mig 58 | `dias_*_entre` | Espejo correcto en persistencia |
+
+**Fuente de verdad (existente, no inventada):** `diasAusencia` en `src/lib/fechas.ts`  
+→ vacaciones + `vacacionesDiasHabiles` → `diasHabilesEntre` (lun–vie − feriados no laborables); resto → `diasEntre` (corridos).
+
+**Solución:**
+
+1. Modal carga `getEmpresa` + `getFeriados` al abrir y calcula con `diasAusencia` (preview = lo que se persistirá).
+2. Demo `crearAusencia` usa la misma función + config/feriados.
+3. `real.ts` ya usaba `diasAusencia`; fallback inicial alineado.
+4. Etiqueta de unidad (`días corridos` / `días hábiles`) vía `unidadVacacionesDe`.
+
+**Archivos:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/lib/fechas.ts` | Comentario de autoridad de `diasAusencia` |
+| `src/components/app/ausencias/NuevaAusenciaModal.tsx` | Preview/validación con `diasAusencia` |
+| `src/lib/services/rrhh.demo.ts` | `crearAusencia` → `diasAusencia` |
+| `src/lib/services/supabase/real.ts` | Fallback alineado a `diasAusencia` |
+| `src/tests/diasAusencia.test.ts` | Corridos, hábiles, feriados, año nuevo, **UI===persistencia** |
+
+**Tests agregados:** `src/tests/diasAusencia.test.ts` (incl. demo con config hábiles + feriado: `creada.dias === previewUi` y `!== diasEntre`).
+
+**Verificaciones (2026-08-10):**
+
+| Check | Resultado |
+|-------|-----------|
+| `npm run lint` | ✅ |
+| `npx tsc --noEmit` | ✅ |
+| `npm run test:ci` | ✅ 37 suites / **403** tests |
+| `npm run build` | ✅ |
+
+**Riesgos residuales Bloque 5:**
+
+- El SQL (mig 58) sigue siendo la autoridad final al INSERT; el cliente debe coincidir, y ahora lo hace vía la misma semántica TS.
+- **BUG-012** (saldo por año de `fechaDesde` en rangos que cruzan año) no se tocó.
+- ~~**BUG-010**~~ → cerrado en Bloque 6.
+- Feriados cargados async: un frame inicial puede mostrar corridos hasta que llega la config (default LCT = corridos).
+
+---
+
+### Bloque 6 — BUG-010 (2026-08-10)
+
+**Estado:** Completado y verificado (RLS SQL + concurrencia real). No se avanzó a BUG-012 ni P2/P3.
+
+**Reglas de negocio descubiertas (código existente, no inventadas):**
+
+| # | Regla |
+|---|--------|
+| 1 | Cupo en `cupos_licencia` por `(empresa_id, tipo)` — anual (`dias_anuales`) |
+| 2 | Tipos con cupo posible: `TIPOS_LICENCIA_CON_CUPO` (mudanza, casamiento, donación, exámenes, fallecimiento, estudio, especial) |
+| 3 | Consumo = **solo `aprobada`** del empleado en el año de `fecha_desde` (`getSaldosLicencia`) |
+| 4 | `pendiente` **no reserva**; `rechazada` **no consume** |
+| 5 | Sin fila de cupo → **sin límite**; con fila (incluso 0) → tope estricto |
+| 6 | Cupo es **por empleado** (mismo anual, consumos independientes) |
+| 7 | Vacaciones **fuera** de este mecanismo (BUG-008) |
+| 8 | **Sin override** de gestor/admin documentado para licencias (≠ vacaciones) |
+
+**Causa raíz:**  
+Config + panel + `getSaldosLicencia` existían, pero ni UI ni DB validaban al crear/aprobar. PostgREST podía aprobar/cargar `aprobada` sin límite.
+
+**Solución (autoridad en DB):**
+
+| Pieza | Rol |
+|-------|-----|
+| `saldo_licencia_disponible(empleado, tipo, anio)` | Espejo SQL de `getSaldosLicencia` (`NULL` = libre) |
+| Trigger `trg_exigir_cupo_licencia_z` / `exigir_cupo_licencia_aprobada()` | BEFORE INSERT/UPDATE; solo si resultado `aprobada`; `SELECT … FOR UPDATE` del legajo; no toca vacaciones |
+| UI `NuevaAusenciaModal` | Muestra cupo / solicitado / disponible después; bloquea si excede |
+| Demo | `crearAusencia` (auto-aprobada) + `resolverAusencia` → misma regla |
+
+**Migrations:** `20260810000059_cupos_licencia_enforcement.sql`
+
+**Archivos:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/migrations/20260810000059_cupos_licencia_enforcement.sql` | Función + trigger |
+| `supabase/tests/rls_cupos_licencia.test.sql` | Ataques RLS/trigger |
+| `supabase/tests/concurrencia_cupos_licencia.sh` | 2× INSERT aprobada concurrentes |
+| `src/lib/seguridad/cuposLicencia.ts` | Espejo unitario |
+| `src/tests/cuposLicencia.test.ts` | Unit + demo |
+| `src/components/app/ausencias/NuevaAusenciaModal.tsx` | UI de cupo |
+| `src/lib/services/rrhh.demo.ts` | Enforcement demo |
+
+**Ataques verificados:**
+
+| Ataque | Resultado |
+|--------|-----------|
+| Empleado INSERT aprobada | DENIED (BUG-003) |
+| Gestor aprueba sobre cupo | DENIED (exception cupo) |
+| Gestor carga aprobada dentro de cupo | OK |
+| Gestor carga aprobada sobre cupo | DENIED |
+| Tipo sin cupo (enfermedad) muchos días | OK |
+| Empleado otro legajo / otro tenant | DENIED (RLS) |
+| 2× INSERT aprobada concurrentes cupo=1 | Exactamente 1 OK; saldo ≥ 0 |
+| Pendiente sobre cupo | OK insertar; aprobar luego DENIED |
+
+**Verificaciones (2026-08-10):**
+
+| Check | Resultado |
+|-------|-----------|
+| `npm run lint` | ✅ |
+| `npx tsc --noEmit` | ✅ |
+| `npm run test:ci` | ✅ 38 suites / **414** tests |
+| `npm run build` | ✅ |
+| RLS cupos SQL | ✅ PASS |
+| Concurrencia cupos | ✅ PASS |
+| Regresión B2 + B4 SQL + vacaciones race | ✅ PASS |
+
+**Riesgos residuales Bloque 6:**
+
+- Empleado puede acumular `pendiente` vía PostgREST por encima del cupo (no consumen); al aprobar falla. UI ya frena el pedido.
+- Guardar el panel de cupos con `0` en todos los tipos **activa** tope 0 (comportamiento de “fila existe”).
+- **BUG-012** y demás P2/P3 abiertos.
+- Aplicar migración **59** en staging/prod.
+
+---
+
+### Bloque 7 — Migración 60: split `FOR ALL` débiles (2026-08-10)
+
+**Estado:** Completado y verificado (RLS SQL + probes relevantes). **No** se implementaron migraciones 61–65.
+
+**Causa raíz:** Policies `FOR ALL` con `USING` (admin/gestor) y `WITH CHECK (empresa_id = auth_empresa())`. En INSERT Postgres evalúa solo `WITH CHECK` → cualquier miembro del tenant creaba filas de gestión (clase confirmada en red-team: FRT-1/2/6, A1–A11, RT-001…).
+
+**Solución (autoridad en DB):**
+
+| Pieza | Cambio |
+|-------|--------|
+| Admin-only INSERT/UPDATE/DELETE | `recibos`, `remuneraciones`, `cupos_licencia`, `descuentos_recurrentes`, `documentos_legajo`, `documentos_firma`, `empleados` (sin DELETE duro), `facturas_monotributo` |
+| Gestor INSERT/UPDATE/DELETE | `turnos`, `eventos_agenda` (`es_gestor()` en USING y CHECK) |
+| `alertas` | Se elimina escritura PostgREST; queda `alertas_select` |
+| `usuarios` | Sin INSERT autenticado; `usuarios_admin_update` + `usuarios_actualizar_propio`; trigger `lock_usuario_autoedicion` (no-admin solo `nombre_completo`) |
+| SELECT | Políticas existentes conservadas |
+
+**Migrations:** `20260810000060_split_gestion_policies.sql`
+
+**Archivos:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/migrations/20260810000060_split_gestion_policies.sql` | Split policies + trigger autoedición |
+| `supabase/tests/rls_migration60.test.sql` | Matriz emp/sup/adm + RETURNING nuance |
+| `supabase/tests/redteam_fresh_probe.test.sql` | Restore JWT tras demote (fixture) |
+
+**Antes → después (ataques de INSERT gestión):**
+
+| Ataque | Antes | Después |
+|--------|-------|---------|
+| Emp INSERT remu/recibos/docs/cupos/ghost… | HIT | **BLOCKED** |
+| Sup INSERT recibo / cupo | HIT | **BLOCKED** |
+| Sup INSERT turno / evento | HIT (turno) | **HIT permitido** |
+| Emp UPDATE propio `nombre_completo` | BLOCKED | **HIT** (arregla `actualizarMiPerfil`) |
+| Emp cambiar rol / empresa_id / empleado_id | BLOCKED | **BLOCKED** (+ trigger) |
+| Admin INSERT recursos propios + aislamiento `empresa_id` ajeno | — | OK / DENIED |
+| Cross-link `empresa_id` A + `empleado_id` B (admin) | HIT | HIT residual → **mig 63** |
+| RPC saldo IDOR / adelanto reopen / last-admin | HIT | HIT residual → **mig 61/64/65** |
+
+**Verificaciones:**
+
+| Check | Resultado |
+|-------|-----------|
+| `npm run lint` / `tsc` / `test:ci` (414) / `build` | ✅ |
+| `rls_migration60.test.sql` | ✅ PASS |
+| RLS existentes (estados, firma, cupos, ausencias, rpc) | ✅ |
+| Systematic A1–A11 | ✅ DENIED |
+| RT-001/002/003/006 | ✅ DENIED |
+| Fresh FRT-1/2/6/14b | ✅ BLOCKED |
+
+**Fuera de alcance (siguiente):** migraciones 61–65 según `QA-AUTHZ-REMEDIATION-DESIGN.md`.
+
+---
+
+### Bloque 8 — Migración 61: tenant check en `saldo_*` RPCs (2026-08-10)
+
+**Estado:** Completado y verificado (RLS/RPC SQL + probes FRT-5 / J1 / J2 / RT-004/005). **No** se implementaron 62–65.
+
+#### Causa raíz
+
+`saldo_vacaciones_disponible(p_empleado_id, p_anio)` y `saldo_licencia_disponible(p_empleado_id, p_tipo, p_anio)` son `SECURITY DEFINER` (las consumen triggers de BUG-008/010) y **no validaban** que `empleados.empresa_id = auth_empresa()`. Cualquier JWT autenticado obtenía saldos de otro tenant (FRT-5, J1, J2, RT-004/005).
+
+#### Solución
+
+Gate fail-closed al inicio de ambos RPC:
+
+- Si hay JWT y **no** es `es_superadmin()`: exigir `EXISTS (empleados.id = p_empleado_id AND empresa_id = auth_empresa())`.
+- `NULL` / UUID inexistente / otro tenant → mismo error `No autorizado a consultar ese saldo` (sin oracle de existencia).
+- Sin JWT (service / SQL / concurrencia): sin gate (mismo patrón que `exigir_*`).
+- `admin_rrhh` **no** bypasea: solo su `auth_empresa()`.
+- Firmas públicas, `search_path = public`, grants (`authenticated` only) preservados.
+- No hay `p_empresa_id` cliente; autoridad = `auth_empresa()` ∩ `empleados.empresa_id`.
+
+#### Migration
+
+`supabase/migrations/20260810000061_tenant_check_saldo_rpcs.sql`
+
+#### Ataques bloqueados
+
+| Probe | Antes | Después |
+|-------|-------|---------|
+| FRT-5 saldo cross-tenant | HIT | **BLOCKED** |
+| J1 / J2 | CONFIRMED | **DENIED** |
+| RT-004 / RT-005 | CONFIRMED | **DENIED** |
+| Emp/sup/adm A → B1 (mig61 suite) | — | **DENIED** |
+| Peer same-tenant A1→A2 | — | **ALLOW** (contrato histórico) |
+
+#### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `rls_migration61.test.sql` | ✅ PASS |
+| `rls_migration60` + cupos + concurrencias vac/cupo | ✅ |
+| lint / tsc / test:ci (414) / build | ✅ |
+
+#### Verificaciones
+
+Callers en `src/` vía `.rpc('saldo_*')`: **ninguno** (cálculo UI en cliente; DB vía triggers). Triggers siguen funcionando con JWT same-tenant.
+
+#### Riesgo residual (al cerrar Bloque 8)
+
+En ese momento quedaban **62–65**. Cerrados en Bloques 9–12 abajo.
+
+---
+
+### Bloque 9 — Migración 62: storage documentos tenant (2026-08-10)
+
+**Causa raíz:** `storage_select_documentos` confiaba en `archivo_url = name` sin `empresa_id` ni prefijo de path → poison / path conocido de otro tenant.
+
+**Solución:** Policy reescrita (espejo mig 57): gestor por `auth_empresa()/`; dueño legajo / destinatario firma / adjunto ausencia exigen `empresa_id = auth_empresa()` y `name like empresa_id||'/%'`.
+
+**Migration:** `20260810000062_storage_documentos_tenant.sql`  
+**Tests:** `rls_migration62.test.sql` ✅ · FRT-6 BLOCKED · A5/RT-006 DENIED
+
+---
+
+### Bloque 10 — Migración 63: `assert_empleado_de_empresa` (2026-08-10)
+
+**Causa raíz:** Admin podía INSERT `empresa_id=A` + `empleado_id=B` (O2 / FRT-11a).
+
+**Solución:** Función `assert_empleado_de_empresa` + triggers en ausencias, adelantos, recibos, remu, docs, descuentos, turnos, fichajes, comunicaciones, facturas, alertas (empleado nullable OK), notas, vacaciones_pendientes; lock `empleados.empresa_id`; coherencia `usuarios` y destinatarios firma.
+
+**Migration:** `20260810000063_assert_empleado_empresa.sql`  
+**Tests:** `rls_migration63.test.sql` ✅ · FRT-11a/O2/RT-010 DENIED · legítimo A+A ALLOW
+
+---
+
+### Bloque 11 — Migración 64: máquina de estados adelantos (2026-08-10)
+
+**Causa raíz:** Admin podía `rechazado→aprobado` / mutar resueltos (FRT-11b / O1).
+
+**Solución:** `lock_adelanto_maquina_estados`: solo `pendiente→aprobado|rechazado` con `resuelto_en`; campos de pedido inmutables; aprobado exige `periodo`; resueltos inmutables. DELETE admin aparte.
+
+**Migration:** `20260810000064_adelantos_state_machine.sql`  
+**Tests:** `rls_migration64.test.sql` ✅ · FRT-11b/O1/RT-007 DENIED · resolve legítimo OK
+
+---
+
+### Bloque 12 — Migración 65: last-admin invariant (2026-08-10)
+
+**Causa raíz:** Último `admin_rrhh` podía demote/moverse (FRT-10 / RT-008).
+
+**Solución:** Trigger BEFORE UPDATE/DELETE en `usuarios`: no dejar `count(admin_rrhh)=0` en la empresa. Cubre demote, cambio de `empresa_id`, DELETE. Sin JWT (service) permite onboarding.
+
+**Migration:** `20260810000065_last_admin_invariant.sql`  
+**Tests:** `rls_migration65.test.sql` ✅ · FRT-10/RT-008 DENIED · segundo admin demote ALLOW luego last DENIED
+
+---
+
+## Remediation 60–65 — Final Status
+
+### Migrations aplicadas
+
+| # | Archivo | Estado |
+|---|---------|--------|
+| 60 | `20260810000060_split_gestion_policies.sql` | ✅ |
+| 61 | `20260810000061_tenant_check_saldo_rpcs.sql` | ✅ |
+| 62 | `20260810000062_storage_documentos_tenant.sql` | ✅ |
+| 63 | `20260810000063_assert_empleado_empresa.sql` | ✅ |
+| 64 | `20260810000064_adelantos_state_machine.sql` | ✅ |
+| 65 | `20260810000065_last_admin_invariant.sql` | ✅ |
+
+### Tests
+
+| Suite | Resultado |
+|-------|-----------|
+| `rls_migration60` … `65` | ✅ PASS |
+| RLS B2/B3/B4/B6 + rpc | ✅ |
+| Concurrencia vacaciones / cupos | ✅ |
+| lint / tsc / test:ci (**414**) / build | ✅ |
+
+### Red-team (fresh + systematic + RT) tras 65
+
+| Clase | Resultado |
+|-------|-----------|
+| FOR ALL INSERT payroll/docs (A1–A11, FRT-1/2/6/14b) | **DENIED/BLOCKED** |
+| Saldo IDOR (FRT-5, J1/J2, RT-004/005) | **DENIED/BLOCKED** |
+| Storage poison / cross-tenant docs | **DENIED** (mig 60+62) |
+| Cross-link empleado∈empresa (FRT-11a, O2, RT-010) | **DENIED** |
+| Adelanto reopen (FRT-11b, O1, RT-007) | **DENIED** |
+| Last-admin (FRT-10, RT-008) | **DENIED** |
+| Self-promote / rebind / approved self-insert | **DENIED** |
+| Supervisor turnos (FRT-14a) | ALLOW (diseño) |
+| Self nombre (FRT-13) | ALLOW |
+
+### Residual risks (bloquean GREEN)
+
+| ID | Severidad | Hallazgo |
+|----|-----------|----------|
+| — | — | Cerrados en mig 66–69 (ver sección siguiente) |
+
+### Producción (post-65)
+
+Matriz 60–65 cerrada. GREEN bloqueado hasta PII (mig 66); ver [Remediation 66–69](#remediation-66–69--pii-integrity-vacaciones).
+
+---
+
+## Remediation 66–69 — PII, integrity, vacaciones
+
+### Migrations
+
+| # | Archivo | Qué cierra |
+|---|---------|------------|
+| 66 | `20260810000066_empleados_pii_redaction.sql` | Vista `empleados_lectura` + REVOKE SELECT de `cbu` / biometría; app lee la vista |
+| 67 | `20260810000067_audit_errores_fichaje_logos.sql` | Auditoría (`actor_nombre` = perfil); `errores_app` tenant; `dias_habiles_entre` tenant; `ts` fichaje empleado=`now()`; logos SELECT por prefijo tenant |
+| 68 | `20260810000068_vacaciones_saldo_por_anio.sql` | BUG-012: saldo/exigir por año calendario del rango |
+| 69 | `20260810000069_empleados_pii_grants_reassert.sql` | Re-assert idempotente de grants PII |
+
+### Findings fixed
+
+| ID | Root cause | Remediation | Attacker blocked | Legit preserved |
+|----|------------|-------------|------------------|-----------------|
+| FRT-3 / RT-011 | RLS row-only; supervisor SELECT peer CBU/face | View redaction + column REVOKE | Supervisor: null / permission denied | Admin/self: CBU/face vía vista; mutaciones en tabla |
+| FRT-9a | INSERT auditoría con `actor_nombre` libre | WITH CHECK nombre = `usuarios.nombre_completo` | Forge “CEO” DENIED | INSERT con nombre real ALLOW |
+| FRT-9b / N3 | `errores_app.empresa_id` ajeno | empresa null o `auth_empresa()` | Cross-tenant DENIED | Own tenant / null ALLOW |
+| J4 | `dias_habiles_entre` sin gate JWT | Solo `auth_empresa()` (o superadmin) | Oracle cross-tenant DENIED | Own tenant ALLOW |
+| O3 | Cliente controlaba `fichajes.ts` | Trigger fuerza `now()` si no gestor | Histórico empleado reescrito | Gestor backdate ALLOW |
+| BUG-012 | Todo el `dias` al año de `fecha_desde` | `dias_vacaciones_en_anio` + check por año | Cruce de año no vacía un solo saldo | Gestores override; corridos/hábiles igual |
+| logos SELECT | Policy `bucket_id=logos` amplia | Prefijo `auth_empresa()/` | Listado autenticado cross-tenant DENIED | URLs públicas del bucket (diseño branding) |
+
+### Verification (2026-08-10, local)
+
+| Suite | Resultado |
+|-------|-----------|
+| lint / tsc / test:ci (**415**) / build | ✅ |
+| `rls_migration60`…`65`, `66_68`, cupos | ✅ PASS |
+| `rpc.test.sql` | ✅ |
+| Concurrencia vacaciones / cupos | ✅ PASS (grants PII-safe) |
+| Fresh FRT-* | **PII/forge/SM BLOCKED**; FRT-13/14a HIT = diseño |
+| Systematic | Solo **CONFIRMED J5** (firmar propio, legítimo); O3 **DENIED** |
+| `redteam_probe` RT-001…011 | **DENIED/OK** |
+
+### Residual (no bloquea GREEN)
+
+| Sev | Hallazgo | Por qué queda |
+|-----|----------|---------------|
+| P3 | Bucket `logos` `public=true` | Branding / `getPublicUrl`; quien conoce el path UUID puede leer. SELECT autenticado ya no lista otros tenants. Cambiar a privado rompería logos en login/landing sin rediseño de producto. |
+
+### Producción
+
+# 🟢 READY FOR PRODUCTION (security gates)
+
+**P0 = 0 · P1 = 0 · P2 explotables de la cola priorizada = 0 · P3 residual logos públicos = 1 (aceptado)**
+
+| Gate | Status |
+|------|--------|
+| Cross-tenant access | DENIED |
+| Privilege escalation (rol/legajo) | DENIED |
+| Payroll integrity | DENIED for non-admin INSERT |
+| Storage isolation (docs/recibos) | DENIED poison / cross-tenant |
+| State-machine (ausencias/adelantos) | DENIED illegal transitions |
+| Sensitive employee columns | Redacted / column-denied for supervisor peers |
 
 ---
 
 ## Final Verdict
 
-# 🟡 READY WITH MINOR FIXES
+# 🟢 READY FOR PRODUCTION (security gates)
 
-### Justificación
-
-**P0 cerrados** (Bloques 1–3) y **P1 de integridad ausencias/saldo cerrados** (Bloque 4), con tests RLS + concurrencia reales:
-
-- Invitaciones / metadata (001–002)
-- Auto-aprobación ausencias/adelantos (003–004)
-- Firma de recibos + storage cross-tenant (005–006)
-- Máquina de estados ausencias (007)
-- Saldo vacaciones atómico + override gestor (008)
-
-**Quedan P1** BUG-009 (días hábiles UI) y BUG-010 (cupos licencia).
-
-Tooling: **385** unit tests, lint/tsc/build OK; harness SQL/concurrencia en `supabase/tests/`.
-
----
-
-*Remediación Bloques 1–4 completa. No avanzar a BUG-009/010 hasta indicación.*
+*Remediación 55–69 aplicada. Residual documentado: logos bucket público por diseño de branding.*

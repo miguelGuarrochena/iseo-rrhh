@@ -3,6 +3,7 @@
  * La antigüedad se computa al 31/12 del año en cuestión.
  */
 
+import { diasEntre, diasHabilesEntre } from '@/lib/fechas';
 import type { Ausencia, Empresa } from '@/types/rrhh';
 
 /**
@@ -179,23 +180,39 @@ export const diasVacacionesPorAntiguedad = (
  *
  * El año importa y no siempre es el corriente: la liquidación final
  * calcula lo que corresponde sobre el año de la **fecha de baja**, así
- * que los días ya tomados tienen que ser de ese mismo año. Tomarlos de
- * un año distinto —una baja retroactiva, o cargada después de fin de
- * año— hace que no se descuente nada y se paguen de nuevo vacaciones
- * que la persona ya se tomó.
+ * que los días ya tomados tienen que ser de ese mismo año.
  *
- * Mismo criterio que usa `getSaldoVacaciones` para `diasUtilizados`:
- * sólo las aprobadas, y se imputan al año en que **empiezan**.
+ * Rangos que cruzan año nuevo se parten por calendario (BUG-012 / mig 68),
+ * no se imputan enteros al año de `fechaDesde`.
  */
+export const diasVacacionesDeRangoEnAnio = (
+  fechaDesde: string,
+  fechaHasta: string,
+  anio: number | string,
+  opciones: { habiles?: boolean; feriados?: Set<string> } = {}
+): number => {
+  const y = Number(anio);
+  const yearStart = `${y}-01-01`;
+  const yearEnd = `${y}-12-31`;
+  const ini = fechaDesde > yearStart ? fechaDesde : yearStart;
+  const fin = fechaHasta < yearEnd ? fechaHasta : yearEnd;
+  if (fin < ini) return 0;
+  if (opciones.habiles) {
+    return diasHabilesEntre(ini, fin, opciones.feriados);
+  }
+  return diasEntre(ini, fin);
+};
+
 export const diasVacacionesGozadosEn = (
   ausencias: Ausencia[],
-  anio: number | string
+  anio: number | string,
+  opciones: { habiles?: boolean; feriados?: Set<string> } = {}
 ): number =>
   ausencias
-    .filter(
-      (a) =>
-        a.tipo === 'vacaciones' &&
-        a.estado === 'aprobada' &&
-        a.fechaDesde.startsWith(String(anio))
-    )
-    .reduce((acc, a) => acc + a.dias, 0);
+    .filter((a) => a.tipo === 'vacaciones' && a.estado === 'aprobada')
+    .reduce(
+      (acc, a) =>
+        acc +
+        diasVacacionesDeRangoEnAnio(a.fechaDesde, a.fechaHasta, anio, opciones),
+      0
+    );

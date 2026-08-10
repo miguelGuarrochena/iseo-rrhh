@@ -46,7 +46,18 @@ insert into usuarios (id, email, rol, nombre_completo, empresa_id, empleado_id) 
   ('${USER_ID}', 'race@t.test', 'empleado', 'Race Emp', '${EMPRESA}', '${EMPLEADO}'),
   ('${GESTOR_UID}', 'raceges@t.test', 'supervisor', 'Race Ges', '${EMPRESA}', '${GESTOR_EMP}');
 grant select, insert, update, delete on table public.ausencias to authenticated;
-grant select on table public.empleados to authenticated;
+-- Column SELECT only (mig 66): do not re-open CBU / biometrics.
+revoke select on table public.empleados from authenticated;
+grant select (
+  id, empresa_id, nombre, apellido, dni, cuil, fecha_nacimiento, estado_civil,
+  nivel_estudios, domicilio, telefono, email, contacto_emergencia, grupo_familiar,
+  foto_url, fecha_ingreso, puesto, sector, supervisor_id, modalidad_contratacion,
+  fecha_fin_contrato, modalidad_pago, banco, obra_social, art, activo, fecha_baja,
+  motivo_baja, checklist_alta, creado_en, modo_fichaje, geocerca, convenio,
+  numero_legajo, sin_usuario
+) on table public.empleados to authenticated;
+grant insert, update, delete on table public.empleados to authenticated;
+grant select on public.empleados_lectura to authenticated;
 grant select on table public.empresas to authenticated;
 grant select on table public.vacaciones_pendientes to authenticated;
 grant select on table public.feriados to authenticated;

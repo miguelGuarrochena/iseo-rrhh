@@ -72,7 +72,11 @@ import type {
 } from '@/lib/services/rrhh.demo';
 import { mensajeDeErrorDb } from '@/lib/erroresDb';
 import { registrarErrorApp } from '@/lib/erroresApp';
-import { diasVacacionesPorAntiguedad, escalaDe } from '@/lib/vacaciones';
+import {
+  diasVacacionesDeRangoEnAnio,
+  diasVacacionesPorAntiguedad,
+  escalaDe,
+} from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { armarJornadas, horasEntre, Jornada } from '@/lib/fichadas';
@@ -491,8 +495,13 @@ export const actualizarConfigPlataforma = async (
 };
 
 // ---------- Empleados ----------
+// Reads go through `empleados_lectura` (mig 66): same row RLS semantics with
+// CBU / biometrics redacted for supervisors. Mutations stay on `empleados`.
 
-const EMPLEADO_SELECT_SIN_BIOMETRIA = `
+const EMPLEADOS_LECTURA = 'empleados_lectura';
+
+/** Columns safe to RETURNING from base table (no CBU / biometrics). */
+const EMPLEADO_SELECT_TABLA = `
   id,
   empresa_id,
   nombre,
@@ -517,7 +526,6 @@ const EMPLEADO_SELECT_SIN_BIOMETRIA = `
   fecha_fin_contrato,
   modalidad_pago,
   banco,
-  cbu,
   obra_social,
   art,
   convenio,
@@ -549,8 +557,8 @@ export const getEmpleados = async (
   const filas = await traerTodo(
     (d, h) =>
       sb()
-        .from('empleados')
-        .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+        .from(EMPLEADOS_LECTURA)
+        .select('*')
         .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
         .eq('activo', true)
         .order('apellido')
@@ -582,8 +590,8 @@ export const getEmpleadosConCuenta = async (): Promise<string[]> => {
 
 export const getEmpleadosTodos = async (): Promise<Empleado[]> => {
   const { data, error } = await sb()
-    .from('empleados')
-    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+    .from(EMPLEADOS_LECTURA)
+    .select('*')
     .eq('empresa_id', empresaId())
     .order('apellido');
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
@@ -591,7 +599,7 @@ export const getEmpleadosTodos = async (): Promise<Empleado[]> => {
 
 export const getEmpleado = async (id: string): Promise<Empleado | null> => {
   const { data } = await sb()
-    .from('empleados')
+    .from(EMPLEADOS_LECTURA)
     .select('*')
     .eq('id', id)
     .maybeSingle();
@@ -602,8 +610,8 @@ export const getEmpleado = async (id: string): Promise<Empleado | null> => {
 
 export const getEquipo = async (supervisorId: string): Promise<Empleado[]> => {
   const { data, error } = await sb()
-    .from('empleados')
-    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+    .from(EMPLEADOS_LECTURA)
+    .select('*')
     .eq('supervisor_id', supervisorId)
     .eq('activo', true);
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
@@ -657,9 +665,11 @@ export const crearEmpleado = async (
       geocerca: datos.geocerca ?? null,
       checklist_alta: CHECKLIST_ALTA,
     })
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
-  return aEmpleado(oFalla(data, error));
+  const creado = oFalla(data, error);
+  const completo = await getEmpleado(creado.id as string);
+  return completo ?? aEmpleado(creado);
 };
 
 /**
@@ -760,14 +770,14 @@ export const actualizarEmpleado = async (
     .from('empleados')
     .update(cambios)
     .eq('id', id)
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
   if (error) throw new Error(error.message);
   if (!data) return null;
   await registrarAuditoria('actualizar', 'empleado', id, {
     campos: Object.keys(cambios),
   });
-  return aEmpleado(data);
+  return getEmpleado(id);
 };
 
 /**
@@ -800,7 +810,7 @@ export const darDeBajaEmpleado = async (
       consentimiento_biometrico: null,
     })
     .eq('id', id)
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
   if (error) throw new Error(error.message);
   if (!data) return null;
@@ -808,7 +818,7 @@ export const darDeBajaEmpleado = async (
     fecha,
     biometriaBorrada: true,
   });
-  return aEmpleado(data);
+  return getEmpleado(id);
 };
 
 export const toggleChecklistItem = async (
@@ -824,10 +834,10 @@ export const toggleChecklistItem = async (
     .from('empleados')
     .update({ checklist_alta: checklist })
     .eq('id', empleadoId)
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
   if (error) throw new Error(error.message);
-  return data ? aEmpleado(data) : null;
+  return data ? getEmpleado(empleadoId) : null;
 };
 
 // ---------- Legajo: documentos ----------
@@ -1374,7 +1384,8 @@ export const crearAusencia = async (
   }
   const uid = useAuthStore.getState().usuario?.id ?? null;
   const aprobar = Boolean(datos.aprobarAutomaticamente);
-  let dias = diasEntre(datos.fechaDesde, datos.fechaHasta);
+  // Fuente de verdad compartida con UI/demo/SQL: `diasAusencia`.
+  let dias = diasAusencia(datos.fechaDesde, datos.fechaHasta, datos.tipo);
   try {
     const [empresa, noLaborables] = await Promise.all([
       getEmpresa(),
@@ -1388,7 +1399,7 @@ export const crearAusencia = async (
       noLaborables
     );
   } catch {
-    // si falla, queda el conteo corrido
+    // sin empresa/feriados: vacaciones sin flag → corridos (LCT)
   }
   const { data, error } = await sb()
     .from('ausencias')
@@ -1552,15 +1563,28 @@ export const getSaldoVacaciones = async (
   );
   // Días que quedaron del año anterior y RRHH decidió acumular.
   const ajuste = arrastre?.dias ?? 0;
-  const deEsteAnio = ausencias.filter(
-    (a) => a.tipo === 'vacaciones' && a.fechaDesde.startsWith(String(anio))
+  const habiles = Boolean(empresa?.config?.vacacionesDiasHabiles);
+  const feriados = new Set(
+    (await getFeriados(anio).catch(() => [])).map((f) => f.fecha)
   );
-  const utilizados = deEsteAnio
-    .filter((a) => a.estado === 'aprobada')
-    .reduce((acc, a) => acc + a.dias, 0);
-  const pendientes = deEsteAnio
-    .filter((a) => a.estado === 'pendiente')
-    .reduce((acc, a) => acc + a.dias, 0);
+  const enAnio = (
+    a: (typeof ausencias)[number],
+    estado: 'aprobada' | 'pendiente'
+  ): number => {
+    if (a.tipo !== 'vacaciones' || a.estado !== estado) return 0;
+    return diasVacacionesDeRangoEnAnio(a.fechaDesde, a.fechaHasta, anio, {
+      habiles,
+      feriados: habiles ? feriados : undefined,
+    });
+  };
+  const utilizados = ausencias.reduce(
+    (acc, a) => acc + enAnio(a, 'aprobada'),
+    0
+  );
+  const pendientes = ausencias.reduce(
+    (acc, a) => acc + enAnio(a, 'pendiente'),
+    0
+  );
   return {
     empleadoId,
     anio,
@@ -1940,11 +1964,12 @@ export const enrolarRostro = async (
     })
     .eq('id', empleadoId)
     .eq('empresa_id', empresaId())
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
+  if (error) throw new Error(error.message);
   if (!data) return null;
   await registrarAuditoria('enrolar', 'biometria_facial', empleadoId);
-  return aEmpleado(oFalla(data, error));
+  return getEmpleado(empleadoId);
 };
 
 /** Borra el rostro enrolado de un empleado. */
@@ -1956,11 +1981,12 @@ export const borrarRostro = async (
     .update({ descriptor_facial: null, consentimiento_biometrico: null })
     .eq('id', empleadoId)
     .eq('empresa_id', empresaId())
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
+  if (error) throw new Error(error.message);
   if (!data) return null;
   await registrarAuditoria('borrar', 'biometria_facial', empleadoId);
-  return aEmpleado(oFalla(data, error));
+  return getEmpleado(empleadoId);
 };
 
 /** Descriptores de los empleados activos con rostro enrolado (para 1:N). */
@@ -1968,7 +1994,7 @@ export const getDescriptoresFaciales = async (): Promise<
   DescriptorFacial[]
 > => {
   const { data, error } = await sb()
-    .from('empleados')
+    .from(EMPLEADOS_LECTURA)
     .select('id, descriptor_facial')
     .eq('empresa_id', empresaId())
     .eq('activo', true)
