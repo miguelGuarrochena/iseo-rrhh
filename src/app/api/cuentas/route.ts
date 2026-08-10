@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { logError } from '@/lib/api/registro';
+import {
+  cuentaSinPerfilEsDeLaEmpresa,
+  datosParaCompletarAlta,
+  datosParaReenviarInvitacion,
+  normalizarEmail,
+} from '@/lib/api/invitacionConfianza';
 import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 import { crearPerfilDeInvitado } from '@/lib/api/perfilInvitado';
+import { logError } from '@/lib/api/registro';
+import {
+  borrarInvitacion,
+  buscarInvitacion,
+  listarInvitacionesDeEmpresa,
+  marcarInvitacionCompletada,
+  registrarInvitacion,
+} from '@/lib/api/registroInvitacion';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { CuentaDeAcceso } from '@/types/rrhh';
 
@@ -16,6 +29,9 @@ import type { CuentaDeAcceso } from '@/types/rrhh';
  * se veían exactamente igual. Sin esa diferencia, las dos salidas que un
  * admin necesita —reenviar una invitación y liberar un email— sólo se
  * podían hacer entrando a Supabase.
+ *
+ * Autoridad de rol/empresa/legajo: `public.invitaciones` (API), nunca
+ * `user_metadata` (BUG-001 / BUG-002).
  */
 
 /** Techo de barrido de Auth. Suficiente para la escala de la plataforma. */
@@ -34,13 +50,6 @@ const traerCuentasDeAuth = async (admin: SupabaseClient): Promise<User[]> => {
     if (data.users.length < PAGINA) break;
   }
   return todas;
-};
-
-const normalizar = (email: string) => email.trim().toLowerCase();
-
-const metaTexto = (usuario: User, clave: string): string | undefined => {
-  const valor = (usuario.user_metadata ?? {})[clave];
-  return typeof valor === 'string' && valor !== '' ? valor : undefined;
 };
 
 interface Contexto {
@@ -135,10 +144,16 @@ export const GET = async (req: Request) => {
   }
 
   let cuentasAuth: User[];
+  let invitaciones;
   try {
-    cuentasAuth = await traerCuentasDeAuth(ctx.admin);
+    [cuentasAuth, invitaciones] = await Promise.all([
+      traerCuentasDeAuth(ctx.admin),
+      listarInvitacionesDeEmpresa(ctx.admin, ctx.empresaId),
+    ]);
   } catch (err) {
-    logError('No se pudo listar Auth', err, { ruta: '/api/cuentas' });
+    logError('No se pudo listar Auth o invitaciones', err, {
+      ruta: '/api/cuentas',
+    });
     return NextResponse.json(
       { error: 'No pudimos leer el estado de las invitaciones.' },
       { status: 500 }
@@ -146,7 +161,15 @@ export const GET = async (req: Request) => {
   }
 
   const porId = new Map(cuentasAuth.map((u) => [u.id, u]));
+  const porEmail = new Map(
+    cuentasAuth
+      .filter((u) => u.email)
+      .map((u) => [normalizarEmail(u.email!), u])
+  );
   const conPerfil = new Set((perfiles ?? []).map((p) => p.id as string));
+  const invitacionPorEmail = new Map(
+    invitaciones.map((i) => [normalizarEmail(i.email), i])
+  );
 
   const cuentas: CuentaDeAcceso[] = (perfiles ?? []).map((p) => {
     const enAuth = porId.get(p.id as string);
@@ -160,21 +183,31 @@ export const GET = async (req: Request) => {
     };
   });
 
-  // Cuentas a medias: existen en Auth y dicen ser de esta empresa, pero
-  // nunca llegaron a tener perfil. Quien las tenga puede poner su
-  // contraseña y entrar a una app que no sabe quién es.
-  const huerfanas: CuentaDeAcceso[] = cuentasAuth
-    .filter(
-      (u) =>
-        !conPerfil.has(u.id) && metaTexto(u, 'empresa_id') === ctx.empresaId
-    )
-    .map((u) => ({
-      email: u.email ?? '',
-      nombre: metaTexto(u, 'nombre_completo') ?? u.email ?? '',
-      estado: 'sin_perfil' as const,
-      invitadaEn: u.invited_at ?? u.created_at,
-      ultimoAcceso: u.last_sign_in_at ?? undefined,
-    }));
+  // Cuentas a medias: Auth sin perfil Y invitación confiable de esta
+  // empresa. Metadata `empresa_id` ya no alcanza para aparecer acá.
+  const huerfanas: CuentaDeAcceso[] = [];
+  for (const inv of invitaciones) {
+    const email = normalizarEmail(inv.email);
+    const enAuth =
+      (inv.authUserId ? porId.get(inv.authUserId) : undefined) ??
+      porEmail.get(email);
+    if (!enAuth) continue;
+    if (
+      !cuentaSinPerfilEsDeLaEmpresa({
+        tienePerfil: conPerfil.has(enAuth.id),
+        invitacionDeLaEmpresa: invitacionPorEmail.has(email),
+      })
+    ) {
+      continue;
+    }
+    huerfanas.push({
+      email: enAuth.email ?? email,
+      nombre: inv.nombreCompleto || enAuth.email || email,
+      estado: 'sin_perfil',
+      invitadaEn: enAuth.invited_at ?? enAuth.created_at,
+      ultimoAcceso: enAuth.last_sign_in_at ?? undefined,
+    });
+  }
 
   return NextResponse.json({ cuentas: [...cuentas, ...huerfanas] });
 };
@@ -213,13 +246,37 @@ const reenviar = async (
     );
   }
 
-  const email = cuenta.email ?? '';
+  const email = normalizarEmail(cuenta.email ?? '');
+  let invitacion;
+  try {
+    invitacion = await buscarInvitacion(ctx.admin, ctx.empresaId, email);
+  } catch (err) {
+    logError('No se pudo leer la invitación al reenviar', err, {
+      ruta: '/api/cuentas',
+    });
+    return NextResponse.json(
+      { error: 'No pudimos rehacer la invitación. Probá de nuevo.' },
+      { status: 500 }
+    );
+  }
+
+  const resuelto = datosParaReenviarInvitacion({
+    perfil,
+    invitacion,
+    emailFallback: email,
+  });
+  if (!resuelto.ok) {
+    return NextResponse.json(
+      { error: resuelto.error },
+      { status: resuelto.status }
+    );
+  }
+
   const datos = {
-    nombre_completo:
-      perfil?.nombre_completo ?? metaTexto(cuenta, 'nombre_completo') ?? email,
-    rol: perfil?.rol ?? metaTexto(cuenta, 'rol') ?? 'empleado',
+    nombre_completo: resuelto.datos.nombreCompleto,
+    rol: resuelto.datos.rol,
     empresa_id: ctx.empresaId,
-    empleado_id: perfil?.empleado_id ?? metaTexto(cuenta, 'empleado_id') ?? '',
+    empleado_id: resuelto.datos.empleadoId ?? '',
   };
 
   const { error: errorBorrado } = await ctx.admin.auth.admin.deleteUser(
@@ -228,7 +285,6 @@ const reenviar = async (
   if (errorBorrado) {
     logError('No se pudo borrar la cuenta a reinvitar', errorBorrado, {
       ruta: '/api/cuentas',
-      email,
     });
     return NextResponse.json(
       { error: 'No pudimos rehacer la invitación. Probá de nuevo.' },
@@ -244,7 +300,7 @@ const reenviar = async (
   if (error) {
     // La cuenta vieja ya no está: el email quedó libre y se puede volver
     // a invitar desde cero. Se dice así, que es lo accionable.
-    logError('No se pudo reinvitar', error, { ruta: '/api/cuentas', email });
+    logError('No se pudo reinvitar', error, { ruta: '/api/cuentas' });
     return NextResponse.json(
       {
         error: `Se liberó la cuenta anterior pero el mail no salió (${error.message}). Invitá a ${email} de nuevo desde “Invitar usuario”.`,
@@ -262,13 +318,12 @@ const reenviar = async (
         nombreCompleto: datos.nombre_completo,
         rol: datos.rol,
         empresaId: ctx.empresaId,
-        empleadoId: datos.empleado_id || null,
+        empleadoId: resuelto.datos.empleadoId,
       }
     );
     if (errorPerfil) {
       logError('No se pudo rehacer el perfil al reinvitar', errorPerfil, {
         ruta: '/api/cuentas',
-        email,
       });
       return NextResponse.json(
         {
@@ -276,6 +331,22 @@ const reenviar = async (
         },
         { status: 500 }
       );
+    }
+
+    const errorInv = await registrarInvitacion(ctx.admin, {
+      email,
+      empresaId: ctx.empresaId,
+      rol: resuelto.datos.rol,
+      nombreCompleto: datos.nombre_completo,
+      empleadoId: resuelto.datos.empleadoId,
+      authUserId: invitado.user.id,
+      creadaPor: ctx.actorId,
+      perfilCreado: true,
+    });
+    if (errorInv) {
+      logError('No se pudo refrescar la invitación al reenviar', errorInv, {
+        ruta: '/api/cuentas',
+      });
     }
   }
 
@@ -285,58 +356,74 @@ const reenviar = async (
 
 /**
  * Le arma el perfil a una cuenta que quedó a medias, con los datos de su
- * invitación.
+ * invitación registrada en el servidor (no la metadata de Auth).
  *
  * Rehacer la invitación no sirve para todos: quien ya puso su contraseña
  * la tiene y no hay por qué hacérsela cambiar ni mandarle otro mail. Lo
- * único que le falta es la fila del perfil, y los datos para armarla
- * quedaron guardados en la metadata de la invitación. Con esto la persona
- * entra con lo que ya tiene y la app por fin sabe quién es.
+ * único que le falta es la fila del perfil.
  */
 const completar = async (ctx: Contexto, cuenta: User) => {
-  const empleadoId = metaTexto(cuenta, 'empleado_id') ?? null;
-  if (empleadoId) {
-    // El mismo cuidado que al invitar: dos cuentas sobre un legajo se ven
-    // los recibos entre sí.
-    const { data: ocupado } = await ctx.admin
-      .from('usuarios')
-      .select('email')
-      .eq('empleado_id', empleadoId)
-      .limit(1)
-      .maybeSingle();
-    if (ocupado) {
-      return NextResponse.json(
-        {
-          error: `Ese colaborador ya tiene cuenta (${ocupado.email}). Desvinculala primero, o borrá esta cuenta a medias si sobra.`,
-        },
-        { status: 400 }
-      );
-    }
-  }
-
-  const rol = metaTexto(cuenta, 'rol') ?? 'empleado';
-  if (!['admin_rrhh', 'supervisor', 'empleado'].includes(rol)) {
+  const email = normalizarEmail(cuenta.email ?? '');
+  let invitacion;
+  try {
+    invitacion = await buscarInvitacion(ctx.admin, ctx.empresaId, email);
+  } catch (err) {
+    logError('No se pudo leer la invitación al completar', err, {
+      ruta: '/api/cuentas',
+    });
     return NextResponse.json(
-      {
-        error:
-          'La invitación no dice con qué rol se creó esta cuenta. Borrala e invitá de nuevo.',
-      },
-      { status: 400 }
+      { error: 'No pudimos completar el alta. Probá de nuevo.' },
+      { status: 500 }
     );
   }
 
-  const email = cuenta.email ?? '';
-  const errorPerfil = await crearPerfilDeInvitado(ctx.admin, cuenta.id, {
+  let empleado: { id: string; empresaId: string } | null = null;
+  let emailOcupandoLegajo: string | null = null;
+  if (invitacion?.empleadoId) {
+    const { data: fila } = await ctx.admin
+      .from('empleados')
+      .select('id, empresa_id')
+      .eq('id', invitacion.empleadoId)
+      .maybeSingle();
+    if (fila) {
+      empleado = {
+        id: fila.id as string,
+        empresaId: fila.empresa_id as string,
+      };
+    }
+    const { data: ocupado } = await ctx.admin
+      .from('usuarios')
+      .select('email')
+      .eq('empleado_id', invitacion.empleadoId)
+      .limit(1)
+      .maybeSingle();
+    emailOcupandoLegajo = (ocupado?.email as string | undefined) ?? null;
+  }
+
+  const resuelto = datosParaCompletarAlta({
     email,
-    nombreCompleto: metaTexto(cuenta, 'nombre_completo') ?? email,
-    rol,
     empresaId: ctx.empresaId,
-    empleadoId,
+    invitacion,
+    empleado,
+    emailOcupandoLegajo,
+  });
+  if (!resuelto.ok) {
+    return NextResponse.json(
+      { error: resuelto.error },
+      { status: resuelto.status }
+    );
+  }
+
+  const errorPerfil = await crearPerfilDeInvitado(ctx.admin, cuenta.id, {
+    email: resuelto.datos.email,
+    nombreCompleto: resuelto.datos.nombreCompleto,
+    rol: resuelto.datos.rol,
+    empresaId: resuelto.datos.empresaId,
+    empleadoId: resuelto.datos.empleadoId,
   });
   if (errorPerfil) {
     logError('No se pudo completar el alta', errorPerfil, {
       ruta: '/api/cuentas',
-      email,
     });
     return NextResponse.json(
       { error: `No pudimos completar el alta: ${errorPerfil}` },
@@ -344,7 +431,11 @@ const completar = async (ctx: Contexto, cuenta: User) => {
     );
   }
 
-  await auditar(ctx, 'completar_alta', { email, rol });
+  await marcarInvitacionCompletada(ctx.admin, ctx.empresaId, email, cuenta.id);
+  await auditar(ctx, 'completar_alta', {
+    email,
+    rol: resuelto.datos.rol,
+  });
   return NextResponse.json({ ok: true });
 };
 
@@ -386,12 +477,15 @@ const quitar = async (ctx: Contexto, cuenta: User, esAdmin: boolean) => {
   if (error) {
     logError('No se pudo quitar el acceso', error, {
       ruta: '/api/cuentas',
-      email: cuenta.email,
     });
     return NextResponse.json(
       { error: 'No pudimos quitar el acceso. Probá de nuevo.' },
       { status: 500 }
     );
+  }
+
+  if (cuenta.email) {
+    await borrarInvitacion(ctx.admin, ctx.empresaId, cuenta.email);
   }
 
   await auditar(ctx, 'quitar_acceso', { email: cuenta.email });
@@ -414,7 +508,7 @@ export const POST = async (req: Request) => {
 
   const accion = cuerpo.accion;
   const email =
-    typeof cuerpo.email === 'string' ? normalizar(cuerpo.email) : '';
+    typeof cuerpo.email === 'string' ? normalizarEmail(cuerpo.email) : '';
   const ACCIONES = ['reenviar', 'quitar', 'completar'] as const;
   if (
     typeof accion !== 'string' ||
@@ -444,7 +538,9 @@ export const POST = async (req: Request) => {
     );
   }
 
-  const cuenta = cuentas.find((u) => normalizar(u.email ?? '') === email);
+  const cuenta = cuentas.find(
+    (u) => u.email && normalizarEmail(u.email) === email
+  );
   if (!cuenta) {
     return NextResponse.json(
       { error: 'Esa cuenta ya no existe. Actualizá la pantalla.' },
@@ -458,12 +554,22 @@ export const POST = async (req: Request) => {
     .eq('id', cuenta.id)
     .maybeSingle();
 
-  // Pertenencia: o tiene perfil en esta empresa, o quedó a medias con esta
-  // empresa en la metadata. Nada de tocar cuentas de otro cliente ni del
-  // equipo de ISEO desde acá.
+  let invitacion;
+  try {
+    invitacion = await buscarInvitacion(ctx.admin, ctx.empresaId, email);
+  } catch (err) {
+    logError('No se pudo leer la invitación', err, { ruta: '/api/cuentas' });
+    return NextResponse.json(
+      { error: 'No pudimos leer las cuentas.' },
+      { status: 500 }
+    );
+  }
+
+  // Pertenencia: perfil de esta empresa, o invitación confiable (nunca
+  // metadata). Nada de tocar cuentas de otro cliente ni del equipo ISEO.
   const esDeLaEmpresa = perfil
     ? perfil.empresa_id === ctx.empresaId && perfil.rol !== 'superadmin'
-    : metaTexto(cuenta, 'empresa_id') === ctx.empresaId;
+    : invitacion?.empresaId === ctx.empresaId;
   if (!esDeLaEmpresa) {
     return NextResponse.json(
       { error: 'Esa cuenta no pertenece a esta empresa.' },

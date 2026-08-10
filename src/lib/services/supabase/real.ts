@@ -2733,16 +2733,15 @@ export const getRecibosArchivadosTodos = async (): Promise<ReciboSueldo[]> => {
 export const firmarRecibo = async (
   reciboId: string
 ): Promise<ReciboSueldo | null> => {
-  const { data, error } = await sb()
-    .from('recibos')
-    .update({ estado_firma: 'firmado', firmado_en: new Date().toISOString() })
-    .eq('id', reciboId)
-    .eq('estado_firma', 'pendiente')
-    .select()
-    .single();
+  // La firma va por RPC: el empleado ya no tiene policy UPDATE sobre
+  // `recibos` (BUG-005). El servidor sólo toca estado_firma + firmado_en.
+  const { data, error } = await sb().rpc('firmar_recibo', {
+    p_recibo_id: reciboId,
+  });
   if (error) throw new Error(error.message);
-  if (!data) return null;
-  const recibo = aRecibo(data);
+  const fila = Array.isArray(data) ? data[0] : data;
+  if (!fila) return null;
+  const recibo = aRecibo(fila as Parameters<typeof aRecibo>[0]);
   await registrarAuditoria('firmar', 'recibo', recibo.id, {
     empleadoId: recibo.empleadoId,
     periodo: recibo.periodo,

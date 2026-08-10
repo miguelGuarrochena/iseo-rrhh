@@ -25,8 +25,9 @@ export interface DatosDeInvitacion {
  * hubiera dado de alta.
  *
  * Acá el perfil se puede escribir con confianza: quien invita ya fue
- * verificado contra la base, y el rol y la empresa los decide el servidor,
- * no el body del pedido.
+ * verificado contra la base, y el rol y la empresa los decide el servidor
+ * (y, al completar una cuenta a medias, la fila de `public.invitaciones`),
+ * nunca la metadata mutable del usuario Auth.
  *
  * Devuelve el mensaje de error listo para mostrar, o null si salió bien.
  */
