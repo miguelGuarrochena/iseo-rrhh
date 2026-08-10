@@ -12,7 +12,7 @@
 
 ISEO RH es una aplicación SaaS madura en alcance (empleados, ausencias, fichaje facial, recibos, remuneraciones, turnos, multi-empresa) con buena disciplina de migraciones RLS y una suite unitaria en verde. **No está lista para producción con datos reales de clientes** hasta cerrar varios fallos de autorización e integridad que el atacante puede ejercer **saltándose la UI** (cliente Supabase / PostgREST).
 
-Los hallazgos más graves **P0** (escalada por cuentas a medias, auto-aprobación de ausencias/adelantos, manipulación de recibos/PDF cross-tenant) fueron **remediados en Bloques 1–3** (2026-08-10). Quedan P1 de reglas de negocio (saldos, cupos, máquina de estados post-resolución).
+Los hallazgos más graves **P0** (escalada por cuentas a medias, auto-aprobación de ausencias/adelantos, manipulación de recibos/PDF cross-tenant) fueron **remediados en Bloques 1–3** (2026-08-10). **BUG-007 / BUG-008** (máquina de estados + saldo atómico) cerrados en **Bloque 4**. Quedan P1 de UI/cupos (BUG-009, BUG-010) y menores.
 
 **Veredicto actualizado:** 🟡 **READY WITH MINOR FIXES** (ver Remediation Log).
 
@@ -448,7 +448,7 @@ Rama `exists` de storage sin validar tenant/prefijo.
 **Severity:** High  
 **Priority:** P1  
 **Area:** Security / Database / Functional  
-**Status:** Confirmed  
+**Status:** Fixed  
 
 **Description:**  
 `ausencias_gestion` UPDATE sin filtrar estado ni columnas. Un supervisor/admin puede `rechazada` → `aprobada`, cambiar fechas/`dias` post-facto.
@@ -456,11 +456,13 @@ Rama `exists` de storage sin validar tenant/prefijo.
 **Expected result:**  
 Máquina de estados; campos inmutables tras resolución (o solo soft-cancel auditado).
 
-**Actual result:**  
+**Actual result (pre-fix):**  
 Cualquier UPDATE de gestor en la empresa es RLS-válido.
 
 **Impact:**  
 Auditoría rota; saldos inconsistentes; disputas laborales.
+
+**Fix aplicado (2026-08-10):** ver [Remediation Log — Bloque 4](#bloque-4--bug-007--bug-008-2026-08-10). Trigger `lock_ausencia_maquina_estados`: solo `pendiente` → `aprobada`|`rechazada` (campos de solicitud inmutables); resueltas bloqueadas en UPDATE. No hay cancelación de empleado en el producto; DELETE admin se conserva.
 
 ---
 
@@ -469,7 +471,7 @@ Auditoría rota; saldos inconsistentes; disputas laborales.
 **Severity:** High  
 **Priority:** P1  
 **Area:** Functional / Data Integrity  
-**Status:** Confirmed  
+**Status:** Fixed  
 
 **Description:**  
 `crearAusencia` no valida saldo. Solo la UI frena al empleado. Dos solicitudes concurrentes del cupo completo ambas pasan. `diasDisponibles` puede ser negativo.
@@ -477,11 +479,13 @@ Auditoría rota; saldos inconsistentes; disputas laborales.
 **Expected result:**  
 RPC/transacción o constraint que impida disponible &lt; 0 (con override admin auditado).
 
-**Actual result:**  
+**Actual result (pre-fix):**  
 Overbooking posible.
 
 **Impact:**  
 Saldos ilegales; conflicto con LCT/convenio operativo.
+
+**Fix aplicado (2026-08-10):** ver [Remediation Log — Bloque 4](#bloque-4--bug-007--bug-008-2026-08-10). BEFORE INSERT con `SELECT … FOR UPDATE` del legajo + `saldo_vacaciones_disponible`; gestores/superadmin conservan override.
 
 ---
 
@@ -727,11 +731,11 @@ Exposición innecesaria de datos sensibles (Ley 25.326 / mínimo privilegio).
 
 ### P1
 
-4. **BUG-007** — Máquina de estados en UPDATE ausencias.
-5. **BUG-008** — Enforce saldo (RPC/trigger) + override auditado.
+4. ~~**BUG-007** — Máquina de estados en UPDATE ausencias.~~ ✅ Bloque 4
+5. ~~**BUG-008** — Enforce saldo (RPC/trigger) + override gestor.~~ ✅ Bloque 4
 6. **BUG-009** — Alinear UI/demo a `diasAusencia`.
 7. **BUG-010** — Aplicar cupos de licencia en create/UI.
-8. **BUG-011** — Allowlist en `reenviar`.
+8. ~~**BUG-011** — Allowlist en `reenviar`.~~ ✅ mitigado con Bloque 1
 
 ### P2
 
@@ -850,15 +854,15 @@ Flujo legítimo preservado: empleado pide pendiente → gestor/admin resuelve po
 
 **Riesgos residuales Bloque 2:**
 
-- Gestores pueden seguir reabriendo ausencias ya resueltas vía UPDATE (BUG-007, P1).
-- Race de saldo de vacaciones (BUG-008) sigue abierto.
-- Aplicar migración 56 en staging/prod es obligatorio antes de confiar en el cierre.
+- ~~Gestores pueden seguir reabriendo ausencias ya resueltas~~ → cerrado en Bloque 4.
+- ~~Race de saldo de vacaciones~~ → cerrado en Bloque 4.
+- Aplicar migración 56 (+58) en staging/prod es obligatorio antes de confiar en el cierre.
 
 ---
 
 ### Bloque 3 — BUG-005 + BUG-006 (2026-08-10)
 
-**Estado:** Completado y verificado con RLS + Storage reales. No se avanzó a BUG-007.
+**Estado:** Completado y verificado con RLS + Storage reales.
 
 **Causa raíz:**
 
@@ -915,22 +919,90 @@ Flujo legítimo preservado: empleado pide pendiente → gestor/admin resuelve po
 
 ---
 
+### Bloque 4 — BUG-007 + BUG-008 (2026-08-10)
+
+**Estado:** Completado y verificado (RLS SQL + concurrencia real). No se avanzó a BUG-009/010.
+
+**Estados existentes (sin inventar):** `pendiente` | `aprobada` | `rechazada`. No hay cancelación de empleado; la vía de corrección sigue siendo DELETE de admin.
+
+**Causa raíz:**
+
+1. **BUG-007:** `ausencias_gestion` UPDATE sin máquina de estados → gestor podía reabrir o alterar filas resueltas vía PostgREST.
+2. **BUG-008:** validación de saldo TOCTOU en cliente (`leer saldo` → `INSERT`) → dos requests concurrentes del cupo completo ambas pasaban.
+
+**Solución (autoridad en DB):**
+
+| Pieza | Rol |
+|-------|-----|
+| Trigger `trg_lock_ausencia_maquina_estados` / `lock_ausencia_maquina_estados()` | Resueltas inmutables; desde `pendiente` solo → `aprobada`\|`rechazada` y solo campos de resolución (`resuelta_*`); datos de solicitud bloqueados |
+| Trigger `trg_exigir_saldo_vacaciones` / `exigir_saldo_vacaciones_al_insertar()` | Recalcula `dias` server-side; `SELECT … FOR UPDATE` del legajo; empleado: `dias ≤ saldo_vacaciones_disponible`; gestores/`es_superadmin()`: override (mismo criterio UI) |
+| Helpers | `dias_corridos_entre`, `dias_habiles_entre`, `dias_vacaciones_corresponden`, `saldo_vacaciones_disponible` |
+| Bypass | `auth.uid() is null` (service role / seeds) |
+
+**Flujo legítimo conservado:** empleado INSERT `pendiente` → gestor aprueba/rechaza. Override RRHH al crear vacaciones excediendo saldo: OK. Empleado no puede auto-override (mig 56 + trigger saldo).
+
+**Archivos:**
+
+| Archivo | Cambio |
+|---------|--------|
+| `supabase/migrations/20260810000058_ausencias_estados_y_saldo.sql` | Triggers + helpers saldo |
+| `supabase/tests/rls_ausencias_estados_saldo.test.sql` | RLS/trigger adversarial |
+| `supabase/tests/concurrencia_vacaciones.sh` | Dos INSERT concurrentes del cupo completo |
+| `src/lib/seguridad/ausenciasEstados.ts` | Espejo unitario (no sustituye DB) |
+| `src/tests/ausenciasEstados.test.ts` | Unit |
+
+**Policies:** sin cambios de RLS de gestión; la autoridad nueva es por **triggers** (PostgREST no puede saltarlos).
+
+**Ataques ahora bloqueados (verificados en SQL):**
+
+- Gestor: `rechazada`→`aprobada`, `aprobada`→`rechazada`, `*`→`pendiente` → EXCEPTION
+- Gestor: mutar `fecha_*`/`dias`/`tipo`/`empleado_id` al resolver o post-resolución → EXCEPTION
+- Empleado: resolver pendiente → denegado (RLS)
+- Empleado: vacaciones > saldo → EXCEPTION
+- Empleado concurrente cupo completo ×2 → exactamente 1 OK; `saldo_final ≥ 0`
+- Gestor override > saldo → OK
+- Empleado INSERT `aprobada` → denegado (mig 56)
+
+**Verificaciones (2026-08-10):**
+
+| Check | Resultado |
+|-------|-----------|
+| `npm run lint` | ✅ |
+| `npx tsc --noEmit` | ✅ |
+| `npm run test:ci` | ✅ 36 suites / **385** tests |
+| `npm run build` | ✅ |
+| RLS SQL Bloque 4 | ✅ PASS |
+| Concurrencia | ✅ PASS (`A`/`B` una gana; saldo final 0) |
+| Regresión Bloque 2 SQL | ✅ PASS |
+
+**Riesgos residuales Bloque 4:**
+
+- **BUG-009** (UI corridos vs backend hábiles) sigue abierto; el trigger ya recalcula `dias` en INSERT, pero la UI puede mostrar un número distinto.
+- **BUG-010** (cupos de licencia) no enforced.
+- Override de gestor **no** escribe fila de auditoría dedicada (comportamiento previo; no se inventó).
+- Aplicar migración **58** en staging/prod es obligatorio.
+- Licencias/otros tipos: el trigger recalcula `dias` para todos; el chequeo de saldo solo aplica a `vacaciones`.
+
+---
+
 ## Final Verdict
 
 # 🟡 READY WITH MINOR FIXES
 
 ### Justificación
 
-**Todos los P0 de la auditoría están cerrados** (Bloques 1–3), con tests RLS reales en Postgres local:
+**P0 cerrados** (Bloques 1–3) y **P1 de integridad ausencias/saldo cerrados** (Bloque 4), con tests RLS + concurrencia reales:
 
 - Invitaciones / metadata (001–002)
 - Auto-aprobación ausencias/adelantos (003–004)
 - Firma de recibos + storage cross-tenant (005–006)
+- Máquina de estados ausencias (007)
+- Saldo vacaciones atómico + override gestor (008)
 
-**Quedan P1** de integridad de negocio (máquina de estados post-resolución, saldo vacaciones, cupos, días hábiles UI) que conviene cerrar antes de clientes grandes, pero ya no hay vectores P0 de escalada/fuga salarial entre tenants por las rutas auditadas.
+**Quedan P1** BUG-009 (días hábiles UI) y BUG-010 (cupos licencia).
 
-Tooling: **380** unit tests, lint/tsc/build OK; harness SQL en `supabase/tests/`.
+Tooling: **385** unit tests, lint/tsc/build OK; harness SQL/concurrencia en `supabase/tests/`.
 
 ---
 
-*Remediación P0 completa (Bloques 1–3). No avanzar a BUG-007 hasta indicación.*
+*Remediación Bloques 1–4 completa. No avanzar a BUG-009/010 hasta indicación.*
