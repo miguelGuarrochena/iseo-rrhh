@@ -1,4 +1,5 @@
 import {
+  completarAlta,
   darDeBajaEmpleado,
   enrolarRostro,
   getAusenciasPendientes,
@@ -68,6 +69,23 @@ describe('servicios (mocks)', () => {
     expect(cuentas.some((c) => c.email === 'nuevo@bombasdelsur.com')).toBe(
       false
     );
+  });
+
+  // Es la cuenta que existe en Auth pero no tiene perfil: entra y la app no
+  // sabe quién es. Completar el alta la arregla sin mandar otro mail, que
+  // es lo que hace falta cuando la persona ya puso su contraseña.
+  it('completar el alta convierte una cuenta a medias en una cuenta activa', async () => {
+    const antes = await getEstadoDeCuentas();
+    const aMedias = antes.find((c) => c.estado === 'sin_perfil');
+    expect(aMedias).toBeDefined();
+
+    await completarAlta(aMedias!.email);
+
+    const despues = await getEstadoDeCuentas();
+    expect(despues.find((c) => c.email === aMedias!.email)?.estado).toBe(
+      'activa'
+    );
+    expect(despues.some((c) => c.estado === 'sin_perfil')).toBe(false);
   });
 
   it('getSaldoVacaciones descuenta usadas y pendientes', async () => {

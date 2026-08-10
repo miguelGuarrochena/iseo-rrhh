@@ -1106,7 +1106,7 @@ export const getEstadoDeCuentas = async (): Promise<CuentaDeAcceso[]> => {
 };
 
 const accionDeCuenta = async (
-  accion: 'reenviar' | 'quitar',
+  accion: 'reenviar' | 'quitar' | 'completar',
   email: string
 ): Promise<void> => {
   const token = await tokenDeSesion();
@@ -1131,6 +1131,13 @@ export const reenviarInvitacion = (email: string): Promise<void> =>
 /** Saca a alguien de la plataforma y libera su email para otra alta. */
 export const quitarAcceso = (email: string): Promise<void> =>
   accionDeCuenta('quitar', email);
+
+/**
+ * Le arma el perfil que le falta a una cuenta a medias, con los datos de
+ * su invitación. No manda mail: quien ya tiene contraseña sigue usándola.
+ */
+export const completarAlta = (email: string): Promise<void> =>
+  accionDeCuenta('completar', email);
 
 export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
   const token = await tokenDeSesion();

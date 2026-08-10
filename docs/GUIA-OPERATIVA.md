@@ -128,7 +128,7 @@ conservan. Al único admin de una empresa no se lo deja sacar.
 ### Usuario que no puede entrar — diagnóstico rápido
 
 1. ¿"Email o contraseña incorrectos"? → que use "¿La olvidaste?".
-2. ¿"Sin perfil asignado"? → el alta quedó a medias. En **Permisos** aparece arriba de todo, en **"Cuentas que quedaron a medias"**: **Rehacer invitación** la vuelve a crear bien. Ya no hace falta tocar Supabase.
+2. ¿"Sin perfil asignado"? → el alta quedó a medias. En **Permisos** aparece arriba de todo, en **"Cuentas que quedaron a medias"**. Si ya puso su contraseña, **Completar el alta**: le arma el perfil con los datos de la invitación y entra con lo que ya tiene, sin recibir otro mail. Si todavía no entró, **Rehacer invitación** también sirve. Ya no hace falta tocar Supabase.
 3. ¿"Acceso suspendido"? → la empresa está suspendida en tu panel.
 4. ¿No le llegó el mail? → carpeta de spam; verificá en Resend → Logs si salió. Si venció, reenviala desde Gestionar.
 

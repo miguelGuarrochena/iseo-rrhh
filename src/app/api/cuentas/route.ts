@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import { logError } from '@/lib/api/registro';
 import { dentroDelLimite } from '@/lib/api/limiteDeUso';
+import { crearPerfilDeInvitado } from '@/lib/api/perfilInvitado';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import type { CuentaDeAcceso } from '@/types/rrhh';
 
@@ -190,8 +191,7 @@ interface CuerpoAccion {
  * Supabase no reenvía: `inviteUserByEmail` sobre un email ya registrado
  * falla, así que la invitación vencida y la cuenta a medias eran callejones
  * sin salida. Se borra la cuenta anterior y se invita de nuevo con los
- * mismos datos; como nunca se usó, no hay nada que perder, y el alta pasa
- * otra vez por el trigger que arma el perfil.
+ * mismos datos; como nunca se usó, no hay nada que perder.
  */
 const reenviar = async (
   ctx: Contexto,
@@ -236,10 +236,11 @@ const reenviar = async (
     );
   }
 
-  const { error } = await ctx.admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${origen}/crear-contrasena`,
-    data: datos,
-  });
+  const { data: invitado, error } =
+    await ctx.admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: `${origen}/crear-contrasena`,
+      data: datos,
+    });
   if (error) {
     // La cuenta vieja ya no está: el email quedó libre y se puede volver
     // a invitar desde cero. Se dice así, que es lo accionable.
@@ -252,7 +253,98 @@ const reenviar = async (
     );
   }
 
+  if (invitado?.user) {
+    const errorPerfil = await crearPerfilDeInvitado(
+      ctx.admin,
+      invitado.user.id,
+      {
+        email,
+        nombreCompleto: datos.nombre_completo,
+        rol: datos.rol,
+        empresaId: ctx.empresaId,
+        empleadoId: datos.empleado_id || null,
+      }
+    );
+    if (errorPerfil) {
+      logError('No se pudo rehacer el perfil al reinvitar', errorPerfil, {
+        ruta: '/api/cuentas',
+        email,
+      });
+      return NextResponse.json(
+        {
+          error: `Se mandó el mail pero la cuenta quedó otra vez sin perfil (${errorPerfil}). No la uses hasta resolverlo.`,
+        },
+        { status: 500 }
+      );
+    }
+  }
+
   await auditar(ctx, 'reinvitar', { email });
+  return NextResponse.json({ ok: true });
+};
+
+/**
+ * Le arma el perfil a una cuenta que quedó a medias, con los datos de su
+ * invitación.
+ *
+ * Rehacer la invitación no sirve para todos: quien ya puso su contraseña
+ * la tiene y no hay por qué hacérsela cambiar ni mandarle otro mail. Lo
+ * único que le falta es la fila del perfil, y los datos para armarla
+ * quedaron guardados en la metadata de la invitación. Con esto la persona
+ * entra con lo que ya tiene y la app por fin sabe quién es.
+ */
+const completar = async (ctx: Contexto, cuenta: User) => {
+  const empleadoId = metaTexto(cuenta, 'empleado_id') ?? null;
+  if (empleadoId) {
+    // El mismo cuidado que al invitar: dos cuentas sobre un legajo se ven
+    // los recibos entre sí.
+    const { data: ocupado } = await ctx.admin
+      .from('usuarios')
+      .select('email')
+      .eq('empleado_id', empleadoId)
+      .limit(1)
+      .maybeSingle();
+    if (ocupado) {
+      return NextResponse.json(
+        {
+          error: `Ese colaborador ya tiene cuenta (${ocupado.email}). Desvinculala primero, o borrá esta cuenta a medias si sobra.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  const rol = metaTexto(cuenta, 'rol') ?? 'empleado';
+  if (!['admin_rrhh', 'supervisor', 'empleado'].includes(rol)) {
+    return NextResponse.json(
+      {
+        error:
+          'La invitación no dice con qué rol se creó esta cuenta. Borrala e invitá de nuevo.',
+      },
+      { status: 400 }
+    );
+  }
+
+  const email = cuenta.email ?? '';
+  const errorPerfil = await crearPerfilDeInvitado(ctx.admin, cuenta.id, {
+    email,
+    nombreCompleto: metaTexto(cuenta, 'nombre_completo') ?? email,
+    rol,
+    empresaId: ctx.empresaId,
+    empleadoId,
+  });
+  if (errorPerfil) {
+    logError('No se pudo completar el alta', errorPerfil, {
+      ruta: '/api/cuentas',
+      email,
+    });
+    return NextResponse.json(
+      { error: `No pudimos completar el alta: ${errorPerfil}` },
+      { status: 500 }
+    );
+  }
+
+  await auditar(ctx, 'completar_alta', { email, rol });
   return NextResponse.json({ ok: true });
 };
 
@@ -323,7 +415,12 @@ export const POST = async (req: Request) => {
   const accion = cuerpo.accion;
   const email =
     typeof cuerpo.email === 'string' ? normalizar(cuerpo.email) : '';
-  if ((accion !== 'reenviar' && accion !== 'quitar') || !email) {
+  const ACCIONES = ['reenviar', 'quitar', 'completar'] as const;
+  if (
+    typeof accion !== 'string' ||
+    !(ACCIONES as readonly string[]).includes(accion) ||
+    !email
+  ) {
     return NextResponse.json({ error: 'Pedido incompleto.' }, { status: 400 });
   }
 
@@ -372,6 +469,16 @@ export const POST = async (req: Request) => {
       { error: 'Esa cuenta no pertenece a esta empresa.' },
       { status: 403 }
     );
+  }
+
+  if (accion === 'completar') {
+    if (perfil) {
+      return NextResponse.json(
+        { error: 'Esa cuenta ya tiene perfil. Actualizá la pantalla.' },
+        { status: 400 }
+      );
+    }
+    return completar(ctx, cuenta);
   }
 
   const origen = new URL(req.url).origin;

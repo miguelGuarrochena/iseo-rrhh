@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { dentroDelLimite } from '@/lib/api/limiteDeUso';
+import { crearPerfilDeInvitado } from '@/lib/api/perfilInvitado';
+import { logError } from '@/lib/api/registro';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 
 interface CuerpoInvitacion {
@@ -17,9 +19,8 @@ interface CuerpoInvitacion {
  * plataforma, y se da a mano desde la base.
  *
  * Esto se valida en el servidor y no sólo con el tipo de TypeScript: el
- * rol viaja en el body y termina en la metadata de la invitación, que el
- * trigger `crear_perfil_usuario` copia tal cual a `public.usuarios`. Sin
- * este control, cualquier admin_rrhh con sesión válida podía mandar
+ * rol viaja en el body y termina en `public.usuarios`. Sin este control,
+ * cualquier admin_rrhh con sesión válida podía mandar
  * `{"rol":"superadmin"}` con curl y crearse una cuenta con acceso a los
  * datos de todos los clientes.
  */
@@ -165,20 +166,50 @@ export const POST = async (req: Request) => {
   }
 
   const origen = new URL(req.url).origin;
-  const { error } = await admin.auth.admin.inviteUserByEmail(cuerpo.email, {
-    redirectTo: `${origen}/crear-contrasena`,
-    data: {
-      nombre_completo: cuerpo.nombreCompleto,
-      rol: cuerpo.rol,
-      empresa_id: empresaId,
-      empleado_id: cuerpo.empleadoId ?? '',
-    },
-  });
+  const { data: invitado, error } = await admin.auth.admin.inviteUserByEmail(
+    cuerpo.email,
+    {
+      redirectTo: `${origen}/crear-contrasena`,
+      data: {
+        nombre_completo: cuerpo.nombreCompleto,
+        rol: cuerpo.rol,
+        empresa_id: empresaId,
+        empleado_id: cuerpo.empleadoId ?? '',
+      },
+    }
+  );
   if (error) {
     return NextResponse.json(
       { error: traducirErrorInvitacion(error.message) },
       { status: 400 }
     );
+  }
+
+  if (invitado?.user) {
+    const errorPerfil = await crearPerfilDeInvitado(admin, invitado.user.id, {
+      email: cuerpo.email,
+      nombreCompleto: cuerpo.nombreCompleto,
+      rol: cuerpo.rol,
+      empresaId,
+      empleadoId: cuerpo.empleadoId ?? null,
+    });
+    if (errorPerfil) {
+      // Sin perfil la cuenta no sirve: la persona pone su contraseña y
+      // entra a una app que no sabe quién es. Se deshace el alta para no
+      // dejarla a medias, y el email queda libre para reintentar.
+      await admin.auth.admin.deleteUser(invitado.user.id);
+      logError('No se pudo crear el perfil del invitado', errorPerfil, {
+        ruta: '/api/invitaciones',
+        email: cuerpo.email,
+      });
+      return NextResponse.json(
+        {
+          error:
+            'Mandamos el mail pero no pudimos completar el alta, así que la deshicimos. Probá invitar de nuevo.',
+        },
+        { status: 500 }
+      );
+    }
   }
 
   return NextResponse.json({ ok: true });

@@ -26,6 +26,7 @@ import {
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   cambiarRolUsuario,
+  completarAlta,
   getAuditoria,
   getEmpleados,
   getEstadoDeCuentas,
@@ -231,6 +232,22 @@ const PermisosPage = () => {
     }
   };
 
+  const completarCuenta = async (correo: string) => {
+    try {
+      await completarAlta(correo);
+      avisoExito(
+        'Alta completada',
+        `${correo} ya puede entrar con la contraseña que tenga.`
+      );
+      cargar();
+    } catch (err) {
+      avisoError(
+        'No pudimos completar el alta',
+        err instanceof Error ? err.message : undefined
+      );
+    }
+  };
+
   const liberarCuenta = async (correo: string) => {
     const ok = await confirmar({
       titulo: '¿Borrar esta cuenta?',
@@ -318,8 +335,10 @@ const PermisosPage = () => {
               <p className="mt-0.5 text-xs text-amber-900">
                 Recibieron el mail y pueden poner una contraseña, pero la app no
                 sabe quiénes son: al entrar les dice que su cuenta no tiene
-                perfil. Rehacé la invitación —o borrala, si fue un error— para
-                que el alta se complete bien.
+                perfil. <strong>Completar el alta</strong> lo resuelve sin
+                molestarlas —siguen usando la contraseña que ya tengan—. Rehacer
+                la invitación manda un mail nuevo y sirve para quien todavía no
+                entró.
               </p>
             </div>
           </div>
@@ -335,6 +354,13 @@ const PermisosPage = () => {
                 <p className="truncate text-xs text-ink-soft">{c.email}</p>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
+                <Boton
+                  tamano="sm"
+                  variante="primario"
+                  onClick={() => void completarCuenta(c.email)}
+                >
+                  Completar el alta
+                </Boton>
                 <Boton
                   tamano="sm"
                   variante="secundario"

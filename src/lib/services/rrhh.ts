@@ -166,6 +166,7 @@ export const reenviarInvitacion = elegir(
   demo.reenviarInvitacion
 );
 export const quitarAcceso = elegir(real.quitarAcceso, demo.quitarAcceso);
+export const completarAlta = elegir(real.completarAlta, demo.completarAlta);
 
 // ---------- Ausencias ----------
 export const getAusencias = elegir(real.getAusencias, demo.getAusencias);

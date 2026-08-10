@@ -525,9 +525,25 @@ export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
  */
 const invitadasEnLaSesion = new Set<string>();
 
+/**
+ * Una cuenta a medias, para que el panel que las resuelve se pueda ver y
+ * probar. No es un adorno: es el estado en el que quedaron las cuentas
+ * reales invitadas entre la migración 33 y el arreglo, y la razón por la
+ * que existe "Completar el alta".
+ */
+const cuentasAMedias: CuentaDeAcceso[] = [
+  {
+    email: 'sofia.acosta@ejemplo.com',
+    nombre: 'Sofía Acosta',
+    estado: 'sin_perfil',
+    invitadaEn: new Date(Date.now() - 6 * 86_400_000).toISOString(),
+    ultimoAcceso: new Date(Date.now() - 5 * 86_400_000).toISOString(),
+  },
+];
+
 export const getEstadoDeCuentas = async (): Promise<CuentaDeAcceso[]> =>
-  simular(
-    usuariosMock
+  simular([
+    ...usuariosMock
       .filter((u) => u.empresaId === empresaDemo())
       .map((u) => ({
         email: u.email,
@@ -539,8 +555,14 @@ export const getEstadoDeCuentas = async (): Promise<CuentaDeAcceso[]> =>
         ultimoAcceso: invitadasEnLaSesion.has(u.email)
           ? undefined
           : new Date().toISOString(),
-      }))
-  );
+      })),
+    ...cuentasAMedias,
+  ]);
+
+const sacarDeLasAMedias = (email: string) => {
+  const i = cuentasAMedias.findIndex((c) => c.email === email);
+  if (i >= 0) cuentasAMedias.splice(i, 1);
+};
 
 export const reenviarInvitacion = async (email: string): Promise<void> => {
   invitadasEnLaSesion.add(email);
@@ -551,6 +573,22 @@ export const quitarAcceso = async (email: string): Promise<void> => {
   const i = usuariosMock.findIndex((u) => u.email === email);
   if (i >= 0) usuariosMock.splice(i, 1);
   invitadasEnLaSesion.delete(email);
+  sacarDeLasAMedias(email);
+  return simular(undefined);
+};
+
+export const completarAlta = async (email: string): Promise<void> => {
+  const aMedias = cuentasAMedias.find((c) => c.email === email);
+  if (!aMedias) throw new Error('Esa cuenta ya tiene perfil.');
+  usuariosMock.push({
+    id: `usr-${Date.now()}`,
+    email: aMedias.email,
+    rol: 'empleado',
+    empresaId: empresaDemo(),
+    empleadoId: null,
+    nombreCompleto: aMedias.nombre,
+  });
+  sacarDeLasAMedias(email);
   return simular(undefined);
 };
 
