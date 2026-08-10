@@ -516,6 +516,24 @@ export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
   return simular(nuevo);
 };
 
+export const vincularUsuarioAEmpleado = async (
+  usuarioId: string,
+  empleadoId: string | null
+): Promise<Usuario | null> => {
+  const u = usuariosMock.find((x) => x.id === usuarioId);
+  if (!u || u.rol === 'superadmin') return simular(null);
+  const ocupado =
+    empleadoId &&
+    usuariosMock.find((x) => x.id !== usuarioId && x.empleadoId === empleadoId);
+  if (ocupado) {
+    throw new Error(
+      `Ese colaborador ya está vinculado a la cuenta de ${ocupado.nombreCompleto}. Desvinculála primero.`
+    );
+  }
+  u.empleadoId = empleadoId;
+  return simular(u);
+};
+
 // ---------- Configuración general de la plataforma (superadmin) ----------
 
 const configPlataformaMock: ConfigPlataforma = {

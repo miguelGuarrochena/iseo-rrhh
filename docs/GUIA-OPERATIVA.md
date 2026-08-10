@@ -100,6 +100,18 @@ entrar (ven "acceso suspendido, comunicate con ISEO RH"). Cuando paga:
 Las invitaciones vencen a las 24 h. Volvé a invitar desde Permisos con
 el mismo email; Supabase reenvía el mail.
 
+### El colaborador tiene cuenta pero figura "sin cuenta"
+
+Que le llegue el mail y que el legajo figure con cuenta son dos cosas
+distintas: el legajo se marca sólo si la cuenta está **vinculada** a esa
+ficha. Si se invitó sin elegir colaborador, la persona entra a la app
+igual, pero no ve sus recibos ni su ficha.
+
+Se arregla desde la app: **Permisos → fila del usuario → Vincular**, y se
+elige el colaborador. Desde el mismo botón se cambia o se quita el
+vínculo. Un legajo admite una sola cuenta: si aparece ocupado, hay que
+desvincular la anterior primero.
+
 ### Usuario que no puede entrar — diagnóstico rápido
 
 1. ¿"Email o contraseña incorrectos"? → que use "¿La olvidaste?".

@@ -153,6 +153,10 @@ export const cambiarRolUsuario = elegir(
   demo.cambiarRolUsuario
 );
 export const invitarUsuario = elegir(real.invitarUsuario, demo.invitarUsuario);
+export const vincularUsuarioAEmpleado = elegir(
+  real.vincularUsuarioAEmpleado,
+  demo.vincularUsuarioAEmpleado
+);
 
 // ---------- Ausencias ----------
 export const getAusencias = elegir(real.getAusencias, demo.getAusencias);

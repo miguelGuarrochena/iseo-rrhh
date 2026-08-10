@@ -992,6 +992,87 @@ export const cambiarRolUsuario = async (
   return data ? aUsuario(data) : null;
 };
 
+/**
+ * Une (o desune) una cuenta ya existente con la ficha de un colaborador.
+ *
+ * El vínculo se fijaba sólo en la metadata de la invitación. Si se
+ * invitaba sin elegir colaborador, el mail llegaba igual y la persona
+ * entraba a la app, pero el legajo seguía figurando "sin cuenta" y esa
+ * persona no veía sus recibos: las políticas resuelven "lo mío" por
+ * `usuarios.empleado_id`, no por el email. Reinvitar tampoco servía
+ * (Supabase rechaza un email ya registrado), así que la única salida era
+ * tocar la base a mano.
+ */
+export const vincularUsuarioAEmpleado = async (
+  usuarioId: string,
+  empleadoId: string | null
+): Promise<Usuario | null> => {
+  if (empleadoId) {
+    const { data: empleado, error: errorEmpleado } = await sb()
+      .from('empleados')
+      .select('id, email, empresa_id')
+      .eq('id', empleadoId)
+      .maybeSingle();
+    if (errorEmpleado) fallar(errorEmpleado.message, 'vincular usuario');
+    if (!empleado || empleado.empresa_id !== empresaId()) {
+      throw new Error('Ese colaborador no es de esta empresa.');
+    }
+
+    // Dos cuentas sobre el mismo legajo significa que las dos ven los
+    // recibos y el sueldo de esa persona. Se corta acá y en la base.
+    const { data: yaVinculado } = await sb()
+      .from('usuarios')
+      .select('nombre_completo')
+      .eq('empleado_id', empleadoId)
+      .neq('id', usuarioId)
+      .limit(1)
+      .maybeSingle();
+    if (yaVinculado) {
+      throw new Error(
+        `Ese colaborador ya está vinculado a la cuenta de ${yaVinculado.nombre_completo}. Desvinculála primero.`
+      );
+    }
+
+    // Mismo control de identidad que la invitación: el email de la cuenta
+    // y el de la ficha tienen que ser el mismo. Si la ficha no tiene, se
+    // completa con el de la cuenta.
+    const { data: cuenta } = await sb()
+      .from('usuarios')
+      .select('email')
+      .eq('id', usuarioId)
+      .single();
+    const emailFicha = (empleado.email ?? '').trim().toLowerCase();
+    const emailCuenta = (cuenta?.email ?? '').trim().toLowerCase();
+    if (emailFicha && emailCuenta && emailFicha !== emailCuenta) {
+      throw new Error(
+        `El email de la cuenta (${cuenta?.email}) no coincide con el de la ficha (${empleado.email}). Corregí uno de los dos antes de vincular.`
+      );
+    }
+    if (!emailFicha && emailCuenta) {
+      await sb()
+        .from('empleados')
+        .update({ email: cuenta?.email })
+        .eq('id', empleadoId);
+    }
+  }
+
+  const { data, error } = await sb()
+    .from('usuarios')
+    .update({ empleado_id: empleadoId })
+    .eq('id', usuarioId)
+    .neq('rol', 'superadmin')
+    .select()
+    .single();
+  if (error) fallar(error.message, 'vincular usuario');
+  await registrarAuditoria(
+    empleadoId ? 'vincular' : 'desvincular',
+    'usuario',
+    usuarioId,
+    { empleadoId }
+  );
+  return data ? aUsuario(data) : null;
+};
+
 export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
   const { data } = await sb().auth.getSession();
   const token = data.session?.access_token;

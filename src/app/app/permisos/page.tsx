@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useState } from 'react';
 import Link from 'next/link';
-import { IconPlus, IconShieldCheck } from '@tabler/icons-react';
+import { IconLink, IconPlus, IconShieldCheck } from '@tabler/icons-react';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -22,6 +22,7 @@ import {
   getEmpleados,
   getUsuariosDeEmpresa,
   invitarUsuario,
+  vincularUsuarioAEmpleado,
 } from '@/lib/services/rrhh';
 import { AccionAuditoria, Empleado, Rol, Usuario } from '@/types/rrhh';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
@@ -37,6 +38,8 @@ const accionLabels: Record<string, string> = {
   cambiar_rol: 'cambió el rol de',
   cambiar_estado: 'cambió el estado de',
   invitar: 'invitó a',
+  vincular: 'vinculó con un colaborador a',
+  desvincular: 'desvinculó de su colaborador a',
   eliminar: 'eliminó',
 };
 
@@ -60,6 +63,10 @@ const PermisosPage = () => {
   const [empleadoId, setEmpleadoId] = useState('');
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
+  const [vinculando, setVinculando] = useState<Usuario | null>(null);
+  const [empleadoVinculo, setEmpleadoVinculo] = useState('');
+  const [errorVinculo, setErrorVinculo] = useState<string>();
+  const [guardandoVinculo, setGuardandoVinculo] = useState(false);
 
   /**
    * Los usuarios son el contenido de la pantalla: si fallan, hay que
@@ -115,6 +122,10 @@ const PermisosPage = () => {
 
   const admins = usuarios.filter((u) => u.rol === 'admin_rrhh');
 
+  const empleadosConCuenta = new Set(
+    usuarios.filter((u) => u.empleadoId).map((u) => u.empleadoId as string)
+  );
+
   const cambiarRol = async (usuarioId: string, nuevoRol: Rol) => {
     try {
       await cambiarRolUsuario(usuarioId, nuevoRol);
@@ -128,6 +139,65 @@ const PermisosPage = () => {
       );
       cargar();
     }
+  };
+
+  /**
+   * Colaboradores que se le pueden ofrecer a esta cuenta: los que ya
+   * tiene otra cuenta quedan afuera para no terminar con dos personas
+   * viendo el mismo recibo. El vínculo actual se agrega siempre, incluso
+   * si el colaborador está dado de baja, para que el desplegable no
+   * aparezca vacío en una cuenta que sí está vinculada.
+   */
+  const opcionesDeVinculo = (u: Usuario) => {
+    const libres = empleados.filter(
+      (e) => !empleadosConCuenta.has(e.id) || e.id === u.empleadoId
+    );
+    const vinculado = u.empleadoId
+      ? libres.find((e) => e.id === u.empleadoId)
+      : undefined;
+    return [
+      { valor: '', etiqueta: 'Sin vincular' },
+      ...(u.empleadoId && !vinculado
+        ? [{ valor: u.empleadoId, etiqueta: 'Colaborador dado de baja' }]
+        : []),
+      ...libres.map((e) => ({
+        valor: e.id,
+        etiqueta: `${e.nombre} ${e.apellido} — ${e.puesto}`,
+      })),
+    ];
+  };
+
+  const nombreDeEmpleado = (empleadoId: string) => {
+    const e = empleados.find((x) => x.id === empleadoId);
+    return e ? `${e.nombre} ${e.apellido}` : 'colaborador dado de baja';
+  };
+
+  const abrirVinculo = (u: Usuario) => {
+    setVinculando(u);
+    setEmpleadoVinculo(u.empleadoId ?? '');
+    setErrorVinculo(undefined);
+  };
+
+  const guardarVinculo = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!vinculando) return;
+    setGuardandoVinculo(true);
+    try {
+      await vincularUsuarioAEmpleado(vinculando.id, empleadoVinculo || null);
+      avisoExito(
+        empleadoVinculo ? 'Cuenta vinculada' : 'Cuenta desvinculada',
+        empleadoVinculo
+          ? 'El legajo ya figura con cuenta y esa persona ve sus recibos y su ficha.'
+          : 'La cuenta sigue pudiendo entrar, pero ya no está unida a ningún legajo.'
+      );
+      setVinculando(null);
+      cargar();
+    } catch (err) {
+      setErrorVinculo(
+        err instanceof Error ? err.message : 'No pudimos guardar el vínculo.'
+      );
+    }
+    setGuardandoVinculo(false);
   };
 
   const invitar = async (e: FormEvent) => {
@@ -202,7 +272,11 @@ const PermisosPage = () => {
                 key={u.id}
                 icono={IconShieldCheck}
                 principal={u.nombreCompleto}
-                secundario={u.email}
+                secundario={
+                  u.empleadoId
+                    ? `${u.email} · ${nombreDeEmpleado(u.empleadoId)}`
+                    : `${u.email} · sin colaborador vinculado`
+                }
                 extremo={
                   <div className="flex flex-wrap items-center justify-end gap-2">
                     {u.empleadoId && (
@@ -213,6 +287,14 @@ const PermisosPage = () => {
                         Ver ficha
                       </Link>
                     )}
+                    <Boton
+                      variante={u.empleadoId ? 'secundario' : 'primario'}
+                      tamano="sm"
+                      onClick={() => abrirVinculo(u)}
+                    >
+                      <IconLink size={15} />
+                      {u.empleadoId ? 'Cambiar vínculo' : 'Vincular'}
+                    </Boton>
                     <Selector
                       tamano="sm"
                       valor={u.rol}
@@ -308,10 +390,14 @@ const PermisosPage = () => {
             ayuda="Si es un empleado de la empresa, uní el usuario a su ficha."
             opciones={[
               { valor: '', etiqueta: 'Sin vincular' },
-              ...empleados.map((e) => ({
-                valor: e.id,
-                etiqueta: `${e.nombre} ${e.apellido} — ${e.puesto}`,
-              })),
+              // Los que ya tienen cuenta no se ofrecen: invitarlos otra
+              // vez falla igual, porque un legajo admite una sola.
+              ...empleados
+                .filter((e) => !empleadosConCuenta.has(e.id))
+                .map((e) => ({
+                  valor: e.id,
+                  etiqueta: `${e.nombre} ${e.apellido} — ${e.puesto}`,
+                })),
             ]}
           />
 
@@ -319,6 +405,42 @@ const PermisosPage = () => {
             {enviando ? 'Invitando…' : 'Enviar invitación'}
           </Boton>
         </form>
+      </Modal>
+
+      <Modal
+        opened={vinculando !== null}
+        onClose={() => setVinculando(null)}
+        title="Vincular con un colaborador"
+        radius="lg"
+        centered
+        styles={{ title: { fontWeight: 800 } }}
+      >
+        {vinculando && (
+          <form onSubmit={guardarVinculo} className="flex flex-col gap-3.5">
+            <p className="text-sm text-ink-soft">
+              Cuenta de{' '}
+              <span className="font-semibold text-ink">
+                {vinculando.nombreCompleto}
+              </span>{' '}
+              ({vinculando.email}).
+            </p>
+            <CampoSelect
+              etiqueta="Colaborador"
+              value={empleadoVinculo}
+              onChange={setEmpleadoVinculo}
+              ayuda="Sin vínculo, el legajo figura “sin cuenta” y esa persona no ve sus recibos aunque pueda entrar a la app."
+              opciones={opcionesDeVinculo(vinculando)}
+              error={errorVinculo}
+            />
+            <Boton
+              type="submit"
+              disabled={guardandoVinculo}
+              className="mt-1 py-3"
+            >
+              {guardandoVinculo ? 'Guardando…' : 'Guardar vínculo'}
+            </Boton>
+          </form>
+        )}
       </Modal>
     </div>
   );

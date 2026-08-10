@@ -127,6 +127,25 @@ export const POST = async (req: Request) => {
         { status: 400 }
       );
     }
+    // Dos cuentas sobre el mismo legajo se ven los recibos entre sí. La
+    // base lo rechaza con un índice único, pero ahí el error sale desde
+    // el trigger que arma el perfil: la invitación se cae con un mensaje
+    // de Postgres. Se corta antes, con uno que se entienda.
+    const { data: cuentaPrevia } = await admin
+      .from('usuarios')
+      .select('email')
+      .eq('empleado_id', cuerpo.empleadoId)
+      .limit(1)
+      .maybeSingle();
+    if (cuentaPrevia) {
+      return NextResponse.json(
+        {
+          error: `Ese colaborador ya tiene cuenta (${cuentaPrevia.email}). Si querés cambiarla, desvinculá esa cuenta desde Permisos.`,
+        },
+        { status: 400 }
+      );
+    }
+
     const emailFicha = (empleado.email ?? '').trim().toLowerCase();
     const emailInvitado = cuerpo.email.trim().toLowerCase();
     if (emailFicha && emailFicha !== emailInvitado) {

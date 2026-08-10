@@ -6,6 +6,7 @@ import {
   getEmpleados,
   getSaldoVacaciones,
   loginConEmail,
+  vincularUsuarioAEmpleado,
 } from '@/lib/services/rrhh';
 
 describe('servicios (mocks)', () => {
@@ -22,6 +23,23 @@ describe('servicios (mocks)', () => {
     const pendientes = await getAusenciasPendientes();
     expect(pendientes.length).toBeGreaterThan(0);
     expect(pendientes.every((a) => a.estado === 'pendiente')).toBe(true);
+  });
+
+  // Dos cuentas sobre el mismo legajo se ven el recibo de sueldo entre
+  // sí: las políticas resuelven "lo mío" por el vínculo, no por el email.
+  it('no vincula un legajo que ya tiene otra cuenta', async () => {
+    await expect(
+      vincularUsuarioAEmpleado('usr-empleado', 'ple-1')
+    ).rejects.toThrow(/ya está vinculado/i);
+  });
+
+  it('desvincular libera el legajo y permite volver a vincularlo', async () => {
+    expect(
+      (await vincularUsuarioAEmpleado('usr-empleado', null))?.empleadoId
+    ).toBeNull();
+    expect(
+      (await vincularUsuarioAEmpleado('usr-empleado', 'ple-3'))?.empleadoId
+    ).toBe('ple-3');
   });
 
   it('getSaldoVacaciones descuenta usadas y pendientes', async () => {
