@@ -35,11 +35,9 @@ const sumarDias = (d: Date, dias: number): Date => {
 };
 
 /**
- * Feriados nacionales de fecha fija en Argentina. No incluye los
- * "trasladables" (17 de agosto, 12 de octubre, 20 de noviembre), que
- * cambian de día cada año por decreto, ni los puentes turísticos, que
- * se anuncian año a año. Esos se cargan a mano: preferimos no inventar
- * una fecha antes que poner una equivocada.
+ * Feriados nacionales de fecha fija (inamovibles) en Argentina.
+ * Los puentes turísticos se anuncian por decreto cada año: esos se
+ * cargan a mano.
  */
 const FIJOS: { mmdd: string; nombre: string }[] = [
   { mmdd: '01-01', nombre: 'Año Nuevo' },
@@ -54,9 +52,38 @@ const FIJOS: { mmdd: string; nombre: string }[] = [
 ];
 
 /**
+ * Feriados trasladables (Ley 27.399). Si caen martes/miércoles van al
+ * lunes anterior; jueves/viernes al lunes siguiente; el resto queda.
+ */
+const TRASLADABLES: { mmdd: string; nombre: string }[] = [
+  {
+    mmdd: '06-17',
+    nombre: 'Paso a la Inmortalidad del Gral. Don Martín Miguel de Güemes',
+  },
+  {
+    mmdd: '08-17',
+    nombre: 'Paso a la Inmortalidad del Gral. Don José de San Martín',
+  },
+  { mmdd: '10-12', nombre: 'Día del Respeto a la Diversidad Cultural' },
+  { mmdd: '11-20', nombre: 'Día de la Soberanía Nacional' },
+];
+
+/** Aplica el traslado de Ley 27.399 a una fecha conmemorativa. */
+export const fechaTrasladable = (anio: number, mmdd: string): string => {
+  const [mes, dia] = mmdd.split('-').map(Number);
+  const original = new Date(anio, mes - 1, dia);
+  const diaSemana = original.getDay(); // 0=dom … 6=sáb
+  if (diaSemana === 2) return iso(sumarDias(original, -1)); // mar → lun ant.
+  if (diaSemana === 3) return iso(sumarDias(original, -2)); // mié → lun ant.
+  if (diaSemana === 4) return iso(sumarDias(original, 4)); // jue → lun sig.
+  if (diaSemana === 5) return iso(sumarDias(original, 3)); // vie → lun sig.
+  return iso(original);
+};
+
+/**
  * Propuesta de feriados para cargar de un año. Es un punto de partida
- * editable, no una verdad: RRHH revisa, borra lo que no aplica y suma
- * los trasladables y los puentes cuando salen en el Boletín Oficial.
+ * editable: RRHH revisa y suma los puentes turísticos cuando salen en
+ * el Boletín Oficial.
  */
 export const feriadosSugeridos = (anio: number): NuevoFeriado[] => {
   const pascua = domingoDePascua(anio);
@@ -88,7 +115,14 @@ export const feriadosSugeridos = (anio: number): NuevoFeriado[] => {
     noLaborable: true,
   }));
 
-  return [...fijos, ...movibles].sort((a, b) =>
+  const trasladables: NuevoFeriado[] = TRASLADABLES.map(({ mmdd, nombre }) => ({
+    fecha: fechaTrasladable(anio, mmdd),
+    nombre,
+    tipo: 'nacional' as const,
+    noLaborable: true,
+  }));
+
+  return [...fijos, ...movibles, ...trasladables].sort((a, b) =>
     a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0
   );
 };

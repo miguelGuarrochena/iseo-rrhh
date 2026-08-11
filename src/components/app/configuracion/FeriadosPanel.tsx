@@ -56,7 +56,7 @@ export const FeriadosPanel = () => {
         agregados.length > 0
           ? `Se cargaron ${agregados.length} feriados de ${anio}`
           : 'Ya estaban todos cargados',
-        'Revisalos: faltan los trasladables y los puentes, que cambian cada año.'
+        'Revisá si faltan puentes turísticos: esos salen por decreto cada año.'
       );
       cargar();
     } catch (err) {
@@ -150,9 +150,9 @@ export const FeriadosPanel = () => {
             No hay feriados cargados para {anio}.
           </p>
           <p className="mt-1 text-sm text-ink-soft">
-            Puedo cargar los nacionales de fecha fija más Carnaval y Viernes
-            Santo. Los trasladables (17/8, 12/10, 20/11) y los puentes
-            turísticos salen por decreto cada año, así que esos los cargás vos.
+            Puedo cargar los nacionales (fijos, trasladables según la ley, más
+            Carnaval y Viernes Santo). Los puentes turísticos salen por decreto
+            cada año, así que esos los cargás vos.
           </p>
           <Boton
             className="mt-3"
