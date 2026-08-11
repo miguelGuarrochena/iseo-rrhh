@@ -106,7 +106,7 @@ test.describe('Recibos', () => {
       page.getByRole('button', { name: /Cargar recibo/i })
     ).toBeVisible();
     await page.getByRole('button', { name: /Carga masiva/i }).click();
-    await expect(page.getByText(/contiene el CUIL o DNI/i)).toBeVisible();
+    await expect(page.getByText(/CUIL impreso en cada recibo/i)).toBeVisible();
     await expect(
       page.getByText(/Firmar como empleador y publicar al subir/i)
     ).toBeVisible();
@@ -139,9 +139,17 @@ test.describe('Adelantos', () => {
 });
 
 test.describe('Descuentos fijos', () => {
-  test('el admin agrega un descuento fijo en la ficha', async ({ page }) => {
+  // Se cargan desde el modal de la remuneración, para no tener que salir
+  // a la ficha en el medio de una liquidación.
+  test('el admin agrega un descuento fijo al editar una remuneración', async ({
+    page,
+  }) => {
     await entrarComo(page, /Admin RRHH/);
-    await page.goto('/colaboradores/ple-3');
+    await page.goto('/remuneraciones');
+    await page
+      .getByLabel(/Editar remuneración de/)
+      .first()
+      .click();
     const bloque = page.getByTestId('descuentos-fijos');
     await expect(bloque).toBeVisible();
     // El mock ya trae "Sindicato"; agregamos otro concepto.

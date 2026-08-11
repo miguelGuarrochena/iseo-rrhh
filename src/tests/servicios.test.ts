@@ -1,11 +1,16 @@
 import {
+  completarAlta,
   darDeBajaEmpleado,
   enrolarRostro,
   getAusenciasPendientes,
   getDescriptoresFaciales,
   getEmpleados,
   getSaldoVacaciones,
+  getEstadoDeCuentas,
+  invitarUsuario,
   loginConEmail,
+  quitarAcceso,
+  vincularUsuarioAEmpleado,
 } from '@/lib/services/rrhh';
 
 describe('servicios (mocks)', () => {
@@ -22,6 +27,65 @@ describe('servicios (mocks)', () => {
     const pendientes = await getAusenciasPendientes();
     expect(pendientes.length).toBeGreaterThan(0);
     expect(pendientes.every((a) => a.estado === 'pendiente')).toBe(true);
+  });
+
+  // Dos cuentas sobre el mismo legajo se ven el recibo de sueldo entre
+  // sí: las políticas resuelven "lo mío" por el vínculo, no por el email.
+  it('no vincula un legajo que ya tiene otra cuenta', async () => {
+    await expect(
+      vincularUsuarioAEmpleado('usr-empleado', 'ple-1')
+    ).rejects.toThrow(/ya está vinculado/i);
+  });
+
+  it('desvincular libera el legajo y permite volver a vincularlo', async () => {
+    expect(
+      (await vincularUsuarioAEmpleado('usr-empleado', null))?.empleadoId
+    ).toBeNull();
+    expect(
+      (await vincularUsuarioAEmpleado('usr-empleado', 'ple-3'))?.empleadoId
+    ).toBe('ple-3');
+  });
+
+  // Desde `usuarios` las dos se ven igual, y son cosas distintas: a una
+  // hay que reenviarle la invitación y a la otra no.
+  it('distingue la cuenta recién invitada de la que ya se usa', async () => {
+    await invitarUsuario({
+      email: 'nuevo@bombasdelsur.com',
+      nombreCompleto: 'Nuevo Ingreso',
+      rol: 'empleado',
+    });
+    const cuentas = await getEstadoDeCuentas();
+    expect(
+      cuentas.find((c) => c.email === 'nuevo@bombasdelsur.com')?.estado
+    ).toBe('pendiente');
+    expect(
+      cuentas.find((c) => c.email === 'rrhh@bombasdelsur.com')?.estado
+    ).toBe('activa');
+  });
+
+  it('quitar el acceso saca la cuenta y libera el email', async () => {
+    await quitarAcceso('nuevo@bombasdelsur.com');
+    const cuentas = await getEstadoDeCuentas();
+    expect(cuentas.some((c) => c.email === 'nuevo@bombasdelsur.com')).toBe(
+      false
+    );
+  });
+
+  // Es la cuenta que existe en Auth pero no tiene perfil: entra y la app no
+  // sabe quién es. Completar el alta la arregla sin mandar otro mail, que
+  // es lo que hace falta cuando la persona ya puso su contraseña.
+  it('completar el alta convierte una cuenta a medias en una cuenta activa', async () => {
+    const antes = await getEstadoDeCuentas();
+    const aMedias = antes.find((c) => c.estado === 'sin_perfil');
+    expect(aMedias).toBeDefined();
+
+    await completarAlta(aMedias!.email);
+
+    const despues = await getEstadoDeCuentas();
+    expect(despues.find((c) => c.email === aMedias!.email)?.estado).toBe(
+      'activa'
+    );
+    expect(despues.some((c) => c.estado === 'sin_perfil')).toBe(false);
   });
 
   it('getSaldoVacaciones descuenta usadas y pendientes', async () => {

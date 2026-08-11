@@ -34,6 +34,7 @@ import {
   TRAMOS_VACACIONES,
 } from '@/lib/vacaciones';
 import { BloqueError } from '@/components/app/EstadoCarga';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { useCarga } from '@/lib/useCarga';
 import { faltasDeEmpresa } from '@/lib/requisitos';
 import { BloqueFaltas } from '@/components/app/Faltas';
@@ -572,4 +573,11 @@ const ConfiguracionPage = () => {
   );
 };
 
-export default ConfiguracionPage;
+/** Son los parámetros de una empresa: sin una activa no hay qué configurar. */
+const ConfiguracionConEmpresa = () => (
+  <RequireEmpresa>
+    <ConfiguracionPage />
+  </RequireEmpresa>
+);
+
+export default ConfiguracionConEmpresa;

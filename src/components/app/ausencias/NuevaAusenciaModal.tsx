@@ -7,14 +7,22 @@ import { CampoSelect, CampoTextarea } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
-import { diasEntre, formatearFecha, hoyISO } from '@/lib/fechas';
+import { diasAusencia, formatearFecha, hoyISO } from '@/lib/fechas';
 import { TIPOS_AUSENCIA_JORNADA, tipoAusenciaLabels } from '@/lib/etiquetas';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
-import { getSaldoVacaciones } from '@/lib/services/rrhh';
+import {
+  getEmpresa,
+  getFeriados,
+  getSaldoVacaciones,
+  getSaldosLicencia,
+} from '@/lib/services/rrhh';
+import { unidadVacacionesDe, UNIDAD_VACACIONES_LABELS } from '@/lib/vacaciones';
 import {
   Ausencia,
   Empleado,
+  SaldoLicencia,
   SaldoVacaciones,
+  TIPOS_LICENCIA_CON_CUPO,
   TipoAusencia,
 } from '@/types/rrhh';
 
@@ -58,6 +66,11 @@ export const NuevaAusenciaModal = ({
   const [error, setError] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
+  /** Misma semántica que `crearAusencia` / trigger SQL: fuente `diasAusencia`. */
+  const [vacacionesDiasHabiles, setVacacionesDiasHabiles] = useState(false);
+  const [feriadosNoLaborables, setFeriadosNoLaborables] = useState<Set<string>>(
+    () => new Set()
+  );
 
   useEffect(() => {
     if (abierto) {
@@ -72,10 +85,42 @@ export const NuevaAusenciaModal = ({
     }
   }, [abierto]);
 
+  useEffect(() => {
+    if (!abierto) return;
+    let vigente = true;
+    void Promise.all([getEmpresa(), getFeriados()])
+      .then(([empresa, feriados]) => {
+        if (!vigente) return;
+        setVacacionesDiasHabiles(Boolean(empresa.config.vacacionesDiasHabiles));
+        setFeriadosNoLaborables(
+          new Set(feriados.filter((f) => f.noLaborable).map((f) => f.fecha))
+        );
+      })
+      .catch(() => {
+        if (!vigente) return;
+        setVacacionesDiasHabiles(false);
+        setFeriadosNoLaborables(new Set());
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [abierto]);
+
   const dias = useMemo(
-    () => diasEntre(fechaDesde, fechaHasta),
-    [fechaDesde, fechaHasta]
+    () =>
+      diasAusencia(
+        fechaDesde,
+        fechaHasta,
+        tipo,
+        vacacionesDiasHabiles,
+        feriadosNoLaborables
+      ),
+    [fechaDesde, fechaHasta, tipo, vacacionesDiasHabiles, feriadosNoLaborables]
   );
+  const etiquetaUnidad =
+    tipo === 'vacaciones'
+      ? UNIDAD_VACACIONES_LABELS[unidadVacacionesDe({ vacacionesDiasHabiles })]
+      : 'días';
   const superpuestas = useMemo(
     () =>
       tipo === 'vacaciones'
@@ -94,6 +139,10 @@ export const NuevaAusenciaModal = ({
   const idParaSaldo = modoAdmin ? empleadoId : empleadoIdActual;
   const anioPedido = Number(fechaDesde.slice(0, 4));
   const [saldo, setSaldo] = useState<SaldoVacaciones | null>(null);
+  const [saldoLicencia, setSaldoLicencia] = useState<SaldoLicencia | null>(
+    null
+  );
+  const esTipoConCupoLicencia = TIPOS_LICENCIA_CON_CUPO.includes(tipo);
 
   useEffect(() => {
     if (!abierto || tipo !== 'vacaciones' || !idParaSaldo || !anioPedido) {
@@ -113,6 +162,26 @@ export const NuevaAusenciaModal = ({
     };
   }, [abierto, tipo, idParaSaldo, anioPedido]);
 
+  useEffect(() => {
+    if (!abierto || !esTipoConCupoLicencia || !idParaSaldo || !anioPedido) {
+      setSaldoLicencia(null);
+      return;
+    }
+    let vigente = true;
+    void getSaldosLicencia(idParaSaldo, anioPedido)
+      .then((saldos) => {
+        if (!vigente) return;
+        // Sin fila de cupo → sin límite (no inventamos tope).
+        setSaldoLicencia(saldos.find((s) => s.tipo === tipo) ?? null);
+      })
+      .catch(() => {
+        if (vigente) setSaldoLicencia(null);
+      });
+    return () => {
+      vigente = false;
+    };
+  }, [abierto, esTipoConCupoLicencia, tipo, idParaSaldo, anioPedido]);
+
   /**
    * Los días pendientes de aprobación ya están descontados del
    * disponible: si no, pedir dos veces seguidas pasaría el control las
@@ -121,6 +190,18 @@ export const NuevaAusenciaModal = ({
   const excede = Boolean(
     saldo && tipo === 'vacaciones' && dias > saldo.diasDisponibles
   );
+  /**
+   * Licencias: solo las aprobadas consumen cupo (getSaldosLicencia).
+   * UI frena el pedido/carga si no alcanzaría al aprobar; DB es la autoridad.
+   * Sin override de gestor (a diferencia de vacaciones).
+   */
+  const excedeLicencia = Boolean(
+    saldoLicencia && dias > saldoLicencia.diasDisponibles
+  );
+  const disponibleTrasLicencia =
+    saldoLicencia != null
+      ? Math.max(0, saldoLicencia.diasDisponibles - dias)
+      : null;
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -133,13 +214,11 @@ export const NuevaAusenciaModal = ({
       fechaHasta:
         dias < 1
           ? 'No puede ser anterior a la fecha de inicio.'
-          : // Al colaborador se le frena: pedir más días de los que tiene
-            // es un error, no una decisión. RRHH sí puede pasar por
-            // arriba (adelanto de vacaciones, acuerdo particular), pero
-            // con el aviso a la vista.
-            !modoAdmin && excede
+          : !modoAdmin && excede
             ? `Te quedan ${saldo?.diasDisponibles} días de vacaciones y estás pidiendo ${dias}.`
-            : null,
+            : excedeLicencia
+              ? `Cupo de ${tipoAusenciaLabels[tipo].toLowerCase()}: quedan ${saldoLicencia?.diasDisponibles} días y estás pidiendo ${dias}.`
+              : null,
     });
     setErrores(nuevos);
     if (Object.keys(nuevos).length > 0) return;
@@ -224,7 +303,10 @@ export const NuevaAusenciaModal = ({
 
         {dias > 0 && (
           <p className="text-sm text-ink-soft">
-            Total: <strong className="text-ink">{dias} días</strong>
+            Total:{' '}
+            <strong className="text-ink">
+              {dias} {etiquetaUnidad}
+            </strong>
           </p>
         )}
 
@@ -254,6 +336,42 @@ export const NuevaAusenciaModal = ({
                 {modoAdmin
                   ? `Estás cargando ${dias} días, ${dias - saldo.diasDisponibles} más de los que le quedan. Podés seguir, pero revisá que sea a propósito.`
                   : `Estás pidiendo ${dias} días.`}
+              </p>
+            )}
+          </div>
+        )}
+
+        {saldoLicencia && (
+          <div
+            className={`rounded-xl px-4 py-3 text-xs ${
+              excedeLicencia
+                ? 'bg-amber-50 text-amber-900'
+                : 'bg-paper text-ink-soft'
+            }`}
+          >
+            <p>
+              Cupo anual de {tipoAusenciaLabels[tipo].toLowerCase()}:{' '}
+              <strong className="font-bold">{saldoLicencia.diasAnuales}</strong>
+              . Ya usó {saldoLicencia.diasUtilizados} (solo aprobadas). Cupo
+              disponible:{' '}
+              <strong className="font-bold">
+                {saldoLicencia.diasDisponibles}
+              </strong>
+              . Solicitado: <strong className="font-bold">{dias}</strong>.
+              {disponibleTrasLicencia != null && (
+                <>
+                  {' '}
+                  Disponible después:{' '}
+                  <strong className="font-bold">
+                    {disponibleTrasLicencia}
+                  </strong>
+                  .
+                </>
+              )}
+            </p>
+            {excedeLicencia && (
+              <p className="mt-2 font-bold">
+                Este pedido supera el cupo configurado.
               </p>
             )}
           </div>

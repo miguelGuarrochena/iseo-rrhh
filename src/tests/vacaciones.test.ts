@@ -42,7 +42,7 @@ describe('diasVacacionesGozadosEn', () => {
     empleadoId: 'e1',
     tipo: 'vacaciones',
     fechaDesde: '2026-01-10',
-    fechaHasta: '2026-01-20',
+    fechaHasta: '2026-01-19', // 10 corridos inclusive
     dias: 10,
     estado: 'aprobada',
     adjuntos: [],
@@ -52,16 +52,49 @@ describe('diasVacacionesGozadosEn', () => {
 
   it('suma los días aprobados del año pedido', () => {
     const ausencias = [
-      ausencia({ id: 'a1', fechaDesde: '2026-01-10', dias: 10 }),
-      ausencia({ id: 'a2', fechaDesde: '2026-07-05', dias: 4 }),
+      ausencia({
+        id: 'a1',
+        fechaDesde: '2026-01-10',
+        fechaHasta: '2026-01-19',
+        dias: 10,
+      }),
+      ausencia({
+        id: 'a2',
+        fechaDesde: '2026-07-05',
+        fechaHasta: '2026-07-08',
+        dias: 4,
+      }),
     ];
     expect(diasVacacionesGozadosEn(ausencias, 2026)).toBe(14);
   });
 
+  it('reparte rangos que cruzan de año por calendario (BUG-012)', () => {
+    const ausencias = [
+      ausencia({
+        id: 'x',
+        fechaDesde: '2025-12-28',
+        fechaHasta: '2026-01-05',
+        dias: 9,
+      }),
+    ];
+    expect(diasVacacionesGozadosEn(ausencias, 2025)).toBe(4); // 28–31
+    expect(diasVacacionesGozadosEn(ausencias, 2026)).toBe(5); // 1–5
+  });
+
   it('ignora las de otros años', () => {
     const ausencias = [
-      ausencia({ id: 'a1', fechaDesde: '2026-01-10', dias: 10 }),
-      ausencia({ id: 'a2', fechaDesde: '2027-01-10', dias: 7 }),
+      ausencia({
+        id: 'a1',
+        fechaDesde: '2026-01-10',
+        fechaHasta: '2026-01-19',
+        dias: 10,
+      }),
+      ausencia({
+        id: 'a2',
+        fechaDesde: '2027-01-10',
+        fechaHasta: '2027-01-16',
+        dias: 7,
+      }),
     ];
     expect(diasVacacionesGozadosEn(ausencias, 2026)).toBe(10);
     expect(diasVacacionesGozadosEn(ausencias, 2027)).toBe(7);
@@ -69,23 +102,38 @@ describe('diasVacacionesGozadosEn', () => {
 
   it('ignora las pendientes y rechazadas: sólo cuentan las aprobadas', () => {
     const ausencias = [
-      ausencia({ id: 'a1', dias: 10, estado: 'aprobada' }),
-      ausencia({ id: 'a2', dias: 5, estado: 'pendiente' }),
-      ausencia({ id: 'a3', dias: 3, estado: 'rechazada' }),
+      ausencia({ id: 'a1', estado: 'aprobada' }),
+      ausencia({
+        id: 'a2',
+        fechaHasta: '2026-01-14',
+        dias: 5,
+        estado: 'pendiente',
+      }),
+      ausencia({
+        id: 'a3',
+        fechaHasta: '2026-01-12',
+        dias: 3,
+        estado: 'rechazada',
+      }),
     ];
     expect(diasVacacionesGozadosEn(ausencias, 2026)).toBe(10);
   });
 
   it('ignora otros tipos de ausencia', () => {
     const ausencias = [
-      ausencia({ id: 'a1', tipo: 'vacaciones', dias: 10 }),
-      ausencia({ id: 'a2', tipo: 'enfermedad', dias: 6 }),
+      ausencia({ id: 'a1', tipo: 'vacaciones' }),
+      ausencia({
+        id: 'a2',
+        tipo: 'enfermedad',
+        fechaHasta: '2026-01-15',
+        dias: 6,
+      }),
     ];
     expect(diasVacacionesGozadosEn(ausencias, 2026)).toBe(10);
   });
 
   it('acepta el año como string, que es como llega desde la fecha de baja', () => {
-    const ausencias = [ausencia({ dias: 10 })];
+    const ausencias = [ausencia({})];
     expect(diasVacacionesGozadosEn(ausencias, '2026')).toBe(10);
   });
 
@@ -101,7 +149,12 @@ describe('diasVacacionesGozadosEn', () => {
    */
   it('baja retroactiva: cuenta los días del año de la baja, no los del año en curso', () => {
     const ausencias = [
-      ausencia({ id: 'a1', fechaDesde: '2026-03-01', dias: 12 }),
+      ausencia({
+        id: 'a1',
+        fechaDesde: '2026-03-01',
+        fechaHasta: '2026-03-12',
+        dias: 12,
+      }),
     ];
     const anioDeLaBaja = '2026-12-15'.slice(0, 4);
     const anioEnCurso = '2027';

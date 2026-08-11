@@ -12,6 +12,7 @@ import {
   ComunicacionMensaje,
   ConfigPlataforma,
   Convenio,
+  CuentaDeAcceso,
   CupoLicencia,
   DatosEmpresaCliente,
   DescriptorFacial,
@@ -71,7 +72,11 @@ import type {
 } from '@/lib/services/rrhh.demo';
 import { mensajeDeErrorDb } from '@/lib/erroresDb';
 import { registrarErrorApp } from '@/lib/erroresApp';
-import { diasVacacionesPorAntiguedad, escalaDe } from '@/lib/vacaciones';
+import {
+  diasVacacionesDeRangoEnAnio,
+  diasVacacionesPorAntiguedad,
+  escalaDe,
+} from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { armarJornadas, horasEntre, Jornada } from '@/lib/fichadas';
@@ -490,8 +495,13 @@ export const actualizarConfigPlataforma = async (
 };
 
 // ---------- Empleados ----------
+// Reads go through `empleados_lectura` (mig 66): same row RLS semantics with
+// CBU / biometrics redacted for supervisors. Mutations stay on `empleados`.
 
-const EMPLEADO_SELECT_SIN_BIOMETRIA = `
+const EMPLEADOS_LECTURA = 'empleados_lectura';
+
+/** Columns safe to RETURNING from base table (no CBU / biometrics). */
+const EMPLEADO_SELECT_TABLA = `
   id,
   empresa_id,
   nombre,
@@ -516,7 +526,6 @@ const EMPLEADO_SELECT_SIN_BIOMETRIA = `
   fecha_fin_contrato,
   modalidad_pago,
   banco,
-  cbu,
   obra_social,
   art,
   convenio,
@@ -524,6 +533,7 @@ const EMPLEADO_SELECT_SIN_BIOMETRIA = `
   fecha_baja,
   motivo_baja,
   checklist_alta,
+  sin_usuario,
   modo_fichaje,
   geocerca
 `;
@@ -548,8 +558,8 @@ export const getEmpleados = async (
   const filas = await traerTodo(
     (d, h) =>
       sb()
-        .from('empleados')
-        .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+        .from(EMPLEADOS_LECTURA)
+        .select('*')
         .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
         .eq('activo', true)
         .order('apellido')
@@ -581,8 +591,8 @@ export const getEmpleadosConCuenta = async (): Promise<string[]> => {
 
 export const getEmpleadosTodos = async (): Promise<Empleado[]> => {
   const { data, error } = await sb()
-    .from('empleados')
-    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+    .from(EMPLEADOS_LECTURA)
+    .select('*')
     .eq('empresa_id', empresaId())
     .order('apellido');
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
@@ -590,7 +600,7 @@ export const getEmpleadosTodos = async (): Promise<Empleado[]> => {
 
 export const getEmpleado = async (id: string): Promise<Empleado | null> => {
   const { data } = await sb()
-    .from('empleados')
+    .from(EMPLEADOS_LECTURA)
     .select('*')
     .eq('id', id)
     .maybeSingle();
@@ -601,8 +611,8 @@ export const getEmpleado = async (id: string): Promise<Empleado | null> => {
 
 export const getEquipo = async (supervisorId: string): Promise<Empleado[]> => {
   const { data, error } = await sb()
-    .from('empleados')
-    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+    .from(EMPLEADOS_LECTURA)
+    .select('*')
     .eq('supervisor_id', supervisorId)
     .eq('activo', true);
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
@@ -656,9 +666,11 @@ export const crearEmpleado = async (
       geocerca: datos.geocerca ?? null,
       checklist_alta: CHECKLIST_ALTA,
     })
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
-  return aEmpleado(oFalla(data, error));
+  const creado = oFalla(data, error);
+  const completo = await getEmpleado(creado.id as string);
+  return completo ?? aEmpleado(creado);
 };
 
 /**
@@ -759,14 +771,14 @@ export const actualizarEmpleado = async (
     .from('empleados')
     .update(cambios)
     .eq('id', id)
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
   if (error) throw new Error(error.message);
   if (!data) return null;
   await registrarAuditoria('actualizar', 'empleado', id, {
     campos: Object.keys(cambios),
   });
-  return aEmpleado(data);
+  return getEmpleado(id);
 };
 
 /**
@@ -799,7 +811,7 @@ export const darDeBajaEmpleado = async (
       consentimiento_biometrico: null,
     })
     .eq('id', id)
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
   if (error) throw new Error(error.message);
   if (!data) return null;
@@ -807,7 +819,7 @@ export const darDeBajaEmpleado = async (
     fecha,
     biometriaBorrada: true,
   });
-  return aEmpleado(data);
+  return getEmpleado(id);
 };
 
 export const toggleChecklistItem = async (
@@ -823,10 +835,10 @@ export const toggleChecklistItem = async (
     .from('empleados')
     .update({ checklist_alta: checklist })
     .eq('id', empleadoId)
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
   if (error) throw new Error(error.message);
-  return data ? aEmpleado(data) : null;
+  return data ? getEmpleado(empleadoId) : null;
 };
 
 // ---------- Legajo: documentos ----------
@@ -992,10 +1004,154 @@ export const cambiarRolUsuario = async (
   return data ? aUsuario(data) : null;
 };
 
-export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
+/**
+ * Une (o desune) una cuenta ya existente con la ficha de un colaborador.
+ *
+ * El vínculo se fijaba sólo en la metadata de la invitación. Si se
+ * invitaba sin elegir colaborador, el mail llegaba igual y la persona
+ * entraba a la app, pero el legajo seguía figurando "sin cuenta" y esa
+ * persona no veía sus recibos: las políticas resuelven "lo mío" por
+ * `usuarios.empleado_id`, no por el email. Reinvitar tampoco servía
+ * (Supabase rechaza un email ya registrado), así que la única salida era
+ * tocar la base a mano.
+ */
+export const vincularUsuarioAEmpleado = async (
+  usuarioId: string,
+  empleadoId: string | null
+): Promise<Usuario | null> => {
+  if (empleadoId) {
+    const { data: empleado, error: errorEmpleado } = await sb()
+      .from('empleados')
+      .select('id, email, empresa_id')
+      .eq('id', empleadoId)
+      .maybeSingle();
+    if (errorEmpleado) fallar(errorEmpleado.message, 'vincular usuario');
+    if (!empleado || empleado.empresa_id !== empresaId()) {
+      throw new Error('Ese colaborador no es de esta empresa.');
+    }
+
+    // Dos cuentas sobre el mismo legajo significa que las dos ven los
+    // recibos y el sueldo de esa persona. Se corta acá y en la base.
+    const { data: yaVinculado } = await sb()
+      .from('usuarios')
+      .select('nombre_completo')
+      .eq('empleado_id', empleadoId)
+      .neq('id', usuarioId)
+      .limit(1)
+      .maybeSingle();
+    if (yaVinculado) {
+      throw new Error(
+        `Ese colaborador ya está vinculado a la cuenta de ${yaVinculado.nombre_completo}. Desvinculála primero.`
+      );
+    }
+
+    // Mismo control de identidad que la invitación: el email de la cuenta
+    // y el de la ficha tienen que ser el mismo. Si la ficha no tiene, se
+    // completa con el de la cuenta.
+    const { data: cuenta } = await sb()
+      .from('usuarios')
+      .select('email')
+      .eq('id', usuarioId)
+      .single();
+    const emailFicha = (empleado.email ?? '').trim().toLowerCase();
+    const emailCuenta = (cuenta?.email ?? '').trim().toLowerCase();
+    if (emailFicha && emailCuenta && emailFicha !== emailCuenta) {
+      throw new Error(
+        `El email de la cuenta (${cuenta?.email}) no coincide con el de la ficha (${empleado.email}). Corregí uno de los dos antes de vincular.`
+      );
+    }
+    if (!emailFicha && emailCuenta) {
+      await sb()
+        .from('empleados')
+        .update({ email: cuenta?.email })
+        .eq('id', empleadoId);
+    }
+  }
+
+  const { data, error } = await sb()
+    .from('usuarios')
+    .update({ empleado_id: empleadoId })
+    .eq('id', usuarioId)
+    .neq('rol', 'superadmin')
+    .select()
+    .single();
+  if (error) fallar(error.message, 'vincular usuario');
+  await registrarAuditoria(
+    empleadoId ? 'vincular' : 'desvincular',
+    'usuario',
+    usuarioId,
+    { empleadoId }
+  );
+  return data ? aUsuario(data) : null;
+};
+
+const tokenDeSesion = async (): Promise<string> => {
   const { data } = await sb().auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('Sesión vencida: volvé a ingresar.');
+  return token;
+};
+
+/**
+ * Estado de las invitaciones de la empresa.
+ *
+ * Va por API porque vive en `auth.users`, que el navegador no puede leer:
+ * desde `usuarios` no hay forma de distinguir a quien nunca abrió el mail
+ * de quien entra todos los días.
+ */
+export const getEstadoDeCuentas = async (): Promise<CuentaDeAcceso[]> => {
+  const token = await tokenDeSesion();
+  const res = await fetch(`/api/cuentas?empresa=${empresaId()}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const cuerpo = (await res.json()) as {
+    cuentas?: CuentaDeAcceso[];
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(
+      cuerpo.error ?? 'No pudimos leer el estado de las cuentas.'
+    );
+  }
+  return cuerpo.cuentas ?? [];
+};
+
+const accionDeCuenta = async (
+  accion: 'reenviar' | 'quitar' | 'completar',
+  email: string
+): Promise<void> => {
+  const token = await tokenDeSesion();
+  const res = await fetch('/api/cuentas', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ accion, email, empresaId: empresaId() }),
+  });
+  if (!res.ok) {
+    const { error } = (await res.json()) as { error?: string };
+    throw new Error(error ?? 'No pudimos completar la acción.');
+  }
+};
+
+/** Rehace la invitación de quien todavía no creó su contraseña. */
+export const reenviarInvitacion = (email: string): Promise<void> =>
+  accionDeCuenta('reenviar', email);
+
+/** Saca a alguien de la plataforma y libera su email para otra alta. */
+export const quitarAcceso = (email: string): Promise<void> =>
+  accionDeCuenta('quitar', email);
+
+/**
+ * Le arma el perfil que le falta a una cuenta a medias, con los datos de
+ * su invitación. No manda mail: quien ya tiene contraseña sigue usándola.
+ */
+export const completarAlta = (email: string): Promise<void> =>
+  accionDeCuenta('completar', email);
+
+export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
+  const token = await tokenDeSesion();
   const res = await fetch('/api/invitaciones', {
     method: 'POST',
     headers: {
@@ -1229,7 +1385,8 @@ export const crearAusencia = async (
   }
   const uid = useAuthStore.getState().usuario?.id ?? null;
   const aprobar = Boolean(datos.aprobarAutomaticamente);
-  let dias = diasEntre(datos.fechaDesde, datos.fechaHasta);
+  // Fuente de verdad compartida con UI/demo/SQL: `diasAusencia`.
+  let dias = diasAusencia(datos.fechaDesde, datos.fechaHasta, datos.tipo);
   try {
     const [empresa, noLaborables] = await Promise.all([
       getEmpresa(),
@@ -1243,7 +1400,7 @@ export const crearAusencia = async (
       noLaborables
     );
   } catch {
-    // si falla, queda el conteo corrido
+    // sin empresa/feriados: vacaciones sin flag → corridos (LCT)
   }
   const { data, error } = await sb()
     .from('ausencias')
@@ -1407,15 +1564,28 @@ export const getSaldoVacaciones = async (
   );
   // Días que quedaron del año anterior y RRHH decidió acumular.
   const ajuste = arrastre?.dias ?? 0;
-  const deEsteAnio = ausencias.filter(
-    (a) => a.tipo === 'vacaciones' && a.fechaDesde.startsWith(String(anio))
+  const habiles = Boolean(empresa?.config?.vacacionesDiasHabiles);
+  const feriados = new Set(
+    (await getFeriados(anio).catch(() => [])).map((f) => f.fecha)
   );
-  const utilizados = deEsteAnio
-    .filter((a) => a.estado === 'aprobada')
-    .reduce((acc, a) => acc + a.dias, 0);
-  const pendientes = deEsteAnio
-    .filter((a) => a.estado === 'pendiente')
-    .reduce((acc, a) => acc + a.dias, 0);
+  const enAnio = (
+    a: (typeof ausencias)[number],
+    estado: 'aprobada' | 'pendiente'
+  ): number => {
+    if (a.tipo !== 'vacaciones' || a.estado !== estado) return 0;
+    return diasVacacionesDeRangoEnAnio(a.fechaDesde, a.fechaHasta, anio, {
+      habiles,
+      feriados: habiles ? feriados : undefined,
+    });
+  };
+  const utilizados = ausencias.reduce(
+    (acc, a) => acc + enAnio(a, 'aprobada'),
+    0
+  );
+  const pendientes = ausencias.reduce(
+    (acc, a) => acc + enAnio(a, 'pendiente'),
+    0
+  );
   return {
     empleadoId,
     anio,
@@ -1795,11 +1965,12 @@ export const enrolarRostro = async (
     })
     .eq('id', empleadoId)
     .eq('empresa_id', empresaId())
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
+  if (error) throw new Error(error.message);
   if (!data) return null;
   await registrarAuditoria('enrolar', 'biometria_facial', empleadoId);
-  return aEmpleado(oFalla(data, error));
+  return getEmpleado(empleadoId);
 };
 
 /** Borra el rostro enrolado de un empleado. */
@@ -1811,11 +1982,12 @@ export const borrarRostro = async (
     .update({ descriptor_facial: null, consentimiento_biometrico: null })
     .eq('id', empleadoId)
     .eq('empresa_id', empresaId())
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
+  if (error) throw new Error(error.message);
   if (!data) return null;
   await registrarAuditoria('borrar', 'biometria_facial', empleadoId);
-  return aEmpleado(oFalla(data, error));
+  return getEmpleado(empleadoId);
 };
 
 /** Descriptores de los empleados activos con rostro enrolado (para 1:N). */
@@ -1823,7 +1995,7 @@ export const getDescriptoresFaciales = async (): Promise<
   DescriptorFacial[]
 > => {
   const { data, error } = await sb()
-    .from('empleados')
+    .from(EMPLEADOS_LECTURA)
     .select('id, descriptor_facial')
     .eq('empresa_id', empresaId())
     .eq('activo', true)
@@ -2588,16 +2760,15 @@ export const getRecibosArchivadosTodos = async (): Promise<ReciboSueldo[]> => {
 export const firmarRecibo = async (
   reciboId: string
 ): Promise<ReciboSueldo | null> => {
-  const { data, error } = await sb()
-    .from('recibos')
-    .update({ estado_firma: 'firmado', firmado_en: new Date().toISOString() })
-    .eq('id', reciboId)
-    .eq('estado_firma', 'pendiente')
-    .select()
-    .single();
+  // La firma va por RPC: el empleado ya no tiene policy UPDATE sobre
+  // `recibos` (BUG-005). El servidor sólo toca estado_firma + firmado_en.
+  const { data, error } = await sb().rpc('firmar_recibo', {
+    p_recibo_id: reciboId,
+  });
   if (error) throw new Error(error.message);
-  if (!data) return null;
-  const recibo = aRecibo(data);
+  const fila = Array.isArray(data) ? data[0] : data;
+  if (!fila) return null;
+  const recibo = aRecibo(fila as Parameters<typeof aRecibo>[0]);
   await registrarAuditoria('firmar', 'recibo', recibo.id, {
     empleadoId: recibo.empleadoId,
     periodo: recibo.periodo,

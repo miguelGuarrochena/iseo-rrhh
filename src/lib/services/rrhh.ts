@@ -153,6 +153,20 @@ export const cambiarRolUsuario = elegir(
   demo.cambiarRolUsuario
 );
 export const invitarUsuario = elegir(real.invitarUsuario, demo.invitarUsuario);
+export const vincularUsuarioAEmpleado = elegir(
+  real.vincularUsuarioAEmpleado,
+  demo.vincularUsuarioAEmpleado
+);
+export const getEstadoDeCuentas = elegir(
+  real.getEstadoDeCuentas,
+  demo.getEstadoDeCuentas
+);
+export const reenviarInvitacion = elegir(
+  real.reenviarInvitacion,
+  demo.reenviarInvitacion
+);
+export const quitarAcceso = elegir(real.quitarAcceso, demo.quitarAcceso);
+export const completarAlta = elegir(real.completarAlta, demo.completarAlta);
 
 // ---------- Ausencias ----------
 export const getAusencias = elegir(real.getAusencias, demo.getAusencias);

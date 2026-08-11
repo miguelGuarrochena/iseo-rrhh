@@ -9,6 +9,7 @@ import {
 } from '@/components/app/colaboradores/FormEmpleado';
 import { crearEmpleado } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const NuevoColaboradorPage = () => {
   const { usuario, rolEfectivo } = useAuth();
@@ -69,4 +70,11 @@ const NuevoColaboradorPage = () => {
   );
 };
 
-export default NuevoColaboradorPage;
+/** El alta escribe sobre una empresa concreta: sin una activa no hay dónde. */
+const NuevoColaboradorConEmpresa = () => (
+  <RequireEmpresa>
+    <NuevoColaboradorPage />
+  </RequireEmpresa>
+);
+
+export default NuevoColaboradorConEmpresa;
