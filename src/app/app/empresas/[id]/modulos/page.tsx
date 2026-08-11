@@ -1,15 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import {
   IconAlertTriangle,
-  IconArrowLeft,
   IconDeviceFloppy,
   IconLayoutGrid,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
+import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
 import { Boton } from '@/components/app/ui/Boton';
 import { Switch } from '@/components/app/ui/Switch';
 import { avisoError, avisoExito } from '@/lib/avisos';
@@ -34,7 +34,6 @@ const etiquetaDe = (clave: ModuloOpcional): string =>
  */
 const ModulosEmpresaPage = () => {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const { usuario } = useAuth();
 
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
@@ -123,14 +122,13 @@ const ModulosEmpresaPage = () => {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <button
-          type="button"
-          onClick={() => router.push(`/empresas/${id}`)}
-          className="presionable mb-3 inline-flex cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-sm font-semibold text-ink-soft hover:text-ink"
-        >
-          <IconArrowLeft size={16} />
-          Volver a {empresa.nombre}
-        </button>
+        <Breadcrumbs
+          items={[
+            { etiqueta: 'Empresas', href: '/empresas' },
+            { etiqueta: empresa.nombre, href: `/empresas/${id}` },
+            { etiqueta: 'Módulos' },
+          ]}
+        />
         <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-ink">
           <IconLayoutGrid size={24} className="text-ink-soft" />
           Módulos de {empresa.nombre}

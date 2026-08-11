@@ -11,6 +11,7 @@ import {
   ComunicacionMensaje,
   ConfigPlataforma,
   Convenio,
+  CuentaDeAcceso,
   CupoLicencia,
   DatosEmpresaCliente,
   DescriptorFacial,
@@ -57,9 +58,17 @@ import {
   Usuario,
   VacacionSector,
 } from '@/types/rrhh';
-import { diasVacacionesPorAntiguedad, escalaDe } from '@/lib/vacaciones';
+import {
+  diasVacacionesDeRangoEnAnio,
+  diasVacacionesPorAntiguedad,
+  escalaDe,
+} from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
-import { diasEntre, hoyISO } from '@/lib/fechas';
+import { diasAusencia, hoyISO } from '@/lib/fechas';
+import {
+  puedeAprobarLicenciaContraCupo,
+  saldoLicenciaDisponibleDe,
+} from '@/lib/seguridad/cuposLicencia';
 import {
   agruparMarcas,
   armarJornadas,
@@ -513,7 +522,100 @@ export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
     nombreCompleto: datos.nombreCompleto,
   };
   usuariosMock.push(nuevo);
+  invitadasEnLaSesion.add(nuevo.email);
   return simular(nuevo);
+};
+
+/**
+ * En demo no hay Auth: se considera que las cuentas de arranque ya se
+ * usaron y que las invitadas durante la sesión están pendientes, que es
+ * lo que hace falta para ver la pantalla como se ve con datos reales.
+ */
+const invitadasEnLaSesion = new Set<string>();
+
+/**
+ * Una cuenta a medias, para que el panel que las resuelve se pueda ver y
+ * probar. No es un adorno: es el estado en el que quedaron las cuentas
+ * reales invitadas entre la migración 33 y el arreglo, y la razón por la
+ * que existe "Completar el alta".
+ */
+const cuentasAMedias: CuentaDeAcceso[] = [
+  {
+    email: 'sofia.acosta@ejemplo.com',
+    nombre: 'Sofía Acosta',
+    estado: 'sin_perfil',
+    invitadaEn: new Date(Date.now() - 6 * 86_400_000).toISOString(),
+    ultimoAcceso: new Date(Date.now() - 5 * 86_400_000).toISOString(),
+  },
+];
+
+export const getEstadoDeCuentas = async (): Promise<CuentaDeAcceso[]> =>
+  simular([
+    ...usuariosMock
+      .filter((u) => u.empresaId === empresaDemo())
+      .map((u) => ({
+        email: u.email,
+        usuarioId: u.id,
+        nombre: u.nombreCompleto,
+        estado: invitadasEnLaSesion.has(u.email)
+          ? ('pendiente' as const)
+          : ('activa' as const),
+        ultimoAcceso: invitadasEnLaSesion.has(u.email)
+          ? undefined
+          : new Date().toISOString(),
+      })),
+    ...cuentasAMedias,
+  ]);
+
+const sacarDeLasAMedias = (email: string) => {
+  const i = cuentasAMedias.findIndex((c) => c.email === email);
+  if (i >= 0) cuentasAMedias.splice(i, 1);
+};
+
+export const reenviarInvitacion = async (email: string): Promise<void> => {
+  invitadasEnLaSesion.add(email);
+  return simular(undefined);
+};
+
+export const quitarAcceso = async (email: string): Promise<void> => {
+  const i = usuariosMock.findIndex((u) => u.email === email);
+  if (i >= 0) usuariosMock.splice(i, 1);
+  invitadasEnLaSesion.delete(email);
+  sacarDeLasAMedias(email);
+  return simular(undefined);
+};
+
+export const completarAlta = async (email: string): Promise<void> => {
+  const aMedias = cuentasAMedias.find((c) => c.email === email);
+  if (!aMedias) throw new Error('Esa cuenta ya tiene perfil.');
+  usuariosMock.push({
+    id: `usr-${Date.now()}`,
+    email: aMedias.email,
+    rol: 'empleado',
+    empresaId: empresaDemo(),
+    empleadoId: null,
+    nombreCompleto: aMedias.nombre,
+  });
+  sacarDeLasAMedias(email);
+  return simular(undefined);
+};
+
+export const vincularUsuarioAEmpleado = async (
+  usuarioId: string,
+  empleadoId: string | null
+): Promise<Usuario | null> => {
+  const u = usuariosMock.find((x) => x.id === usuarioId);
+  if (!u || u.rol === 'superadmin') return simular(null);
+  const ocupado =
+    empleadoId &&
+    usuariosMock.find((x) => x.id !== usuarioId && x.empleadoId === empleadoId);
+  if (ocupado) {
+    throw new Error(
+      `Ese colaborador ya está vinculado a la cuenta de ${ocupado.nombreCompleto}. Desvinculála primero.`
+    );
+  }
+  u.empleadoId = empleadoId;
+  return simular(u);
 };
 
 // ---------- Configuración general de la plataforma (superadmin) ----------
@@ -664,14 +766,55 @@ export interface NuevaAusencia {
 export const crearAusencia = async (
   datos: NuevaAusencia
 ): Promise<Ausencia> => {
+  // Misma fuente que UI y real.ts / trigger SQL: `diasAusencia`.
+  const [empresa, feriados] = await Promise.all([getEmpresa(), getFeriados()]);
+  const noLaborables = new Set(
+    feriados.filter((f) => f.noLaborable).map((f) => f.fecha)
+  );
+  const dias = diasAusencia(
+    datos.fechaDesde,
+    datos.fechaHasta,
+    datos.tipo,
+    empresa.config.vacacionesDiasHabiles,
+    noLaborables
+  );
+  const estado: Ausencia['estado'] = datos.aprobarAutomaticamente
+    ? 'aprobada'
+    : 'pendiente';
+  // Espejo DB (BUG-010): solo al quedar aprobada se exige cupo.
+  if (estado === 'aprobada') {
+    const anio = Number(datos.fechaDesde.slice(0, 4));
+    const previas = ausenciasMock.filter(
+      (a) => a.empleadoId === datos.empleadoId
+    );
+    if (
+      !puedeAprobarLicenciaContraCupo(
+        cuposLicenciaMock,
+        previas,
+        datos.tipo,
+        anio,
+        dias
+      )
+    ) {
+      const quedan = saldoLicenciaDisponibleDe(
+        cuposLicenciaMock,
+        previas,
+        datos.tipo,
+        anio
+      );
+      throw new Error(
+        `No hay días de licencia suficientes para ${datos.tipo} (pedís ${dias}, quedan ${Math.max(0, quedan ?? 0)})`
+      );
+    }
+  }
   const nueva: Ausencia = {
     id: `aus-${Date.now()}`,
     empleadoId: datos.empleadoId,
     tipo: datos.tipo,
     fechaDesde: datos.fechaDesde,
     fechaHasta: datos.fechaHasta,
-    dias: diasEntre(datos.fechaDesde, datos.fechaHasta),
-    estado: datos.aprobarAutomaticamente ? 'aprobada' : 'pendiente',
+    dias,
+    estado,
     adjuntos: datos.archivo ? [datos.archivo.name] : [],
     comentarioEmpleado: datos.comentario,
     creadaEn: hoyISO(),
@@ -722,6 +865,31 @@ export const resolverAusencia = async (
 ): Promise<Ausencia | null> => {
   const ausencia = ausenciasMock.find((a) => a.id === ausenciaId);
   if (ausencia && ausencia.estado === 'pendiente') {
+    if (estado === 'aprobada') {
+      const anio = Number(ausencia.fechaDesde.slice(0, 4));
+      const previas = ausenciasMock.filter(
+        (a) => a.empleadoId === ausencia.empleadoId && a.id !== ausencia.id
+      );
+      if (
+        !puedeAprobarLicenciaContraCupo(
+          cuposLicenciaMock,
+          previas,
+          ausencia.tipo,
+          anio,
+          ausencia.dias
+        )
+      ) {
+        const quedan = saldoLicenciaDisponibleDe(
+          cuposLicenciaMock,
+          previas,
+          ausencia.tipo,
+          anio
+        );
+        throw new Error(
+          `No hay días de licencia suficientes para ${ausencia.tipo} (pedís ${ausencia.dias}, quedan ${Math.max(0, quedan ?? 0)})`
+        );
+      }
+    }
     ausencia.estado = estado;
     ausencia.resueltaPor = resueltaPor;
     ausencia.comentarioResolucion = comentario;
@@ -766,18 +934,20 @@ export const getSaldoVacaciones = async (
     anio,
     escalaDe(empresaMock.config)
   );
-  const deEsteAnio = ausenciasMock.filter(
-    (a) =>
-      a.empleadoId === empleadoId &&
-      a.tipo === 'vacaciones' &&
-      a.fechaDesde.startsWith(String(anio))
-  );
-  const utilizados = deEsteAnio
-    .filter((a) => a.estado === 'aprobada')
-    .reduce((acc, a) => acc + a.dias, 0);
-  const pendientes = deEsteAnio
-    .filter((a) => a.estado === 'pendiente')
-    .reduce((acc, a) => acc + a.dias, 0);
+  const habiles = Boolean(empresaMock.config?.vacacionesDiasHabiles);
+  const delEmpleado = ausenciasMock.filter((a) => a.empleadoId === empleadoId);
+  const enAnio = (estado: 'aprobada' | 'pendiente') =>
+    delEmpleado.reduce((acc, a) => {
+      if (a.tipo !== 'vacaciones' || a.estado !== estado) return acc;
+      return (
+        acc +
+        diasVacacionesDeRangoEnAnio(a.fechaDesde, a.fechaHasta, anio, {
+          habiles,
+        })
+      );
+    }, 0);
+  const utilizados = enAnio('aprobada');
+  const pendientes = enAnio('pendiente');
 
   const ajuste =
     vacacionesPendientesMock.find(

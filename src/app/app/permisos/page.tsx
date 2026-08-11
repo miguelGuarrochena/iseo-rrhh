@@ -1,8 +1,14 @@
 'use client';
 
-import { FormEvent, useCallback, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { IconPlus, IconShieldCheck } from '@tabler/icons-react';
+import { useSearchParams } from 'next/navigation';
+import {
+  IconAlertTriangle,
+  IconPlus,
+  IconSettings,
+  IconShieldCheck,
+} from '@tabler/icons-react';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -10,6 +16,8 @@ import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
 import { aOpciones, Selector } from '@/components/app/ui/Selector';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
+import { GestionCuentaModal } from '@/components/app/permisos/GestionCuentaModal';
 import {
   juntarErrores,
   validarEmail,
@@ -18,12 +26,22 @@ import {
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   cambiarRolUsuario,
+  completarAlta,
   getAuditoria,
   getEmpleados,
+  getEstadoDeCuentas,
   getUsuariosDeEmpresa,
   invitarUsuario,
+  quitarAcceso,
+  reenviarInvitacion,
 } from '@/lib/services/rrhh';
-import { AccionAuditoria, Empleado, Rol, Usuario } from '@/types/rrhh';
+import {
+  AccionAuditoria,
+  CuentaDeAcceso,
+  Empleado,
+  Rol,
+  Usuario,
+} from '@/types/rrhh';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { EstadoCarga } from '@/components/app/EstadoCarga';
@@ -37,6 +55,10 @@ const accionLabels: Record<string, string> = {
   cambiar_rol: 'cambió el rol de',
   cambiar_estado: 'cambió el estado de',
   invitar: 'invitó a',
+  reinvitar: 'reenvió la invitación de',
+  vincular: 'vinculó con un colaborador a',
+  desvincular: 'desvinculó de su colaborador a',
+  quitar_acceso: 'quitó el acceso de',
   eliminar: 'eliminó',
 };
 
@@ -51,8 +73,23 @@ const rolesAsignables: Record<Exclude<Rol, 'superadmin'>, string> = {
   empleado: 'Empleado',
 };
 
+/** Aviso corto al lado del nombre. Lo que no está bien se ve sin abrir nada. */
+const Chip = ({ texto, tono }: { texto: string; tono: 'ambar' | 'neutro' }) => (
+  <span
+    className={`rounded-full px-2.5 py-1 text-[0.68rem] font-bold ${
+      tono === 'ambar'
+        ? 'bg-amber-100 text-amber-900'
+        : 'bg-paper text-ink-soft'
+    }`}
+  >
+    {texto}
+  </span>
+);
+
 const PermisosPage = () => {
   const { usuario, rolEfectivo, empresaVista } = useAuth();
+  const searchParams = useSearchParams();
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
   const [modalAbierto, { open, close }] = useDisclosure(false);
   const [nombre, setNombre] = useState('');
   const [email, setEmail] = useState('');
@@ -60,6 +97,7 @@ const PermisosPage = () => {
   const [empleadoId, setEmpleadoId] = useState('');
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
+  const [gestionando, setGestionando] = useState<Usuario | null>(null);
 
   /**
    * Los usuarios son el contenido de la pantalla: si fallan, hay que
@@ -72,13 +110,22 @@ const PermisosPage = () => {
   });
   const usuarios = cargaUsuarios.datos;
 
-  // Los empleados sólo llenan el desplegable de la invitación: si no
+  // Los empleados llenan los desplegables de invitación y vínculo: si no
   // vienen, la pantalla sigue siendo útil.
   const cargaEmpleados = useCarga(() => getEmpleados(), [], {
     contexto: 'permisos/empleados',
     inicial: [] as Empleado[],
   });
   const empleados = cargaEmpleados.datos;
+
+  // El estado de cada invitación vive en Auth y se pide aparte: si esta
+  // consulta falla, la lista de usuarios se ve igual, sólo sin los avisos
+  // de "pendiente".
+  const cargaCuentas = useCarga(() => getEstadoDeCuentas(), [], {
+    contexto: 'permisos/cuentas',
+    inicial: [] as CuentaDeAcceso[],
+  });
+  const cuentas = cargaCuentas.datos;
 
   // La auditoría es lo que respalda "quién tocó qué" ante un reclamo:
   // cortarla en 20 dejaba afuera la semana pasada. Se traen más y se
@@ -92,8 +139,30 @@ const PermisosPage = () => {
   const cargar = useCallback(() => {
     cargaUsuarios.recargar();
     cargaEmpleados.recargar();
+    cargaCuentas.recargar();
     cargaAuditoria.recargar();
-  }, [cargaUsuarios, cargaEmpleados, cargaAuditoria]);
+  }, [cargaUsuarios, cargaEmpleados, cargaCuentas, cargaAuditoria]);
+
+  /**
+   * Se llega acá desde el aviso "sin cuenta" de un colaborador
+   * (`/permisos?empleado=ple-3`): se abre la invitación con sus datos
+   * puestos, para no tener que buscarlo de nuevo ni copiar el email a
+   * mano —que es donde se colaba el error que dejaba la cuenta sin
+   * vincular.
+   */
+  const atajoUsado = useRef(false);
+  useEffect(() => {
+    const id = searchParams.get('empleado');
+    if (!id || atajoUsado.current || empleados.length === 0) return;
+    const e = empleados.find((x) => x.id === id);
+    if (!e) return;
+    atajoUsado.current = true;
+    setNombre(`${e.nombre} ${e.apellido}`);
+    setEmail(e.email ?? '');
+    setEmpleadoId(e.id);
+    setRol('empleado');
+    open();
+  }, [searchParams, empleados, open]);
 
   const {
     pagina,
@@ -115,6 +184,20 @@ const PermisosPage = () => {
 
   const admins = usuarios.filter((u) => u.rol === 'admin_rrhh');
 
+  const empleadosConCuenta = new Set(
+    usuarios.filter((u) => u.empleadoId).map((u) => u.empleadoId as string)
+  );
+
+  const cuentaDe = (u: Usuario) => cuentas.find((c) => c.usuarioId === u.id);
+
+  // Cuentas que existen para entrar pero que la app no sabe de quién son.
+  const aMedias = cuentas.filter((c) => c.estado === 'sin_perfil');
+
+  const nombreDeEmpleado = (id: string) => {
+    const e = empleados.find((x) => x.id === id);
+    return e ? `${e.nombre} ${e.apellido}` : 'colaborador dado de baja';
+  };
+
   const cambiarRol = async (usuarioId: string, nuevoRol: Rol) => {
     try {
       await cambiarRolUsuario(usuarioId, nuevoRol);
@@ -127,6 +210,61 @@ const PermisosPage = () => {
         err instanceof Error ? err.message : undefined
       );
       cargar();
+    }
+  };
+
+  const rehacerInvitacion = async (correo: string) => {
+    const ok = await confirmar({
+      titulo: 'Rehacer la invitación',
+      detalle: `Se vuelve a crear el alta de ${correo} y le llega un mail nuevo para poner su contraseña. El link anterior deja de servir.`,
+      confirmar: 'Reenviar',
+    });
+    if (!ok) return;
+    try {
+      await reenviarInvitacion(correo);
+      avisoExito('Invitación reenviada', `${correo} va a recibir el mail.`);
+      cargar();
+    } catch (err) {
+      avisoError(
+        'No pudimos reenviar la invitación',
+        err instanceof Error ? err.message : undefined
+      );
+    }
+  };
+
+  const completarCuenta = async (correo: string) => {
+    try {
+      await completarAlta(correo);
+      avisoExito(
+        'Alta completada',
+        `${correo} ya puede entrar con la contraseña que tenga.`
+      );
+      cargar();
+    } catch (err) {
+      avisoError(
+        'No pudimos completar el alta',
+        err instanceof Error ? err.message : undefined
+      );
+    }
+  };
+
+  const liberarCuenta = async (correo: string) => {
+    const ok = await confirmar({
+      titulo: '¿Borrar esta cuenta?',
+      detalle: `Se elimina el acceso de ${correo} y su email queda libre para volver a invitarlo desde cero.`,
+      confirmar: 'Borrar cuenta',
+      peligrosa: true,
+    });
+    if (!ok) return;
+    try {
+      await quitarAcceso(correo);
+      avisoExito('Cuenta borrada', `${correo} ya no existe en la plataforma.`);
+      cargar();
+    } catch (err) {
+      avisoError(
+        'No pudimos borrar la cuenta',
+        err instanceof Error ? err.message : undefined
+      );
     }
   };
 
@@ -174,7 +312,7 @@ const PermisosPage = () => {
             Permisos
           </h1>
           <p className="mt-1 text-sm text-ink-soft">
-            Quién puede entrar a la plataforma y con qué rol.
+            Quién puede entrar a la plataforma, con qué rol y como quién.
           </p>
         </div>
         <Boton variante="negro" onClick={open}>
@@ -182,6 +320,66 @@ const PermisosPage = () => {
           Invitar usuario
         </Boton>
       </div>
+
+      {aMedias.length > 0 && (
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 sm:px-5">
+          <div className="flex items-start gap-2.5">
+            <IconAlertTriangle
+              size={18}
+              className="mt-px shrink-0 text-amber-700"
+            />
+            <div>
+              <p className="text-sm font-bold text-amber-900">
+                Cuentas que quedaron a medias
+              </p>
+              <p className="mt-0.5 text-xs text-amber-900">
+                Recibieron el mail y pueden poner una contraseña, pero la app no
+                sabe quiénes son: al entrar les dice que su cuenta no tiene
+                perfil. <strong>Completar el alta</strong> lo resuelve sin
+                molestarlas —siguen usando la contraseña que ya tengan—. Rehacer
+                la invitación manda un mail nuevo y sirve para quien todavía no
+                entró.
+              </p>
+            </div>
+          </div>
+          {aMedias.map((c) => (
+            <div
+              key={c.email}
+              className="flex flex-col gap-2 rounded-xl bg-surface px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-ink">
+                  {c.nombre}
+                </p>
+                <p className="truncate text-xs text-ink-soft">{c.email}</p>
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-2">
+                <Boton
+                  tamano="sm"
+                  variante="primario"
+                  onClick={() => void completarCuenta(c.email)}
+                >
+                  Completar el alta
+                </Boton>
+                <Boton
+                  tamano="sm"
+                  variante="secundario"
+                  onClick={() => void rehacerInvitacion(c.email)}
+                >
+                  Rehacer invitación
+                </Boton>
+                <Boton
+                  tamano="sm"
+                  variante="rechazar"
+                  onClick={() => void liberarCuenta(c.email)}
+                >
+                  Borrar
+                </Boton>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       <ListaCard
         titulo={
@@ -197,32 +395,54 @@ const PermisosPage = () => {
           filas={3}
         >
           {(lista) =>
-            lista.map((u) => (
-              <ListaItem
-                key={u.id}
-                icono={IconShieldCheck}
-                principal={u.nombreCompleto}
-                secundario={u.email}
-                extremo={
-                  <div className="flex flex-wrap items-center justify-end gap-2">
-                    {u.empleadoId && (
-                      <Link
-                        href={`/colaboradores/${u.empleadoId}`}
-                        className="text-xs font-bold text-brand-700 no-underline hover:underline"
+            lista.map((u) => {
+              const cuenta = cuentaDe(u);
+              return (
+                <ListaItem
+                  key={u.id}
+                  icono={IconShieldCheck}
+                  principal={u.nombreCompleto}
+                  secundario={
+                    u.empleadoId
+                      ? `${u.email} · ${nombreDeEmpleado(u.empleadoId)}`
+                      : u.email
+                  }
+                  extremo={
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      {cuenta?.estado === 'pendiente' && (
+                        <Chip texto="Invitación pendiente" tono="ambar" />
+                      )}
+                      {!u.empleadoId && (
+                        <Chip texto="Sin colaborador" tono="neutro" />
+                      )}
+                      {u.empleadoId && (
+                        <Link
+                          href={`/colaboradores/${u.empleadoId}`}
+                          className="text-xs font-bold text-brand-700 no-underline hover:underline"
+                        >
+                          Ver ficha
+                        </Link>
+                      )}
+                      <Selector
+                        tamano="sm"
+                        valor={u.rol}
+                        onCambiar={(v) => void cambiarRol(u.id, v as Rol)}
+                        opciones={aOpciones(rolesAsignables)}
+                      />
+                      <Boton
+                        tamano="sm"
+                        variante="secundario"
+                        onClick={() => setGestionando(u)}
+                        aria-label={`Gestionar la cuenta de ${u.nombreCompleto}`}
                       >
-                        Ver ficha
-                      </Link>
-                    )}
-                    <Selector
-                      tamano="sm"
-                      valor={u.rol}
-                      onCambiar={(v) => void cambiarRol(u.id, v as Rol)}
-                      opciones={aOpciones(rolesAsignables)}
-                    />
-                  </div>
-                }
-              />
-            ))
+                        <IconSettings size={15} />
+                        Gestionar
+                      </Boton>
+                    </div>
+                  }
+                />
+              );
+            })
           }
         </EstadoCarga>
       </ListaCard>
@@ -260,6 +480,14 @@ const PermisosPage = () => {
           El rol define qué ve cada persona: los admin gestionan todo, los
           supervisores aprueban y ven indicadores de su equipo, y los empleados
           se autogestionan.
+        </p>
+        <p>
+          <span className="font-semibold text-ink">
+            Vincular no es lo mismo que invitar:
+          </span>{' '}
+          la invitación le da acceso a la app; el vínculo con el colaborador es
+          lo que hace que vea sus recibos, su ficha y sus ausencias. Una cuenta
+          sin vincular entra pero no encuentra nada suyo.
         </p>
         <p>
           <span className="font-semibold text-ink">
@@ -302,16 +530,20 @@ const PermisosPage = () => {
             opciones={aOpciones(rolesAsignables)}
           />
           <CampoSelect
-            etiqueta="Vincular a colaborador (opcional)"
+            etiqueta="Vincular a colaborador"
             value={empleadoId}
             onChange={setEmpleadoId}
-            ayuda="Si es un empleado de la empresa, uní el usuario a su ficha."
+            ayuda="Sin esto la persona entra a la app pero no ve sus recibos ni su ficha. Se puede cambiar después desde “Gestionar”."
             opciones={[
               { valor: '', etiqueta: 'Sin vincular' },
-              ...empleados.map((e) => ({
-                valor: e.id,
-                etiqueta: `${e.nombre} ${e.apellido} — ${e.puesto}`,
-              })),
+              // Los que ya tienen cuenta no se ofrecen: un legajo admite
+              // una sola, y la invitación fallaría igual.
+              ...empleados
+                .filter((e) => !empleadosConCuenta.has(e.id))
+                .map((e) => ({
+                  valor: e.id,
+                  etiqueta: `${e.apellido}, ${e.nombre} — ${e.puesto}`,
+                })),
             ]}
           />
 
@@ -320,6 +552,16 @@ const PermisosPage = () => {
           </Boton>
         </form>
       </Modal>
+
+      <GestionCuentaModal
+        usuario={gestionando}
+        cuenta={gestionando ? cuentaDe(gestionando) : undefined}
+        empleados={empleados}
+        empleadosConCuenta={empleadosConCuenta}
+        onCerrar={() => setGestionando(null)}
+        onCambio={cargar}
+      />
+      {dialogoConfirmar}
     </div>
   );
 };

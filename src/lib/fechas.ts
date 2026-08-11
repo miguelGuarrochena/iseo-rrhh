@@ -42,6 +42,9 @@ export const diasHabilesEntre = (
 /**
  * Cuenta días de una ausencia según la config de la empresa.
  * Vacaciones pueden ser hábiles; el resto siempre corridos.
+ *
+ * Fuente de verdad compartida: UI (`NuevaAusenciaModal`), demo/real
+ * `crearAusencia` y (espejo SQL) `dias_*_entre` en migración 58.
  */
 export const diasAusencia = (
   desde: string,

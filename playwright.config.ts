@@ -16,6 +16,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
+  // El server de desarrollo compila cada ruta la primera vez que alguien
+  // la pide. Con varios workers pidiendo secciones distintas a la vez, los
+  // 30 s que trae Playwright de fábrica se agotan esperando a que compile
+  // y el test falla por algo que no tiene que ver con la app.
+  timeout: 60_000,
   reporter: 'html',
   use: {
     // app.localhost resuelve a loopback en Chromium y activa el modo

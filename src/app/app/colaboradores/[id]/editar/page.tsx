@@ -10,6 +10,7 @@ import {
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { actualizarEmpleado, getEmpleado } from '@/lib/services/rrhh';
 import { BloqueError } from '@/components/app/EstadoCarga';
+import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { useCarga } from '@/lib/useCarga';
 
 const EditarColaboradorPage = () => {
@@ -92,4 +93,11 @@ const EditarColaboradorPage = () => {
   );
 };
 
-export default EditarColaboradorPage;
+/** La ficha pertenece a una empresa: sin una activa no hay a quién pedir. */
+const EditarColaboradorConEmpresa = () => (
+  <RequireEmpresa>
+    <EditarColaboradorPage />
+  </RequireEmpresa>
+);
+
+export default EditarColaboradorConEmpresa;

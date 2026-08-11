@@ -4,7 +4,6 @@ import { useCallback, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  IconArrowLeft,
   IconCash,
   IconCheck,
   IconClockExclamation,
@@ -19,6 +18,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { Boton } from '@/components/app/ui/Boton';
+import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
 import { BarrasMensuales } from '@/components/app/finanzas/BarrasMensuales';
 import { EditarEmpresaModal } from '@/components/app/empresas/EditarEmpresaModal';
 import { formatearPesos } from '@/lib/formato';
@@ -155,13 +155,12 @@ const EmpresaDetallePage = () => {
 
   return (
     <div className="flex flex-col gap-6">
-      <Link
-        href="/empresas"
-        className="flex w-fit items-center gap-1.5 text-sm font-semibold text-ink-soft no-underline transition-colors hover:text-ink"
-      >
-        <IconArrowLeft size={16} />
-        Empresas
-      </Link>
+      <Breadcrumbs
+        items={[
+          { etiqueta: 'Empresas', href: '/empresas' },
+          { etiqueta: empresa.nombre },
+        ]}
+      />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
