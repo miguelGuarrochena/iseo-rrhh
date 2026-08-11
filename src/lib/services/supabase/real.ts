@@ -490,8 +490,13 @@ export const actualizarConfigPlataforma = async (
 };
 
 // ---------- Empleados ----------
+// Reads go through `empleados_lectura` (mig 66): same row visibility with
+// CBU / biometrics redacted for supervisors. Mutations stay on `empleados`.
 
-const EMPLEADO_SELECT_SIN_BIOMETRIA = `
+const EMPLEADOS_LECTURA = 'empleados_lectura';
+
+/** Columns safe to RETURNING from base table (no CBU / biometrics). */
+const EMPLEADO_SELECT_TABLA = `
   id,
   empresa_id,
   nombre,
@@ -516,7 +521,6 @@ const EMPLEADO_SELECT_SIN_BIOMETRIA = `
   fecha_fin_contrato,
   modalidad_pago,
   banco,
-  cbu,
   obra_social,
   art,
   convenio,
@@ -524,6 +528,7 @@ const EMPLEADO_SELECT_SIN_BIOMETRIA = `
   fecha_baja,
   motivo_baja,
   checklist_alta,
+  sin_usuario,
   modo_fichaje,
   geocerca
 `;
@@ -548,8 +553,8 @@ export const getEmpleados = async (
   const filas = await traerTodo(
     (d, h) =>
       sb()
-        .from('empleados')
-        .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+        .from(EMPLEADOS_LECTURA)
+        .select('*')
         .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
         .eq('activo', true)
         .order('apellido')
@@ -581,8 +586,8 @@ export const getEmpleadosConCuenta = async (): Promise<string[]> => {
 
 export const getEmpleadosTodos = async (): Promise<Empleado[]> => {
   const { data, error } = await sb()
-    .from('empleados')
-    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+    .from(EMPLEADOS_LECTURA)
+    .select('*')
     .eq('empresa_id', empresaId())
     .order('apellido');
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
@@ -590,7 +595,7 @@ export const getEmpleadosTodos = async (): Promise<Empleado[]> => {
 
 export const getEmpleado = async (id: string): Promise<Empleado | null> => {
   const { data } = await sb()
-    .from('empleados')
+    .from(EMPLEADOS_LECTURA)
     .select('*')
     .eq('id', id)
     .maybeSingle();
@@ -601,8 +606,8 @@ export const getEmpleado = async (id: string): Promise<Empleado | null> => {
 
 export const getEquipo = async (supervisorId: string): Promise<Empleado[]> => {
   const { data, error } = await sb()
-    .from('empleados')
-    .select(EMPLEADO_SELECT_SIN_BIOMETRIA)
+    .from(EMPLEADOS_LECTURA)
+    .select('*')
     .eq('supervisor_id', supervisorId)
     .eq('activo', true);
   return conFotosFirmadas(oFalla(data, error).map(aEmpleado));
@@ -656,9 +661,11 @@ export const crearEmpleado = async (
       geocerca: datos.geocerca ?? null,
       checklist_alta: CHECKLIST_ALTA,
     })
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
-  return aEmpleado(oFalla(data, error));
+  const creado = oFalla(data, error);
+  const completo = await getEmpleado(creado.id as string);
+  return completo ?? aEmpleado(creado);
 };
 
 /**
@@ -759,14 +766,14 @@ export const actualizarEmpleado = async (
     .from('empleados')
     .update(cambios)
     .eq('id', id)
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
   if (error) throw new Error(error.message);
   if (!data) return null;
   await registrarAuditoria('actualizar', 'empleado', id, {
     campos: Object.keys(cambios),
   });
-  return aEmpleado(data);
+  return getEmpleado(id);
 };
 
 /**
@@ -799,7 +806,7 @@ export const darDeBajaEmpleado = async (
       consentimiento_biometrico: null,
     })
     .eq('id', id)
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
   if (error) throw new Error(error.message);
   if (!data) return null;
@@ -807,7 +814,7 @@ export const darDeBajaEmpleado = async (
     fecha,
     biometriaBorrada: true,
   });
-  return aEmpleado(data);
+  return getEmpleado(id);
 };
 
 export const toggleChecklistItem = async (
@@ -823,10 +830,10 @@ export const toggleChecklistItem = async (
     .from('empleados')
     .update({ checklist_alta: checklist })
     .eq('id', empleadoId)
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
   if (error) throw new Error(error.message);
-  return data ? aEmpleado(data) : null;
+  return data ? getEmpleado(empleadoId) : null;
 };
 
 // ---------- Legajo: documentos ----------
@@ -1795,11 +1802,12 @@ export const enrolarRostro = async (
     })
     .eq('id', empleadoId)
     .eq('empresa_id', empresaId())
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
+  if (error) throw new Error(error.message);
   if (!data) return null;
   await registrarAuditoria('enrolar', 'biometria_facial', empleadoId);
-  return aEmpleado(oFalla(data, error));
+  return getEmpleado(empleadoId);
 };
 
 /** Borra el rostro enrolado de un empleado. */
@@ -1811,11 +1819,12 @@ export const borrarRostro = async (
     .update({ descriptor_facial: null, consentimiento_biometrico: null })
     .eq('id', empleadoId)
     .eq('empresa_id', empresaId())
-    .select()
+    .select(EMPLEADO_SELECT_TABLA)
     .single();
+  if (error) throw new Error(error.message);
   if (!data) return null;
   await registrarAuditoria('borrar', 'biometria_facial', empleadoId);
-  return aEmpleado(oFalla(data, error));
+  return getEmpleado(empleadoId);
 };
 
 /** Descriptores de los empleados activos con rostro enrolado (para 1:N). */
@@ -1823,7 +1832,7 @@ export const getDescriptoresFaciales = async (): Promise<
   DescriptorFacial[]
 > => {
   const { data, error } = await sb()
-    .from('empleados')
+    .from(EMPLEADOS_LECTURA)
     .select('id, descriptor_facial')
     .eq('empresa_id', empresaId())
     .eq('activo', true)
