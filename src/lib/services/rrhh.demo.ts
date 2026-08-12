@@ -65,10 +65,7 @@ import {
 } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { diasAusencia, hoyISO } from '@/lib/fechas';
-import {
-  aniosFeriadosAsegurar,
-  feriadosSugeridos,
-} from '@/lib/feriados';
+import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
 import {
   puedeAprobarLicenciaContraCupo,
   saldoLicenciaDisponibleDe,
@@ -2122,7 +2119,9 @@ const asegurarFeriadosDemo = (anios: number[]) => {
   const eid = empresaDemo();
   for (const a of anios) {
     for (const n of feriadosSugeridos(a)) {
-      if (feriadosMock.some((f) => f.fecha === n.fecha && f.empresaId === eid)) {
+      if (
+        feriadosMock.some((f) => f.fecha === n.fecha && f.empresaId === eid)
+      ) {
         continue;
       }
       feriadosMock.push({

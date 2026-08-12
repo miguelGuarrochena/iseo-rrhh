@@ -83,10 +83,7 @@ import { armarJornadas, horasEntre, Jornada } from '@/lib/fichadas';
 import { claveTurno, controlarJornada, indexarTurnos } from '@/lib/turnos';
 import { traerTodo as traerTodoBase } from './paginado';
 import { aISOLocal, diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
-import {
-  aniosFeriadosAsegurar,
-  feriadosSugeridos,
-} from '@/lib/feriados';
+import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
 import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import {

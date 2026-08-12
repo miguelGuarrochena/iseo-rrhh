@@ -120,8 +120,8 @@ export const FeriadosPanel = () => {
           <p className="mt-1 text-sm text-ink-soft">
             Los nacionales (fijos, trasladables y Carnaval / Viernes Santo) se
             cargan solos cada año. Acá sumás puentes turísticos y días no
-            laborables de la empresa; se descuentan de las vacaciones cuando
-            las cuentan en días hábiles.
+            laborables de la empresa; se descuentan de las vacaciones cuando las
+            cuentan en días hábiles.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -183,7 +183,9 @@ export const FeriadosPanel = () => {
       )}
 
       <div className="mt-5 border-t border-line pt-4">
-        <p className="text-sm font-semibold text-ink">Agregar puente o día de la empresa</p>
+        <p className="text-sm font-semibold text-ink">
+          Agregar puente o día de la empresa
+        </p>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="sm:w-48">
             <CampoFecha etiqueta="Fecha" value={fecha} onChange={setFecha} />
