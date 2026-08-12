@@ -228,7 +228,7 @@ const AgendaPage = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-ink">Agenda</h1>
           <p className="mt-1 text-sm text-ink-soft">
-            Eventos, capacitaciones, cumpleaños y vencimientos.
+            Eventos, feriados, cumpleaños y vencimientos.
           </p>
         </div>
         {puedeCrear && (
@@ -255,6 +255,12 @@ const AgendaPage = () => {
           onReintentar={cargaEventos.recargar}
         />
       )}
+      {cargaFeriados.fase === 'error' && cargaFeriados.error && (
+        <BloqueError
+          error={cargaFeriados.error}
+          onReintentar={cargaFeriados.recargar}
+        />
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,20rem)_1fr]">
         <Panel className="h-fit">
@@ -268,7 +274,10 @@ const AgendaPage = () => {
 
         <ListaCard
           titulo={diaSeleccionado ? 'Eventos del día' : 'Próximos'}
-          cargando={cargaEventos.fase === 'cargando'}
+          cargando={
+            cargaEventos.fase === 'cargando' ||
+            cargaFeriados.fase === 'cargando'
+          }
           vacio={
             diaSeleccionado
               ? 'No hay eventos ese día.'
