@@ -186,7 +186,7 @@ export const FAQ: FaqCategoria[] = [
       {
         pregunta: '¿Qué aparece en la Agenda además de lo que cargo yo?',
         respuesta:
-          'Los vencimientos que el sistema calcula solo (fin de contrato a plazo fijo, documentos por vencer) aparecen automáticamente como tipo "Vencimiento", con link directo a la ficha del colaborador. No hace falta cargarlos a mano.',
+          'Los feriados nacionales se cargan solos cada año. También aparecen los cumpleaños (según la fecha de nacimiento del legajo) y los vencimientos que calcula el sistema (fin de contrato a plazo fijo, documentos por vencer) como tipo "Vencimiento", con link a la ficha. Capacitaciones y demás eventos los cargás vos.',
         roles: GESTION,
       },
     ],

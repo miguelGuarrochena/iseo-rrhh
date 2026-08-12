@@ -81,9 +81,19 @@ export const fechaTrasladable = (anio: number, mmdd: string): string => {
 };
 
 /**
- * Propuesta de feriados para cargar de un año. Es un punto de partida
- * editable: RRHH revisa y suma los puentes turísticos cuando salen en
- * el Boletín Oficial.
+ * Años cuyos nacionales hay que asegurar al leer feriados.
+ * Con año explícito, ese; si no, el actual y el siguiente (agenda).
+ */
+export const aniosFeriadosAsegurar = (anio?: number): number[] => {
+  if (anio) return [anio];
+  const actual = new Date().getFullYear();
+  return [actual, actual + 1];
+};
+
+/**
+ * Nacionales de un año (fijos, trasladables Ley 27.399, Carnaval y
+ * Viernes Santo). Se aseguran solos al abrir agenda/config. Los puentes
+ * turísticos salen por decreto y RRHH los suma a mano.
  */
 export const feriadosSugeridos = (anio: number): NuevoFeriado[] => {
   const pascua = domingoDePascua(anio);

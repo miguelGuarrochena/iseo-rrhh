@@ -66,6 +66,10 @@ import {
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { diasAusencia, hoyISO } from '@/lib/fechas';
 import {
+  aniosFeriadosAsegurar,
+  feriadosSugeridos,
+} from '@/lib/feriados';
+import {
   puedeAprobarLicenciaContraCupo,
   saldoLicenciaDisponibleDe,
 } from '@/lib/seguridad/cuposLicencia';
@@ -2113,12 +2117,32 @@ export const getAuditoria = async (_limite = 50): Promise<AccionAuditoria[]> =>
 
 const feriadosMock: Feriado[] = [];
 
-export const getFeriados = async (anio?: number): Promise<Feriado[]> =>
-  simular(
+/** Nacionales del año se cargan solos, como en prod vía RPC. */
+const asegurarFeriadosDemo = (anios: number[]) => {
+  const eid = empresaDemo();
+  for (const a of anios) {
+    for (const n of feriadosSugeridos(a)) {
+      if (feriadosMock.some((f) => f.fecha === n.fecha && f.empresaId === eid)) {
+        continue;
+      }
+      feriadosMock.push({
+        ...n,
+        id: `fer-auto-${n.fecha}`,
+        empresaId: eid,
+      });
+    }
+  }
+};
+
+export const getFeriados = async (anio?: number): Promise<Feriado[]> => {
+  const anios = aniosFeriadosAsegurar(anio);
+  asegurarFeriadosDemo(anios);
+  return simular(
     feriadosMock
       .filter((f) => !anio || f.fecha.startsWith(String(anio)))
       .sort((a, b) => (a.fecha < b.fecha ? -1 : 1))
   );
+};
 
 export const guardarFeriados = async (
   nuevos: NuevoFeriado[]

@@ -4,11 +4,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo } from '@/components/app/ui/Campo';
+import { Campo, CampoSelect } from '@/components/app/ui/Campo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { avisoError, avisoExito } from '@/lib/avisos';
-import { feriadosSugeridos } from '@/lib/feriados';
 import { formatearFecha } from '@/lib/fechas';
 import {
   eliminarFeriado,
@@ -26,9 +25,15 @@ const tipoLabels: Record<Feriado['tipo'], string> = {
   empresa: 'De la empresa',
 };
 
+const tipoExtraOpciones = [
+  { valor: 'empresa', etiqueta: 'De la empresa' },
+  { valor: 'puente', etiqueta: 'Puente turístico' },
+];
+
 /**
- * Calendario de feriados de la empresa. Se usa para no descontar esos
- * días de las vacaciones y para saber que lo trabajado ahí va aparte.
+ * Calendario de feriados de la empresa. Los nacionales se aseguran solos
+ * al leer (agenda, vacaciones, fichadas). Acá RRHH suma puentes y días
+ * propios, y puede quitar sólo esos (no los nacionales).
  */
 export const FeriadosPanel = () => {
   const [anio, setAnio] = useState(new Date().getFullYear());
@@ -36,6 +41,7 @@ export const FeriadosPanel = () => {
   const [cargando, setCargando] = useState(true);
   const [fecha, setFecha] = useState('');
   const [nombre, setNombre] = useState('');
+  const [tipoExtra, setTipoExtra] = useState<'puente' | 'empresa'>('empresa');
   const [guardando, setGuardando] = useState(false);
   const { confirmar, dialogo } = useConfirmacion();
 
@@ -48,26 +54,6 @@ export const FeriadosPanel = () => {
 
   useEffect(cargar, [cargar]);
 
-  const cargarSugeridos = async () => {
-    setGuardando(true);
-    try {
-      const agregados = await guardarFeriados(feriadosSugeridos(anio));
-      avisoExito(
-        agregados.length > 0
-          ? `Se cargaron ${agregados.length} feriados de ${anio}`
-          : 'Ya estaban todos cargados',
-        'Revisá si faltan puentes turísticos: esos salen por decreto cada año.'
-      );
-      cargar();
-    } catch (err) {
-      avisoError(
-        'No pudimos cargarlos',
-        err instanceof Error ? err.message : undefined
-      );
-    }
-    setGuardando(false);
-  };
-
   const agregar = async () => {
     if (!fecha || !nombre.trim()) {
       avisoError('Falta la fecha o el nombre');
@@ -76,7 +62,12 @@ export const FeriadosPanel = () => {
     setGuardando(true);
     try {
       await guardarFeriados([
-        { fecha, nombre: nombre.trim(), tipo: 'empresa', noLaborable: true },
+        {
+          fecha,
+          nombre: nombre.trim(),
+          tipo: tipoExtra,
+          noLaborable: true,
+        },
       ]);
       avisoExito('Feriado agregado');
       setFecha('');
@@ -92,6 +83,17 @@ export const FeriadosPanel = () => {
   };
 
   const borrar = async (f: Feriado) => {
+    if (f.tipo === 'nacional') {
+      avisoError(
+        'Los feriados nacionales no se borran',
+        'Se cargan solos todos los años. Si ese día se trabaja, sumalo como excepción en otro lado o consultá a soporte.'
+      );
+      return;
+    }
+    if (f.id.startsWith('nacional-')) {
+      // Virtual (aún no persistido): no hay fila que borrar.
+      return;
+    }
     const ok = await confirmar({
       titulo: 'Quitar feriado',
       detalle: `${f.nombre} (${formatearFecha(f.fecha)}) deja de contarse como día no laborable.`,
@@ -116,9 +118,10 @@ export const FeriadosPanel = () => {
         <div>
           <h2 className="text-base font-bold text-ink">Feriados</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            Los sábados y domingos ya se detectan solos. Acá cargás los
-            feriados, que se descuentan de las vacaciones cuando la empresa las
-            cuenta en días hábiles.
+            Los nacionales (fijos, trasladables y Carnaval / Viernes Santo) se
+            cargan solos cada año. Acá sumás puentes turísticos y días no
+            laborables de la empresa; se descuentan de las vacaciones cuando
+            las cuentan en días hábiles.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -145,23 +148,9 @@ export const FeriadosPanel = () => {
       {cargando ? (
         <p className="mt-4 text-sm text-ink-soft">Cargando…</p>
       ) : lista.length === 0 ? (
-        <div className="mt-4 rounded-xl border border-line bg-paper px-4 py-5">
-          <p className="text-sm text-ink">
-            No hay feriados cargados para {anio}.
-          </p>
-          <p className="mt-1 text-sm text-ink-soft">
-            Puedo cargar los nacionales (fijos, trasladables según la ley, más
-            Carnaval y Viernes Santo). Los puentes turísticos salen por decreto
-            cada año, así que esos los cargás vos.
-          </p>
-          <Boton
-            className="mt-3"
-            onClick={() => void cargarSugeridos()}
-            disabled={guardando}
-          >
-            Cargar feriados de {anio}
-          </Boton>
-        </div>
+        <p className="mt-4 text-sm text-ink-soft">
+          No hay feriados para {anio}.
+        </p>
       ) : (
         <div className="mt-4 flex flex-col gap-2">
           {lista.map((f) => (
@@ -178,30 +167,23 @@ export const FeriadosPanel = () => {
                   {tipoLabels[f.tipo]}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => void borrar(f)}
-                aria-label={`Quitar ${f.nombre}`}
-                className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600"
-              >
-                <IconTrash size={16} />
-              </button>
+              {f.tipo !== 'nacional' && (
+                <button
+                  type="button"
+                  onClick={() => void borrar(f)}
+                  aria-label={`Quitar ${f.nombre}`}
+                  className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600"
+                >
+                  <IconTrash size={16} />
+                </button>
+              )}
             </div>
           ))}
-          <Boton
-            variante="secundario"
-            tamano="sm"
-            className="self-start"
-            onClick={() => void cargarSugeridos()}
-            disabled={guardando}
-          >
-            Completar con los nacionales de {anio}
-          </Boton>
         </div>
       )}
 
       <div className="mt-5 border-t border-line pt-4">
-        <p className="text-sm font-semibold text-ink">Agregar uno</p>
+        <p className="text-sm font-semibold text-ink">Agregar puente o día de la empresa</p>
         <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
           <div className="sm:w-48">
             <CampoFecha etiqueta="Fecha" value={fecha} onChange={setFecha} />
@@ -212,6 +194,14 @@ export const FeriadosPanel = () => {
               value={nombre}
               onChange={(e) => setNombre(e.currentTarget.value)}
               placeholder="Ej: Día del gremio"
+            />
+          </div>
+          <div className="sm:w-44">
+            <CampoSelect
+              etiqueta="Tipo"
+              value={tipoExtra}
+              onChange={(v) => setTipoExtra(v as 'puente' | 'empresa')}
+              opciones={tipoExtraOpciones}
             />
           </div>
           <Boton onClick={() => void agregar()} disabled={guardando}>

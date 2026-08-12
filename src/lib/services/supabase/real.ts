@@ -83,6 +83,10 @@ import { armarJornadas, horasEntre, Jornada } from '@/lib/fichadas';
 import { claveTurno, controlarJornada, indexarTurnos } from '@/lib/turnos';
 import { traerTodo as traerTodoBase } from './paginado';
 import { aISOLocal, diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
+import {
+  aniosFeriadosAsegurar,
+  feriadosSugeridos,
+} from '@/lib/feriados';
 import { supabase } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import {
@@ -3869,8 +3873,58 @@ const aFeriado = (f: Record<string, unknown>): Feriado => ({
   noLaborable: (f.no_laborable as boolean) ?? true,
 });
 
+/**
+ * Inserta los nacionales faltantes del/los año(s). Usa RPC security
+ * definer porque el colaborador puede leer feriados pero no insertar
+ * (RLS). Si la RPC aún no está en la base, seguimos: la lectura igual
+ * fusiona en memoria más abajo.
+ */
+const asegurarFeriadosNacionales = async (anios: number[]): Promise<void> => {
+  const sugeridos = anios.flatMap(feriadosSugeridos);
+  if (sugeridos.length === 0) return;
+  const { error } = await sb().rpc('asegurar_feriados_nacionales', {
+    p_feriados: sugeridos.map((f) => ({
+      fecha: f.fecha,
+      nombre: f.nombre,
+      tipo: f.tipo,
+      noLaborable: f.noLaborable,
+    })),
+    p_empresa: empresaId(),
+  });
+  // Sin migración / sin permiso: no rompemos la lectura.
+  if (error) return;
+};
+
+/**
+ * Si faltan nacionales en la tabla (RPC vieja o falló), los armamos en
+ * memoria para agenda / preview de ausencias. El saldo SQL sólo ve la
+ * tabla: por eso preferimos la RPC arriba.
+ */
+const fusionarNacionalesFaltantes = (
+  existentes: Feriado[],
+  anios: number[]
+): Feriado[] => {
+  const fechas = new Set(existentes.map((f) => f.fecha));
+  const eid = empresaId();
+  const virtuales: Feriado[] = anios
+    .flatMap(feriadosSugeridos)
+    .filter((f) => !fechas.has(f.fecha))
+    .map((f) => ({
+      id: `nacional-${f.fecha}`,
+      empresaId: eid,
+      ...f,
+    }));
+  if (virtuales.length === 0) return existentes;
+  return [...existentes, ...virtuales].sort((a, b) =>
+    a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0
+  );
+};
+
 /** Feriados de la empresa. Con `anio`, sólo los de ese año. */
 export const getFeriados = async (anio?: number): Promise<Feriado[]> => {
+  const anios = aniosFeriadosAsegurar(anio);
+  await asegurarFeriadosNacionales(anios);
+
   let q = sb()
     .from('feriados')
     .select('*')
@@ -3878,7 +3932,7 @@ export const getFeriados = async (anio?: number): Promise<Feriado[]> => {
     .order('fecha');
   if (anio) q = q.gte('fecha', `${anio}-01-01`).lte('fecha', `${anio}-12-31`);
   const { data, error } = await q;
-  return oFalla(data, error).map(aFeriado);
+  return fusionarNacionalesFaltantes(oFalla(data, error).map(aFeriado), anios);
 };
 
 /**
@@ -3908,6 +3962,15 @@ export const guardarFeriados = async (
 };
 
 export const eliminarFeriado = async (feriadoId: string): Promise<void> => {
+  // Los nacionales se reaseguran solos: borrar uno no tiene sentido.
+  const { data: fila } = await sb()
+    .from('feriados')
+    .select('tipo')
+    .eq('id', feriadoId)
+    .maybeSingle();
+  if (fila?.tipo === 'nacional') {
+    fallar('Los feriados nacionales no se pueden borrar');
+  }
   const { error } = await sb().from('feriados').delete().eq('id', feriadoId);
   if (error) fallar(error.message);
 };

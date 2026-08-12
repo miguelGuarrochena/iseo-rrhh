@@ -40,8 +40,8 @@ const POR_PAGINA = 8;
 /**
  * Tipos que se muestran en la agenda. Son los de `EventoAgenda` más
  * "feriado", que no es un evento cargado a mano sino una fila de la
- * tabla `feriados`: se carga desde Configuración y hasta ahora no se
- * veía en ningún calendario, que era justo para lo que se cargaba.
+ * tabla `feriados`: los nacionales se aseguran solos al leer; RRHH
+ * suma puentes y días de la empresa desde Configuración.
  */
 type TipoItem = TipoEvento | 'feriado';
 
@@ -148,8 +148,8 @@ const AgendaPage = () => {
   const alertas = cargaAlertas.datos;
 
   // Los feriados los ve todo el mundo: al colaborador le sirve igual para
-  // saber qué día no se trabaja. Se piden sin año para traer también los
-  // del año que viene ya cargados.
+  // saber qué día no se trabaja. Los nacionales del año actual y el
+  // siguiente se aseguran solos al pedirlos.
   const cargaFeriados = useCarga(() => getFeriados(), [], {
     contexto: 'agenda/feriados',
     inicial: [] as Feriado[],

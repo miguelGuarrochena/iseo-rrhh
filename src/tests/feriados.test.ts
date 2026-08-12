@@ -1,4 +1,8 @@
-import { fechaTrasladable, feriadosSugeridos } from '@/lib/feriados';
+import {
+  aniosFeriadosAsegurar,
+  fechaTrasladable,
+  feriadosSugeridos,
+} from '@/lib/feriados';
 
 describe('fechaTrasladable (Ley 27.399)', () => {
   it('martes/miércoles → lunes anterior', () => {
@@ -23,5 +27,16 @@ describe('feriadosSugeridos', () => {
     expect(fechas).toContain('2026-08-17');
     expect(fechas).toContain('2026-10-12');
     expect(fechas).toContain('2026-11-23');
+  });
+});
+
+describe('aniosFeriadosAsegurar', () => {
+  it('con año explícito, sólo ese', () => {
+    expect(aniosFeriadosAsegurar(2027)).toEqual([2027]);
+  });
+
+  it('sin año, actual y siguiente', () => {
+    const actual = new Date().getFullYear();
+    expect(aniosFeriadosAsegurar()).toEqual([actual, actual + 1]);
   });
 });
