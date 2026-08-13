@@ -93,8 +93,8 @@ describe('modo kiosco', () => {
     expect(
       puedeAdministrarTerminal(usuario('admin_rrhh', 'otra'), empresa)
     ).toBe(false);
-    expect(
-      puedeAdministrarTerminal(usuario('superadmin', null), empresa)
-    ).toBe(true);
+    expect(puedeAdministrarTerminal(usuario('superadmin', null), empresa)).toBe(
+      true
+    );
   });
 });
