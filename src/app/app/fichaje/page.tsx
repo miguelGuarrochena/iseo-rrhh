@@ -311,11 +311,26 @@ const FichajePage = () => {
       </div>
 
       {!esEmpleado && !esTerminal && (
-        <p className="flex items-center gap-2 rounded-xl bg-paper px-4 py-2.5 text-xs text-ink-soft">
-          <IconDeviceTablet size={14} className="shrink-0" />
-          Para el fichaje en planta (Modo planta), autorizá esta tablet como
-          terminal en Configuración → Terminales de fichaje. Si la tablet falla
-          o no hay conexión, usá &quot;Cargar a mano&quot; como respaldo.
+        <div className="flex flex-col gap-2 rounded-2xl border border-line bg-paper px-4 py-3.5 text-sm text-ink-soft">
+          <p className="flex items-center gap-2 font-semibold text-ink">
+            <IconDeviceTablet size={16} className="shrink-0" />
+            Para dejar esta tablet fichando
+          </p>
+          <ol className="ml-6 list-decimal text-xs leading-relaxed">
+            <li>Autorizala en Configuración, Terminales de fichaje.</li>
+            <li>Volvé acá y tocá Modo planta. Elegí un PIN y anotalo.</li>
+            <li>
+              Si la tablet falla, usá &quot;Cargar a mano&quot; como respaldo.
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {!esEmpleado && esTerminal && (
+        <p className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
+          <IconDeviceTablet size={16} className="shrink-0" />
+          Esta tablet ya está autorizada. Tocá Modo planta para dejarla
+          fichando.
         </p>
       )}
 

@@ -142,7 +142,6 @@ export const FichajeFacialModal = ({
                 hour: '2-digit',
                 minute: '2-digit',
               })}
-              {` · ${Math.round(resultado.confianza * 100)}% de confianza`}
             </p>
             {resultado.fueraDeZona && (
               <p className="mt-2 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
@@ -169,8 +168,8 @@ export const FichajeFacialModal = ({
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed text-ink-soft">
             {modo === 'identificar'
-              ? 'Ubicá tu cara en el óvalo. El sistema te reconoce y registra tu ingreso o egreso.'
-              : 'Mirá a la cámara para confirmar tu identidad y registrar el fichaje.'}
+              ? 'Poné la cara en el óvalo, con buena luz. Si no te reconoce, pedile a RRHH que vuelva a cargar tu foto.'
+              : 'Mirá a la cámara para confirmar que sos vos y registrar el fichaje.'}
           </p>
 
           {error && (

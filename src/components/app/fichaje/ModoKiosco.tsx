@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { IconFaceId, IconLock } from '@tabler/icons-react';
+import { IconFaceId, IconLock, IconWifiOff } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
@@ -12,6 +12,8 @@ import { PinPad } from '@/components/app/fichaje/PinPad';
 import {
   desactivarKiosco,
   empresaDelKiosco,
+  intentosPinKiosco,
+  MAX_INTENTOS_PIN,
   pinBloqueado,
   puedeAdministrarTerminal,
   salirKioscoForzado,
@@ -110,7 +112,6 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
     recargarEmpleados,
   ]);
 
-  // Si se cayó la red, se recupera solo: no hace falta ir a Opciones.
   useEffect(() => {
     if (puedeFichar) return;
     const id = window.setInterval(reintentar, 15_000);
@@ -127,7 +128,6 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
     setCamaraAbierta(true);
   }, [abrirAlEstarListo, puedeFichar, pestania]);
 
-  /** Un toque: si está listo abre la cámara; si no, recarga y ficha en cuanto vuelva. */
   const tocarFichar = () => {
     setPestania('fichar');
     if (puedeFichar) {
@@ -148,10 +148,13 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
     setPin('');
     const trabado = pinBloqueado();
     setBloqueado(trabado);
+    const restan = MAX_INTENTOS_PIN - intentosPinKiosco();
     setPinError(
       trabado
         ? 'Demasiados intentos. Entrá con tu usuario de RRHH.'
-        : 'PIN incorrecto.'
+        : restan === 1
+          ? 'PIN incorrecto. Te queda 1 intento.'
+          : `PIN incorrecto. Te quedan ${restan} intentos.`
     );
   };
 
@@ -173,17 +176,23 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
       salirKioscoForzado();
       onSalir();
     } catch (err) {
-      setLoginError(
-        err instanceof Error ? err.message : 'No pudimos entrar.'
-      );
+      setLoginError(err instanceof Error ? err.message : 'No pudimos entrar.');
     } finally {
       setEnviando(false);
     }
   };
 
+  const etiquetaFichar =
+    cargando && abrirAlEstarListo ? 'Conectando…' : 'Fichar';
+  const ayudaFichar = puedeFichar
+    ? 'Acercate y mirá a la cámara. Te reconoce y registra el ingreso o el egreso.'
+    : cargando
+      ? 'Estamos reconectando. Si no abre, tocá Fichar de nuevo.'
+      : 'No hay conexión. Tocá Fichar para reintentar. Si sigue, avisá a tu responsable.';
+
   return (
     <div className="app-scope bg-app fixed inset-0 z-50 flex min-h-screen flex-col">
-      <header className="flex items-center justify-between px-5 py-4 sm:px-6">
+      <header className="flex items-center justify-between gap-3 px-5 py-4 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           {empresa?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -195,10 +204,24 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
           ) : (
             <Logo className="h-8 w-auto" />
           )}
-          <span className="truncate text-sm font-bold text-ink">
-            {empresa?.nombre ?? 'Terminal de fichaje'}
-          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-ink">
+              {empresa?.nombre ?? 'Fichaje en planta'}
+            </p>
+            <p className="truncate text-xs text-ink-soft">
+              Solo se ficha. Nadie ve el resto de la app.
+            </p>
+          </div>
         </div>
+        <span
+          className={`shrink-0 rounded-full px-3 py-1 text-[0.65rem] font-bold ${
+            puedeFichar
+              ? 'bg-emerald-100 text-emerald-800'
+              : 'bg-amber-100 text-amber-900'
+          }`}
+        >
+          {puedeFichar ? 'Listo' : cargando ? 'Conectando' : 'Sin conexión'}
+        </span>
       </header>
 
       <main className="flex flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 pb-28 pt-2 text-center">
@@ -217,21 +240,26 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
               </p>
             </div>
 
+            {!puedeFichar && (
+              <p className="flex max-w-sm items-center gap-2 rounded-xl bg-amber-50 px-4 py-2.5 text-left text-xs font-semibold text-amber-900">
+                <IconWifiOff size={16} className="shrink-0" />
+                Reintentamos solos cada 15 segundos. También podés tocar Fichar.
+              </p>
+            )}
+
             <button
               type="button"
               onClick={tocarFichar}
-              className="flex cursor-pointer flex-col items-center gap-4 rounded-3xl border border-brand-200 bg-surface px-14 py-10 transition-colors hover:border-brand-400"
+              className="presionable flex cursor-pointer flex-col items-center gap-4 rounded-3xl border border-brand-200 bg-surface px-12 py-10 sm:px-14"
             >
               <span className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-100 text-brand-700">
                 <IconFaceId size={44} stroke={1.6} />
               </span>
               <span className="text-xl font-bold text-ink">
-                {cargando && abrirAlEstarListo ? 'Conectando…' : 'Fichar'}
+                {etiquetaFichar}
               </span>
-              <span className="max-w-56 text-sm text-ink-soft">
-                {puedeFichar
-                  ? 'Acercate y mirá a la cámara: te reconoce y registra tu ingreso o egreso.'
-                  : 'Tocá Fichar para volver a intentar. Si sigue así, avisá a tu responsable.'}
+              <span className="max-w-64 text-sm leading-relaxed text-ink-soft">
+                {ayudaFichar}
               </span>
             </button>
           </>
@@ -240,8 +268,8 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
             <div className="w-full">
               <p className="text-lg font-bold text-ink">Solo para RRHH</p>
               <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-                Los colaboradores fichan con la cara. Acá se desbloquea la
-                tablet para configurarla.
+                Acá se desbloquea la tablet. El equipo ficha desde la otra
+                pestaña, Fichar.
               </p>
             </div>
 
@@ -251,7 +279,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
                 className="flex w-full flex-col gap-3"
               >
                 <Campo
-                  etiqueta="Email"
+                  etiqueta="Email de RRHH o ISEO"
                   type="email"
                   autoComplete="username"
                   value={email}
@@ -265,7 +293,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
                   onChange={(e) => setPassword(e.target.value)}
                 />
                 {loginError && (
-                  <p className="text-sm font-semibold text-red-700">
+                  <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
                     {loginError}
                   </p>
                 )}
@@ -279,7 +307,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
                       setConUsuario(false);
                       setLoginError(null);
                     }}
-                    className="cursor-pointer border-0 bg-transparent text-sm font-semibold text-brand-700"
+                    className="min-h-11 cursor-pointer border-0 bg-transparent text-sm font-semibold text-brand-700"
                   >
                     Usar el PIN
                   </button>
@@ -287,6 +315,9 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
               </form>
             ) : (
               <>
+                <p className="w-full text-sm font-semibold text-ink">
+                  PIN de esta tablet
+                </p>
                 <PinPad
                   value={pin}
                   onChange={(v) => {
@@ -296,7 +327,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
                   onConfirmar={() => void intentarPin()}
                 />
                 {pinError && (
-                  <p className="text-sm font-semibold text-red-700">
+                  <p className="w-full rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">
                     {pinError}
                   </p>
                 )}
@@ -307,7 +338,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
                     setPin('');
                     setPinError(null);
                   }}
-                  className="cursor-pointer border-0 bg-transparent text-sm font-semibold text-brand-700"
+                  className="min-h-11 cursor-pointer border-0 bg-transparent text-sm font-semibold text-brand-700"
                 >
                   ¿No tenés el PIN? Entrá con tu usuario
                 </button>
@@ -337,7 +368,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
             }`}
           >
             <IconLock size={22} stroke={pestania === 'opciones' ? 2 : 1.6} />
-            Opciones
+            RRHH
           </button>
         </div>
       </nav>

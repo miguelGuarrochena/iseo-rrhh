@@ -49,10 +49,7 @@ export const Terminales = () => {
       const t = await registrarTerminal(nombre.trim());
       setTerminalLocal(t.id);
       setLocalId(t.id);
-      avisoExito(
-        'Dispositivo autorizado',
-        'Ya podés usar el Modo planta en este equipo.'
-      );
+      avisoExito('Tablet lista', 'Ahora andá a Fichaje y tocá Modo planta.');
       cargar();
     } catch {
       avisoError('No pudimos autorizar el dispositivo', 'Probá de nuevo.');
@@ -78,15 +75,14 @@ export const Terminales = () => {
     <div>
       <h2 className="text-base font-bold text-ink">Terminales de fichaje</h2>
       <p className="mt-1 text-sm text-ink-soft">
-        Autorizá una tablet como terminal del Modo planta. El fichaje facial de
-        planta solo funciona en dispositivos autorizados: así nadie puede fichar
-        desde su propio equipo.
+        Primer paso: autorizá esta tablet. Después andá a Fichaje y tocá Modo
+        planta. Así el equipo ficha con la cara y nadie ve sueldos ni legajos.
       </p>
 
       {esteEsTerminal ? (
         <div className="mt-4 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
           <IconCircleCheck size={18} />
-          Este dispositivo está autorizado como terminal.
+          Este dispositivo está autorizado. Siguiente: Fichaje → Modo planta.
         </div>
       ) : (
         <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-line bg-paper/50 p-4 sm:flex-row sm:items-end">

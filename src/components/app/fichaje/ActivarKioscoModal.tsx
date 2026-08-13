@@ -37,7 +37,6 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
     setError(null);
     setActivando(true);
     await activarKiosco(pin, empresaVista);
-    // Recarga completa: el layout detecta el kiosco y bloquea todo.
     window.location.reload();
   };
 
@@ -45,24 +44,37 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
     <Modal
       opened={abierto}
       onClose={onCerrar}
-      title="Bloquear tablet en Modo planta"
+      title="Dejar esta tablet para fichar"
       radius="lg"
       centered
       styles={{ title: { fontWeight: 800 } }}
     >
       <div className="flex flex-col gap-3.5">
         <p className="text-sm leading-relaxed text-ink-soft">
-          La tablet queda en una sola pantalla: <strong className="text-ink">Fichar</strong>.
-          Quien pasa no ve sueldos ni legajos. Para desbloquearla se usa este
-          PIN o el usuario de RRHH.
+          Queda una sola pantalla: Fichar. Quien pase no ve sueldos ni legajos.
         </p>
+        <ul className="flex flex-col gap-2 rounded-xl bg-paper px-4 py-3 text-sm text-ink-soft">
+          <li>
+            <strong className="text-ink">1.</strong> Elegí un PIN de 4 a 6
+            números y anotalo.
+          </li>
+          <li>
+            <strong className="text-ink">2.</strong> El equipo ficha con la
+            cara, sin usuario.
+          </li>
+          <li>
+            <strong className="text-ink">3.</strong> Para desbloquear: ese PIN o
+            tu usuario de RRHH.
+          </li>
+        </ul>
         <Campo
-          etiqueta="PIN para desbloquear (4 a 6 números)"
+          etiqueta="PIN para desbloquear"
           type="password"
           inputMode="numeric"
           value={pin}
           onChange={(e) => setPin(e.target.value)}
           placeholder="••••"
+          ayuda="4 a 6 números. No uses fechas obvias."
         />
         <Campo
           etiqueta="Repetí el PIN"
@@ -73,13 +85,13 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
           error={error ?? undefined}
           placeholder="••••"
         />
-        <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
+        <p className="text-xs leading-relaxed text-ink-soft">
           Si se olvida el PIN, RRHH entra con el mismo email y contraseña de
-          siempre. No hay que tocar el navegador.
+          siempre.
         </p>
         <Boton onClick={() => void activar()} disabled={activando}>
           <IconLock size={16} />
-          {activando ? 'Bloqueando…' : 'Bloquear y activar'}
+          {activando ? 'Dejando lista la tablet…' : 'Activar fichaje en planta'}
         </Boton>
       </div>
     </Modal>
