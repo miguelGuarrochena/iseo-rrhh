@@ -43,8 +43,7 @@ for (const { nombre, ancho, alto } of ANCHOS) {
 test('el header entra con el nombre de la empresa al lado del rol', async ({
   page,
 }) => {
-  // El subtítulo más largo que existe: "Superadmin · <empresa>". Es donde
-  // el header se rompía.
+  // El control de salida es el subtítulo más largo: "Salir de <empresa>".
   await page.setViewportSize({ width: 375, height: 667 });
   await entrarComo(page, /Superadmin/);
   await page.goto('/empresas');
@@ -52,7 +51,7 @@ test('el header entra con el nombre de la empresa al lado del rol', async ({
     .getByRole('button', { name: /Ingresar/ })
     .first()
     .click();
-  await expect(page.getByText(/Superadmin ·/)).toBeVisible();
+  await expect(page.getByRole('button', { name: /Salir de / })).toBeVisible();
   await sinDesborde(page);
   await page.screenshot({ path: 'e2e/capturas/movil-375-empresa.png' });
 });
@@ -87,4 +86,46 @@ test('desde Mi cuenta se vuelve al inicio', async ({ page }) => {
   await page.goto('/mi-cuenta');
   await page.getByRole('main').getByRole('link', { name: 'Inicio' }).click();
   await expect(page.getByRole('heading', { name: /Hola/i })).toBeVisible();
+});
+
+test('en tablet, adentro de una empresa se sale y Fichaje está a un toque', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 800, height: 1280 });
+  await entrarComo(page, /Superadmin/);
+  await page.goto('/empresas');
+  await page
+    .getByRole('button', { name: /Ingresar/ })
+    .first()
+    .click();
+
+  await expect(
+    page.getByRole('navigation').getByRole('link', { name: 'Fichaje' })
+  ).toBeVisible();
+  await expect(page.getByRole('button', { name: /Salir de / })).toBeVisible();
+
+  await page.getByRole('button', { name: /Salir de / }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: /Empresas/ })
+  ).toBeVisible();
+});
+
+test('en desktop, adentro de una empresa se sale por el menú lateral', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await entrarComo(page, /Superadmin/);
+  await page.goto('/empresas');
+  await page
+    .getByRole('button', { name: /Ingresar/ })
+    .first()
+    .click();
+
+  await expect(
+    page.getByRole('navigation').getByRole('link', { name: 'Fichaje' })
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Salir de la empresa' }).click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: /Empresas/ })
+  ).toBeVisible();
 });

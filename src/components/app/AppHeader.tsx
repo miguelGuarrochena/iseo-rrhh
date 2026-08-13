@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { Avatar, Menu, useMantineColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
+  IconArrowLeft,
   IconBell,
   IconBuildingFactory2,
   IconDeviceMobileDown,
@@ -85,7 +86,8 @@ export const AppHeader = () => {
    * entraba a un cliente y quedaba encerrado: su rol pasa a ser el de
    * admin de esa empresa, así que "Empresas" también desaparece de la
    * barra de abajo. El menú del avatar está en todos los tamaños, y por
-   * eso la salida vive acá.
+   * eso la salida vive acá —y también como control visible, porque
+   * esconderla detrás del avatar era lo mismo que no tenerla.
    */
   const esSuperadmin = usuario.rol === 'superadmin';
   const salirDeLaEmpresa = () => {
@@ -103,7 +105,18 @@ export const AppHeader = () => {
           <p className="truncate text-sm font-semibold text-ink">
             {usuario.nombreCompleto}
           </p>
-          <p className="truncate text-xs text-ink-soft">{subtitulo}</p>
+          {esSuperadmin && empresaVista ? (
+            <button
+              type="button"
+              onClick={salirDeLaEmpresa}
+              className="mt-0.5 flex min-h-8 max-w-full cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-left text-xs font-semibold text-brand-700"
+            >
+              <IconArrowLeft size={14} className="shrink-0" />
+              <span className="truncate">Salir de {empresaVista.nombre}</span>
+            </button>
+          ) : (
+            <p className="truncate text-xs text-ink-soft">{subtitulo}</p>
+          )}
         </div>
 
         <BuscadorGlobal />

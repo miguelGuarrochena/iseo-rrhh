@@ -30,9 +30,15 @@ const Esqueleto = () => (
 export const BloqueError = ({
   error,
   onReintentar,
+  sinAccionEmpresa,
 }: {
   error: ErrorInterpretado;
   onReintentar?: () => void;
+  /**
+   * En el kiosco el link a Empresas no sirve: el layout sigue mostrando
+   * el kiosco, y parece que el botón no hace nada. Ahí la salida es el PIN.
+   */
+  sinAccionEmpresa?: boolean;
 }) => (
   <div className="flex flex-col items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
     <p className="flex items-center gap-2 text-sm font-bold text-amber-900">
@@ -52,12 +58,12 @@ export const BloqueError = ({
         tablet, donde no está el menú lateral, no había forma de llegar a
         la lista de clientes. El aviso que dice qué falta tiene que llevar
         al lugar donde se arregla. */}
-    {error.tipo === 'empresa' && (
+    {error.tipo === 'empresa' && !sinAccionEmpresa && (
       <Link
         href="/empresas"
-        className="presionable inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-surface px-3 py-1.5 text-xs font-bold text-amber-900 no-underline"
+        className="presionable inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-amber-300 bg-surface px-4 py-2 text-sm font-bold text-amber-900 no-underline"
       >
-        <IconBuildingFactory2 size={14} />
+        <IconBuildingFactory2 size={16} />
         Ver empresas
       </Link>
     )}

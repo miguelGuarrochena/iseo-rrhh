@@ -5,6 +5,7 @@ import { Empresa, Rol, Usuario } from '@/types/rrhh';
 import { usuariosMock } from '@/lib/mocks/usuarios';
 import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
 import { demoHabilitado } from '@/lib/entorno';
+import { empresaDelKiosco } from '@/lib/kiosco';
 
 /** Login demo: contra los usuarios mock, con latencia simulada. */
 const loginDemo = (email: string): Promise<Usuario | null> =>
@@ -74,6 +75,25 @@ const empresaVistaGuardada = (perfil: Usuario): Empresa | null => {
 };
 
 /**
+ * Empresa con la que opera el superadmin: la que tenía abierta, o la
+ * de la tablet en modo planta. Sin el kiosco, un login o una recarga
+ * dejaba la terminal bloqueada pero sin empresa, y no había forma de
+ * fichar ni de salir.
+ *
+ * Si la vista sale del kiosco, se reescribe en la clave de siempre
+ * para que al desbloquear la tablet siga adentro de esa empresa.
+ */
+const vistaPara = (perfil: Usuario): Empresa | null => {
+  const vista =
+    empresaVistaGuardada(perfil) ??
+    (perfil.rol === 'superadmin' ? empresaDelKiosco() : null);
+  if (vista) {
+    window.localStorage.setItem(EMPRESA_VISTA_KEY, JSON.stringify(vista));
+  }
+  return vista;
+};
+
+/**
  * El acceso de la empresa lo maneja el superadmin (alta/suspensión,
  * ej. por falta de pago). Si está suspendida, nadie de esa empresa entra.
  */
@@ -124,7 +144,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               // Se recupera la empresa que estaba mirando: si no, al
               // recargar quedaba adentro de las pantallas de la empresa
               // pero sin empresa activa.
-              empresaVista: empresaVistaGuardada(perfil),
+              empresaVista: vistaPara(perfil),
               cargando: false,
             });
             return;
@@ -142,10 +162,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       try {
         const guardado = window.localStorage.getItem(SESSION_KEY);
-        const vista = window.localStorage.getItem(EMPRESA_VISTA_KEY);
+        const usuario = guardado ? (JSON.parse(guardado) as Usuario) : null;
         set({
-          usuario: guardado ? (JSON.parse(guardado) as Usuario) : null,
-          empresaVista: vista ? (JSON.parse(vista) as Empresa) : null,
+          usuario,
+          empresaVista: usuario ? vistaPara(usuario) : null,
           cargando: false,
         });
       } catch {
@@ -233,7 +253,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           'El acceso de tu empresa está suspendido. Comunicate con ISEO RH para reactivarlo.'
         );
       }
-      set({ usuario: perfil, sesionReal: true });
+      set({
+        usuario: perfil,
+        sesionReal: true,
+        empresaVista: vistaPara(perfil),
+      });
       return perfil;
     }
     // Modo demo: mocks + localStorage. Solo si el demo está habilitado
@@ -241,7 +265,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!demoHabilitado()) return null;
     const encontrado = await loginDemo(email);
     if (encontrado) {
-      set({ usuario: encontrado, sesionReal: false });
+      set({
+        usuario: encontrado,
+        sesionReal: false,
+        empresaVista: vistaPara(encontrado),
+      });
       window.localStorage.setItem(SESSION_KEY, JSON.stringify(encontrado));
     }
     return encontrado;

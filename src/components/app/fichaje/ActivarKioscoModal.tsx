@@ -5,6 +5,7 @@ import { Modal } from '@mantine/core';
 import { IconLock } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
+import { useAuth } from '@/lib/auth/AuthProvider';
 import { activarKiosco, pinValido } from '@/lib/kiosco';
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
  * puede navegar ni ver nada de la sesión que la activó.
  */
 export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
+  const { empresaVista } = useAuth();
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
     }
     setError(null);
     setActivando(true);
-    await activarKiosco(pin);
+    await activarKiosco(pin, empresaVista);
     // Recarga completa: el layout detecta el kiosco y bloquea todo.
     window.location.reload();
   };
@@ -50,10 +52,9 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
     >
       <div className="flex flex-col gap-3.5">
         <p className="text-sm leading-relaxed text-ink-soft">
-          La tablet queda <strong className="text-ink">bloqueada</strong> en la
-          pantalla de fichaje facial: no se puede navegar ni ver datos de tu
-          usuario, aunque quede sin supervisión. Tu sesión en otros dispositivos
-          sigue funcionando normal.
+          La tablet queda en una sola pantalla: <strong className="text-ink">Fichar</strong>.
+          Quien pasa no ve sueldos ni legajos. Para desbloquearla se usa este
+          PIN o el usuario de RRHH.
         </p>
         <Campo
           etiqueta="PIN para desbloquear (4 a 6 números)"
@@ -73,9 +74,8 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
           placeholder="••••"
         />
         <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
-          Guardá el PIN: es la única forma de salir del modo terminal en esta
-          tablet. Si se pierde, hay que borrar los datos del navegador de la
-          tablet y volver a autorizarla.
+          Si se olvida el PIN, RRHH entra con el mismo email y contraseña de
+          siempre. No hay que tocar el navegador.
         </p>
         <Boton onClick={() => void activar()} disabled={activando}>
           <IconLock size={16} />

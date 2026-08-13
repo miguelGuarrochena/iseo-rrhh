@@ -6,7 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Drawer } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconLogout2, IconMenu2 } from '@tabler/icons-react';
-import { navItemsPorRol } from './navItems';
+import { navItemsPorRol, tabsDeBarra } from './navItems';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useModulos } from '@/lib/auth/useModulos';
 import { getPendientesResumen } from '@/lib/services/rrhh';
@@ -70,9 +70,7 @@ export const BottomNav = () => {
     router.push('/empresas');
   };
 
-  const conMas = items.length > MAX_TABS || enEmpresa;
-  const tabs = conMas ? items.slice(0, MAX_TABS - 1) : items;
-  const resto = conMas ? items.slice(MAX_TABS - 1) : [];
+  const { tabs, resto, conMas } = tabsDeBarra(items, MAX_TABS, enEmpresa);
   const badgeMas = resto.reduce((acc, i) => acc + badgeDe(i.badgeKey), 0);
 
   const ruta = pathname.replace(/^\/app(?=\/|$)/, '') || '/';

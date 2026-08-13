@@ -1,45 +1,72 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { Modal } from '@mantine/core';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { IconFaceId, IconLock } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
+import { CampoPassword } from '@/components/app/ui/CampoPassword';
 import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
-import { desactivarKiosco } from '@/lib/kiosco';
+import { PinPad } from '@/components/app/fichaje/PinPad';
+import {
+  desactivarKiosco,
+  empresaDelKiosco,
+  pinBloqueado,
+  puedeAdministrarTerminal,
+  salirKioscoForzado,
+} from '@/lib/kiosco';
 import { avisoExito } from '@/lib/avisos';
 import { getEmpleados, getEmpresa } from '@/lib/services/rrhh';
 import { formatearHora } from '@/lib/fechas';
 import { Empleado } from '@/types/rrhh';
-import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { useAuth } from '@/lib/auth/AuthProvider';
+
+type Pestania = 'fichar' | 'opciones';
 
 /**
- * Pantalla de la tablet bloqueada como terminal de fichaje: solo se
- * puede fichar con la cara. Nada de la sesión que la activó queda
- * accesible; para salir hace falta el PIN.
+ * Tablet compartida: los colaboradores solo fichan. El menú de la app no
+ * va acá —ahí están sueldos y legajos—. Para salir hay que saber el PIN
+ * (y aun así se cierra la sesión) o entrar con un usuario de RRHH.
  */
 export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
+  const { usuario, empresaVista, entrarAEmpresa, login, logout } = useAuth();
+  const router = useRouter();
+  const [pestania, setPestania] = useState<Pestania>('fichar');
   const [camaraAbierta, setCamaraAbierta] = useState(false);
-  const [salidaAbierta, setSalidaAbierta] = useState(false);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
+  const [conUsuario, setConUsuario] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
   const [hora, setHora] = useState('');
+  const [bloqueado, setBloqueado] = useState(pinBloqueado());
+  const [abrirAlEstarListo, setAbrirAlEstarListo] = useState(false);
 
-  const cEmpresa = useCarga(() => getEmpresa(), [], {
+  useEffect(() => {
+    if (empresaVista?.id || usuario?.empresaId) return;
+    const guardada = empresaDelKiosco();
+    if (guardada) entrarAEmpresa(guardada);
+  }, [empresaVista, usuario, entrarAEmpresa]);
+
+  const hayEmpresa = Boolean(empresaVista?.id ?? usuario?.empresaId);
+
+  const cEmpresa = useCarga(() => getEmpresa(), [hayEmpresa], {
+    activo: hayEmpresa,
     contexto: 'kiosco/empresa',
   });
-  const empresa = cEmpresa.datos ?? null;
+  const empresa = cEmpresa.datos ?? empresaVista ?? null;
 
-  // Sin la lista no se puede reconocer a nadie: acá el fallo importa.
-  const cEmpleados = useCarga(() => getEmpleados(), [], {
+  const cEmpleados = useCarga(() => getEmpleados(), [hayEmpresa], {
+    activo: hayEmpresa,
     contexto: 'kiosco/empleados',
     inicial: [] as Empleado[],
   });
   const empleados = cEmpleados.datos;
 
-  // Reloj grande, para que la terminal sirva también de referencia.
   useEffect(() => {
     const tick = () =>
       setHora(
@@ -61,35 +88,103 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
     [empleados]
   );
 
-  const intentarSalir = async () => {
+  const puedeFichar = hayEmpresa && cEmpleados.fase === 'ok';
+  const cargando =
+    cEmpleados.fase === 'cargando' || cEmpresa.fase === 'cargando';
+
+  const recargarEmpresa = cEmpresa.recargar;
+  const recargarEmpleados = cEmpleados.recargar;
+
+  const reintentar = useCallback(() => {
+    if (!empresaVista?.id && !usuario?.empresaId) {
+      const guardada = empresaDelKiosco();
+      if (guardada) entrarAEmpresa(guardada);
+    }
+    recargarEmpresa();
+    recargarEmpleados();
+  }, [
+    empresaVista,
+    usuario,
+    entrarAEmpresa,
+    recargarEmpresa,
+    recargarEmpleados,
+  ]);
+
+  // Si se cayó la red, se recupera solo: no hace falta ir a Opciones.
+  useEffect(() => {
+    if (puedeFichar) return;
+    const id = window.setInterval(reintentar, 15_000);
+    return () => window.clearInterval(id);
+  }, [puedeFichar, reintentar]);
+
+  useEffect(() => {
+    if (!abrirAlEstarListo || !puedeFichar) return;
+    if (pestania !== 'fichar') {
+      setAbrirAlEstarListo(false);
+      return;
+    }
+    setAbrirAlEstarListo(false);
+    setCamaraAbierta(true);
+  }, [abrirAlEstarListo, puedeFichar, pestania]);
+
+  /** Un toque: si está listo abre la cámara; si no, recarga y ficha en cuanto vuelva. */
+  const tocarFichar = () => {
+    setPestania('fichar');
+    if (puedeFichar) {
+      setCamaraAbierta(true);
+      return;
+    }
+    setAbrirAlEstarListo(true);
+    reintentar();
+  };
+
+  const intentarPin = async () => {
     setPinError(null);
     if (await desactivarKiosco(pin)) {
-      setSalidaAbierta(false);
-      setPin('');
+      logout();
+      router.replace('/login');
+      return;
+    }
+    setPin('');
+    const trabado = pinBloqueado();
+    setBloqueado(trabado);
+    setPinError(
+      trabado
+        ? 'Demasiados intentos. Entrá con tu usuario de RRHH.'
+        : 'PIN incorrecto.'
+    );
+  };
+
+  const entrarComoAdmin = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    setEnviando(true);
+    try {
+      const u = await login(email.trim(), password);
+      if (!u) {
+        setLoginError('Email o contraseña incorrectos.');
+        return;
+      }
+      if (!puedeAdministrarTerminal(u, empresaDelKiosco() ?? empresa)) {
+        logout();
+        setLoginError('Esta cuenta no administra esta tablet.');
+        return;
+      }
+      salirKioscoForzado();
       onSalir();
-    } else {
-      setPinError('PIN incorrecto.');
+    } catch (err) {
+      setLoginError(
+        err instanceof Error ? err.message : 'No pudimos entrar.'
+      );
+    } finally {
+      setEnviando(false);
     }
   };
 
-  // Sin la lista de colaboradores el kiosco no puede reconocer a nadie:
-  // conviene decirlo en pantalla y no dejar la cámara buscando en vano.
-  if (cEmpleados.fase === 'error' && cEmpleados.error) {
-    return (
-      <div className="app-scope bg-app flex min-h-screen items-center justify-center p-6">
-        <BloqueError
-          error={cEmpleados.error}
-          onReintentar={cEmpleados.recargar}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="app-scope bg-app fixed inset-0 z-50 flex min-h-screen flex-col">
-      {/* Marca de la empresa */}
-      <header className="flex items-center justify-between px-6 py-5">
-        <div className="flex items-center gap-3">
+      <header className="flex items-center justify-between px-5 py-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
           {empresa?.logoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -100,61 +195,152 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
           ) : (
             <Logo className="h-8 w-auto" />
           )}
-          <span className="text-sm font-bold text-ink">
-            {empresa?.nombre ?? ''}
+          <span className="truncate text-sm font-bold text-ink">
+            {empresa?.nombre ?? 'Terminal de fichaje'}
           </span>
         </div>
-        <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-bold text-ink-soft">
-          Terminal de fichaje
-        </span>
       </header>
 
-      {/* Centro: reloj + fichar */}
-      <main className="flex flex-1 flex-col items-center justify-center gap-8 px-6 text-center">
-        <div>
-          <p className="text-6xl font-extrabold tracking-tight text-ink sm:text-7xl">
-            {hora}
-          </p>
-          <p className="mt-2 text-sm text-ink-soft">
-            {new Date().toLocaleDateString('es-AR', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-            })}
-          </p>
-        </div>
+      <main className="flex flex-1 flex-col items-center justify-center gap-8 overflow-y-auto px-6 pb-28 pt-2 text-center">
+        {pestania === 'fichar' ? (
+          <>
+            <div>
+              <p className="text-6xl font-extrabold tracking-tight text-ink sm:text-7xl">
+                {hora}
+              </p>
+              <p className="mt-2 text-sm capitalize text-ink-soft">
+                {new Date().toLocaleDateString('es-AR', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                })}
+              </p>
+            </div>
 
-        <button
-          type="button"
-          onClick={() => setCamaraAbierta(true)}
-          className="flex cursor-pointer flex-col items-center gap-4 rounded-3xl border border-brand-200 bg-surface px-14 py-10 transition-colors hover:border-brand-400"
-        >
-          <span className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-            <IconFaceId size={44} stroke={1.6} />
-          </span>
-          <span className="text-xl font-bold text-ink">Fichar</span>
-          <span className="max-w-56 text-sm text-ink-soft">
-            Acercate y mirá a la cámara: te reconoce y registra tu ingreso o
-            egreso.
-          </span>
-        </button>
+            <button
+              type="button"
+              onClick={tocarFichar}
+              className="flex cursor-pointer flex-col items-center gap-4 rounded-3xl border border-brand-200 bg-surface px-14 py-10 transition-colors hover:border-brand-400"
+            >
+              <span className="flex h-20 w-20 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+                <IconFaceId size={44} stroke={1.6} />
+              </span>
+              <span className="text-xl font-bold text-ink">
+                {cargando && abrirAlEstarListo ? 'Conectando…' : 'Fichar'}
+              </span>
+              <span className="max-w-56 text-sm text-ink-soft">
+                {puedeFichar
+                  ? 'Acercate y mirá a la cámara: te reconoce y registra tu ingreso o egreso.'
+                  : 'Tocá Fichar para volver a intentar. Si sigue así, avisá a tu responsable.'}
+              </span>
+            </button>
+          </>
+        ) : (
+          <div className="flex w-full max-w-sm flex-col items-center gap-5 text-left">
+            <div className="w-full">
+              <p className="text-lg font-bold text-ink">Solo para RRHH</p>
+              <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+                Los colaboradores fichan con la cara. Acá se desbloquea la
+                tablet para configurarla.
+              </p>
+            </div>
+
+            {bloqueado || conUsuario ? (
+              <form
+                onSubmit={(e) => void entrarComoAdmin(e)}
+                className="flex w-full flex-col gap-3"
+              >
+                <Campo
+                  etiqueta="Email"
+                  type="email"
+                  autoComplete="username"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="tu@empresa.com"
+                />
+                <CampoPassword
+                  etiqueta="Contraseña"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                {loginError && (
+                  <p className="text-sm font-semibold text-red-700">
+                    {loginError}
+                  </p>
+                )}
+                <Boton type="submit" disabled={enviando || !email || !password}>
+                  {enviando ? 'Entrando…' : 'Entrar y desbloquear'}
+                </Boton>
+                {!bloqueado && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConUsuario(false);
+                      setLoginError(null);
+                    }}
+                    className="cursor-pointer border-0 bg-transparent text-sm font-semibold text-brand-700"
+                  >
+                    Usar el PIN
+                  </button>
+                )}
+              </form>
+            ) : (
+              <>
+                <PinPad
+                  value={pin}
+                  onChange={(v) => {
+                    setPin(v);
+                    setPinError(null);
+                  }}
+                  onConfirmar={() => void intentarPin()}
+                />
+                {pinError && (
+                  <p className="text-sm font-semibold text-red-700">
+                    {pinError}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConUsuario(true);
+                    setPin('');
+                    setPinError(null);
+                  }}
+                  className="cursor-pointer border-0 bg-transparent text-sm font-semibold text-brand-700"
+                >
+                  ¿No tenés el PIN? Entrá con tu usuario
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </main>
 
-      {/* Salida con PIN, discreta */}
-      <footer className="flex justify-center pb-6">
-        <button
-          type="button"
-          onClick={() => {
-            setPin('');
-            setPinError(null);
-            setSalidaAbierta(true);
-          }}
-          className="flex cursor-pointer items-center gap-1.5 text-xs font-semibold text-ink-soft/70 transition-colors hover:text-ink"
-        >
-          <IconLock size={13} />
-          Salir del modo terminal
-        </button>
-      </footer>
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]">
+        <div className="mx-auto flex max-w-md items-stretch">
+          <button
+            type="button"
+            onClick={tocarFichar}
+            className={`flex min-h-16 min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 border-0 bg-transparent text-xs font-semibold ${
+              pestania === 'fichar' ? 'text-brand-600' : 'text-ink-soft'
+            }`}
+          >
+            <IconFaceId size={22} stroke={pestania === 'fichar' ? 2 : 1.6} />
+            Fichar
+          </button>
+          <button
+            type="button"
+            onClick={() => setPestania('opciones')}
+            className={`flex min-h-16 min-w-0 flex-1 cursor-pointer flex-col items-center justify-center gap-0.5 border-0 bg-transparent text-xs font-semibold ${
+              pestania === 'opciones' ? 'text-brand-600' : 'text-ink-soft'
+            }`}
+          >
+            <IconLock size={22} stroke={pestania === 'opciones' ? 2 : 1.6} />
+            Opciones
+          </button>
+        </div>
+      </nav>
 
       <FichajeFacialModal
         abierto={camaraAbierta}
@@ -171,33 +357,6 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
           );
         }}
       />
-
-      <Modal
-        opened={salidaAbierta}
-        onClose={() => setSalidaAbierta(false)}
-        title="Salir del modo terminal"
-        radius="lg"
-        centered
-        styles={{ title: { fontWeight: 800 } }}
-      >
-        <div className="flex flex-col gap-3.5">
-          <p className="text-sm text-ink-soft">
-            Ingresá el PIN que se definió al bloquear esta tablet.
-          </p>
-          <Campo
-            etiqueta="PIN"
-            type="password"
-            inputMode="numeric"
-            value={pin}
-            onChange={(e) => setPin(e.target.value)}
-            error={pinError ?? undefined}
-            placeholder="••••"
-          />
-          <Boton onClick={() => void intentarSalir()} disabled={!pin}>
-            Desbloquear
-          </Boton>
-        </div>
-      </Modal>
     </div>
   );
 };

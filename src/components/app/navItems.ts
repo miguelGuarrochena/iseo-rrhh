@@ -363,3 +363,47 @@ export const navItemsPorRol = (
   navItems.filter(
     (item) => item.roles.includes(rol) && moduloActivo(item.modulo, modulos)
   );
+
+/**
+ * Secciones que conviene tener a un toque en el celular o la tablet.
+ * El resto va a "Más". Fichaje va segundo: en una tablet de planta era
+ * el que más se buscaba y quedaba escondido detrás del menú.
+ */
+const PRIORIDAD_BARRA = [
+  '/',
+  '/fichaje',
+  '/colaboradores',
+  '/ausencias',
+  '/mi-legajo',
+  '/recibos',
+];
+
+/**
+ * Arma las pestañas de la barra inferior: las más usadas adelante, y
+ * "Más" si no entran todas o si hay que dejar lugar a una acción extra
+ * (salir de la empresa).
+ */
+export const tabsDeBarra = (
+  items: NavItem[],
+  maxTabs: number,
+  forzarMas = false
+): { tabs: NavItem[]; resto: NavItem[]; conMas: boolean } => {
+  const conMas = items.length > maxTabs || forzarMas;
+  const cupo = conMas
+    ? Math.max(maxTabs - 1, 1)
+    : Math.min(maxTabs, items.length);
+  const porHref = new Map(items.map((i) => [i.href, i]));
+  const tabs: NavItem[] = [];
+  for (const href of PRIORIDAD_BARRA) {
+    if (tabs.length >= cupo) break;
+    const item = porHref.get(href);
+    if (item) tabs.push(item);
+  }
+  for (const item of items) {
+    if (tabs.length >= cupo) break;
+    if (!tabs.some((t) => t.href === item.href)) tabs.push(item);
+  }
+  const enTabs = new Set(tabs.map((t) => t.href));
+  const resto = items.filter((i) => !enTabs.has(i.href));
+  return { tabs, resto, conMas: conMas || resto.length > 0 };
+};

@@ -46,7 +46,7 @@ export const FAQ: FaqCategoria[] = [
       {
         pregunta: '¿Qué es el "Modo planta"?',
         respuesta:
-          'Es para fichar desde una tablet compartida en el lugar de trabajo: cada persona se pone frente a la cámara y el sistema la reconoce y registra su ingreso/egreso.',
+          'Es la tablet compartida en el lugar de trabajo. Cada persona se pone frente a la cámara y el sistema registra su ingreso o egreso. No se puede entrar al resto de la app desde ahí: para desbloquearla hace falta el PIN de RRHH o el usuario de quien administra la empresa.',
         roles: GESTION,
       },
       {

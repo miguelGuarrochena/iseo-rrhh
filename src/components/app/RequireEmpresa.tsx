@@ -40,7 +40,7 @@ export const RequireEmpresa = ({ children }: { children: ReactNode }) => {
       </div>
       <Link
         href="/empresas"
-        className="presionable rounded-xl border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink no-underline hover:border-brand-300"
+        className="presionable inline-flex min-h-11 items-center rounded-xl border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink no-underline hover:border-brand-300"
       >
         Ver empresas
       </Link>

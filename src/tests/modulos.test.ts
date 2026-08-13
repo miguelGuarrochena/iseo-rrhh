@@ -4,6 +4,7 @@ import {
   MODULOS_OPCIONALES,
   navItems,
   navItemsPorRol,
+  tabsDeBarra,
 } from '@/components/app/navItems';
 
 describe('moduloActivo', () => {
@@ -96,6 +97,23 @@ describe('catálogo de módulos', () => {
     expect(navItemsPorRol('superadmin').map((i) => i.href)).toContain(
       '/empresas'
     );
+  });
+});
+
+describe('tabsDeBarra', () => {
+  it('deja Fichaje a un toque para el admin, no escondido en Más', () => {
+    const items = navItemsPorRol('admin_rrhh');
+    const { tabs, resto, conMas } = tabsDeBarra(items, 5, true);
+    expect(conMas).toBe(true);
+    expect(tabs.map((t) => t.href)).toContain('/fichaje');
+    expect(resto.map((t) => t.href)).not.toContain('/fichaje');
+    expect(tabs[0].href).toBe('/');
+  });
+
+  it('el empleado también tiene Fichaje en la barra', () => {
+    const items = navItemsPorRol('empleado');
+    const { tabs } = tabsDeBarra(items, 5);
+    expect(tabs.map((t) => t.href)).toContain('/fichaje');
   });
 });
 
