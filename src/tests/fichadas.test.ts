@@ -347,4 +347,92 @@ describe('armarResumen', () => {
     expect(r.filas[0].diasTrabajados).toBe(0);
     expect(r.filas[0].dias).toHaveLength(2);
   });
+
+  it('suma las horas de dos sesiones el mismo día', () => {
+    // Turno partido: 08–12 y 19–23. Antes el Map por fecha dejaba sólo
+    // la segunda y el Excel exportaba 4 h en vez de 8.
+    const r = armarResumen(
+      '2026-07-06',
+      '2026-07-06',
+      empleados,
+      armarJornadas(
+        [
+          marca('e1', '2026-07-06T08:00:00', 'ingreso'),
+          marca('e1', '2026-07-06T12:00:00', 'egreso'),
+          marca('e1', '2026-07-06T19:00:00', 'ingreso'),
+          marca('e1', '2026-07-06T23:00:00', 'egreso'),
+        ],
+        DESPUES
+      )
+    );
+    expect(r.filas[0].horasTotales).toBe(8);
+    expect(r.filas[0].minutosTotales).toBe(480);
+    expect(r.filas[0].diasTrabajados).toBe(1);
+    expect(r.filas[0].dias[0].entrada).toBe('2026-07-06T08:00:00');
+    expect(r.filas[0].dias[0].salida).toBe('2026-07-06T23:00:00');
+  });
+
+  it('marca incompleta si una de las sesiones del día quedó abierta', () => {
+    const r = armarResumen(
+      '2026-07-06',
+      '2026-07-06',
+      empleados,
+      armarJornadas(
+        [
+          marca('e1', '2026-07-06T08:00:00', 'ingreso'),
+          marca('e1', '2026-07-06T12:00:00', 'egreso'),
+          // Segunda sesión: entró y no salió (hueco > 6 h → jornada nueva).
+          marca('e1', '2026-07-06T19:00:00', 'ingreso'),
+        ],
+        DESPUES
+      )
+    );
+    expect(r.filas[0].dias[0].incompleta).toBe(true);
+    expect(r.filas[0].dias[0].minutos).toBe(240);
+    expect(r.filas[0].diasTrabajados).toBe(1);
+  });
+
+  it('la jornada nocturna cuenta en el día del ingreso', () => {
+    const r = armarResumen(
+      '2026-07-06',
+      '2026-07-07',
+      empleados,
+      armarJornadas(
+        [
+          marca('e1', '2026-07-06T22:00:00', 'ingreso'),
+          marca('e1', '2026-07-07T06:00:00', 'egreso'),
+        ],
+        DESPUES
+      )
+    );
+    expect(r.filas[0].dias[0].horas).toBe(8);
+    expect(r.filas[0].dias[0].diaTrabajado).toBe(1);
+    expect(r.filas[0].dias[1].horas).toBe(0);
+    expect(r.filas[0].horasTotales).toBe(8);
+  });
+
+  it('no mezcla sesiones de dos empleados', () => {
+    const equipo = [
+      empleado('e1', 'Avalos', 'Andres'),
+      empleado('e2', 'Benítez', 'Beto'),
+    ];
+    const r = armarResumen(
+      '2026-07-06',
+      '2026-07-06',
+      equipo,
+      armarJornadas(
+        [
+          marca('e1', '2026-07-06T08:00:00', 'ingreso'),
+          marca('e1', '2026-07-06T12:00:00', 'egreso'),
+          marca('e2', '2026-07-06T09:00:00', 'ingreso'),
+          marca('e2', '2026-07-06T17:00:00', 'egreso'),
+        ],
+        DESPUES
+      )
+    );
+    const andres = r.filas.find((f) => f.empleado.id === 'e1')!;
+    const beto = r.filas.find((f) => f.empleado.id === 'e2')!;
+    expect(andres.horasTotales).toBe(4);
+    expect(beto.horasTotales).toBe(8);
+  });
 });

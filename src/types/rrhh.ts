@@ -641,6 +641,8 @@ export interface Fichaje {
   fueraDeZona?: boolean;
   /** Quién lo cargó a mano (nombre) cuando metodo es 'manual'. */
   registradoPor?: string;
+  /** Usuario autenticado que cargó a mano (lo impone la base). */
+  registradoPorId?: string;
 }
 
 /** Opciones al registrar un fichaje (método, foto, confianza, ubicación). */

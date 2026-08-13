@@ -1880,15 +1880,11 @@ export const ficharAhora = async (
     })
     .select()
     .single();
-  const fichaje = aFichaje(oFalla(data, error));
-  if (opciones.metodo === 'manual' || opciones.registradoPor) {
-    await registrarAuditoria('cargar_manual', 'fichaje', fichaje.id, {
-      empleadoId,
-      tipo,
-      timestamp: fichaje.timestamp,
-    });
-  }
-  return fichaje;
+  // La auditoría de carga manual la escribe el trigger
+  // `imponer_actor_fichaje` en la misma transacción del INSERT. No
+  // volver a insertarla acá: duplicaría filas y además el cliente
+  // podía omitirla llamando a PostgREST directo.
+  return aFichaje(oFalla(data, error));
 };
 
 /**

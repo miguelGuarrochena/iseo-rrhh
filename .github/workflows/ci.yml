@@ -92,6 +92,11 @@ jobs:
             psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
             < supabase/tests/rpc.test.sql
 
+      # Race de fichaje (FIC-004): dos RPC concurrentes del mismo
+      # empleado deben alternar ingreso/egreso, nunca duplicar el tipo.
+      - name: Concurrencia de fichaje
+        run: bash supabase/tests/concurrencia_fichaje.sh
+
   # Informativo: no frena el merge, pero deja el estado a la vista en
   # cada PR en vez de que alguien se acuerde de correrlo cada tanto.
   dependencias:

@@ -134,19 +134,163 @@ begin
 end $$;
 
 -- El fichaje manual legítimo no lleva ninguno de los dos y debe pasar.
+-- Sin JWT: auth.uid() es null y el trigger de actor no interviene.
 insert into fichajes (empresa_id, empleado_id, tipo, metodo)
 values ('11111111-1111-1111-1111-111111111111',
         '22222222-2222-2222-2222-222222222222', 'ingreso', 'manual');
 delete from fichajes where empresa_id = '11111111-1111-1111-1111-111111111111';
 
 -- ---------------------------------------------------------------------
--- fichar_con_rostro
---
--- El caso que el CI no tenía: esto es lo que falla si una variable no
--- coincide con el tipo de su columna.
+-- FIC-003: el "hoy" laboral usa zona_empresa(), no el TZ de sesión
 -- ---------------------------------------------------------------------
+do $$
+declare
+  v_ingreso timestamptz := '2026-07-06T11:00:00+00'::timestamptz;
+  v_salida  timestamptz := '2026-07-07T00:30:00+00'::timestamptz;
+  v_inicio_art timestamptz;
+  v_inicio_utc timestamptz;
+begin
+  perform set_config('timezone', 'UTC', true);
+
+  assert (v_ingreso at time zone zona_empresa())::date
+       = (v_salida  at time zone zona_empresa())::date,
+    'ambos timestamps son el mismo día laboral en Argentina';
+
+  -- Lógica vieja (rota): medianoche UTC del "now" de la salida excluye
+  -- el ingreso de la mañana.
+  v_inicio_utc := date_trunc('day', v_salida);
+  assert v_ingreso < v_inicio_utc,
+    'sanity: date_trunc UTC partiría el día laboral';
+
+  -- Lógica nueva (zona_empresa): el inicio del día ART incluye el ingreso.
+  v_inicio_art := (
+    ((v_salida at time zone zona_empresa())::date)::timestamp
+    at time zone zona_empresa()
+  );
+  assert v_ingreso >= v_inicio_art,
+    'el ingreso de las 08:00 ART cae dentro del día laboral de la salida 21:30';
+end $$;
+
+-- ---------------------------------------------------------------------
+-- FIC-001: carga de terceros queda como manual + auditoría atómica
+-- ---------------------------------------------------------------------
+insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso, puesto, sector)
+values ('55555555-5555-5555-5555-555555555555', '11111111-1111-1111-1111-111111111111',
+        'Carlos', 'Ruiz', '333', '2021-01-01', 'Sup', 'Admin');
+
+insert into auth.users (id, instance_id, email, aud, role)
+values
+  ('66666666-6666-6666-6666-666666666666', '00000000-0000-0000-0000-000000000000',
+   'sup@test.com', 'authenticated', 'authenticated'),
+  ('77777777-7777-7777-7777-777777777777', '00000000-0000-0000-0000-000000000000',
+   'emp@test.com', 'authenticated', 'authenticated');
+
+-- Un legajo = un usuario (mig 54). El admin_rrhh del fixture ya tenía a
+-- Ana: se la desvincula antes de darle el legajo al empleado de prueba.
+update usuarios
+   set empleado_id = null
+ where id = '33333333-3333-3333-3333-333333333333';
+
+insert into usuarios (id, email, rol, nombre_completo, empresa_id, empleado_id)
+values
+  ('66666666-6666-6666-6666-666666666666', 'sup@test.com', 'supervisor', 'Supervisor Test',
+   '11111111-1111-1111-1111-111111111111', '55555555-5555-5555-5555-555555555555'),
+  ('77777777-7777-7777-7777-777777777777', 'emp@test.com', 'empleado', 'Ana Empleada',
+   '11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222');
+
+-- Supervisor fichando por sí mismo: no fuerza manual.
+set request.jwt.claims =
+  '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}';
+do $$
+declare v_f fichajes; v_aud int;
+begin
+  insert into fichajes (empresa_id, empleado_id, tipo, metodo, registrado_por)
+  values ('11111111-1111-1111-1111-111111111111',
+          '55555555-5555-5555-5555-555555555555',
+          'ingreso', 'celular', 'FRAUDE')
+  returning * into v_f;
+  assert v_f.metodo = 'celular', 'self-service del supervisor conserva el metodo';
+  assert v_f.registrado_por is null, 'self-service limpia registrado_por del cliente';
+  assert v_f.registrado_por_id is null;
+  select count(*) into v_aud from auditoria_acciones
+   where entidad = 'fichaje' and entidad_id = v_f.id::text;
+  assert v_aud = 0, 'self-service no genera auditoría de carga manual';
+end $$;
+
+-- Supervisor → otro empleado: fuerza manual + auditoría (aunque mande celular).
+do $$
+declare v_f fichajes; v_aud auditoria_acciones;
+begin
+  insert into fichajes (
+    empresa_id, empleado_id, tipo, metodo, ts, registrado_por
+  ) values (
+    '11111111-1111-1111-1111-111111111111',
+    '22222222-2222-2222-2222-222222222222',
+    'ingreso', 'celular', '2026-08-03T11:00:00Z', 'CEO Falso'
+  ) returning * into v_f;
+
+  assert v_f.metodo = 'manual', 'carga de terceros no puede pasar por celular';
+  assert v_f.registrado_por_id = '66666666-6666-6666-6666-666666666666',
+    'registrado_por_id es auth.uid()';
+  assert v_f.registrado_por = 'Supervisor Test',
+    'registrado_por sale del perfil, no del cliente';
+  assert v_f.ts = '2026-08-03T11:00:00Z'::timestamptz,
+    'el gestor puede seguir cargando histórico';
+
+  select * into v_aud from auditoria_acciones
+   where entidad = 'fichaje' and entidad_id = v_f.id::text;
+  assert found, 'la auditoría se escribe en la misma transacción';
+  assert v_aud.accion = 'cargar_manual';
+  assert v_aud.actor_id = '66666666-6666-6666-6666-666666666666';
+end $$;
+
+-- Admin RRHH → otro empleado (Carlos): misma regla.
 set request.jwt.claims =
   '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
+do $$
+declare v_f fichajes;
+begin
+  insert into fichajes (empresa_id, empleado_id, tipo, metodo)
+  values ('11111111-1111-1111-1111-111111111111',
+          '55555555-5555-5555-5555-555555555555',
+          'egreso', 'remoto')
+  returning * into v_f;
+  assert v_f.metodo = 'manual';
+  assert v_f.registrado_por_id = '33333333-3333-3333-3333-333333333333';
+  assert v_f.registrado_por = 'RRHH';
+end $$;
+
+-- Empleado → otro empleado: RLS lo bloquea (no llega al trigger).
+set request.jwt.claims =
+  '{"sub":"77777777-7777-7777-7777-777777777777","role":"authenticated"}';
+do $$
+declare v_fallo boolean := false;
+begin
+  begin
+    set local role authenticated;
+    insert into fichajes (empresa_id, empleado_id, tipo, metodo)
+    values ('11111111-1111-1111-1111-111111111111',
+            '55555555-5555-5555-5555-555555555555',
+            'ingreso', 'celular');
+  exception when others then
+    v_fallo := true;
+  end;
+  reset role;
+  assert v_fallo, 'un empleado no puede insertar fichajes de otro';
+end $$;
+
+delete from auditoria_acciones where empresa_id = '11111111-1111-1111-1111-111111111111';
+delete from fichajes where empresa_id = '11111111-1111-1111-1111-111111111111';
+delete from fichajes_descriptor_usado;
+
+-- ---------------------------------------------------------------------
+-- fichar_con_rostro (Bloque 1: titularidad, antirreplay, alternancia)
+--
+-- Cada llamada usa un descriptor *cercano pero distinto*: dos capturas
+-- reales nunca son bit a bit idénticas; el antirreplay sólo corta replay.
+-- ---------------------------------------------------------------------
+set request.jwt.claims =
+  '{"sub":"77777777-7777-7777-7777-777777777777","role":"authenticated"}';
 
 do $$
 declare v_f fichajes;
@@ -159,15 +303,49 @@ begin
   assert v_f.fuera_de_zona = false, 'en el centro de la geocerca está dentro';
   assert round(v_f.confianza::numeric, 2) = 0.97,
     'la confianza la calcula el servidor a partir de la distancia real';
+  assert v_f.metodo = 'facial_tablet',
+    'el camino RPC no se convierte en manual aunque el JWT sea de otro rol';
 
+  -- Descriptor distinto (no replay) → egreso.
   select * into v_f from fichar_con_rostro(
-    '[0.01,0.01,0.01]'::jsonb, 'facial_tablet', null, -34.6, -58.4, null);
+    '[0.01,0.01,0.011]'::jsonb, 'facial_tablet', null, -34.6, -58.4, null);
   assert v_f.tipo = 'egreso', 'la segunda marca del día alterna a egreso';
 
   select * into v_f from fichar_con_rostro(
-    '[0.01,0.01,0.01]'::jsonb, 'facial_tablet', null, -33.6, -58.4, null);
+    '[0.01,0.011,0.01]'::jsonb, 'facial_tablet', null, -33.6, -58.4, null);
   assert v_f.fuera_de_zona = true, 'a 111 km tiene que dar fuera de zona';
 end $$;
+
+-- FIC-002 antirreplay: el mismo descriptor exacto se rechaza.
+do $$
+declare v_fallo boolean := false;
+begin
+  begin
+    perform fichar_con_rostro(
+      '[0.01,0.01,0.01]'::jsonb, 'facial_tablet', null, -34.6, -58.4, null);
+  exception when others then v_fallo := true;
+  end;
+  assert v_fallo, 'reutilizar el mismo descriptor exacto tiene que fallar';
+end $$;
+
+-- FIC-009: p_tipo del cliente se ignora en self-service.
+-- Última marca es ingreso (la tercera del bloque anterior) → debe ser egreso
+-- aunque mande p_tipo='ingreso'.
+do $$
+declare v_f fichajes;
+begin
+  select * into v_f from fichar_con_rostro(
+    '[0.011,0.01,0.01]'::jsonb, 'celular',
+    '22222222-2222-2222-2222-222222222222', -34.6, -58.4, 'ingreso');
+  assert v_f.tipo = 'egreso',
+    'self-service ignora p_tipo=ingreso cuando ya hay un ingreso abierto';
+end $$;
+
+-- Sin fichaje previo de otro empleado + p_tipo=egreso no fabrica salida.
+-- (Carlos no tiene marcas hoy; como empleado de Ana no puede 1:1 por Carlos.
+--  Probamos con gestor forzando p_tipo sobre alguien sin marcas vía insert
+--  ya cubierto; acá: Ana con día limpio simulado no aplica. Ver abajo
+--  el caso gestor.)
 
 do $$
 declare v_fallo boolean := false;
@@ -189,6 +367,19 @@ begin
   assert v_fallo, 'un descriptor vacío tiene que ser rechazado';
 end $$;
 
+-- FIC-002: empleado A no puede fichar 1:1 como B aunque mande su id.
+do $$
+declare v_fallo boolean := false;
+begin
+  begin
+    perform fichar_con_rostro(
+      '[0.01,0.01,0.012]'::jsonb, 'celular',
+      '55555555-5555-5555-5555-555555555555', -34.6, -58.4, null);
+  exception when others then v_fallo := true;
+  end;
+  assert v_fallo, 'empleado A no puede usar p_empleado_id de B';
+end $$;
+
 -- Dos rostros casi idénticos en 1:N: mejor no fichar que fichar al que no es.
 insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso,
   puesto, sector, descriptor_facial, consentimiento_biometrico)
@@ -200,7 +391,7 @@ do $$
 declare v_fallo boolean := false;
 begin
   begin
-    perform fichar_con_rostro('[0.01,0.01,0.01]'::jsonb, 'facial_tablet',
+    perform fichar_con_rostro('[0.015,0.015,0.015]'::jsonb, 'facial_tablet',
       null, -34.6, -58.4, null);
   exception when others then v_fallo := true;
   end;
@@ -208,14 +399,30 @@ begin
     'con dos rostros demasiado parecidos tiene que negarse a elegir';
 end $$;
 
--- Con el id explícito (1:1) el margen no aplica.
+-- 1:1 del titular: el margen no aplica.
 do $$
 declare v_f fichajes;
 begin
-  select * into v_f from fichar_con_rostro('[0.01,0.01,0.01]'::jsonb, 'celular',
+  select * into v_f from fichar_con_rostro('[0.012,0.01,0.01]'::jsonb, 'celular',
     '22222222-2222-2222-2222-222222222222', -34.6, -58.4, null);
   assert v_f.empleado_id = '22222222-2222-2222-2222-222222222222',
     'en 1:1 se verifica contra la persona indicada';
+end $$;
+
+-- Modo 1:N sigue funcionando (JWT de gestor/tablet, p_empleado_id null).
+-- Quitamos a Beto del margen y fichamos a Ana con descriptor fresco.
+delete from empleados where id = '44444444-4444-4444-4444-444444444444';
+set request.jwt.claims =
+  '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}';
+do $$
+declare v_f fichajes;
+begin
+  select * into v_f from fichar_con_rostro(
+    '[0.01,0.012,0.01]'::jsonb, 'facial_tablet', null, -34.6, -58.4, null);
+  assert v_f.empleado_id = '22222222-2222-2222-2222-222222222222',
+    '1:N con JWT de gestor sigue identificando a la persona';
+  assert v_f.metodo = 'facial_tablet',
+    'kiosco no se convierte en manual (app.fichaje_validado)';
 end $$;
 
 -- ---------------------------------------------------------------------

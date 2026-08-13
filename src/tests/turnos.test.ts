@@ -16,15 +16,20 @@ const turno = (fecha: string, entrada: string, salida: string): Turno => ({
   horaSalida: salida,
 });
 
+/**
+ * Timestamp realista como los que entrega PostgREST: UTC con zona.
+ * Los tests viejos usaban `2026-07-06T08:00:00` sin zona y ocultaban
+ * el bug de leer la hora con `slice` sobre el string UTC.
+ */
 const fichaje = (
-  fecha: string,
-  hora: string,
-  tipo: Fichaje['tipo']
+  isoUtc: string,
+  tipo: Fichaje['tipo'],
+  empleadoId = 'e1'
 ): Fichaje => ({
-  id: `f-${fecha}-${hora}`,
-  empleadoId: 'e1',
+  id: `f-${isoUtc}-${tipo}`,
+  empleadoId,
   tipo,
-  timestamp: `${fecha}T${hora}:00`,
+  timestamp: isoUtc,
   metodo: 'celular',
 });
 
@@ -35,37 +40,60 @@ describe('controlarTurno', () => {
     expect(c.tardeMin).toBe(0);
   });
 
-  it('calcula llegada tarde', () => {
+  it('ingreso 08:00 ART (=11:00Z) no es llegada tarde', () => {
     const c = controlarTurno(turno('2026-07-06', '08:00', '17:00'), [
-      fichaje('2026-07-06', '08:15', 'ingreso'),
-      fichaje('2026-07-06', '17:00', 'egreso'),
+      fichaje('2026-07-06T11:00:00+00:00', 'ingreso'),
+      fichaje('2026-07-06T20:00:00+00:00', 'egreso'),
+    ]);
+    expect(c.tardeMin).toBe(0);
+    expect(c.extrasMin).toBe(0);
+    expect(c.ausente).toBe(false);
+    expect(c.ingreso).toBe('08:00');
+    expect(c.egreso).toBe('17:00');
+  });
+
+  it('calcula llegada tarde en hora local', () => {
+    const c = controlarTurno(turno('2026-07-06', '08:00', '17:00'), [
+      fichaje('2026-07-06T11:15:00+00:00', 'ingreso'),
+      fichaje('2026-07-06T20:00:00+00:00', 'egreso'),
     ]);
     expect(c.tardeMin).toBe(15);
     expect(c.antesMin).toBe(0);
-    expect(c.ausente).toBe(false);
   });
 
-  it('calcula salida antes', () => {
+  it('calcula salida antes en hora local', () => {
     const c = controlarTurno(turno('2026-07-06', '08:00', '17:00'), [
-      fichaje('2026-07-06', '08:00', 'ingreso'),
-      fichaje('2026-07-06', '16:30', 'egreso'),
+      fichaje('2026-07-06T11:00:00+00:00', 'ingreso'),
+      fichaje('2026-07-06T19:30:00+00:00', 'egreso'),
     ]);
     expect(c.antesMin).toBe(30);
   });
 
   it('cuenta horas extras (se quedó después y entró antes)', () => {
     const c = controlarTurno(turno('2026-07-06', '08:00', '17:00'), [
-      fichaje('2026-07-06', '07:45', 'ingreso'),
-      fichaje('2026-07-06', '18:00', 'egreso'),
+      fichaje('2026-07-06T10:45:00+00:00', 'ingreso'),
+      fichaje('2026-07-06T21:00:00+00:00', 'egreso'),
     ]);
     // 15 min antes + 60 min después
     expect(c.extrasMin).toBe(75);
     expect(c.tardeMin).toBe(0);
   });
 
-  it('ignora fichajes de otro día', () => {
+  it('un egreso después de las 21:00 locales sigue contando ese día', () => {
+    // 21:30 ART = 00:30Z del día siguiente. El filtro por prefijo UTC
+    // lo perdía; la fecha local del turno es el 6.
+    const c = controlarTurno(turno('2026-07-06', '13:00', '21:00'), [
+      fichaje('2026-07-06T16:00:00+00:00', 'ingreso'),
+      fichaje('2026-07-07T00:30:00+00:00', 'egreso'),
+    ]);
+    expect(c.egreso).toBe('21:30');
+    expect(c.extrasMin).toBe(30);
+    expect(c.ausente).toBe(false);
+  });
+
+  it('ignora fichajes de otro día (en hora local)', () => {
     const c = controlarTurno(turno('2026-07-06', '08:00', '17:00'), [
-      fichaje('2026-07-07', '08:00', 'ingreso'),
+      fichaje('2026-07-07T11:00:00+00:00', 'ingreso'),
     ]);
     expect(c.ausente).toBe(true);
   });
@@ -78,8 +106,8 @@ describe('resumirControlTurnos', () => {
       turno('2026-07-07', '08:00', '17:00'),
     ];
     const fichajes = [
-      fichaje('2026-07-06', '08:10', 'ingreso'),
-      fichaje('2026-07-06', '17:00', 'egreso'),
+      fichaje('2026-07-06T11:10:00+00:00', 'ingreso'),
+      fichaje('2026-07-06T20:00:00+00:00', 'egreso'),
       // 07 sin fichaje → ausente
     ];
     const r = resumirControlTurnos(turnos, fichajes);

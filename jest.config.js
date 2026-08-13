@@ -1,3 +1,8 @@
+// Huso de la app (zona_empresa). Tiene que estar antes de que Jest
+// construya `Date`: sin esto, `controlarTurno` y los tests con
+// timestamps `+00:00` dependen del huso de la máquina de CI.
+process.env.TZ = 'America/Argentina/Buenos_Aires';
+
 const nextJest = require('next/jest');
 
 const createJestConfig = nextJest({

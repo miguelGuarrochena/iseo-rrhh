@@ -348,17 +348,22 @@ export const armarResumen = (
   hasta: string,
   empleados: Empleado[],
   /**
-   * Ya agrupadas (una por empleado y día). Antes recibía las marcas
-   * sueltas y las agrupaba acá, lo que obligaba a bajarse el período
-   * entero al navegador; ahora ese trabajo lo hace la base.
+   * Ya agrupadas por sesión (puede haber varias el mismo día). Antes
+   * se asumía una sola por empleado/día y un `Map.set` descartaba las
+   * sesiones anteriores: un turno partido de 8 h aparecía como 4.
    */
   jornadas: Jornada[],
   ausencias: Ausencia[] = [],
   feriados: Feriado[] = []
 ): Resumen => {
   const dias = diasDelRango(desde, hasta);
-  const porEmpleadoDia = new Map<string, Jornada>();
-  jornadas.forEach((j) => porEmpleadoDia.set(`${j.empleadoId}|${j.fecha}`, j));
+  const porEmpleadoDia = new Map<string, Jornada[]>();
+  jornadas.forEach((j) => {
+    const clave = `${j.empleadoId}|${j.fecha}`;
+    const previas = porEmpleadoDia.get(clave);
+    if (previas) previas.push(j);
+    else porEmpleadoDia.set(clave, [j]);
+  });
 
   const fechasFeriado = new Set(feriados.map((f) => f.fecha));
   const aprobadas = ausencias.filter((a) => a.estado === 'aprobada');
@@ -366,7 +371,22 @@ export const armarResumen = (
   const filas = empleados
     .map((empleado): FilaResumen => {
       const celdas = dias.map((fecha): CeldaDia => {
-        const j = porEmpleadoDia.get(`${empleado.id}|${fecha}`);
+        const sesiones = porEmpleadoDia.get(`${empleado.id}|${fecha}`) ?? [];
+        // Primera entrada / última salida del día; minutos = suma de
+        // cada sesión cerrada (no el intervalo bruto entre extremos,
+        // que contaría el hueco del medio como trabajado).
+        const entradas = sesiones
+          .map((j) => j.entrada)
+          .filter((t): t is string => Boolean(t))
+          .sort();
+        const salidas = sesiones
+          .map((j) => j.salida)
+          .filter((t): t is string => Boolean(t))
+          .sort();
+        const minutos = sesiones.reduce(
+          (acc, j) => acc + minutosEntre(j.entrada, j.salida),
+          0
+        );
         const ausencia = aprobadas.find(
           (a) =>
             a.empleadoId === empleado.id &&
@@ -378,14 +398,14 @@ export const armarResumen = (
           ausencia: ausencia
             ? (ETIQUETA_AUSENCIA[ausencia.tipo] ?? ausencia.tipo)
             : undefined,
-          entrada: j?.entrada,
-          salida: j?.salida,
-          horas: j?.horas ?? 0,
-          // Minutos exactos, sin redondear, sólo para el total. Ver abajo.
-          minutos: minutosEntre(j?.entrada, j?.salida),
-          diaTrabajado: j?.cerrada ? 1 : 0,
-          incompleta: Boolean(j?.incompleta),
-          enCurso: Boolean(j?.enCurso),
+          entrada: entradas[0],
+          salida: salidas[salidas.length - 1],
+          horas: Math.round((minutos / 60) * 10) / 10,
+          minutos,
+          // Contó como trabajado si alguna sesión del día cerró.
+          diaTrabajado: sesiones.some((j) => j.cerrada) ? 1 : 0,
+          incompleta: sesiones.some((j) => j.incompleta),
+          enCurso: sesiones.some((j) => j.enCurso),
         };
       });
 
