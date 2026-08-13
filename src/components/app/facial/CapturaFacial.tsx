@@ -24,6 +24,10 @@ interface CapturaFacialProps {
    * una foto impresa fichaba por su dueño.
    */
   exigirLiveness?: boolean;
+  /**
+   * Si la cámara no abre, sugiere fichada a mano (fichaje, no enrolar).
+   */
+  sugerirFichajeManual?: boolean;
 }
 
 /** Cuánto se mira a la persona esperando el parpadeo. */
@@ -49,6 +53,9 @@ const MENSAJES_ESTADO: Record<string, string> = {
   sin_camara: 'No pudimos acceder a la cámara de este dispositivo.',
 };
 
+const AYUDA_FICHAJE_MANUAL =
+  'Enchufá el dispositivo si está con poca batería. Si sigue igual, avisale a RRHH para que te fichen a mano mientras se carga.';
+
 /**
  * Cámara frontal + extracción de descriptor facial en el dispositivo.
  * La imagen no se sube: se procesa localmente y se entrega el descriptor.
@@ -58,6 +65,7 @@ export const CapturaFacial = ({
   procesando = false,
   textoBoton = 'Capturar',
   exigirLiveness = false,
+  sugerirFichajeManual = false,
 }: CapturaFacialProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -89,6 +97,14 @@ export const CapturaFacial = ({
         audio: false,
       });
       streamRef.current = stream;
+      // Con batería crítica el sistema a veces mata el track después de
+      // haberlo entregado: sin esto la pantalla sigue como si hubiera
+      // cámara y el fichaje "no anda".
+      stream.getVideoTracks().forEach((track) => {
+        track.addEventListener('ended', () => {
+          if (streamRef.current) setEstado('sin_camara');
+        });
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
@@ -111,8 +127,9 @@ export const CapturaFacial = ({
   useEffect(() => {
     void iniciarCamara();
     return () => {
-      streamRef.current?.getTracks().forEach((t) => t.stop());
+      const stream = streamRef.current;
       streamRef.current = null;
+      stream?.getTracks().forEach((t) => t.stop());
     };
   }, [iniciarCamara]);
 
@@ -197,12 +214,19 @@ export const CapturaFacial = ({
   };
 
   if (estado !== 'iniciando' && estado !== 'listo') {
+    const esFallaCamara =
+      estado === 'sin_camara' || estado === 'camara_ocupada';
     return (
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-paper/60 p-6 text-center">
         <IconFaceId size={32} className="text-ink-soft" />
         <p className="text-sm text-ink-soft">
           {MENSAJES_ESTADO[estado] ?? MENSAJES_ESTADO.sin_camara}
         </p>
+        {sugerirFichajeManual && esFallaCamara && (
+          <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-medium leading-relaxed text-amber-900">
+            {AYUDA_FICHAJE_MANUAL}
+          </p>
+        )}
         <Boton
           variante="secundario"
           tamano="sm"

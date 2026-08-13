@@ -5,7 +5,9 @@ import { Modal } from '@mantine/core';
 import { IconCircleCheck } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { CapturaFacial } from './CapturaFacial';
+import { AvisoBateria } from './AvisoBateria';
 import { obtenerUbicacion } from '@/lib/facial/ubicacion';
+import { useBateria } from '@/lib/dispositivo/useBateria';
 import { ficharConRostro } from '@/lib/services/rrhh';
 import { interpretarError } from '@/lib/errores';
 import { Fichaje, MetodoFichaje } from '@/types/rrhh';
@@ -55,6 +57,7 @@ export const FichajeFacialModal = ({
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const bateria = useBateria();
 
   const cerrar = () => {
     setError(null);
@@ -172,6 +175,8 @@ export const FichajeFacialModal = ({
               : 'Mirá a la cámara para confirmar que sos vos y registrar el fichaje.'}
           </p>
 
+          <AvisoBateria bateria={bateria} />
+
           {error && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-center text-sm text-red-700">
               {error}
@@ -183,6 +188,7 @@ export const FichajeFacialModal = ({
             procesando={procesando}
             textoBoton="Fichar"
             exigirLiveness
+            sugerirFichajeManual
           />
         </div>
       )}

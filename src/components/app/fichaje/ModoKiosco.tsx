@@ -7,6 +7,7 @@ import { Logo } from '@/components/Logo';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { CampoPassword } from '@/components/app/ui/CampoPassword';
+import { AvisoBateria } from '@/components/app/facial/AvisoBateria';
 import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
 import { PinPad } from '@/components/app/fichaje/PinPad';
 import {
@@ -24,6 +25,7 @@ import { formatearHora } from '@/lib/fechas';
 import { Empleado } from '@/types/rrhh';
 import { useCarga } from '@/lib/useCarga';
 import { useAuth } from '@/lib/auth/AuthProvider';
+import { useBateria } from '@/lib/dispositivo/useBateria';
 
 type Pestania = 'fichar' | 'opciones';
 
@@ -47,6 +49,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
   const [hora, setHora] = useState('');
   const [bloqueado, setBloqueado] = useState(pinBloqueado());
   const [abrirAlEstarListo, setAbrirAlEstarListo] = useState(false);
+  const bateria = useBateria();
 
   useEffect(() => {
     if (empresaVista?.id || usuario?.empresaId) return;
@@ -245,6 +248,10 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
                 <IconWifiOff size={16} className="shrink-0" />
                 Reintentamos solos cada 15 segundos. También podés tocar Fichar.
               </p>
+            )}
+
+            {bateria.alerta !== 'ok' && (
+              <AvisoBateria bateria={bateria} className="max-w-sm" />
             )}
 
             <button
