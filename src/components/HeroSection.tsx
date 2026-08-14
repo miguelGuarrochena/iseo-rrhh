@@ -45,6 +45,9 @@ const clientes = [
   { nombre: 'Rospide', rubro: 'Escribanía' },
   { nombre: 'Negro Holandés', rubro: 'Panadería' },
   { nombre: 'TGF', rubro: 'Bombas' },
+  { nombre: 'Mae Tuanis', rubro: 'Indumentaria' },
+  { nombre: 'Glaciarum', rubro: 'Museo de Hielo' },
+  { nombre: 'Madre Teresa', rubro: 'Colegio' },
 ];
 
 const irA = (id: string) =>

@@ -31,6 +31,15 @@ describe('HeroSection', () => {
     ).toBeInTheDocument();
   });
 
+  it('renderiza las marcas y clientes', () => {
+    renderWithMantine(<HeroSection />);
+    expect(screen.getByText('Mae Tuanis')).toBeInTheDocument();
+    expect(screen.getByText('Glaciarum')).toBeInTheDocument();
+    expect(screen.getByText('Madre Teresa')).toBeInTheDocument();
+    expect(screen.getByText('Museo de Hielo')).toBeInTheDocument();
+    expect(screen.getByText('Colegio')).toBeInTheDocument();
+  });
+
   it('renderiza los dos CTA', () => {
     renderWithMantine(<HeroSection />);
     expect(

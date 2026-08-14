@@ -10,7 +10,7 @@ import {
 } from '@tabler/icons-react';
 
 const WHATSAPP_URL =
-  'https://wa.me/5491154018969?text=Hola%20ISEO%20RH%2C%20me%20interesar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20sus%20servicios%20de%20Recursos%20Humanos.%20%C2%A1Gracias!';
+  'https://wa.me/5491166667508?text=Hola%20ISEO%20RH%2C%20me%20interesar%C3%ADa%20conocer%20m%C3%A1s%20sobre%20sus%20servicios%20de%20Recursos%20Humanos.%20%C2%A1Gracias!';
 const EMAIL = 'info@iseo-rh.com';
 
 export const ContactSection: React.FC = () => {

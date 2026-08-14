@@ -15,6 +15,15 @@ describe('Footer', () => {
     ).toBeInTheDocument();
   });
 
+  it('el enlace de WhatsApp apunta al número de contacto', () => {
+    renderWithMantine(<Footer />);
+    const link = screen.getByRole('link', { name: /whatsapp/i });
+    expect(link).toHaveAttribute(
+      'href',
+      expect.stringContaining('wa.me/5491166667508')
+    );
+  });
+
   it('renderiza el panel oscuro interior sobre fondo paper', () => {
     const { container } = renderWithMantine(<Footer />);
     const footer = container.querySelector('footer');

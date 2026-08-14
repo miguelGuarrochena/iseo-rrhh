@@ -22,7 +22,7 @@ describe('ContactSection', () => {
     const link = screen.getByRole('link', { name: /whatsapp/i });
     expect(link).toHaveAttribute(
       'href',
-      expect.stringContaining('wa.me/5491154018969')
+      expect.stringContaining('wa.me/5491166667508')
     );
     expect(link).toHaveAttribute('target', '_blank');
   });

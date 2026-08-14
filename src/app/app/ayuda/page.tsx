@@ -16,7 +16,7 @@ import { buscarParrafos } from '@/lib/convenio';
 import { fetchProtegido } from '@/lib/api/fetchProtegido';
 
 const SOPORTE_WA =
-  'https://wa.me/5491154018969?text=Hola%2C%20necesito%20ayuda%20con%20ISEO%20RH.';
+  'https://wa.me/5491166667508?text=Hola%2C%20necesito%20ayuda%20con%20ISEO%20RH.';
 const SOPORTE_MAIL = 'info@iseo-rh.com';
 
 const AyudaPage = () => {

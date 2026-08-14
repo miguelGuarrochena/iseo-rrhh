@@ -40,7 +40,7 @@ export const Footer: React.FC = () => {
             {/* Contacto */}
             <div className="flex items-center gap-4">
               <a
-                href="https://wa.me/5491154018969"
+                href="https://wa.me/5491166667508"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="WhatsApp"
