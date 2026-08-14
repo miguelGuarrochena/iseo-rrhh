@@ -6,7 +6,6 @@ import {
   IconArrowRight,
   IconCalendarCheck,
   IconChartBar,
-  IconChevronRight,
   IconHeartHandshake,
   IconHeadset,
   IconRocket,
@@ -18,54 +17,42 @@ interface Paso {
   numero: string;
   icono: React.ElementType;
   tonoIcono: string;
-  tonoNumero: string;
-  tonoLinea: string;
   titulo: string;
   detalle: string;
   nota: string;
   iconoNota: React.ElementType;
-  tonoNota: string;
 }
 
 const pasos: Paso[] = [
   {
     numero: '01',
     icono: IconCalendarCheck,
-    tonoIcono: 'bg-emerald-50 text-emerald-600',
-    tonoNumero: 'bg-emerald-50 text-emerald-700',
-    tonoLinea: 'bg-emerald-300',
+    tonoIcono: 'bg-brand-50 text-brand-600',
     titulo: 'Solicitá una demo',
     detalle:
       'Completá el formulario y coordinamos una demo personalizada para mostrarte cómo ISEO RH puede ayudar a tu empresa.',
     nota: 'Demo gratuita y sin compromiso',
     iconoNota: IconShieldCheck,
-    tonoNota: 'bg-emerald-50 text-emerald-700',
   },
   {
     numero: '02',
     icono: IconUsers,
     tonoIcono: 'bg-brand-50 text-brand-600',
-    tonoNumero: 'bg-brand-50 text-brand-700',
-    tonoLinea: 'bg-brand-300',
     titulo: 'Te acompañamos en la implementación',
     detalle:
       'Nuestro equipo te guía en la configuración y carga inicial de datos para que empieces a usar la plataforma sin complicaciones.',
     nota: 'Acompañamiento dedicado en cada paso',
     iconoNota: IconHeadset,
-    tonoNota: 'bg-brand-50 text-brand-700',
   },
   {
     numero: '03',
     icono: IconRocket,
-    tonoIcono: 'bg-violet-50 text-violet-600',
-    tonoNumero: 'bg-violet-50 text-violet-700',
-    tonoLinea: 'bg-violet-300',
+    tonoIcono: 'bg-brand-50 text-brand-600',
     titulo: 'Empezá a gestionar sin límites',
     detalle:
       'Tu equipo listo, tu información organizada y todos los procesos de RR.HH. en un solo lugar para que ahorres tiempo y tomes mejores decisiones.',
     nota: 'Más eficiencia desde el primer día',
     iconoNota: IconChartBar,
-    tonoNota: 'bg-violet-50 text-violet-700',
   },
 ];
 
@@ -78,7 +65,10 @@ export const PasosSection: React.FC = () => (
       <div className="rounded-2xl border border-line bg-white px-5 py-14 sm:px-10 sm:py-20">
         {/* Encabezado */}
         <div className="mx-auto max-w-3xl text-center">
-          <h2 className="text-balance text-[2rem] font-extrabold leading-[1.12] tracking-tight text-navy sm:text-[2.7rem]">
+          <span className="text-sm font-bold uppercase tracking-widest text-brand-600">
+            Cómo empezar
+          </span>
+          <h2 className="text-balance mt-4 text-[2rem] font-extrabold leading-[1.12] tracking-tight text-navy sm:text-[2.7rem]">
             Empezá a transformar la gestión de tu equipo en{' '}
             <span className="text-brand-600">3 simples pasos</span>
           </h2>
@@ -87,91 +77,65 @@ export const PasosSection: React.FC = () => (
           </p>
         </div>
 
-        {/* Pasos */}
-        <div className="mt-12 rounded-2xl border border-line bg-white p-6 shadow-soft sm:p-10">
-          <div className="grid gap-8 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-start lg:gap-0">
+        {/*
+          Tres tarjetas a la misma altura: el número marca la secuencia,
+          la nota queda anclada abajo y el conector las une en desktop
+          sin chevrones sueltos en el medio.
+        */}
+        <div className="relative mt-14">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-[16%] right-[16%] top-[1.375rem] hidden h-px bg-line lg:block"
+          />
+
+          <div className="grid gap-5 lg:grid-cols-3 lg:gap-6">
             {pasos.map(
               (
                 {
                   numero,
                   icono: Icono,
                   tonoIcono,
-                  tonoNumero,
-                  tonoLinea,
                   titulo,
                   detalle,
                   nota,
                   iconoNota: IconoNota,
-                  tonoNota,
                 },
                 i
               ) => (
-                <React.Fragment key={numero}>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true, margin: '-60px' }}
-                    transition={{ duration: 0.45, delay: i * 0.12 }}
-                    className={`flex flex-col items-center px-2 text-center lg:px-8 ${
-                      i > 0
-                        ? 'border-t border-line pt-8 lg:border-l lg:border-t-0 lg:pt-0'
-                        : ''
-                    }`}
-                  >
+                <motion.article
+                  key={numero}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, margin: '-60px' }}
+                  transition={{ duration: 0.45, delay: i * 0.12 }}
+                  className="flex h-full flex-col"
+                >
+                  <span className="relative z-10 mx-auto mb-5 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-[0.8rem] font-extrabold tracking-wide text-brand-600">
+                    {numero}
+                  </span>
+
+                  <div className="flex flex-1 flex-col rounded-2xl border border-line bg-paper/70 px-6 py-7 sm:px-7">
                     <span
-                      className={`flex h-16 w-16 items-center justify-center rounded-full ${tonoIcono}`}
+                      className={`flex h-12 w-12 items-center justify-center rounded-2xl ${tonoIcono}`}
                     >
-                      <Icono size={30} stroke={1.6} />
+                      <Icono size={24} stroke={1.7} />
                     </span>
-                    <span
-                      className={`mt-4 rounded-full px-3 py-1 text-[0.72rem] font-extrabold tracking-wide ${tonoNumero}`}
-                    >
-                      {numero}
-                    </span>
-                    <h3 className="text-balance mt-4 text-lg font-extrabold leading-snug text-navy sm:text-xl">
+                    <h3 className="mt-5 min-h-[3.5rem] text-lg font-extrabold leading-snug text-navy sm:text-xl">
                       {titulo}
                     </h3>
-                    <span
-                      aria-hidden
-                      className={`mt-4 block h-[3px] w-10 rounded-full ${tonoLinea}`}
-                    />
-                    <p className="mt-4 max-w-xs text-[0.92rem] leading-relaxed text-ink-soft">
+                    <p className="mt-3 flex-1 text-[0.95rem] leading-relaxed text-ink-soft">
                       {detalle}
                     </p>
-                    <span
-                      className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-[0.85rem] font-semibold ${tonoNota}`}
-                    >
-                      <IconoNota size={16} stroke={1.9} />
+                    <span className="mt-6 flex items-start gap-2 border-t border-line pt-5 text-[0.82rem] font-semibold leading-snug text-navy">
+                      <IconoNota
+                        size={16}
+                        stroke={1.9}
+                        className="mt-0.5 shrink-0 text-brand-600"
+                      />
                       {nota}
                     </span>
-                  </motion.div>
-
-                  {i < pasos.length - 1 && (
-                    /*
-                      El chevrón entra después de la tarjeta que lo
-                      precede y antes de la siguiente, así el recorrido
-                      1 → 2 → 3 se lee como un avance y no como tres
-                      cosas que aparecen sueltas. Es una sección que se
-                      ve una vez: acá el escalonado suma.
-                    */
-                    <motion.span
-                      aria-hidden
-                      initial={{ opacity: 0, x: -6 }}
-                      whileInView={{ opacity: 1, x: 0 }}
-                      viewport={{ once: true, margin: '-60px' }}
-                      transition={{
-                        duration: 0.35,
-                        delay: 0.12 * i + 0.28,
-                        ease: [0.23, 1, 0.32, 1],
-                      }}
-                      className="hidden items-center justify-center pt-10 lg:flex"
-                    >
-                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-paper text-ink-soft">
-                        <IconChevronRight size={16} stroke={2.4} />
-                      </span>
-                    </motion.span>
-                  )}
-                </React.Fragment>
+                  </div>
+                </motion.article>
               )
             )}
           </div>
