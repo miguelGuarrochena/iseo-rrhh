@@ -34,6 +34,7 @@ describe('HeroSection', () => {
   it('renderiza las marcas y clientes', () => {
     renderWithMantine(<HeroSection />);
     expect(screen.getByText('Mae Tuanis')).toBeInTheDocument();
+    expect(screen.getByText('Ropa de surf')).toBeInTheDocument();
     expect(screen.getByText('Glaciarum')).toBeInTheDocument();
     expect(screen.getByText('Madre Teresa')).toBeInTheDocument();
     expect(screen.getByText('Museo de Hielo')).toBeInTheDocument();

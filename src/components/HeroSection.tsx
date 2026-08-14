@@ -45,7 +45,7 @@ const clientes = [
   { nombre: 'Rospide', rubro: 'Escribanía' },
   { nombre: 'Negro Holandés', rubro: 'Panadería' },
   { nombre: 'TGF', rubro: 'Bombas' },
-  { nombre: 'Mae Tuanis', rubro: 'Indumentaria' },
+  { nombre: 'Mae Tuanis', rubro: 'Ropa de surf' },
   { nombre: 'Glaciarum', rubro: 'Museo de Hielo' },
   { nombre: 'Madre Teresa', rubro: 'Colegio' },
 ];
@@ -216,12 +216,12 @@ export const HeroSection: React.FC = () => (
             {clientes.map(({ nombre, rubro }) => (
               <span
                 key={nombre}
-                className="text-center text-ink-soft/70 transition-colors hover:text-navy"
+                className="inline-flex flex-col items-center text-center text-ink-soft/70 transition-colors hover:text-navy"
               >
-                <span className="block text-xl font-extrabold uppercase leading-none tracking-tight">
+                <span className="text-xl font-extrabold uppercase leading-none tracking-tight">
                   {nombre}
                 </span>
-                <span className="mt-1 block text-[0.62rem] font-semibold uppercase tracking-[0.22em]">
+                <span className="mt-1 pl-[0.22em] text-[0.62rem] font-semibold uppercase tracking-[0.22em]">
                   {rubro}
                 </span>
               </span>
