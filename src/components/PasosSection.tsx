@@ -16,7 +16,12 @@ import {
 interface Paso {
   numero: string;
   icono: React.ElementType;
-  tonoIcono: string;
+  iconoFondo: string;
+  tarjeta: string;
+  tituloClase: string;
+  detalleClase: string;
+  notaClase: string;
+  notaIconoClase: string;
   titulo: string;
   detalle: string;
   nota: string;
@@ -25,9 +30,14 @@ interface Paso {
 
 const pasos: Paso[] = [
   {
-    numero: '01',
+    numero: '1',
     icono: IconCalendarCheck,
-    tonoIcono: 'bg-brand-50 text-brand-600',
+    iconoFondo: 'bg-navy text-white',
+    tarjeta: 'border-line bg-white shadow-soft',
+    tituloClase: 'text-navy',
+    detalleClase: 'text-ink-soft',
+    notaClase: 'border-line text-navy',
+    notaIconoClase: 'text-brand-600',
     titulo: 'Solicitá una demo',
     detalle:
       'Completá el formulario y coordinamos una demo personalizada para mostrarte cómo ISEO RH puede ayudar a tu empresa.',
@@ -35,9 +45,14 @@ const pasos: Paso[] = [
     iconoNota: IconShieldCheck,
   },
   {
-    numero: '02',
+    numero: '2',
     icono: IconUsers,
-    tonoIcono: 'bg-brand-50 text-brand-600',
+    iconoFondo: 'bg-brand-600 text-white',
+    tarjeta: 'border-brand-100 bg-brand-50',
+    tituloClase: 'text-navy',
+    detalleClase: 'text-ink-soft',
+    notaClase: 'border-brand-100 text-navy',
+    notaIconoClase: 'text-brand-600',
     titulo: 'Te acompañamos en la implementación',
     detalle:
       'Nuestro equipo te guía en la configuración y carga inicial de datos para que empieces a usar la plataforma sin complicaciones.',
@@ -45,9 +60,14 @@ const pasos: Paso[] = [
     iconoNota: IconHeadset,
   },
   {
-    numero: '03',
+    numero: '3',
     icono: IconRocket,
-    tonoIcono: 'bg-brand-50 text-brand-600',
+    iconoFondo: 'bg-peach text-navy',
+    tarjeta: 'border-navy bg-navy',
+    tituloClase: 'text-white',
+    detalleClase: 'text-white/70',
+    notaClase: 'border-white/15 text-white',
+    notaIconoClase: 'text-peach',
     titulo: 'Empezá a gestionar sin límites',
     detalle:
       'Tu equipo listo, tu información organizada y todos los procesos de RR.HH. en un solo lugar para que ahorres tiempo y tomes mejores decisiones.',
@@ -77,68 +97,67 @@ export const PasosSection: React.FC = () => (
           </p>
         </div>
 
-        {/*
-          Tres tarjetas a la misma altura: el número marca la secuencia,
-          la nota queda anclada abajo y el conector las une en desktop
-          sin chevrones sueltos en el medio.
-        */}
-        <div className="relative mt-14">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute left-[16%] right-[16%] top-[1.375rem] hidden h-px bg-line lg:block"
-          />
-
-          <div className="grid gap-5 lg:grid-cols-3 lg:gap-6">
-            {pasos.map(
-              (
-                {
-                  numero,
-                  icono: Icono,
-                  tonoIcono,
-                  titulo,
-                  detalle,
-                  nota,
-                  iconoNota: IconoNota,
-                },
-                i
-              ) => (
-                <motion.article
-                  key={numero}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-60px' }}
-                  transition={{ duration: 0.45, delay: i * 0.12 }}
-                  className="flex h-full flex-col"
-                >
-                  <span className="relative z-10 mx-auto mb-5 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-white text-[0.8rem] font-extrabold tracking-wide text-brand-600">
+        <div className="mt-12 grid gap-5 lg:grid-cols-3 lg:gap-6">
+          {pasos.map(
+            (
+              {
+                numero,
+                icono: Icono,
+                iconoFondo,
+                tarjeta,
+                tituloClase,
+                detalleClase,
+                notaClase,
+                notaIconoClase,
+                titulo,
+                detalle,
+                nota,
+                iconoNota: IconoNota,
+              },
+              i
+            ) => (
+              <motion.article
+                key={numero}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: '-60px' }}
+                transition={{ duration: 0.45, delay: i * 0.1 }}
+                className={`group flex flex-col rounded-2xl border p-7 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift sm:p-8 ${tarjeta}`}
+              >
+                <span className="relative w-fit">
+                  <span
+                    className={`flex h-14 w-14 items-center justify-center rounded-2xl shadow-sm transition-transform duration-300 group-hover:scale-105 ${iconoFondo}`}
+                  >
+                    <Icono size={28} stroke={1.6} />
+                  </span>
+                  <span className="absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-white text-[0.7rem] font-extrabold text-navy shadow-soft ring-1 ring-line">
                     {numero}
                   </span>
+                </span>
 
-                  <div className="flex flex-1 flex-col rounded-2xl border border-line bg-paper/70 px-6 py-7 sm:px-7">
-                    <span
-                      className={`flex h-12 w-12 items-center justify-center rounded-2xl ${tonoIcono}`}
-                    >
-                      <Icono size={24} stroke={1.7} />
-                    </span>
-                    <h3 className="mt-5 min-h-[3.5rem] text-lg font-extrabold leading-snug text-navy sm:text-xl">
-                      {titulo}
-                    </h3>
-                    <p className="mt-3 flex-1 text-[0.95rem] leading-relaxed text-ink-soft">
-                      {detalle}
-                    </p>
-                    <span className="mt-6 flex items-start gap-2 border-t border-line pt-5 text-[0.82rem] font-semibold leading-snug text-navy">
-                      <IconoNota
-                        size={16}
-                        stroke={1.9}
-                        className="mt-0.5 shrink-0 text-brand-600"
-                      />
-                      {nota}
-                    </span>
-                  </div>
-                </motion.article>
-              )
-            )}
-          </div>
+                <h3
+                  className={`mt-6 text-lg font-extrabold leading-snug sm:text-xl ${tituloClase}`}
+                >
+                  {titulo}
+                </h3>
+                <p
+                  className={`mt-3 flex-1 text-[0.95rem] leading-relaxed ${detalleClase}`}
+                >
+                  {detalle}
+                </p>
+                <span
+                  className={`mt-6 flex items-start gap-2 border-t pt-5 text-[0.82rem] font-semibold leading-snug ${notaClase}`}
+                >
+                  <IconoNota
+                    size={16}
+                    stroke={1.9}
+                    className={`mt-0.5 shrink-0 ${notaIconoClase}`}
+                  />
+                  {nota}
+                </span>
+              </motion.article>
+            )
+          )}
         </div>
 
         {/* Cierre */}
@@ -176,9 +195,6 @@ export const PasosSection: React.FC = () => (
                 className="transition-transform duration-150 ease-out group-hover:translate-x-1"
               />
             </button>
-            <p className="mt-2.5 text-center text-[0.8rem] text-ink-soft lg:text-right">
-              Te respondemos en el día
-            </p>
           </div>
         </motion.div>
       </div>
