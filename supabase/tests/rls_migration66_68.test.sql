@@ -63,16 +63,45 @@ begin
 end;
 $$;
 
--- P1: supervisor cannot see peer CBU / face via view
+-- P1: supervisor cannot see peer CBU via view.
+--
+-- El descriptor ya no se comprueba acá porque desde FIC-011 la vista no
+-- lo expone a NADIE —ni al titular ni a admin_rrhh—, así que la
+-- redacción por rol dejó de ser la defensa: la columna no existe. Eso lo
+-- verifica `rpc.test.sql` contra information_schema, que es más fuerte
+-- que preguntar si vino null.
 select pg_temp.como('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a6'::uuid);
 do $$
-declare cbu text; bio jsonb;
+declare cbu text; rostro boolean;
 begin
-  select e.cbu, e.descriptor_facial into cbu, bio
+  select e.cbu, e.tiene_rostro into cbu, rostro
   from empleados_lectura e
   where e.id='b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a2';
   assert cbu is null, 'sup must not see peer CBU';
-  assert bio is null, 'sup must not see peer descriptor';
+  -- Saber que un compañero está enrolado no es un dato sensible: es lo
+  -- que necesita la pantalla de fichaje para explicar por qué la
+  -- terminal no lo reconoce.
+  assert rostro, 'tiene_rostro sí es visible: no es el dato biométrico';
+end $$;
+
+-- El descriptor no sale ni por la vista ni por la tabla, para nadie.
+do $$
+declare ok boolean := false;
+begin
+  begin
+    perform descriptor_facial from empleados_lectura
+     where id='b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a2';
+  exception when others then ok := true;
+  end;
+  assert ok, 'empleados_lectura.descriptor_facial no debe existir';
+
+  ok := false;
+  begin
+    perform descriptor_facial from empleados
+     where id='b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a2';
+  exception when others then ok := true;
+  end;
+  assert ok, 'la tabla base tampoco expone descriptor_facial a authenticated';
 end $$;
 
 -- Direct table SELECT of cbu denied

@@ -10,7 +10,7 @@ import { obtenerUbicacion } from '@/lib/facial/ubicacion';
 import { useBateria } from '@/lib/dispositivo/useBateria';
 import { ficharConRostro } from '@/lib/services/rrhh';
 import { interpretarError } from '@/lib/errores';
-import { Fichaje, MetodoFichaje } from '@/types/rrhh';
+import { Fichaje } from '@/types/rrhh';
 
 type Modo = 'verificar' | 'identificar';
 
@@ -23,8 +23,6 @@ interface FichajeFacialModalProps {
   empleadoId?: string;
   /** Nombre a mostrar dado un id (para el modo tablet). */
   resolverNombre?: (empleadoId: string) => string;
-  /** Método con que se registra (celular/remoto en verificar; tablet en identificar). */
-  metodoRegistro?: MetodoFichaje;
   /** Si captura ubicación GPS (celular y tablet sí; remoto no). */
   pedirUbicacion?: boolean;
   onFichado: (fichaje: Fichaje, empleadoId: string) => void;
@@ -50,7 +48,6 @@ export const FichajeFacialModal = ({
   modo,
   empleadoId,
   resolverNombre,
-  metodoRegistro,
   pedirUbicacion = true,
   onFichado,
 }: FichajeFacialModalProps) => {
@@ -89,11 +86,10 @@ export const FichajeFacialModal = ({
       // servidor contra la geocerca guardada, no el cliente.
       const geo = pedirUbicacion ? await obtenerUbicacion() : undefined;
 
+      // No se manda el método: lo deriva la base del camino real (F-07).
+      // Un string del request no puede convertir una fichada facial en
+      // manual, ni una del celular en una de la terminal.
       const fichaje = await ficharConRostro(descriptor, {
-        metodo:
-          modo === 'identificar'
-            ? 'facial_tablet'
-            : (metodoRegistro ?? 'celular'),
         empleadoId: modo === 'verificar' ? empleadoId : undefined,
         geo,
       });

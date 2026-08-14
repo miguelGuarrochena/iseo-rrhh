@@ -1156,7 +1156,6 @@ export const ficharAhora = async (
 export const ficharConRostro = async (
   descriptor: number[],
   opciones: {
-    metodo?: MetodoFichaje;
     empleadoId?: string;
     geo?: { lat: number; lng: number };
     tipo?: TipoFichaje;
@@ -1169,12 +1168,40 @@ export const ficharConRostro = async (
     : empleadosMock.find((e) => e.descriptorFacial?.length);
   if (!empleado) throw new Error('No reconocimos el rostro.');
 
+  // F-07: el método sale del camino, igual que en la base. Sin
+  // `empleadoId` es la terminal; con id, el dispositivo de la persona.
+  const metodo: MetodoFichaje = !opciones.empleadoId
+    ? 'facial_tablet'
+    : empleado.modoFichaje === 'remoto'
+      ? 'remoto'
+      : 'celular';
+
   return ficharAhora(empleado.id, {
-    metodo: opciones.metodo ?? 'facial_tablet',
+    metodo,
     geo: opciones.geo,
     tipo: opciones.tipo,
     confianza: 0.9,
   });
+};
+
+/**
+ * Anula un fichaje. En demo no hay roles reales, pero se respeta la
+ * regla que sí importa: el motivo es obligatorio y la fila no se borra.
+ */
+export const anularFichaje = async (
+  fichajeId: string,
+  motivo: string
+): Promise<Fichaje> => {
+  if (!motivo.trim()) {
+    throw new Error('Hay que decir por qué se anula el fichaje.');
+  }
+  const f = fichajesMock.find((x) => x.id === fichajeId);
+  if (!f) throw new Error('Ese fichaje no existe.');
+  if (f.anuladoEn) throw new Error('Ese fichaje ya estaba anulado.');
+  f.anuladoEn = new Date().toISOString();
+  f.anuladoPor = 'demo';
+  f.anuladoMotivo = motivo.trim();
+  return simular(f);
 };
 
 /** Enrola (o actualiza) el rostro de un empleado con su consentimiento. */
@@ -1364,15 +1391,34 @@ const terminalesMock: Terminal[] = [];
 export const getTerminales = async (): Promise<Terminal[]> =>
   simular([...terminalesMock]);
 
-export const registrarTerminal = async (nombre: string): Promise<Terminal> => {
+/**
+ * En demo el secreto es de mentira y no protege nada: la demo no tiene
+ * backend contra el cual validarlo. Se devuelve igual para que el flujo
+ * de la pantalla —autorizar, guardar la credencial, entrar al kiosco—
+ * sea el mismo que en producción y no haya un camino que sólo se
+ * ejercite contra la base real.
+ */
+export const autorizarTerminal = async (
+  nombre: string
+): Promise<{ terminal: Terminal; secreto: string }> => {
   const nueva: Terminal = {
     id: `term-${Date.now()}`,
     empresaId: 'emp-1',
     nombre,
+    activa: true,
     creadoEn: hoyISO(),
   };
   terminalesMock.push(nueva);
-  return simular(nueva);
+  return simular({ terminal: nueva, secreto: `demo-${nueva.id}` });
+};
+
+export const setTerminalActiva = async (
+  id: string,
+  activa: boolean
+): Promise<void> => {
+  const t = terminalesMock.find((x) => x.id === id);
+  if (t) t.activa = activa;
+  return simular(undefined);
 };
 
 export const quitarTerminal = async (id: string): Promise<void> => {

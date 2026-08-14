@@ -132,6 +132,45 @@ const PASADAS = [
 ];
 
 /**
+ * Índices de `PASADAS` empezando por la que ya funcionó.
+ *
+ * En un bucle de cuadros consecutivos, la pasada que resolvió el cuadro
+ * anterior es casi siempre la que va a resolver el siguiente: la luz y
+ * la distancia no cambian en 180 ms. Probarla primero evita repetir las
+ * pasadas baratas que ya se sabe que fallan, que es donde se iba la
+ * mitad del presupuesto de tiempo en las tablets.
+ */
+const ordenDePasadas = (preferida: number): number[] => {
+  const resto = PASADAS.map((_, i) => i).filter((i) => i !== preferida);
+  return [preferida, ...resto];
+};
+
+/**
+ * Backend de TensorFlow.js con el que quedaron corriendo los modelos.
+ *
+ * Es el dato que decide si una tablet lenta es un problema de cámara o
+ * de cómputo: con `webgl` la inferencia va por GPU, con `cpu` va por
+ * JavaScript puro y cada detección pasa de decenas de milisegundos a
+ * varios segundos. Hasta ahora eso no se registraba en ningún lado, así
+ * que "no anda en la Samsung" no se podía distinguir de "no hay luz".
+ *
+ * Devuelve null si los modelos todavía no se cargaron.
+ */
+export const backendFacial = (): string | null => {
+  if (!faceapi || !modelosCargados) return null;
+  try {
+    // `getBackend` existe en el tfjs que face-api empaqueta, pero el
+    // paquete no lo re-exporta en sus tipos (sólo declara el subconjunto
+    // de operaciones que usa). El cast es sobre eso, no sobre una API
+    // que pueda no estar.
+    const tf = faceapi.tf as unknown as { getBackend?: () => string };
+    return tf.getBackend?.() ?? null;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Extrae el descriptor de la cara presente en la imagen/video.
  * Devuelve el motivo cuando no hay exactamente un rostro, para que la
  * pantalla pueda decir qué corregir en vez de un "no te reconocimos".
@@ -170,6 +209,56 @@ export const detectarRostro = async (
   }
 
   return { ok: false, motivo: 'sin_cara', caras: ultimasCaras };
+};
+
+export interface OjosDeCuadro {
+  ojos: { izquierdo: Punto[]; derecho: Punto[] };
+  /** Pasada que resolvió este cuadro, para probarla primero en el siguiente. */
+  pasada: number;
+}
+
+/**
+ * Sólo los ojos de un cuadro: detector + landmarks, **sin descriptor**.
+ *
+ * Es la mitad cara de `detectarRostro`. El descriptor sale de
+ * `faceRecognitionNet`, una ResNet-34 de 6,4 MB que es alrededor del
+ * 85 % del costo de inferencia — y para medir la apertura del ojo (EAR)
+ * no hace falta: alcanza con `faceLandmark68Net`, que pesa 357 KB.
+ *
+ * Por qué importa: la prueba de vida corre un cuadro cada 180 ms durante
+ * 4 segundos y necesita juntar al menos `CUADROS_MINIMOS`. Calculando el
+ * descriptor en cada cuadro, una tablet de gama media apenas llegaba al
+ * mínimo y una que cayó al backend `cpu` no llegaba nunca: la persona
+ * veía "No llegamos a verte bien" y se le echaba la culpa a la luz o a
+ * la pose cuando el problema era que el dispositivo no daba abasto.
+ *
+ * `pasadaPreferida` viene del cuadro anterior; ver `ordenDePasadas`.
+ */
+export const detectarOjos = async (
+  fuente: FuenteImagen,
+  pasadaPreferida = 0
+): Promise<OjosDeCuadro | null> => {
+  const listos = await cargarModelos();
+  if (!listos || !faceapi) return null;
+
+  for (const i of ordenDePasadas(pasadaPreferida)) {
+    const detecciones = await faceapi
+      .detectAllFaces(fuente, new faceapi.TinyFaceDetectorOptions(PASADAS[i]))
+      .withFaceLandmarks();
+
+    // Con más de una cara el EAR promedio no dice nada de nadie.
+    if (detecciones.length !== 1) continue;
+    const cara = detecciones[0];
+    return {
+      ojos: {
+        izquierdo: cara.landmarks.getLeftEye(),
+        derecho: cara.landmarks.getRightEye(),
+      },
+      pasada: i,
+    };
+  }
+
+  return null;
 };
 
 /**

@@ -40,7 +40,6 @@ import {
   NuevaEmpresa,
   NuevaRemuneracion,
   NuevoConvenio,
-  MetodoFichaje,
   OpcionesFichaje,
   TipoFichaje,
   PendientesResumen,
@@ -85,6 +84,7 @@ import { traerTodo as traerTodoBase } from './paginado';
 import { aISOLocal, diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
 import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
 import { supabase } from '@/lib/supabase/cliente';
+import { getTerminalLocal } from '@/lib/terminal';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import {
   aAdelanto,
@@ -1685,6 +1685,9 @@ export const getFichajesDeHoy = async (
     .select('*')
     .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
     .gte('ts', inicioDeHoy())
+    // F-12: las marcas anuladas siguen en la tabla para la auditoría,
+    // pero no cuentan como presentismo.
+    .is('anulado_en', null)
     .order('ts');
   return oFalla(data, error).map(aFichaje);
 };
@@ -1832,6 +1835,7 @@ export const getFichajesEntre = async (
         .eq('empresa_id', empresaId())
         .gte('ts', inicio)
         .lte('ts', fin)
+        .is('anulado_en', null)
         .order('ts')
         .order('id')
         .range(d, h),
@@ -1848,6 +1852,7 @@ export const getFichajesDeEmpleadoHoy = async (
     .select('*')
     .eq('empleado_id', empleadoId)
     .gte('ts', inicioDeHoy())
+    .is('anulado_en', null)
     .order('ts');
   return oFalla(data, error).map(aFichaje);
 };
@@ -1907,24 +1912,60 @@ export const ficharAhora = async (
 export const ficharConRostro = async (
   descriptor: number[],
   opciones: {
-    metodo?: MetodoFichaje;
     empleadoId?: string;
     geo?: { lat: number; lng: number };
     tipo?: TipoFichaje;
   } = {}
 ): Promise<Fichaje> => {
+  // El 1:N (kiosco) manda además la credencial de esta terminal. La
+  // credencial se lee acá y no se recibe por parámetro a propósito: es
+  // una propiedad del dispositivo, no de la pantalla que ficha, y así
+  // ningún componente puede "elegir" con qué terminal fichar.
+  //
+  // El 1:1 no lleva terminal: el empleado ficha desde su celular.
+  const terminal = opciones.empleadoId ? null : getTerminalLocal();
+
+  // Ya no viaja `p_metodo`: el método lo deriva la base del camino real
+  // (F-07). 1:N por terminal ⇒ facial_tablet; 1:1 ⇒ remoto o celular
+  // según el `modo_fichaje` del empleado, que es dato del servidor. Un
+  // string del request no puede convertir una fichada facial en manual.
   const { data, error } = await sb()
     .rpc('fichar_con_rostro', {
       p_descriptor: descriptor,
-      p_metodo: opciones.metodo ?? 'facial_tablet',
       p_empleado_id: opciones.empleadoId ?? null,
       p_lat: opciones.geo?.lat ?? null,
       p_lng: opciones.geo?.lng ?? null,
       p_tipo: opciones.tipo ?? null,
+      p_terminal_id: terminal?.id ?? null,
+      p_terminal_secreto: terminal?.secreto ?? null,
     })
     .single();
   // El RPC devuelve una fila de `fichajes`, pero el tipado de `.rpc()` la
   // da como `unknown`: se afirma acá, que es donde se sabe.
+  return aFichaje(oFalla(data, error) as Parameters<typeof aFichaje>[0]);
+};
+
+/**
+ * Anula un fichaje dejando la fila intacta.
+ *
+ * No hay borrado ni edición: `fichajes` no tiene policy de UPDATE ni de
+ * DELETE, así que éste es el único camino. El RPC exige motivo, impone
+ * quién anuló (no lo puede afirmar el cliente), audita en la misma
+ * transacción y saca la marca de jornadas, resumen, Excel y
+ * liquidación. La fila sigue existiendo para la auditoría.
+ *
+ * Sólo admin_rrhh de la empresa o superadmin; el motivo está detrás.
+ */
+export const anularFichaje = async (
+  fichajeId: string,
+  motivo: string
+): Promise<Fichaje> => {
+  const { data, error } = await sb()
+    .rpc('anular_fichaje', {
+      p_fichaje_id: fichajeId,
+      p_motivo: motivo,
+    })
+    .single();
   return aFichaje(oFalla(data, error) as Parameters<typeof aFichaje>[0]);
 };
 
@@ -1987,21 +2028,26 @@ export const borrarRostro = async (
   return getEmpleado(empleadoId);
 };
 
-/** Descriptores de los empleados activos con rostro enrolado (para 1:N). */
+/**
+ * Ya no existe contra el backend real, a propósito.
+ *
+ * Bajaba los descriptores de toda la empresa para comparar en el
+ * navegador. Desde la migración 49 el match lo hace `fichar_con_rostro`
+ * en el servidor y esta función quedó sin usar; desde FIC-011 la vista
+ * de lectura directamente no expone la columna.
+ *
+ * No se borra el símbolo porque `elegir()` necesita las dos mitades y
+ * el modo demo sí compara en memoria (donde no hay nada que proteger).
+ * Falla ruidosamente en vez de en silencio: si alguien vuelve a
+ * cablearla, que se entere acá y no cuando los templates biométricos de
+ * la empresa ya estén viajando por la red.
+ */
 export const getDescriptoresFaciales = async (): Promise<
   DescriptorFacial[]
 > => {
-  const { data, error } = await sb()
-    .from(EMPLEADOS_LECTURA)
-    .select('id, descriptor_facial')
-    .eq('empresa_id', empresaId())
-    .eq('activo', true)
-    .not('descriptor_facial', 'is', null);
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((f) => ({
-    empleadoId: f.id as string,
-    descriptor: (f.descriptor_facial ?? []) as number[],
-  }));
+  throw new Error(
+    'Los descriptores faciales no salen del servidor: usá fichar_con_rostro().'
+  );
 };
 
 // ---------- Notas internas (solo admins) ----------
@@ -2167,23 +2213,69 @@ export const getFichajesDeEmpleado = async (
 
 // ---------- Terminales de fichaje ----------
 
+/**
+ * Columnas explícitas y no `*`: `secreto_hash` no está en los grants de
+ * `authenticated` (migración 75), así que un `select *` sobre esta tabla
+ * ahora falla con "permission denied for column".
+ */
+const TERMINAL_SELECT = 'id, empresa_id, nombre, creado_en, activa';
+
 export const getTerminales = async (): Promise<Terminal[]> => {
   const { data, error } = await sb()
     .from('terminales')
-    .select('*')
+    .select(TERMINAL_SELECT)
     .eq('empresa_id', empresaId())
     .order('creado_en');
   if (error) throw new Error(error.message);
   return (data ?? []).map(aTerminal);
 };
 
-export const registrarTerminal = async (nombre: string): Promise<Terminal> => {
+/**
+ * Autoriza este dispositivo como terminal y devuelve su credencial.
+ *
+ * Va por RPC y no por un INSERT: el alta tiene que generar el secreto
+ * del lado del servidor, guardar sólo su hash y devolver el valor en
+ * claro una única vez. `authenticated` ya no tiene INSERT sobre
+ * `terminales`, justamente para que no exista un camino que cree una
+ * terminal sin credencial.
+ *
+ * El secreto sale de acá y va derecho a `setTerminalLocal`. No se
+ * guarda en el estado de React ni se muestra en pantalla: no hay nada
+ * que hacer con él salvo dejarlo en este dispositivo.
+ */
+export const autorizarTerminal = async (
+  nombre: string
+): Promise<{ terminal: Terminal; secreto: string }> => {
   const { data, error } = await sb()
-    .from('terminales')
-    .insert({ empresa_id: empresaId(), nombre })
-    .select()
+    .rpc('autorizar_terminal', { p_nombre: nombre })
     .single();
-  return aTerminal(oFalla(data, error));
+  const fila = oFalla(data, error) as {
+    id: string;
+    nombre: string;
+    secreto: string;
+  };
+  return {
+    terminal: {
+      id: fila.id,
+      empresaId: empresaId(),
+      nombre: fila.nombre,
+      activa: true,
+    },
+    secreto: fila.secreto,
+  };
+};
+
+/** Habilita o deshabilita una terminal sin perder su histórico. */
+export const setTerminalActiva = async (
+  id: string,
+  activa: boolean
+): Promise<void> => {
+  const { error } = await sb()
+    .from('terminales')
+    .update({ activa })
+    .eq('id', id)
+    .eq('empresa_id', empresaId());
+  if (error) throw new Error(error.message);
 };
 
 export const quitarTerminal = async (id: string): Promise<void> => {
@@ -2407,6 +2499,7 @@ export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
       .select('*')
       .eq('empleado_id', empleadoId)
       .gte('ts', desde.toISOString())
+      .is('anulado_en', null)
       .order('ts'),
     getEmpresa(),
     getTurnosEntre(aISOLocal(desde), hoyISO(), { empleadoId }),
@@ -2455,6 +2548,7 @@ export const getHorasExtrasDelPeriodo = async (
       .eq('empleado_id', empleadoId)
       .gte('ts', desde.toISOString())
       .lt('ts', hasta.toISOString())
+      .is('anulado_en', null)
       .order('ts'),
     getEmpresa(),
     getTurnosEntre(aISOLocal(desde), aISOLocal(ultimoDia), { empleadoId }),

@@ -8,6 +8,7 @@ import { Boton } from '@/components/app/ui/Boton';
 import { CapturaFacial } from './CapturaFacial';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { borrarRostro, enrolarRostro } from '@/lib/services/rrhh';
+import { tieneRostroEnrolado } from '@/lib/facial/enrolado';
 import { Empleado } from '@/types/rrhh';
 
 interface EnrolamientoFacialProps {
@@ -27,7 +28,7 @@ export const EnrolamientoFacial = ({
   const [consiente, setConsiente] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
-  const enrolado = Boolean(empleado.descriptorFacial?.length);
+  const enrolado = tieneRostroEnrolado(empleado);
   const nombre = empleado.nombre;
 
   /**

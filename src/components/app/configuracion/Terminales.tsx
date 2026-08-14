@@ -10,9 +10,10 @@ import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
+  autorizarTerminal,
   getTerminales,
   quitarTerminal,
-  registrarTerminal,
+  setTerminalActiva,
 } from '@/lib/services/rrhh';
 import {
   borrarTerminalLocal,
@@ -36,25 +37,43 @@ export const Terminales = () => {
   const cargar = carga.recargar;
 
   useEffect(() => {
-    setLocalId(getTerminalLocal());
+    setLocalId(getTerminalLocal()?.id ?? null);
   }, []);
 
   const esteEsTerminal =
     localId != null && terminales.some((t) => t.id === localId);
 
+  /**
+   * El secreto que devuelve el servidor va derecho al almacenamiento de
+   * este dispositivo y no se muestra ni se guarda en ningún otro lado:
+   * se entrega una sola vez y no hay nada que hacer con él salvo
+   * dejarlo acá. Si se pierde, se vuelve a autorizar la tablet.
+   */
   const autorizar = async () => {
     if (!nombre.trim()) return;
     setGuardando(true);
     try {
-      const t = await registrarTerminal(nombre.trim());
-      setTerminalLocal(t.id);
-      setLocalId(t.id);
+      const { terminal, secreto } = await autorizarTerminal(nombre.trim());
+      setTerminalLocal({ id: terminal.id, secreto });
+      setLocalId(terminal.id);
       avisoExito('Tablet lista', 'Ahora andá a Fichaje y tocá Modo planta.');
       cargar();
     } catch {
-      avisoError('No pudimos autorizar el dispositivo', 'Probá de nuevo.');
+      avisoError(
+        'No pudimos autorizar el dispositivo',
+        'Sólo RRHH puede autorizar una tablet. Probá de nuevo.'
+      );
     } finally {
       setGuardando(false);
+    }
+  };
+
+  const alternarActiva = async (t: Terminal) => {
+    try {
+      await setTerminalActiva(t.id, !t.activa);
+      cargar();
+    } catch {
+      avisoError('No pudimos cambiar el estado', 'Probá de nuevo.');
     }
   };
 
@@ -120,19 +139,33 @@ export const Terminales = () => {
                 </span>
                 <div>
                   <p className="text-sm font-semibold text-ink">{t.nombre}</p>
-                  {t.id === localId && (
+                  {t.id === localId ? (
                     <p className="text-xs text-emerald-700">Este dispositivo</p>
+                  ) : null}
+                  {!t.activa && (
+                    <p className="text-xs font-semibold text-amber-700">
+                      Desactivada: no puede fichar
+                    </p>
                   )}
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => void quitar(t)}
-                aria-label="Quitar terminal"
-                className="shrink-0 cursor-pointer rounded-lg border-0 bg-transparent inline-flex h-11 w-11 items-center justify-center sm:h-9 sm:w-9 text-ink-soft transition-colors hover:text-red-600"
-              >
-                <IconTrash size={16} />
-              </button>
+              <div className="flex shrink-0 items-center gap-1">
+                <Boton
+                  variante="secundario"
+                  tamano="sm"
+                  onClick={() => void alternarActiva(t)}
+                >
+                  {t.activa ? 'Desactivar' : 'Activar'}
+                </Boton>
+                <button
+                  type="button"
+                  onClick={() => void quitar(t)}
+                  aria-label="Quitar terminal"
+                  className="shrink-0 cursor-pointer rounded-lg border-0 bg-transparent inline-flex h-11 w-11 items-center justify-center sm:h-9 sm:w-9 text-ink-soft transition-colors hover:text-red-600"
+                >
+                  <IconTrash size={16} />
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -327,7 +327,24 @@ export interface Empleado {
   /** Zona de trabajo (solo si modoFichaje === 'celular'). */
   geocerca?: Geocerca;
   // Biometría (fichaje por reconocimiento facial)
-  /** Descriptor facial (128 números) del rostro enrolado. Dato sensible. */
+  /**
+   * Si esta persona tiene el rostro enrolado. Es lo único que la app
+   * necesita saber, y lo único que el servidor devuelve (FIC-011).
+   */
+  tieneRostro?: boolean;
+  /**
+   * Descriptor facial (128 números) del rostro enrolado.
+   *
+   * **El backend real ya no lo devuelve nunca**: es el secreto con el
+   * que se autentica el fichaje facial, y con él en la mano se puede
+   * fichar por REST sin cámara ni prueba de vida. Se escribe al enrolar
+   * y se lee sólo dentro de `fichar_con_rostro` (SECURITY DEFINER).
+   *
+   * Sigue en el tipo porque el modo demo trabaja en memoria y compara
+   * descriptores ahí mismo, donde no hay nada que proteger. Para
+   * preguntar "¿está enrolada?" usar `tieneRostroEnrolado()`, que
+   * funciona con los dos backends.
+   */
   descriptorFacial?: number[];
   /** Consentimiento del empleado para usar su rostro (Ley 25.326). */
   consentimientoBiometrico?: ConsentimientoBiometrico;
@@ -643,6 +660,16 @@ export interface Fichaje {
   registradoPor?: string;
   /** Usuario autenticado que cargó a mano (lo impone la base). */
   registradoPorId?: string;
+  /**
+   * Anulación (F-12). La fila nunca se borra: se marca. Una marca
+   * anulada queda fuera de jornadas, resumen, Excel y liquidación, pero
+   * sigue existiendo para la auditoría.
+   *
+   * Los tres campos van juntos y sólo los escribe `anular_fichaje()`.
+   */
+  anuladoEn?: string;
+  anuladoPor?: string;
+  anuladoMotivo?: string;
 }
 
 /** Opciones al registrar un fichaje (método, foto, confianza, ubicación). */
@@ -671,6 +698,13 @@ export interface Terminal {
   id: string;
   empresaId: string;
   nombre: string;
+  /**
+   * Habilitada para el fichaje en planta. Desactivarla corta el kiosco
+   * de esa tablet sin borrar su histórico. El secreto de la terminal no
+   * está acá ni en ninguna respuesta de la API: sólo su hash, en la
+   * base, y el valor en claro en el dispositivo vinculado.
+   */
+  activa: boolean;
   creadoEn?: string;
 }
 

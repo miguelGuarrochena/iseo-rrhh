@@ -384,6 +384,17 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
         abierto={camaraAbierta}
         onCerrar={() => setCamaraAbierta(false)}
         modo="identificar"
+        /*
+         * La tablet no pide GPS. Está atornillada en la planta, así que
+         * su ubicación no dice nada de quién ficha; y cuando el GPS no
+         * engancha —lo normal bajo techo— `obtenerUbicacion` se queda
+         * hasta 8 segundos esperando un `timeout` antes de devolver
+         * undefined. Con una fila de gente a la mañana, esos 8 segundos
+         * por persona eran buena parte de la sensación de "la tablet va
+         * lenta". La garantía de presencia acá es la terminal
+         * autorizada, no la coordenada.
+         */
+        pedirUbicacion={false}
         resolverNombre={nombreEmpleado}
         onFichado={(marca, empleadoId) => {
           setCamaraAbierta(false);

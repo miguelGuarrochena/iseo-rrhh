@@ -107,7 +107,10 @@ export const aEmpleado = (f: Fila): Empleado => ({
   sinUsuario: Boolean(f.sin_usuario),
   modoFichaje: (f.modo_fichaje ?? undefined) as Empleado['modoFichaje'],
   geocerca: (f.geocerca ?? undefined) as Empleado['geocerca'],
-  descriptorFacial: (f.descriptor_facial ?? undefined) as number[] | undefined,
+  // `descriptor_facial` ya no lo devuelve la vista de lectura (FIC-011):
+  // el descriptor es el secreto del fichaje facial y no sale de la base.
+  // Lo único que viaja es si la persona está enrolada o no.
+  tieneRostro: Boolean(f.tiene_rostro),
   consentimientoBiometrico: (f.consentimiento_biometrico ?? undefined) as
     | Empleado['consentimientoBiometrico']
     | undefined,
@@ -152,12 +155,18 @@ export const aFichaje = (f: Fila): Fichaje => ({
   fueraDeZona: f.fuera_de_zona ?? undefined,
   registradoPor: f.registrado_por ?? undefined,
   registradoPorId: f.registrado_por_id ?? undefined,
+  anuladoEn: f.anulado_en ?? undefined,
+  anuladoPor: f.anulado_por ?? undefined,
+  anuladoMotivo: f.anulado_motivo ?? undefined,
 });
 
 export const aTerminal = (f: Fila): Terminal => ({
   id: f.id,
   empresaId: f.empresa_id,
   nombre: f.nombre,
+  // `secreto_hash` no se mapea porque no se lee: no está en los grants
+  // de `authenticated` (migración 75).
+  activa: f.activa !== false,
   creadoEn: f.creado_en ? String(f.creado_en).slice(0, 10) : undefined,
 });
 

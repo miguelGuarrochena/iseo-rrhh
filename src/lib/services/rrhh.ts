@@ -243,6 +243,8 @@ export const ficharConRostro = elegir(
   real.ficharConRostro,
   demo.ficharConRostro
 );
+/** Anulación auditable (F-12): exige motivo, no borra, sólo admin_rrhh. */
+export const anularFichaje = elegir(real.anularFichaje, demo.anularFichaje);
 
 // ---------- Reconocimiento facial ----------
 export const enrolarRostro = elegir(real.enrolarRostro, demo.enrolarRostro);
@@ -272,9 +274,14 @@ export const getFichajesDeEmpleado = elegir(
 
 // ---------- Terminales de fichaje ----------
 export const getTerminales = elegir(real.getTerminales, demo.getTerminales);
-export const registrarTerminal = elegir(
-  real.registrarTerminal,
-  demo.registrarTerminal
+/** Devuelve el secreto de la terminal UNA sola vez: no se puede recuperar. */
+export const autorizarTerminal = elegir(
+  real.autorizarTerminal,
+  demo.autorizarTerminal
+);
+export const setTerminalActiva = elegir(
+  real.setTerminalActiva,
+  demo.setTerminalActiva
 );
 export const quitarTerminal = elegir(real.quitarTerminal, demo.quitarTerminal);
 

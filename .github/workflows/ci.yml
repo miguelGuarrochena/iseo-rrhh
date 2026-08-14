@@ -92,6 +92,27 @@ jobs:
             psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
             < supabase/tests/rpc.test.sql
 
+      # F-01: la matriz de acceso del kiosco. Un fichaje 1:N sin terminal
+      # vinculada dejaba que cualquier usuario del tenant fichara por
+      # cualquier otro, y la marca quedaba con cara de fichaje facial
+      # legítimo en la planilla de liquidación. Si esto se rompe, se
+      # rompe en silencio: no hay pantalla que lo muestre.
+      - name: Autorización de terminal (F-01)
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/terminal_vinculada.test.sql
+
+      # F-07 y F-12: que el método lo decida la base y no el request, y
+      # que la anulación exija motivo, deje actor y salga de los
+      # cálculos. Las dos cosas alimentan la liquidación, así que un
+      # error acá se paga en plata.
+      - name: Método derivado y anulación (F-07 / F-12)
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/metodo_y_anulacion.test.sql
+
       # Race de fichaje (FIC-004): dos RPC concurrentes del mismo
       # empleado deben alternar ingreso/egreso, nunca duplicar el tipo.
       - name: Concurrencia de fichaje

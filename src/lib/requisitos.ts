@@ -17,6 +17,7 @@ import {
   ModalidadContratacion,
   ModoFichaje,
 } from '@/types/rrhh';
+import { tieneRostroEnrolado } from '@/lib/facial/enrolado';
 
 /**
  * Bloquear le cuesta caro a quien está trabajando, así que se reserva
@@ -182,8 +183,7 @@ const REGLAS: Regla[] = [
     comoSeArregla: 'Enrolá su rostro desde la ficha, con su consentimiento.',
     ruta: (e) => `/colaboradores/${e.id}`,
     falta: (e) =>
-      e.modoFichaje === ('planta' as ModoFichaje) &&
-      (!e.descriptorFacial || e.descriptorFacial.length === 0),
+      e.modoFichaje === ('planta' as ModoFichaje) && !tieneRostroEnrolado(e),
   },
   {
     clave: 'facial_sin_consentimiento',
@@ -196,8 +196,7 @@ const REGLAS: Regla[] = [
       'Registrá el consentimiento desde la ficha, o borrá el rostro enrolado.',
     ruta: (e) => `/colaboradores/${e.id}`,
     falta: (e) =>
-      Boolean(e.descriptorFacial?.length) &&
-      !e.consentimientoBiometrico?.aceptado,
+      tieneRostroEnrolado(e) && !e.consentimientoBiometrico?.aceptado,
   },
   {
     clave: 'celular_sin_geocerca',

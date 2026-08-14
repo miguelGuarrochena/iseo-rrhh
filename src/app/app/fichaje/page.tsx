@@ -45,6 +45,7 @@ import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
 import { faltasDeEmpleado } from '@/lib/requisitos';
+import { tieneRostroEnrolado } from '@/lib/facial/enrolado';
 import { BloqueFaltasDeVarios } from '@/components/app/Faltas';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
@@ -201,22 +202,27 @@ const FichajePage = () => {
     cAusencias.recargar();
   }, [cMisFichajes, cMiEmpleado, cFichajesHoy, cEmpleados, cAusencias]);
 
-  // Verifica si ESTE dispositivo está autorizado como terminal de planta.
+  // Si ESTE dispositivo tiene credencial de terminal activa. Es sólo
+  // para decidir qué mostrar: la autorización de verdad la hace el RPC
+  // contra el par (terminal, secreto). Esconder o mostrar el botón acá
+  // no protege nada, y no pretende hacerlo.
   useEffect(() => {
     if (esEmpleado) return;
-    const localId = getTerminalLocal();
-    if (!localId) {
+    const local = getTerminalLocal();
+    if (!local) {
       setEsTerminal(false);
       return;
     }
     void getTerminales()
-      .then((ts) => setEsTerminal(ts.some((t) => t.id === localId)))
+      .then((ts) =>
+        setEsTerminal(ts.some((t) => t.id === local.id && t.activa))
+      )
       .catch(() => setEsTerminal(false));
   }, [esEmpleado]);
 
   const ultimo = misFichajes[misFichajes.length - 1];
   const proximoTipo = ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso';
-  const tieneRostro = Boolean(miEmpleado?.descriptorFacial?.length);
+  const tieneRostro = tieneRostroEnrolado(miEmpleado);
   const modoEmp: ModoFichaje = miEmpleado?.modoFichaje ?? 'celular';
 
   const trasFichar = (marca: Fichaje) => {
@@ -350,7 +356,6 @@ const FichajePage = () => {
           onCerrar={() => setFacialAbierto(false)}
           modo="verificar"
           empleadoId={miEmpleado.id}
-          metodoRegistro={modoEmp === 'remoto' ? 'remoto' : 'celular'}
           pedirUbicacion={modoEmp === 'celular'}
           onFichado={(marca) => trasFichar(marca)}
         />

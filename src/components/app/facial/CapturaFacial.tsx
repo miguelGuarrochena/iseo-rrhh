@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { IconCamera, IconFaceId, IconRefresh } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
-import { cargarModelos, detectarRostro } from '@/lib/facial/reconocimiento';
+import {
+  cargarModelos,
+  detectarOjos,
+  detectarRostro,
+} from '@/lib/facial/reconocimiento';
 import {
   aperturaDeCuadro,
   CUADROS_MINIMOS,
@@ -11,8 +15,16 @@ import {
 } from '@/lib/facial/liveness';
 
 interface CapturaFacialProps {
-  /** Se llama con el descriptor (128 nros) y una foto JPEG (dataURL). */
-  onCaptura: (descriptor: number[], foto: string) => void;
+  /**
+   * Se llama con el descriptor (128 números) y nada más.
+   *
+   * Antes también entregaba una foto JPEG del rostro (`toDataURL`) que
+   * ninguno de los dos consumidores usaba: se materializaba una imagen
+   * biométrica en memoria en cada captura para tirarla enseguida. El
+   * dato biométrico que el sistema necesita es el descriptor, del que no
+   * se puede reconstruir la cara; la foto no hacía falta para nada.
+   */
+  onCaptura: (descriptor: number[]) => void;
   /** Estado ocupado externo (ej. mientras se guarda / se ficha). */
   procesando?: boolean;
   textoBoton?: string;
@@ -146,10 +158,18 @@ export const CapturaFacial = ({
     setPidiendoParpadeo(true);
     const aperturas: number[] = [];
     const hasta = Date.now() + MS_LIVENESS;
+    // La pasada que resolvió el cuadro anterior se prueba primero en el
+    // siguiente: en 180 ms no cambian ni la luz ni la distancia.
+    let pasada = 0;
     try {
       while (Date.now() < hasta) {
-        const cuadro = await detectarRostro(video);
-        if (cuadro.ok) {
+        // `detectarOjos` y no `detectarRostro`: para el EAR alcanzan los
+        // landmarks. Calcular además el descriptor multiplicaba por ~6 el
+        // costo de cada cuadro y hacía que las tablets no llegaran nunca
+        // a juntar los CUADROS_MINIMOS dentro de la ventana.
+        const cuadro = await detectarOjos(video, pasada);
+        if (cuadro) {
+          pasada = cuadro.pasada;
           aperturas.push(
             aperturaDeCuadro(cuadro.ojos.izquierdo, cuadro.ojos.derecho)
           );
@@ -197,13 +217,7 @@ export const CapturaFacial = ({
         );
         return;
       }
-      const { descriptor } = deteccion;
-      const canvas = document.createElement('canvas');
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      canvas.getContext('2d')?.drawImage(videoRef.current, 0, 0);
-      const foto = canvas.toDataURL('image/jpeg', 0.7);
-      onCaptura(Array.from(descriptor), foto);
+      onCaptura(Array.from(deteccion.descriptor));
     } catch {
       setMensaje(
         'No pudimos procesar la imagen. Intentá de nuevo; si se repite, recargá la página.'
