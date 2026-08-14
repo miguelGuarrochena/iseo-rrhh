@@ -45,10 +45,19 @@ const nextConfig = {
         ],
       },
       {
-        // Los pesos del reconocimiento facial son ~6,8 MB y no cambian
-        // salvo que se actualice face-api. Sin cache larga, la tablet de
-        // planta se los vuelve a bajar en cada arranque.
-        source: '/models/:archivo*',
+        // Todo el módulo facial: el runtime WASM de MediaPipe, su modelo
+        // de landmarks, los pesos de dlib y los binarios WASM de TF.js.
+        // Son ~22 MB que no cambian salvo que se actualice una
+        // dependencia, y la tablet de planta los usa todos los días. Sin
+        // cache inmutable se los vuelve a bajar en cada arranque, que es
+        // exactamente el momento en que hay una fila esperando.
+        //
+        // Los nombres de archivo están fijados por versión (`/1/` en la
+        // URL del modelo de MediaPipe, `package-lock` para el resto), así
+        // que `immutable` es seguro: una actualización cambia el
+        // contenido de `public/facial` en el deploy, no la validez de lo
+        // ya cacheado en una tablet vieja.
+        source: '/facial/:ruta*',
         headers: [
           {
             key: 'Cache-Control',

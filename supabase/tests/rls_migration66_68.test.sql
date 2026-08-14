@@ -28,18 +28,19 @@ insert into empresas (id, nombre, cuit, contacto_nombre, contacto_email, config)
  ('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6b1','M66-B','30-m66b','B','m66b@t.test',
   '{"horaEntrada":"08:00","horaSalida":"17:00","toleranciaLlegadaTardeMin":10,"diasAvisoVencimiento":30,"metodosFichaje":["celular"]}'::jsonb);
 
-insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso, puesto, sector, cbu, descriptor_facial, consentimiento_biometrico) values
- ('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a2','b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a1','Emp','A','m66e1','2020-01-01','Op','Prod','111',null,null),
- ('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a3','b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a1','Sup','A','m66s1','2019-01-01','Sup','Admin','222','[0.1]'::jsonb,
+insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso, puesto, sector, cbu, descriptor_facial, descriptor_version, consentimiento_biometrico) values
+ ('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a2','b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a1','Emp','A','m66e1','2020-01-01','Op','Prod','111',null,null,null),
+ ('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a3','b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a1','Sup','A','m66s1','2019-01-01','Sup','Admin','222','[0.1]'::jsonb, 1,
   '{"aceptado":true,"fecha":"2026-01-01"}'::jsonb),
- ('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a4','b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a1','Adm','A','m66a1','2018-01-01','RRHH','Admin','333',null,null),
- ('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6b2','b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6b1','Emp','B','m66e9','2020-01-01','Op','Prod','999',null,null);
+ ('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a4','b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a1','Adm','A','m66a1','2018-01-01','RRHH','Admin','333',null,null,null),
+ ('b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6b2','b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6b1','Emp','B','m66e9','2020-01-01','Op','Prod','999',null,null,null);
 
 -- Set peer emp A2 cbu + face for supervisor probe
 update empleados
    set cbu='PEER-CBU',
        consentimiento_biometrico='{"aceptado":true,"fecha":"2026-01-01"}'::jsonb,
-       descriptor_facial='[0.9]'::jsonb
+       descriptor_facial='[0.9]'::jsonb,
+       descriptor_version=1
  where id='b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a2';
 
 insert into auth.users (id, instance_id, email, aud, role) values

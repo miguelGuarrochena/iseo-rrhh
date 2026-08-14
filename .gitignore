@@ -44,8 +44,13 @@ next-env.d.ts
 # worker de pdf.js (lo copia scripts/copiar-worker-pdf.mjs en postinstall)
 /public/pdf.worker.min.mjs
 
-# modelos de reconocimiento facial, 6,8 MB (los copia
-# scripts/copiar-modelos-faciales.mjs en postinstall)
+# Modelos y runtimes del reconocimiento facial, ~36 MB en disco (los
+# prepara scripts/copiar-modelos-faciales.mjs en postinstall: copia
+# MediaPipe y los pesos de dlib desde node_modules, y baja una vez el
+# face_landmarker.task, que no viaja en npm).
+/public/facial/
+# Ubicación anterior. Se deja ignorada un tiempo para que un working tree
+# viejo no la traiga de vuelta como archivo sin seguimiento.
 /public/models/
 
 # Artefactos locales del CLI de Supabase (rama activa, versión cacheada).

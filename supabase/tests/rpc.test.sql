@@ -89,8 +89,12 @@ begin
 end $$;
 
 -- Enrolamiento válido: deja el rostro [0,0,0] listo para los tests del RPC.
+-- La versión va junto con el descriptor: desde la migración 77 la base no
+-- deja que quede uno sin el otro, porque un descriptor sin versión es un
+-- descriptor que después nadie sabe con qué comparar.
 update empleados
    set descriptor_facial = '[0,0,0]'::jsonb,
+       descriptor_version = 1,
        consentimiento_biometrico =
          '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb
  where id = '22222222-2222-2222-2222-222222222222';
@@ -485,10 +489,10 @@ set request.jwt.claims =
   '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}';
 
 insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso,
-  puesto, sector, modo_fichaje, descriptor_facial, consentimiento_biometrico)
+  puesto, sector, modo_fichaje, descriptor_facial, descriptor_version, consentimiento_biometrico)
 values ('99999999-9999-9999-9999-999999999999', '11111111-1111-1111-1111-111111111111',
   'Noc', 'Turno', '999', '2020-01-01', 'Op', 'Prod', 'planta',
-  '[0.5,0.5,0.5]'::jsonb,
+  '[0.5,0.5,0.5]'::jsonb, 1,
   '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb);
 
 -- Turno 22:00 → 06:00 del día siguiente, con horas fijas.
@@ -714,9 +718,9 @@ end $$;
 
 -- Dos rostros casi idénticos en 1:N: mejor no fichar que fichar al que no es.
 insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso,
-  puesto, sector, descriptor_facial, consentimiento_biometrico)
+  puesto, sector, descriptor_facial, descriptor_version, consentimiento_biometrico)
 values ('44444444-4444-4444-4444-444444444444', '11111111-1111-1111-1111-111111111111',
-  'Beto', 'Gomez', '222', '2020-01-01', 'Op', 'Prod', '[0.02,0.02,0.02]'::jsonb,
+  'Beto', 'Gomez', '222', '2020-01-01', 'Op', 'Prod', '[0.02,0.02,0.02]'::jsonb, 1,
   '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb);
 
 do $$

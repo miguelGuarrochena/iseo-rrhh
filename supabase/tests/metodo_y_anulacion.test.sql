@@ -23,15 +23,15 @@ insert into empresas (id, nombre, cuit, contacto_nombre, contacto_email, config)
 
 -- Tres empleados de A con modos distintos, para probar la derivación.
 insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso,
-  puesto, sector, modo_fichaje, descriptor_facial, consentimiento_biometrico) values
+  puesto, sector, modo_fichaje, descriptor_facial, descriptor_version, consentimiento_biometrico) values
  ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1','a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
-  'Cel','A','ma-e1','2020-01-01','Op','Prod','celular','[0,0,0]'::jsonb,
+  'Cel','A','ma-e1','2020-01-01','Op','Prod','celular','[0,0,0]'::jsonb, 1,
   '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb),
  ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e2','a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
-  'Rem','A','ma-e2','2020-01-01','Op','Prod','remoto','[5,5,5]'::jsonb,
+  'Rem','A','ma-e2','2020-01-01','Op','Prod','remoto','[5,5,5]'::jsonb, 1,
   '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb),
  ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e3','a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
-  'Pla','A','ma-e3','2020-01-01','Op','Prod','planta','[9,9,9]'::jsonb,
+  'Pla','A','ma-e3','2020-01-01','Op','Prod','planta','[9,9,9]'::jsonb, 1,
   '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb);
 
 insert into auth.users (id, instance_id, email, aud, role) values

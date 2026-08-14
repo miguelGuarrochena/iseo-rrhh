@@ -41,15 +41,15 @@ on conflict do nothing;
 -- Biometrics set as service (consent path not under test here).
 update empleados
    set consentimiento_biometrico = jsonb_build_object('aceptado', true, 'fecha', current_date::text),
-       descriptor_facial = '[0.1]'::jsonb
+       descriptor_facial = '[0.1]'::jsonb, descriptor_version = 1
  where id = 'abababab-abab-abab-abab-abababababa2';
 update empleados
    set consentimiento_biometrico = jsonb_build_object('aceptado', true, 'fecha', current_date::text),
-       descriptor_facial = '[0.2]'::jsonb
+       descriptor_facial = '[0.2]'::jsonb, descriptor_version = 1
  where id = 'abababab-abab-abab-abab-abababababa3';
 update empleados
    set consentimiento_biometrico = jsonb_build_object('aceptado', true, 'fecha', current_date::text),
-       descriptor_facial = '[0.9]'::jsonb
+       descriptor_facial = '[0.9]'::jsonb, descriptor_version = 1
  where id = 'abababab-abab-abab-abab-abababababa8';
 
 insert into auth.users (id, instance_id, email, aud, role) values

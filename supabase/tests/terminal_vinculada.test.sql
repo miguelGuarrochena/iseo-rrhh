@@ -31,12 +31,12 @@ insert into empresas (id, nombre, cuit, contacto_nombre, contacto_email, config)
 -- Empleados con rostro enrolado. Los descriptores están lejos entre sí
 -- para que el margen de 1:N no rechace por ambigüedad.
 insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso,
-  puesto, sector, modo_fichaje, descriptor_facial, consentimiento_biometrico) values
+  puesto, sector, modo_fichaje, descriptor_facial, descriptor_version, consentimiento_biometrico) values
  ('7e111111-1111-1111-1111-1111111111e1','7e111111-1111-1111-1111-111111111111',
-  'Emp','A','ta-e1','2020-01-01','Op','Prod','planta','[0,0,0]'::jsonb,
+  'Emp','A','ta-e1','2020-01-01','Op','Prod','planta','[0,0,0]'::jsonb, 1,
   '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb),
  ('7e222222-2222-2222-2222-2222222222e1','7e222222-2222-2222-2222-222222222222',
-  'Emp','B','tb-e1','2020-01-01','Op','Prod','planta','[0,0,0]'::jsonb,
+  'Emp','B','tb-e1','2020-01-01','Op','Prod','planta','[0,0,0]'::jsonb, 1,
   '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb);
 
 insert into auth.users (id, instance_id, email, aud, role) values
@@ -378,7 +378,11 @@ begin
     select pg_get_function_identity_arguments(p.oid)
       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
      where n.nspname='public' and p.proname='fichar_con_rostro'
-  ) like '%p_terminal_id uuid, p_terminal_secreto text',
+    -- Comodín al final: desde la migración 77 la firma sigue con
+    -- `p_version smallint`. Lo que este caso cuida es que la terminal
+    -- siga siendo obligatoria en la única firma existente, no el largo
+    -- exacto de la lista de parámetros.
+  ) like '%p_terminal_id uuid, p_terminal_secreto text%',
     'la única firma tiene que ser la que exige terminal';
 end $$;
 

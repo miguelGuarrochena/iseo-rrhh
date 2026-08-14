@@ -17,7 +17,7 @@ import {
   ModalidadContratacion,
   ModoFichaje,
 } from '@/types/rrhh';
-import { tieneRostroEnrolado } from '@/lib/facial/enrolado';
+import { necesitaReenrolar, tieneRostroEnrolado } from '@/lib/facial/enrolado';
 
 /**
  * Bloquear le cuesta caro a quien está trabajando, así que se reserva
@@ -184,6 +184,31 @@ const REGLAS: Regla[] = [
     ruta: (e) => `/colaboradores/${e.id}`,
     falta: (e) =>
       e.modoFichaje === ('planta' as ModoFichaje) && !tieneRostroEnrolado(e),
+  },
+  {
+    /*
+     * El tablero del re-enrolamiento.
+     *
+     * Es `bloquea` y no `avisa` porque no es una mejora pendiente: esta
+     * persona **no puede fichar**. El servidor sólo compara contra
+     * plantillas de la versión vigente, así que para el RPC su rostro no
+     * existe, y el síntoma que ve es "No reconocimos el rostro" — un
+     * mensaje que la manda a pararse mejor frente a una cámara que nunca
+     * la va a reconocer.
+     *
+     * Sale solo de la lista a medida que RRHH re-enrola, sin que nadie
+     * tenga que llevar la cuenta a mano.
+     */
+    clave: 'facial_plantilla_vieja',
+    ambitos: ['fichaje'],
+    severidad: 'bloquea',
+    titulo: 'Rostro registrado con una versión anterior',
+    detalle:
+      'Su rostro se registró con la versión anterior del reconocimiento facial. Las plantillas de las dos versiones no son comparables, así que la terminal no la va a reconocer hasta que se le vuelva a tomar el rostro.',
+    comoSeArregla:
+      'Entrá a su ficha y tocá "Volver a tomar" en Reconocimiento facial.',
+    ruta: (e) => `/colaboradores/${e.id}`,
+    falta: (e) => necesitaReenrolar(e),
   },
   {
     clave: 'facial_sin_consentimiento',

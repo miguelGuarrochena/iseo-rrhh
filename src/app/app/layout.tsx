@@ -8,6 +8,7 @@ import { AppHeader } from '@/components/app/AppHeader';
 import { ModoKiosco } from '@/components/app/fichaje/ModoKiosco';
 import { RedDeSeguridad } from '@/components/app/RedDeSeguridad';
 import { kioscoActivo } from '@/lib/kiosco';
+import { liberarModelosFaciales } from '@/lib/facial/motor';
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
   // Tablet bloqueada como terminal de fichaje: se muestra SOLO el
@@ -16,6 +17,21 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     setKiosco(kioscoActivo());
   }, []);
+
+  /**
+   * Los modelos faciales viven mientras dura la sesión, no mientras dura
+   * la pantalla de fichaje.
+   *
+   * Cargarlos cuesta casi un segundo entre bajar 10 MB de pesos y
+   * compilar los shaders de WebGL, y en el kiosco esa pantalla se abre y
+   * se cierra decenas de veces por turno: soltarlos en cada cierre haría
+   * que cada persona de la fila pagara de nuevo el arranque.
+   *
+   * Al salir de la app —cerrar sesión, volver al login— sí se sueltan:
+   * no hay motivo para dejar un modelo biométrico y un Worker residentes
+   * en una tablet compartida después de que la sesión terminó.
+   */
+  useEffect(() => () => liberarModelosFaciales(), []);
 
   if (kiosco === null) return null; // evita mostrar la app antes de saber
 

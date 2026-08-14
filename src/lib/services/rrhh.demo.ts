@@ -65,6 +65,7 @@ import {
 } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import { diasAusencia, hoyISO } from '@/lib/fechas';
+import { VERSION_PLANTILLA } from '@/lib/facial/plantilla';
 import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
 import {
   puedeAprobarLicenciaContraCupo,
@@ -1136,7 +1137,8 @@ export const ficharAhora = async (
     tipo,
     timestamp: opciones.timestamp ?? new Date().toISOString(),
     metodo: opciones.metodo ?? 'celular',
-    fotoUrl: opciones.fotoUrl,
+    // Sin `fotoUrl`: el modo demo recorre el mismo camino que la app
+    // conectada, y ahí el fichaje no guarda ninguna fotografía.
     confianza: opciones.confianza,
     geo: esManual
       ? undefined
@@ -1220,6 +1222,7 @@ export const enrolarRostro = async (
   const empleado = empleadosMock.find((e) => e.id === empleadoId);
   if (empleado) {
     empleado.descriptorFacial = descriptor;
+    empleado.descriptorVersion = VERSION_PLANTILLA;
     empleado.consentimientoBiometrico = {
       aceptado: true,
       fecha: hoyISO(),

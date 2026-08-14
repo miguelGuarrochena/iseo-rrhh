@@ -42,7 +42,7 @@ on conflict do nothing;
 
 update empleados set
   consentimiento_biometrico = '{"aceptado":true,"fecha":"2026-01-01"}'::jsonb,
-  descriptor_facial = '[0.11]'::jsonb
+  descriptor_facial = '[0.11]'::jsonb, descriptor_version = 1
 where id = 'cfcfcfcf-cfcf-cfcf-cfcf-cfcfcfcfcfa2';
 
 insert into auth.users (id, instance_id, email, aud, role) values
@@ -128,7 +128,7 @@ do $$ begin
     perform pg_temp.note(false, 'IND-02a employee UPDATE peer CBU');
   end;
   begin
-    update empleados set descriptor_facial = '[9]'::jsonb
+    update empleados set descriptor_facial = '[9]'::jsonb, descriptor_version = 1
     where id = 'cfcfcfcf-cfcf-cfcf-cfcf-cfcfcfcfcfa2';
     perform pg_temp.note(found, 'IND-02b employee UPDATE own descriptor without admin');
   exception when others then

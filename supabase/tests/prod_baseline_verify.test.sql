@@ -63,7 +63,7 @@ INSERT INTO empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso, pue
 
 UPDATE empleados SET
   consentimiento_biometrico = '{"aceptado":true,"fecha":"2026-01-01"}'::jsonb,
-  descriptor_facial = '[0.1]'::jsonb
+  descriptor_facial = '[0.1]'::jsonb, descriptor_version = 1
 WHERE id = 'f1f1f1f1-f1f1-f1f1-f1f1-f1f1f1f1f1a2';
 
 INSERT INTO auth.users (id, instance_id, email, aud, role) VALUES

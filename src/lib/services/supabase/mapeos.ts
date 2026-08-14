@@ -111,6 +111,7 @@ export const aEmpleado = (f: Fila): Empleado => ({
   // el descriptor es el secreto del fichaje facial y no sale de la base.
   // Lo único que viaja es si la persona está enrolada o no.
   tieneRostro: Boolean(f.tiene_rostro),
+  descriptorVersion: (f.descriptor_version ?? undefined) as number | undefined,
   consentimientoBiometrico: (f.consentimiento_biometrico ?? undefined) as
     | Empleado['consentimientoBiometrico']
     | undefined,

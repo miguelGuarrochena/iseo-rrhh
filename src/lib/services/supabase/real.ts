@@ -85,6 +85,7 @@ import { aISOLocal, diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
 import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
 import { supabase } from '@/lib/supabase/cliente';
 import { getTerminalLocal } from '@/lib/terminal';
+import { VERSION_PLANTILLA } from '@/lib/facial/plantilla';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import {
   aAdelanto,
@@ -1877,11 +1878,12 @@ export const ficharAhora = async (
       geo: opciones.geo ?? null,
       fuera_de_zona: opciones.fueraDeZona ?? null,
       registrado_por: opciones.registradoPor ?? null,
-      // La foto es opcional; solo se guarda si ya es una URL (no dataURL).
-      foto_url:
-        opciones.fotoUrl && !opciones.fotoUrl.startsWith('data:')
-          ? opciones.fotoUrl
-          : null,
+      // `foto_url` no se escribe. La columna existe en el esquema desde
+      // julio de 2026 y nunca la usó nadie: ningún caller pasaba una
+      // foto, ninguna pantalla la leía, y `fichar_con_rostro` tampoco la
+      // inserta. Lo que había acá era cableado dormido por el que una
+      // imagen de un rostro podía terminar guardada junto a cada marca
+      // de asistencia sin que nadie lo decidiera.
     })
     .select()
     .single();
@@ -1938,6 +1940,11 @@ export const ficharConRostro = async (
       p_tipo: opciones.tipo ?? null,
       p_terminal_id: terminal?.id ?? null,
       p_terminal_secreto: terminal?.secreto ?? null,
+      // Con qué pipeline se calculó esta plantilla. El servidor compara
+      // sólo contra plantillas de la misma versión: las de pipelines
+      // distintos no son comparables y mezclarlas produce falsos
+      // rechazos permanentes o, peor, falsos positivos.
+      p_version: VERSION_PLANTILLA,
     })
     .single();
   // El RPC devuelve una fila de `fichajes`, pero el tipado de `.rpc()` la
@@ -1992,6 +1999,10 @@ export const enrolarRostro = async (
     .from('empleados')
     .update({
       descriptor_facial: descriptor,
+      // Se guardan juntos, en el mismo update: un descriptor sin versión
+      // es un descriptor que después nadie sabe con qué comparar. La
+      // base además lo exige con un CHECK, así que separarlos fallaría.
+      descriptor_version: VERSION_PLANTILLA,
       consentimiento_biometrico: {
         aceptado: true,
         fecha: hoyISO(),
@@ -2017,7 +2028,11 @@ export const borrarRostro = async (
 ): Promise<Empleado | null> => {
   const { data, error } = await sb()
     .from('empleados')
-    .update({ descriptor_facial: null, consentimiento_biometrico: null })
+    .update({
+      descriptor_facial: null,
+      descriptor_version: null,
+      consentimiento_biometrico: null,
+    })
     .eq('id', empleadoId)
     .eq('empresa_id', empresaId())
     .select(EMPLEADO_SELECT_TABLA)

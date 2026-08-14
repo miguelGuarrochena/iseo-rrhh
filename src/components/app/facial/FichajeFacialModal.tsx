@@ -36,6 +36,8 @@ interface Resultado {
   nombre?: string;
   confianza: number;
   fueraDeZona?: boolean;
+  /** Hora que registró el **servidor**, no la del dispositivo. */
+  timestamp: string;
 }
 
 /**
@@ -54,6 +56,13 @@ export const FichajeFacialModal = ({
   const [procesando, setProcesando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  /**
+   * Se incrementa en cada rechazo para que la cámara reinicie el intento
+   * **sin** volver a cargar los modelos. Antes cada reintento pagaba de
+   * nuevo los 10 MB de pesos, así que el segundo intento se sentía tan
+   * lento como el primero justo cuando la persona ya estaba impaciente.
+   */
+  const [intento, setIntento] = useState(0);
   const bateria = useBateria();
 
   const cerrar = () => {
@@ -99,6 +108,7 @@ export const FichajeFacialModal = ({
         nombre: resolverNombre?.(fichaje.empleadoId),
         confianza: fichaje.confianza ?? 0,
         fueraDeZona: fichaje.fueraDeZona,
+        timestamp: fichaje.timestamp,
       });
       onFichado(fichaje, fichaje.empleadoId);
     } catch (err) {
@@ -107,6 +117,7 @@ export const FichajeFacialModal = ({
       // contra la cámara cuando el problema era otro.
       const { detalle, titulo } = interpretarError(err);
       setError(detalle || titulo);
+      setIntento((n) => n + 1);
     } finally {
       setProcesando(false);
     }
@@ -135,9 +146,16 @@ export const FichajeFacialModal = ({
                 ? 'Ingreso registrado'
                 : 'Egreso registrado'}
             </p>
+            {/*
+              La hora que se muestra es la que **registró el servidor**,
+              no `new Date()` del dispositivo. Una tablet con el reloj
+              corrido mostraba una hora distinta de la que quedó
+              guardada, y esa es justo la pantalla donde la persona
+              confirma que fichó bien.
+            */}
             <p className="mt-1 text-sm text-ink-soft">
               {resultado.nombre ? `${resultado.nombre} · ` : ''}
-              {new Date().toLocaleTimeString('es-AR', {
+              {new Date(resultado.timestamp).toLocaleTimeString('es-AR', {
                 hour: '2-digit',
                 minute: '2-digit',
               })}
@@ -179,11 +197,26 @@ export const FichajeFacialModal = ({
             </p>
           )}
 
+          {/*
+            La exigencia de prueba de vida no es la misma en los dos
+            modos, porque el riesgo no es el mismo:
+            - **identificar** (tablet de planta, sin nadie mirando): es
+              donde vive el ataque realista, el compañero que ficha por
+              el que llegó tarde. Un parpadeo no lo corta —un vídeo de
+              cinco segundos parpadea— así que además se pide un giro de
+              cabeza hacia un lado sorteado en el momento.
+            - **verificar** (celular propio): la sesión ya dice quién es
+              y la cara sólo confirma. Alcanza con el parpadeo; sumar un
+              desafío ahí es fricción sin riesgo que la justifique.
+          */}
           <CapturaFacial
-            onCaptura={(descriptor) => void procesar(descriptor)}
+            onPlantilla={(plantilla) => void procesar(plantilla)}
             procesando={procesando}
-            textoBoton="Fichar"
-            exigirLiveness
+            exigencia={
+              modo === 'identificar' ? 'parpadeo_y_desafio' : 'parpadeo'
+            }
+            muestras={3}
+            intento={intento}
             sugerirFichajeManual
           />
         </div>

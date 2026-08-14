@@ -333,6 +333,18 @@ export interface Empleado {
    */
   tieneRostro?: boolean;
   /**
+   * Con qué versión del pipeline se generó la plantilla enrolada.
+   *
+   * 1 = pipeline anterior al rediseño (sin alineamiento canónico), 2 =
+   * actual. Sirve para saber a quién falta re-enrolar: quien tenga una
+   * versión distinta de `VERSION_PLANTILLA` **no puede fichar**, porque
+   * el servidor sólo compara contra plantillas de la misma versión.
+   *
+   * No es dato biométrico: es un entero de un dígito que dice con qué
+   * código se calculó el descriptor, no nada sobre el rostro.
+   */
+  descriptorVersion?: number;
+  /**
    * Descriptor facial (128 números) del rostro enrolado.
    *
    * **El backend real ya no lo devuelve nunca**: es el secreto con el
@@ -672,10 +684,18 @@ export interface Fichaje {
   anuladoMotivo?: string;
 }
 
-/** Opciones al registrar un fichaje (método, foto, confianza, ubicación). */
+/**
+ * Opciones al registrar un fichaje (método, confianza, ubicación).
+ *
+ * **No hay `fotoUrl`, y es deliberado.** El fichaje no guarda ninguna
+ * fotografía: el único dato biométrico del sistema es la plantilla de
+ * 128 números del enrolamiento, de la que no se puede reconstruir la
+ * cara. Reponer este campo volvería a abrir el camino para que una
+ * imagen de un rostro termine guardada junto a cada marca de asistencia.
+ * Ver `docs/freeze-facial-2026-08-15.md`.
+ */
 export interface OpcionesFichaje {
   metodo?: MetodoFichaje;
-  fotoUrl?: string;
   confianza?: number;
   geo?: { lat: number; lng: number };
   fueraDeZona?: boolean;

@@ -1,116 +1,268 @@
 /**
- * Prueba de vida (liveness) para el fichaje facial.
+ * Prueba de vida para el fichaje facial.
  *
- * El problema que resuelve: el reconocimiento compara un rostro contra
- * los enrolados, pero no tiene forma de saber si ese rostro está vivo del
- * otro lado de la cámara. Una foto impresa, o la pantalla de otro celular
- * mostrando la cara de un compañero, pasaban la verificación igual. Para
- * un control de asistencia eso es justamente el fraude que el
- * reconocimiento facial debería impedir.
+ * Qué protege y qué no (esto va primero a propósito)
+ * --------------------------------------------------
+ * La versión anterior de este archivo medía la apertura del ojo y
+ * declaraba "vivo" cuando veía un parpadeo. Eso corta la foto impresa y
+ * la foto en la pantalla de otro teléfono. **No corta un vídeo**, que en
+ * un control horario es justamente el ataque realista: el compañero
+ * graba cinco segundos de la persona que llegó tarde y ficha por ella.
  *
- * Cómo lo detecta: se le pide a la persona que parpadee y se mira la
- * apertura de los ojos a lo largo de varios cuadros. Una foto tiene los
- * ojos siempre igual de abiertos; una persona que parpadea produce una
- * caída y una recuperación.
+ * Llamar "liveness" a un detector de parpadeo es generoso. Acá hay dos
+ * niveles y cada uno dice exactamente qué garantiza:
  *
- * No es infalible —un video sí lo pasaría— pero corta el caso común, que
- * es la foto, y no necesita hardware especial.
+ * | Ataque | Parpadeo | + Desafío de pose |
+ * |---|---|---|
+ * | Foto impresa | corta | corta |
+ * | Foto en pantalla | corta | corta |
+ * | Vídeo pregrabado de frente | **no corta** | corta |
+ * | Vídeo pregrabado girando a los dos lados | no corta | encarece mucho |
+ * | Máscara, deepfake en vivo | no corta | no corta |
+ *
+ * El desafío de pose funciona porque el lado se sortea **en el momento**
+ * y hay que responderlo en menos de cuatro segundos. Un atacante con un
+ * vídeo pregrabado tendría que tener material de la persona girando a
+ * los dos lados y elegir el correcto antes de que se venza la ventana.
+ * No es imposible; es varios órdenes de magnitud más caro que sostener
+ * un teléfono frente a la cámara.
+ *
+ * Lo que **no** se va a afirmar en ningún lado del producto es que esto
+ * resiste una máscara o un deepfake en vivo. No los resiste. Cerrar eso
+ * necesita un modelo de anti-spoofing por textura o un SDK certificado
+ * iBeta, y está documentado como paso siguiente con su costo.
  */
-
-export interface Punto {
-  x: number;
-  y: number;
-}
-
-const distancia = (a: Punto, b: Punto): number =>
-  Math.hypot(a.x - b.x, a.y - b.y);
 
 /**
- * Relación de aspecto del ojo (EAR).
+ * Umbrales del parpadeo, sobre el blendshape `eyeBlink*` de MediaPipe.
  *
- * Con los 6 puntos que face-api da por ojo: alto promedio dividido el
- * ancho. Es un número sin unidad —da igual la distancia a la cámara o la
- * resolución— que ronda 0,3 con el ojo abierto y cae cerca de 0 al
- * cerrarlo.
+ * Va de 0 (ojo bien abierto) a 1 (cerrado). Se usan dos umbrales con una
+ * banda muerta en el medio: un valor que oscila alrededor de un único
+ * umbral contaría como varios parpadeos y aceptaría como "vivo" a una
+ * foto con ruido de cámara.
  *
- *      p2  p3
- *   p1        p4     EAR = (|p2−p6| + |p3−p5|) / (2·|p1−p4|)
- *      p6  p5
+ * Reemplaza al EAR (relación de aspecto del ojo) que se calculaba a mano
+ * sobre los 6 puntos por ojo de face-api. El blendshape es mejor por dos
+ * razones: lo produce un modelo entrenado para esto —así que no se
+ * confunde con la mirada baja ni con los anteojos, que eran los dos
+ * casos que rompían el EAR— y ya viene calculado en la misma pasada, o
+ * sea que no cuesta nada.
  */
-export const relacionAspectoOjo = (ojo: Punto[]): number => {
-  if (ojo.length < 6) return 0;
-  const [p1, p2, p3, p4, p5, p6] = ojo;
-  const ancho = distancia(p1, p4);
-  if (ancho === 0) return 0;
-  return (distancia(p2, p6) + distancia(p3, p5)) / (2 * ancho);
-};
+export const OJO_CERRADO = 0.6;
+export const OJO_ABIERTO = 0.35;
 
-/** Debajo de esto se considera el ojo cerrado. */
-export const EAR_CERRADO = 0.21;
-/** Por encima de esto, abierto. La banda entre ambos evita el titileo. */
-export const EAR_ABIERTO = 0.27;
+/** Cuadros mínimos para poder afirmar algo sobre el parpadeo. */
+export const CUADROS_MINIMOS = 6;
 
 /**
- * ¿La secuencia de aperturas contiene un parpadeo?
+ * ¿La secuencia contiene un parpadeo completo?
  *
- * Se exige el ciclo completo —abierto, cerrado, abierto— y no sólo un
- * cuadro con los ojos cerrados: alguien podría poner una foto de una
- * persona con los ojos cerrados y pasar el chequeo si sólo mirásemos eso.
- * La histéresis entre los dos umbrales evita que un valor que oscila en
- * el borde cuente como varios parpadeos.
+ * Se exige el ciclo entero —abierto, cerrado, abierto— y no un cuadro
+ * suelto con los ojos cerrados: si sólo se mirara eso, una foto de
+ * alguien con los ojos cerrados pasaría.
+ *
+ * Cada valor es el máximo de los dos ojos: un ojo puede quedar tapado
+ * por el pelo o por un reflejo en los anteojos, y ahí ese ojo miente. El
+ * máximo detecta el cierre aunque uno solo se vea bien.
  */
-export const hayParpadeo = (aperturas: number[]): boolean => {
+export const hayParpadeo = (cierres: ReadonlyArray<number>): boolean => {
   let vioAbierto = false;
   let vioCerrado = false;
 
-  for (const ear of aperturas) {
+  for (const c of cierres) {
     if (!vioAbierto) {
-      if (ear >= EAR_ABIERTO) vioAbierto = true;
+      if (c <= OJO_ABIERTO) vioAbierto = true;
       continue;
     }
     if (!vioCerrado) {
-      if (ear <= EAR_CERRADO) vioCerrado = true;
+      if (c >= OJO_CERRADO) vioCerrado = true;
       continue;
     }
-    // Abrió de nuevo: ciclo completo.
-    if (ear >= EAR_ABIERTO) return true;
+    if (c <= OJO_ABIERTO) return true;
   }
 
   return false;
 };
 
-/**
- * Apertura promedio de los dos ojos en un cuadro.
- *
- * Se promedian porque un solo ojo puede quedar tapado por el pelo, un
- * reflejo en los anteojos o un giro de la cabeza, y ahí el valor de ese
- * ojo miente. El promedio es más estable que cualquiera de los dos.
- */
-export const aperturaDeCuadro = (
-  ojoIzquierdo: Punto[],
-  ojoDerecho: Punto[]
-): number =>
-  (relacionAspectoOjo(ojoIzquierdo) + relacionAspectoOjo(ojoDerecho)) / 2;
+// ---------------------------------------------------------------------
+// Desafío de pose
+// ---------------------------------------------------------------------
 
-/** Cuadros mínimos para poder afirmar algo. Menos que esto no alcanza. */
-export const CUADROS_MINIMOS = 6;
+export type Lado = 'izquierda' | 'derecha';
+
+/**
+ * Giro mínimo, en el índice de yaw de `geometria`.
+ *
+ * Es un giro claro pero cómodo: bastante más que el máximo que acepta la
+ * puerta de calidad (0,16), así que no se puede cumplir el desafío
+ * quedándose quieto, y bastante menos que un perfil completo, así que no
+ * hay que hacer contorsiones con una fila esperando atrás.
+ */
+export const YAW_DESAFIO = 0.3;
+
+/** Vuelta al frente para dar por cerrado el desafío. */
+export const YAW_FRONTAL = 0.15;
+
+/** Ventana para responder. Vencida, se sortea otro lado. */
+export const MS_DESAFIO = 4000;
+
+/**
+ * Sortea el lado con `crypto.getRandomValues`.
+ *
+ * No es paranoia: `Math.random()` es predecible, y todo el valor del
+ * desafío está en que el atacante no pueda anticipar qué se le va a
+ * pedir. Si el lado fuese predecible, el desafío no agrega nada sobre el
+ * parpadeo.
+ */
+export const sortearLado = (): Lado => {
+  const buffer = new Uint8Array(1);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(buffer);
+  } else {
+    buffer[0] = Math.floor(Math.random() * 256);
+  }
+  return buffer[0] % 2 === 0 ? 'izquierda' : 'derecha';
+};
+
+/** Texto para la persona. "Tu izquierda", no "la izquierda de la pantalla". */
+export const PEDIDO_DESAFIO: Record<Lado, string> = {
+  izquierda: 'Girá la cabeza hacia tu izquierda',
+  derecha: 'Girá la cabeza hacia tu derecha',
+};
+
+/**
+ * ¿La secuencia de yaw responde al lado pedido?
+ *
+ * Se exige el gesto completo —frente, giro al lado correcto, vuelta al
+ * frente— por el mismo motivo que en el parpadeo: si alcanzara con estar
+ * girado, bastaría con presentar una foto de perfil.
+ *
+ * El signo sale de `poseDeReferencias`: yaw positivo = el sujeto gira
+ * hacia **su** izquierda.
+ */
+export const cumpleDesafio = (
+  lado: Lado,
+  yaws: ReadonlyArray<number>
+): boolean => {
+  const signo = lado === 'izquierda' ? 1 : -1;
+  let vioFrente = false;
+  let vioGiro = false;
+
+  for (const y of yaws) {
+    const orientado = y * signo;
+    if (!vioFrente) {
+      if (Math.abs(y) <= YAW_FRONTAL) vioFrente = true;
+      continue;
+    }
+    if (!vioGiro) {
+      if (orientado >= YAW_DESAFIO) vioGiro = true;
+      // Girar para el lado contrario invalida el intento: es la señal de
+      // que la persona no entendió, o de que lo que hay del otro lado es
+      // un vídeo que gira para donde tenía ganas.
+      else if (orientado <= -YAW_DESAFIO) return false;
+      continue;
+    }
+    if (Math.abs(y) <= YAW_FRONTAL) return true;
+  }
+
+  return false;
+};
+
+// ---------------------------------------------------------------------
+// Detección de cámara trabada
+// ---------------------------------------------------------------------
+
+/**
+ * ¿El vídeo dejó de actualizarse?
+ *
+ * **Esto no es anti-spoofing y no se presenta como tal.** Es un control
+ * de salud del hardware: en las tablets Android el track de la cámara se
+ * traba —por presión de memoria, por térmica, o porque el sistema la
+ * suspendió— y sigue entregando el último cuadro. Sin este chequeo, el
+ * pipeline sigue "viendo" una cara perfectamente quieta, la puerta de
+ * calidad la aprueba con puntaje alto, y el sistema se queda intentando
+ * fichar contra un cuadro congelado hasta que alguien se cansa.
+ *
+ * Una persona real, incluso quieta, mueve el centroide de la cara
+ * décimas de píxel entre cuadros. Cero movimiento **exacto** durante
+ * varios cuadros es un cuadro repetido, no una persona quieta.
+ */
+export const CUADROS_PARA_TRABADA = 8;
+export const MOVIMIENTO_MINIMO = 1e-4;
+
+export const camaraTrabada = (movimientos: ReadonlyArray<number>): boolean =>
+  movimientos.length >= CUADROS_PARA_TRABADA &&
+  movimientos.slice(-CUADROS_PARA_TRABADA).every((m) => m < MOVIMIENTO_MINIMO);
+
+// ---------------------------------------------------------------------
+// Veredicto
+// ---------------------------------------------------------------------
+
+export type Exigencia = 'ninguna' | 'parpadeo' | 'parpadeo_y_desafio';
 
 export type ResultadoLiveness =
   | { vivo: true }
-  | { vivo: false; motivo: 'pocos_cuadros' | 'sin_parpadeo' };
+  | {
+      vivo: false;
+      motivo:
+        | 'pocos_cuadros'
+        | 'sin_parpadeo'
+        | 'desafio_no_cumplido'
+        | 'camara_trabada';
+    };
+
+export interface EntradaLiveness {
+  exigencia: Exigencia;
+  /** Máximo de los dos blendshapes de parpadeo, un valor por cuadro. */
+  cierres: ReadonlyArray<number>;
+  /** Índice de yaw, un valor por cuadro. */
+  yaws: ReadonlyArray<number>;
+  /** Desplazamiento del centro entre cuadros consecutivos. */
+  movimientos: ReadonlyArray<number>;
+  /** Lado sorteado, si la exigencia incluye desafío. */
+  lado?: Lado | null;
+}
 
 /**
- * Veredicto sobre una secuencia de aperturas.
+ * Veredicto sobre lo observado.
  *
- * Si no se juntaron cuadros suficientes **no se da por viva**: ante la
- * duda, que la persona repita el gesto es mucho más barato que registrar
- * una fichada que no hizo.
+ * Ante la duda **no se da por viva**: que la persona repita el gesto
+ * cuesta unos segundos; registrar una fichada que no hizo cuesta un
+ * problema con el registro horario.
  */
-export const evaluarLiveness = (aperturas: number[]): ResultadoLiveness => {
-  if (aperturas.length < CUADROS_MINIMOS) {
+export const evaluarLiveness = (e: EntradaLiveness): ResultadoLiveness => {
+  if (camaraTrabada(e.movimientos)) {
+    return { vivo: false, motivo: 'camara_trabada' };
+  }
+
+  if (e.exigencia === 'ninguna') return { vivo: true };
+
+  if (e.cierres.length < CUADROS_MINIMOS) {
     return { vivo: false, motivo: 'pocos_cuadros' };
   }
-  return hayParpadeo(aperturas)
-    ? { vivo: true }
-    : { vivo: false, motivo: 'sin_parpadeo' };
+
+  if (!hayParpadeo(e.cierres)) {
+    return { vivo: false, motivo: 'sin_parpadeo' };
+  }
+
+  if (e.exigencia === 'parpadeo_y_desafio') {
+    if (!e.lado || !cumpleDesafio(e.lado, e.yaws)) {
+      return { vivo: false, motivo: 'desafio_no_cumplido' };
+    }
+  }
+
+  return { vivo: true };
+};
+
+export const MENSAJE_LIVENESS: Record<
+  Extract<ResultadoLiveness, { vivo: false }>['motivo'],
+  string
+> = {
+  pocos_cuadros:
+    'No llegamos a verte bien. Quedate frente a la cámara y probá de nuevo.',
+  sin_parpadeo: 'Mirá a la cámara y parpadeá una vez.',
+  desafio_no_cumplido:
+    'No pudimos confirmar que sos vos en persona. Probá de nuevo siguiendo la indicación.',
+  camara_trabada:
+    'La cámara se trabó. Cerrá y volvé a abrir el fichaje; si sigue igual, reiniciá la tablet.',
 };
