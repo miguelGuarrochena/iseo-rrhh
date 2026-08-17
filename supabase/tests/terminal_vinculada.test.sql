@@ -468,8 +468,13 @@ begin
   assert not has_function_privilege('authenticated',
     'public.hash_secreto_terminal(uuid, text)', 'EXECUTE'),
     'hash_secreto_terminal no se expone';
+  -- La firma lleva `uuid` desde la migración 79: el superadmin indica
+  -- para qué empresa autoriza, porque no tiene `empresa_id` propio. Lo
+  -- que este caso cuida sigue siendo lo mismo —que la función SÍ esté
+  -- expuesta, porque decide adentro quién puede— y no el largo de la
+  -- lista de parámetros.
   assert has_function_privilege('authenticated',
-    'public.autorizar_terminal(text)', 'EXECUTE'),
+    'public.autorizar_terminal(text, uuid)', 'EXECUTE'),
     'autorizar_terminal sí se expone (la autorización la hace adentro)';
 end $$;
 

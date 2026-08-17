@@ -2262,7 +2262,16 @@ export const autorizarTerminal = async (
   nombre: string
 ): Promise<{ terminal: Terminal; secreto: string }> => {
   const { data, error } = await sb()
-    .rpc('autorizar_terminal', { p_nombre: nombre })
+    .rpc('autorizar_terminal', {
+      p_nombre: nombre,
+      // La empresa sobre la que se está operando. **Sólo la usa el
+      // superadmin**, que no tiene `empresa_id` propio y por eso el
+      // servidor no puede deducir para quién es la tablet: la "empresa
+      // vista" vive en el navegador. Para admin_rrhh el servidor lo
+      // ignora y manda su `auth_empresa()`, así que un uuid en el
+      // request no puede crear una terminal en otra empresa.
+      p_empresa_id: empresaId(),
+    })
     .single();
   const fila = oFalla(data, error) as {
     id: string;
