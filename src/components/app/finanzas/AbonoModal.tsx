@@ -14,7 +14,7 @@ interface AbonoModalProps {
   onGuardado: () => void;
 }
 
-/** Editar el abono mensual que una empresa le paga a ISEO. */
+/** Editar la cuota mensual que una empresa le paga a ISEO. */
 export const AbonoModal = ({
   empresa,
   onCerrar,
@@ -35,14 +35,14 @@ export const AbonoModal = ({
     if (!empresa) return;
     const valor = Number(monto);
     if (!Number.isFinite(valor) || valor < 0) {
-      setError('El abono no puede ser negativo.');
+      setError('La cuota no puede ser negativa.');
       return;
     }
     setError(null);
     setGuardando(true);
     try {
       await actualizarAbonoEmpresa(empresa.empresaId, valor || 0);
-      avisoExito('Abono actualizado');
+      avisoExito('Cuota actualizada');
       onGuardado();
       onCerrar();
     } catch (err) {
@@ -58,7 +58,7 @@ export const AbonoModal = ({
     <Modal
       opened={Boolean(empresa)}
       onClose={onCerrar}
-      title="Abono mensual"
+      title="Cuota mensual"
       radius="lg"
       centered
       styles={{ title: { fontWeight: 800 } }}
@@ -66,8 +66,8 @@ export const AbonoModal = ({
       {empresa && (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-ink-soft">
-            Cuánto paga <strong className="text-ink">{empresa.nombre}</strong>{' '}
-            por mes.
+            Cuánto te paga{' '}
+            <strong className="text-ink">{empresa.nombre}</strong> por mes.
           </p>
           <Campo
             etiqueta="Monto mensual"

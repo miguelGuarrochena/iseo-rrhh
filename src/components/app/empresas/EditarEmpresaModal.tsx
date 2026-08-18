@@ -123,7 +123,7 @@ export const EditarEmpresaModal = ({
             <div>
               <p className="text-sm font-bold text-ink">{empresa.nombre}</p>
               <p className="text-xs text-ink-soft">
-                {empleados} {empleados === 1 ? 'empleado' : 'empleados'} · abono{' '}
+                {empleados} {empleados === 1 ? 'empleado' : 'empleados'} · cuota{' '}
                 {formatearPesos(empresa.abonoMensual ?? 0)}
               </p>
             </div>
@@ -163,10 +163,11 @@ export const EditarEmpresaModal = ({
               placeholder="Básico, Full…"
             />
             <Campo
-              etiqueta="Abono mensual"
+              etiqueta="Cuota mensual"
               type="number"
               value={String(datos.abonoMensual ?? '')}
               onChange={set('abonoMensual')}
+              ayuda="Cuánto te paga esta empresa por mes."
             />
             <Campo
               etiqueta="Domicilio"

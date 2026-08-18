@@ -240,14 +240,16 @@ const DashboardPage = () => {
         {pagosPendientes > 0 && (
           <button
             onClick={() => router.push('/finanzas')}
-            className="flex cursor-pointer items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-left transition-colors hover:border-amber-300"
+            className="flex cursor-pointer items-center gap-3 rounded-3xl border border-brand-200 bg-paper px-4 py-3.5 text-left transition-colors hover:border-brand-300"
           >
-            <IconAlertTriangle size={20} className="shrink-0 text-amber-700" />
-            <span className="text-sm text-amber-900">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+              <IconAlertTriangle size={19} stroke={2} />
+            </span>
+            <span className="text-sm text-ink">
               <strong>
                 {pagosPendientes === 1
-                  ? '1 empresa no cubrió el abono'
-                  : `${pagosPendientes} empresas no cubrieron el abono`}
+                  ? '1 empresa todavía no pagó la cuota'
+                  : `${pagosPendientes} empresas todavía no pagaron la cuota`}
               </strong>{' '}
               este mes. Revisá Finanzas.
             </span>

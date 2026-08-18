@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  IconAlertTriangle,
-  IconCash,
-  IconCheck,
-  IconPencil,
+  IconInfoCircle,
   IconPlus,
   IconReceipt2,
   IconRepeat,
@@ -20,9 +17,15 @@ import { Panel } from '@/components/app/Panel';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoMes } from '@/components/app/ui/CampoMes';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { MovimientoModal } from '@/components/app/finanzas/MovimientoModal';
 import { AbonoModal } from '@/components/app/finanzas/AbonoModal';
 import { BarrasIngresoGasto } from '@/components/app/finanzas/BarrasIngresoGasto';
+import {
+  faltaDeCuota,
+  ordenarPorCuota,
+  TarjetaCuota,
+} from '@/components/app/finanzas/TarjetaCuota';
 import { formatearPesos } from '@/lib/formato';
 import { formatearPeriodo, hoyISO } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
@@ -43,9 +46,6 @@ import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
 
 const periodoActual = hoyISO().slice(0, 7);
-
-const faltaDelAbono = (f: FacturacionEmpresa): number =>
-  Math.max(0, f.abonoMensual - f.cobradoEnPeriodo);
 
 const MESES = [
   'ene',
@@ -79,6 +79,7 @@ const FinanzasPage = () => {
   const [abonoEmpresa, setAbonoEmpresa] = useState<FacturacionEmpresa | null>(
     null
   );
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
   const cResumen = useCarga(() => getResumenFinanzas(periodo), [periodo], {
     contexto: 'finanzas/resumen',
@@ -123,9 +124,11 @@ const FinanzasPage = () => {
 
   const ingresos = movimientos.filter((m) => m.tipo === 'ingreso');
   const gastos = movimientos.filter((m) => m.tipo === 'gasto');
-  const vencidas = resumen?.facturacion.filter(
+  const facturacion = [...(resumen?.facturacion ?? [])].sort(ordenarPorCuota);
+  const vencidas = facturacion.filter(
     (f) => f.estado === 'activa' && f.abonoMensual > 0 && !f.alDia
   );
+  const faltaTotal = vencidas.reduce((a, f) => a + faltaDeCuota(f), 0);
 
   const serieMensual = ultimosPeriodos().map((p) => {
     const delMes = todos.filter((m) => m.periodo === p);
@@ -140,24 +143,30 @@ const FinanzasPage = () => {
     };
   });
 
-  const registrarCobro = async (f: FacturacionEmpresa) => {
-    const falta = faltaDelAbono(f);
+  const registrarPago = async (f: FacturacionEmpresa) => {
+    const falta = faltaDeCuota(f);
     if (falta <= 0) return;
+    const ok = await confirmar({
+      titulo: `¿Registramos ${formatearPesos(falta)}?`,
+      detalle: `Se carga un ingreso de ${f.nombre} por la cuota de ${formatearPeriodo(periodo)}.`,
+      confirmar: 'Registrar pago',
+    });
+    if (!ok) return;
     const fecha = periodo === periodoActual ? hoyISO() : `${periodo}-15`;
     try {
       await crearMovimiento({
         tipo: 'ingreso',
-        concepto: `Abono mensual — ${f.nombre}`,
-        categoria: 'Abono',
+        concepto: `Cuota ${formatearPeriodo(periodo)} — ${f.nombre}`,
+        categoria: 'Cuota',
         empresaId: f.empresaId,
         monto: falta,
         fecha,
       });
-      avisoExito('Cobro registrado', `${f.nombre}: ${formatearPesos(falta)}`);
+      avisoExito('Pago registrado', `${f.nombre}: ${formatearPesos(falta)}`);
       cargar();
     } catch (err) {
       avisoError(
-        'No pudimos registrar el cobro',
+        'No pudimos registrar el pago',
         err instanceof Error ? err.message : undefined
       );
     }
@@ -183,7 +192,7 @@ const FinanzasPage = () => {
             Finanzas
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            El negocio de ISEO: facturación de tus empresas, ingresos y gastos.
+            Cuánto te pagan las empresas, y en qué se te va la plata.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
@@ -205,28 +214,22 @@ const FinanzasPage = () => {
         </div>
       </div>
 
-      {vencidas && vencidas.length > 0 && (
-        <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <IconAlertTriangle
-            size={20}
-            className="mt-0.5 shrink-0 text-amber-700"
-          />
-          <div className="text-sm text-amber-900">
-            <p className="font-bold">
-              {vencidas.length === 1
-                ? `1 empresa no cubrió el abono de ${formatearPeriodo(periodo)}`
-                : `${vencidas.length} empresas no cubrieron el abono de ${formatearPeriodo(periodo)}`}
-            </p>
-            <ul className="mt-1 space-y-0.5 text-amber-800">
-              {vencidas.map((f) => (
-                <li key={f.empresaId}>
-                  {f.nombre}
-                  {f.cobradoEnPeriodo > 0
-                    ? ` · recibiste ${formatearPesos(f.cobradoEnPeriodo)}, faltan ${formatearPesos(faltaDelAbono(f))}`
-                    : ` · faltan ${formatearPesos(f.abonoMensual)}`}
-                </li>
-              ))}
-            </ul>
+      {vencidas.length > 0 && (
+        <div className="rounded-3xl border border-brand-200 bg-paper p-4 sm:p-5">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+              <IconInfoCircle size={19} stroke={2} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[0.9375rem] font-bold text-ink">
+                {vencidas.length === 1
+                  ? `Todavía falta la cuota de ${vencidas[0].nombre}`
+                  : `Todavía faltan ${vencidas.length} cuotas de ${formatearPeriodo(periodo)}`}
+              </p>
+              <p className="mt-0.5 text-sm text-ink-soft">
+                En total, {formatearPesos(faltaTotal)}.
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -259,8 +262,10 @@ const FinanzasPage = () => {
           valor={resumen ? formatearPesos(resumen.mrr) : '…'}
           detalle={
             resumen
-              ? `${resumen.empresasAlDia} cubrieron el abono · ${resumen.empresasVencidas} no`
-              : 'MRR'
+              ? resumen.empresasVencidas === 0
+                ? 'todas pagaron este mes'
+                : `${resumen.empresasAlDia} pagaron · ${resumen.empresasVencidas} no`
+              : 'cuotas mensuales'
           }
           icono={IconRepeat}
         />
@@ -273,76 +278,26 @@ const FinanzasPage = () => {
         <BarrasIngresoGasto datos={serieMensual} />
       </Panel>
 
-      <Panel>
-        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
-          Facturación por empresa
-        </h2>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-          El abono es lo que te tiene que pagar cada cliente en este período. Lo
-          recibido cuenta si el ingreso está vinculado a esa empresa. Si falta,
-          registrá el cobro del saldo.
-        </p>
-        <div className="mt-4 flex flex-col divide-y divide-line">
-          {resumen?.facturacion.map((f) => (
-            <div
-              key={f.empresaId}
-              className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between py-3"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-semibold text-ink">{f.nombre}</p>
-                <p className="text-xs text-ink-soft">
-                  {f.empleados} {f.empleados === 1 ? 'empleado' : 'empleados'} ·
-                  abono {formatearPesos(f.abonoMensual)}
-                  {f.abonoMensual > 0 && f.estado === 'activa'
-                    ? f.alDia
-                      ? ` · cubierto (${formatearPesos(f.cobradoEnPeriodo)})`
-                      : f.cobradoEnPeriodo > 0
-                        ? ` · recibido ${formatearPesos(f.cobradoEnPeriodo)} · faltan ${formatearPesos(faltaDelAbono(f))}`
-                        : ` · sin cobro este período`
-                    : null}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {f.estado === 'suspendida' ? (
-                  <span className="rounded-full bg-paper px-2.5 py-1 text-xs font-bold text-ink-soft">
-                    Suspendida
-                  </span>
-                ) : f.abonoMensual === 0 ? (
-                  <span className="rounded-full bg-paper px-2.5 py-1 text-xs font-bold text-ink-soft">
-                    Sin abono
-                  </span>
-                ) : f.alDia ? (
-                  <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
-                    <IconCheck size={13} /> Cubierto
-                  </span>
-                ) : f.cobradoEnPeriodo > 0 ? (
-                  <span className="rounded-full bg-paper px-2.5 py-1 text-xs font-bold text-ink">
-                    Faltan {formatearPesos(faltaDelAbono(f))}
-                  </span>
-                ) : (
-                  <span className="rounded-full bg-paper px-2.5 py-1 text-xs font-bold text-ink">
-                    Sin cobro
-                  </span>
-                )}
-                <Boton
-                  variante="secundario"
-                  tamano="sm"
-                  onClick={() => setAbonoEmpresa(f)}
-                >
-                  <IconPencil size={14} />
-                </Boton>
-                {f.estado === 'activa' && f.abonoMensual > 0 && !f.alDia && (
-                  <Boton tamano="sm" onClick={() => void registrarCobro(f)}>
-                    <IconCash size={14} />
-                    {f.cobradoEnPeriodo > 0
-                      ? 'Registrar saldo'
-                      : 'Registrar cobro'}
-                  </Boton>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+      <Panel
+        titulo={`Cuotas de ${formatearPeriodo(periodo)}`}
+        descripcion="Cada cliente te debe una cuota por mes. Recibido es lo que ya te llegó vinculado a esa empresa. El resto, falta."
+      >
+        {facturacion.length === 0 ? (
+          <p className="text-sm text-ink-soft">
+            Todavía no hay empresas para facturar.
+          </p>
+        ) : (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {facturacion.map((f) => (
+              <TarjetaCuota
+                key={f.empresaId}
+                factura={f}
+                onEditarCuota={() => setAbonoEmpresa(f)}
+                onRegistrarPago={() => void registrarPago(f)}
+              />
+            ))}
+          </div>
+        )}
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -353,8 +308,8 @@ const FinanzasPage = () => {
           onBorrar={borrar}
           positivo
           aviso={
-            ingresos.some((m) => !m.empresaId) && (vencidas?.length ?? 0) > 0
-              ? 'Hay ingresos sin empresa: no cubren el abono de ningún cliente.'
+            ingresos.some((m) => !m.empresaId) && vencidas.length > 0
+              ? 'Hay ingresos sin empresa: no cuentan para ninguna cuota.'
               : undefined
           }
         />
@@ -378,6 +333,7 @@ const FinanzasPage = () => {
         onCerrar={() => setAbonoEmpresa(null)}
         onGuardado={cargar}
       />
+      {dialogoConfirmar}
     </div>
   );
 };

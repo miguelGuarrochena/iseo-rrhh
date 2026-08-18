@@ -203,7 +203,7 @@ export const FAQ: FaqCategoria[] = [
       {
         pregunta: '¿Qué es Finanzas?',
         respuesta:
-          'Es la facturación de ISEO a sus empresas clientes (lo que cobrás vos como proveedor del sistema): ingresos, gastos y si cada cliente está al día con su abono. No tiene relación con los sueldos que cada empresa le paga a su propio personal.',
+          'Es lo que te pagan las empresas por usar ISEO: cuotas, ingresos y gastos. No tiene nada que ver con los sueldos que cada cliente le paga a su gente.',
         roles: ['superadmin'],
       },
     ],

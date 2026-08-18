@@ -174,11 +174,12 @@ export const NuevaEmpresaModal = ({
             placeholder="Básico, Full…"
           />
           <Campo
-            etiqueta="Abono mensual"
+            etiqueta="Cuota mensual"
             type="number"
             value={String(datos.abonoMensual ?? '')}
             onChange={(e) => set('abonoMensual')(e.target.value)}
             placeholder="0"
+            ayuda="Cuánto te va a pagar por mes."
           />
         </div>
         <Campo

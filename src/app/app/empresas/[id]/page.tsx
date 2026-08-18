@@ -4,15 +4,11 @@ import { useCallback, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
-  IconCash,
-  IconCheck,
-  IconClockExclamation,
   IconLayoutGrid,
   IconLogin2,
   IconPencil,
   IconReceipt2,
   IconUsers,
-  IconWallet,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
@@ -20,6 +16,7 @@ import { StatCard } from '@/components/app/dashboard/StatCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
 import { BarrasMensuales } from '@/components/app/finanzas/BarrasMensuales';
+import { TarjetaCuota } from '@/components/app/finanzas/TarjetaCuota';
 import { EditarEmpresaModal } from '@/components/app/empresas/EditarEmpresaModal';
 import { formatearPesos } from '@/lib/formato';
 import { hoyISO } from '@/lib/fechas';
@@ -209,43 +206,18 @@ const EmpresaDetallePage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
         <StatCard
           etiqueta="Empleados"
           valor={factura?.empleados ?? '…'}
           detalle="activos"
           icono={IconUsers}
         />
-        <StatCard
-          etiqueta="Abono mensual"
-          valor={formatearPesos(empresa.abonoMensual ?? 0)}
-          icono={IconWallet}
-        />
-        <StatCard
-          etiqueta="Cobrado este mes"
-          valor={factura ? formatearPesos(factura.cobradoEnPeriodo) : '…'}
-          icono={IconCash}
-        />
-        <StatCard
-          etiqueta="Estado de pago"
-          valor={
-            !factura || factura.abonoMensual === 0
-              ? '—'
-              : factura.alDia
-                ? 'Cubierto'
-                : factura.cobradoEnPeriodo > 0
-                  ? 'Incompleto'
-                  : 'Sin cobro'
-          }
-          detalle={
-            !factura || factura.abonoMensual === 0
-              ? 'este mes'
-              : factura.alDia
-                ? 'el abono de este mes'
-                : `faltan ${formatearPesos(Math.max(0, factura.abonoMensual - factura.cobradoEnPeriodo))}`
-          }
-          icono={factura?.alDia ? IconCheck : IconClockExclamation}
-        />
+        {factura ? (
+          <TarjetaCuota factura={factura} mostrarNombre={false} />
+        ) : (
+          <StatCard etiqueta="Cuota de este mes" valor="…" />
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -272,7 +244,7 @@ const EmpresaDetallePage = () => {
 
         <Panel>
           <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
-            Cobros de los últimos meses
+            Pagos de los últimos meses
           </h2>
           <BarrasMensuales datos={serie} />
         </Panel>
@@ -288,7 +260,7 @@ const EmpresaDetallePage = () => {
         {ingresos.length === 0 ? (
           <p className="mt-4 text-sm text-ink-soft">
             Todavía no hay ingresos vinculados a esta empresa. Cargalos desde
-            Finanzas eligiendo la empresa, o con “Registrar cobro”.
+            Finanzas eligiendo la empresa, o con “Registrar” en la cuota.
           </p>
         ) : (
           <div className="mt-3 flex flex-col divide-y divide-line">

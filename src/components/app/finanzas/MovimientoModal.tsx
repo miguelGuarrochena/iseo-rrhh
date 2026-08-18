@@ -105,7 +105,7 @@ export const MovimientoModal = ({
           onChange={(e) => setConcepto(e.target.value)}
           placeholder={
             tipo === 'ingreso'
-              ? 'Abono mensual, implementación…'
+              ? 'Cuota mensual, implementación…'
               : 'Hosting, honorarios…'
           }
         />
@@ -129,7 +129,7 @@ export const MovimientoModal = ({
           value={categoria}
           onChange={(e) => setCategoria(e.target.value)}
           placeholder={
-            tipo === 'ingreso' ? 'Abono, Servicios…' : 'Infraestructura…'
+            tipo === 'ingreso' ? 'Cuota, Servicios…' : 'Infraestructura…'
           }
         />
         {tipo === 'ingreso' && (
@@ -138,7 +138,7 @@ export const MovimientoModal = ({
             value={empresaId}
             onChange={setEmpresaId}
             opciones={opcionesEmpresa}
-            ayuda="Si no la vinculás, el dinero entra en ingresos pero no cubre el abono de nadie."
+            ayuda="Si no la vinculás, el dinero entra en ingresos pero no cuenta para ninguna cuota."
           />
         )}
         <div className="flex gap-2">
