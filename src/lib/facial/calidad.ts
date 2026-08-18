@@ -56,8 +56,27 @@ export const UMBRALES = {
   lumaMinima: 55,
   lumaMaxima: 205,
   contrasteMinimo: 22,
-  /** Varianza del laplaciano normalizada por el contraste. */
-  nitidezMinima: 0.012,
+  /**
+   * Varianza del laplaciano normalizada por el contraste.
+   *
+   * Calibrado sobre el **recorte alineado**, que es donde se mide, y no
+   * sobre un cuadro entero: el recorte es casi todo piel, y la piel
+   * aporta mucho menos borde que una escena con pelo, ropa y fondo. Una
+   * cara nítida de una foto profesional, pasada por el mismo pipeline
+   * (cuadro de 1280 → recorte de 150), da 0,021; la misma con un píxel
+   * de desenfoque da 0,012, y sólo con compresión de vídeo agresiva
+   * 0,013. Es decir: el 0,012 que había acá rechazaba caras que estaban
+   * apenas blandas, no borrosas — y en una webcam real, que siempre
+   * comprime y suaviza, eso era casi siempre.
+   *
+   * El piso queda en lo que ya es inservible: 1,5 píxeles de desenfoque
+   * miden 0,005. Lo que está en el medio —blando pero usable— lo maneja
+   * el puntaje, que es donde corresponde, porque baja la prioridad del
+   * cuadro sin dejar a la persona afuera.
+   */
+  nitidezMinima: 0.005,
+  /** Por encima de esto la nitidez ya no suma puntaje. Es una cara nítida. */
+  nitidezComoda: 0.02,
   /** Desplazamiento del centro entre cuadros, / ancho del cuadro. */
   movimientoMaximo: 0.03,
 } as const;
@@ -200,6 +219,17 @@ export interface Veredicto {
   /** 0 a 1. Sirve para quedarse con los mejores cuadros, no sólo con los que pasan. */
   puntaje: number;
   motivo: MotivoRechazo | null;
+  /**
+   * Cuál de las métricas hundió el puntaje.
+   *
+   * Un cuadro puede pasar la puerta entera y quedar igual por debajo de
+   * `PUNTAJE_ACEPTABLE`: eso es deliberado —pasar no es lo mismo que
+   * servir de referencia— pero deja al motor con un cuadro rechazado y
+   * `motivo: null`, o sea sin nada que mostrarle a la persona. Como el
+   * puntaje es el mínimo de nueve parciales, el parcial que dio ese
+   * mínimo **es** la explicación, y es la que hay que mostrar.
+   */
+  debil: MotivoRechazo | null;
   /** Métricas crudas, para el modo diagnóstico. */
   metricas: {
     tamano: number;
@@ -364,6 +394,7 @@ export const evaluarCalidad = (e: EntradaCalidad): Veredicto => {
     ok: false,
     puntaje: 0,
     motivo,
+    debil: motivo,
     metricas,
   });
 
@@ -383,25 +414,44 @@ export const evaluarCalidad = (e: EntradaCalidad): Veredicto => {
   // El puntaje es el **mínimo** de los parciales, no el promedio: un
   // cuadro perfecto salvo que está casi de perfil no es un buen cuadro.
   // El promedio lo disimularía; el mínimo no.
-  const puntaje = Math.min(
-    puntajeMeseta(
-      tamano,
-      UMBRALES.tamanoMinimo,
-      UMBRALES.tamanoComodo,
-      UMBRALES.tamanoAmplio,
-      UMBRALES.tamanoMaximo
-    ),
-    puntajeLimite(desvio, UMBRALES.desvioMaximo),
-    puntajeLimite(pose.rollGrados, UMBRALES.rollMaximoGrados),
-    puntajeLimite(pose.yaw, UMBRALES.yawMaximo),
-    puntajeLimite(pose.pitch, UMBRALES.pitchMaximo),
-    puntajeLimite(ojos, UMBRALES.ojoCerrado),
-    puntajeBanda(s.luma, UMBRALES.lumaMinima, UMBRALES.lumaMaxima),
-    Math.min(1, s.contraste / (UMBRALES.contrasteMinimo * 2)),
-    Math.min(1, s.nitidez / (UMBRALES.nitidezMinima * 3))
-  );
+  //
+  // Cada parcial viaja con el motivo que lo explica. Sin eso, el motor
+  // no tenía forma de saber por qué un cuadro que pasó la puerta se
+  // quedó corto de puntaje, y mostraba "la imagen sale borrosa" para
+  // cualquiera de los nueve casos: mandaba a limpiar la lente a alguien
+  // que en realidad estaba girado, descentrado o a contraluz.
+  const parciales: [MotivoRechazo, number][] = [
+    [
+      tamano < UMBRALES.tamanoComodo ? 'lejos' : 'cerca',
+      puntajeMeseta(
+        tamano,
+        UMBRALES.tamanoMinimo,
+        UMBRALES.tamanoComodo,
+        UMBRALES.tamanoAmplio,
+        UMBRALES.tamanoMaximo
+      ),
+    ],
+    ['descentrado', puntajeLimite(desvio, UMBRALES.desvioMaximo)],
+    ['inclinado', puntajeLimite(pose.rollGrados, UMBRALES.rollMaximoGrados)],
+    ['de_perfil', puntajeLimite(pose.yaw, UMBRALES.yawMaximo)],
+    ['cabeza_baja', puntajeLimite(pose.pitch, UMBRALES.pitchMaximo)],
+    ['ojos_cerrados', puntajeLimite(ojos, UMBRALES.ojoCerrado)],
+    [
+      s.luma < (UMBRALES.lumaMinima + UMBRALES.lumaMaxima) / 2
+        ? 'oscuro'
+        : 'quemado',
+      puntajeBanda(s.luma, UMBRALES.lumaMinima, UMBRALES.lumaMaxima),
+    ],
+    [
+      'sin_contraste',
+      Math.min(1, s.contraste / (UMBRALES.contrasteMinimo * 2)),
+    ],
+    ['borroso', Math.min(1, s.nitidez / UMBRALES.nitidezComoda)],
+  ];
 
-  return { ok: true, puntaje, motivo: null, metricas };
+  const [debil, puntaje] = parciales.reduce((a, b) => (b[1] < a[1] ? b : a));
+
+  return { ok: true, puntaje, motivo: null, debil, metricas };
 };
 
 /** Puntaje a partir del cual un cuadro entra al búfer de plantillas. */

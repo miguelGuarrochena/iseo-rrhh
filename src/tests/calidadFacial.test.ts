@@ -14,6 +14,7 @@ import {
   evaluarCalidad,
   evaluarGeometria,
   MENSAJE_MOTIVO,
+  PUNTAJE_ACEPTABLE,
   UMBRALES,
   type EntradaCalidad,
 } from '@/lib/facial/calidad';
@@ -272,6 +273,62 @@ describe('evaluarCalidad', () => {
     );
     expect(casiPerfil.ok).toBe(true);
     expect(casiPerfil.puntaje).toBeLessThan(0.1);
+  });
+
+  it('un cuadro flojo dice cuál métrica lo hundió, no "borroso" por defecto', () => {
+    // El motor rechaza también por puntaje bajo, y ahí el veredicto es
+    // `ok: true` con `motivo: null`. Antes rellenaba ese hueco con
+    // 'borroso' fijo: alguien casi de perfil leía "la imagen sale
+    // borrosa: limpiá la cámara" y se ponía a limpiar el vidrio.
+    const casiPerfil = evaluarCalidad(
+      entrada({ pose: pose({ yaw: UMBRALES.yawMaximo * 0.95 }) })
+    );
+    expect(casiPerfil.motivo).toBeNull();
+    expect(casiPerfil.debil).toBe('de_perfil');
+
+    const casiOscuro = evaluarCalidad(
+      entrada({ estadisticas: { luma: 62, contraste: 45, nitidez: 0.05 } })
+    );
+    expect(casiOscuro.debil).toBe('oscuro');
+
+    const casiQuemado = evaluarCalidad(
+      entrada({ estadisticas: { luma: 198, contraste: 45, nitidez: 0.05 } })
+    );
+    expect(casiQuemado.debil).toBe('quemado');
+  });
+
+  it('acepta una cara apenas blanda, como la que da cualquier webcam', () => {
+    // Reproducción del rechazo de enrolamiento: con el divisor viejo
+    // (`nitidez / (nitidezMinima * 3)` y min = 0,012) este cuadro daba
+    // puntaje 0,333. El motor exige PUNTAJE_ACEPTABLE = 0,35, así que
+    // pasaba la puerta de foco y igual no entraba a la plantilla. Como
+    // el motivo iba vacío, la pantalla decía "borrosa" en todos los
+    // intentos y nadie se podía enrolar.
+    const blanda = evaluarCalidad(
+      entrada({ estadisticas: { luma: 130, contraste: 45, nitidez: 0.012 } })
+    );
+    expect(blanda.ok).toBe(true);
+    expect(blanda.motivo).toBeNull();
+    expect(blanda.puntaje).toBeGreaterThan(PUNTAJE_ACEPTABLE);
+    expect(0.012 / UMBRALES.nitidezComoda).toBeGreaterThan(PUNTAJE_ACEPTABLE);
+  });
+
+  it('un cuadro que apenas pasa la puerta de foco no entra a la plantilla', () => {
+    // Lo otro que hay que sostener: aflojar el piso no puede convertir
+    // un cuadro dudoso en referencia. La puerta lo deja pasar, el
+    // puntaje lo deja afuera del promedio.
+    const alLimite = evaluarCalidad(
+      entrada({
+        estadisticas: {
+          luma: 130,
+          contraste: 45,
+          nitidez: UMBRALES.nitidezMinima * 1.01,
+        },
+      })
+    );
+    expect(alLimite.ok).toBe(true);
+    expect(alLimite.puntaje).toBeLessThan(PUNTAJE_ACEPTABLE);
+    expect(alLimite.debil).toBe('borroso');
   });
 
   it('expone las métricas crudas para el modo diagnóstico', () => {

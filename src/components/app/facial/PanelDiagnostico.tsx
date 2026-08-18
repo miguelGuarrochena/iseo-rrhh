@@ -1,5 +1,6 @@
 'use client';
 
+import { PUNTAJE_ACEPTABLE, UMBRALES } from '@/lib/facial/calidad';
 import type { Diagnostico, Fase } from '@/lib/facial/motor';
 
 /**
@@ -95,7 +96,19 @@ export const PanelDiagnostico = ({
         />
         <Fila
           etiqueta="Puntaje calidad"
-          valor={d.ultimoPuntaje === null ? '—' : d.ultimoPuntaje.toFixed(2)}
+          valor={
+            d.ultimoPuntaje === null
+              ? '—'
+              : `${d.ultimoPuntaje.toFixed(2)} (mín ${PUNTAJE_ACEPTABLE})`
+          }
+          alerta={
+            d.ultimoPuntaje !== null && d.ultimoPuntaje < PUNTAJE_ACEPTABLE
+          }
+        />
+        <Fila
+          etiqueta="Motivo rechazo"
+          valor={d.ultimoMotivo ?? 'ok'}
+          alerta={Boolean(d.ultimoMotivo)}
         />
         <Fila etiqueta="Modelo percepción" valor={d.modeloPercepcion} />
       </div>
@@ -115,9 +128,23 @@ export const PanelDiagnostico = ({
             <Fila etiqueta="Yaw (índice)" valor={cal.yaw.toFixed(3)} />
             <Fila etiqueta="Pitch (índice)" valor={cal.pitch.toFixed(3)} />
             <Fila etiqueta="Parpadeo" valor={cal.ojos.toFixed(2)} />
-            <Fila etiqueta="Luma" valor={cal.luma.toFixed(0)} />
-            <Fila etiqueta="Contraste" valor={cal.contraste.toFixed(1)} />
-            <Fila etiqueta="Nitidez" valor={cal.nitidez.toFixed(4)} />
+            <Fila
+              etiqueta="Luma"
+              valor={`${cal.luma.toFixed(0)} (${UMBRALES.lumaMinima}–${UMBRALES.lumaMaxima})`}
+              alerta={
+                cal.luma < UMBRALES.lumaMinima || cal.luma > UMBRALES.lumaMaxima
+              }
+            />
+            <Fila
+              etiqueta="Contraste"
+              valor={`${cal.contraste.toFixed(1)} (mín ${UMBRALES.contrasteMinimo})`}
+              alerta={cal.contraste < UMBRALES.contrasteMinimo}
+            />
+            <Fila
+              etiqueta="Nitidez"
+              valor={`${cal.nitidez.toFixed(4)} (mín ${UMBRALES.nitidezMinima})`}
+              alerta={cal.nitidez < UMBRALES.nitidezMinima}
+            />
             <Fila etiqueta="Movimiento" valor={cal.movimiento.toFixed(4)} />
           </div>
         </>

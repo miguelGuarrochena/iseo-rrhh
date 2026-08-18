@@ -119,6 +119,13 @@ export interface Diagnostico {
   descriptoresCalculados: number;
   ultimaCalidad: Veredicto['metricas'] | null;
   ultimoPuntaje: number | null;
+  /**
+   * Por qué se descartó el último cuadro. Es null si el cuadro entró.
+   *
+   * Sin esto, `?diag=1` muestra nitidez y pose pero no dice cuál de
+   * esas métricas está echando al enrolamiento.
+   */
+  ultimoMotivo: MotivoRechazo | null;
   /** Errores de inicialización y fallbacks, ya legibles. */
   incidencias: string[];
   estabilidad: Estabilidad;
@@ -257,6 +264,7 @@ export class MotorFacial {
     descriptoresCalculados: 0,
     ultimaCalidad: null,
     ultimoPuntaje: null,
+    ultimoMotivo: null,
     incidencias: [],
     estabilidad: {
       msCorriendo: 0,
@@ -547,12 +555,14 @@ export class MotorFacial {
     if (cuadro.caras === 0) {
       this.estables = 0;
       this.centroAnterior = null;
+      this.diagnostico.ultimoMotivo = 'sin_rostro';
       if (this.fase !== 'desafio')
         this.pasarA('buscando', MENSAJE_MOTIVO.sin_rostro);
       return;
     }
     if (cuadro.caras > 1) {
       this.estables = 0;
+      this.diagnostico.ultimoMotivo = 'varios_rostros';
       this.pasarA('buscando', MENSAJE_MOTIVO.varios_rostros);
       return;
     }
@@ -608,6 +618,7 @@ export class MotorFacial {
     if (!entraEnCuadro(referencias, ancho, alto)) {
       this.estables = 0;
       this.contarMotivo('descentrado');
+      this.diagnostico.ultimoMotivo = 'descentrado';
       this.pasarA('encuadrando', MENSAJE_MOTIVO.descentrado);
       return;
     }
@@ -616,6 +627,7 @@ export class MotorFacial {
     if (!geo.ok) {
       this.estables = 0;
       this.contarMotivo(geo.motivo as MotivoRechazo);
+      this.diagnostico.ultimoMotivo = geo.motivo as MotivoRechazo;
       this.pasarA('encuadrando', MENSAJE_MOTIVO[geo.motivo as MotivoRechazo]);
       return;
     }
@@ -644,13 +656,21 @@ export class MotorFacial {
 
     if (!veredicto.ok || veredicto.puntaje < PUNTAJE_ACEPTABLE) {
       this.estables = 0;
-      const motivo = veredicto.motivo ?? 'borroso';
+      // `debil` es el parcial que dio el mínimo del puntaje. Sin él, el
+      // caso "pasó la puerta pero no llegó a puntaje" caía en un
+      // `'borroso'` fijo, y ése era el motivo que más se acumulaba en el
+      // intento: al vencer, la pantalla decía "la imagen sale borrosa"
+      // aunque el problema fuera la pose o la luz. Un mensaje que manda
+      // a arreglar lo que no está roto es peor que no decir nada.
+      const motivo = veredicto.motivo ?? veredicto.debil ?? 'borroso';
       this.contarMotivo(motivo);
+      this.diagnostico.ultimoMotivo = motivo;
       this.pasarA('encuadrando', MENSAJE_MOTIVO[motivo]);
       return;
     }
 
     this.estables++;
+    this.diagnostico.ultimoMotivo = null;
     this.diagnostico.cuadrosAceptados++;
     if (this.estables < CUADROS_ESTABLES) {
       this.pasarA('encuadrando', 'Quedate así…');
