@@ -138,7 +138,7 @@ export const MovimientoModal = ({
             value={empresaId}
             onChange={setEmpresaId}
             opciones={opcionesEmpresa}
-            ayuda="Vinculalo a una empresa para que cuente como su cobro del mes."
+            ayuda="Si no la vinculás, el dinero entra en ingresos pero no cubre el abono de nadie."
           />
         )}
         <div className="flex gap-2">

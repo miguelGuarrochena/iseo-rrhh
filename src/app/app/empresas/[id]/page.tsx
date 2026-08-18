@@ -232,10 +232,18 @@ const EmpresaDetallePage = () => {
             !factura || factura.abonoMensual === 0
               ? '—'
               : factura.alDia
-                ? 'Al día'
-                : 'Pendiente'
+                ? 'Cubierto'
+                : factura.cobradoEnPeriodo > 0
+                  ? 'Incompleto'
+                  : 'Sin cobro'
           }
-          detalle="este mes"
+          detalle={
+            !factura || factura.abonoMensual === 0
+              ? 'este mes'
+              : factura.alDia
+                ? 'el abono de este mes'
+                : `faltan ${formatearPesos(Math.max(0, factura.abonoMensual - factura.cobradoEnPeriodo))}`
+          }
           icono={factura?.alDia ? IconCheck : IconClockExclamation}
         />
       </div>

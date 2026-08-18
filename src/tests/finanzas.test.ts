@@ -4,8 +4,9 @@ import {
   eliminarMovimiento,
   getResumenFinanzas,
 } from '@/lib/services/rrhh';
+import { hoyISO } from '@/lib/fechas';
 
-const periodo = new Date().toISOString().slice(0, 7);
+const periodo = hoyISO().slice(0, 7);
 
 describe('resumen de finanzas (demo)', () => {
   it('calcula ingresos, gastos, neto y MRR del período', async () => {
@@ -26,6 +27,21 @@ describe('resumen de finanzas (demo)', () => {
     expect(r.empresasVencidas).toBe(1);
   });
 
+  it('un ingreso sin empresa no cubre el abono de nadie', async () => {
+    const antes = await getResumenFinanzas(periodo);
+    await crearMovimiento({
+      tipo: 'ingreso',
+      concepto: 'Abono mensual — El Negro Holandés',
+      monto: 20000,
+      fecha: `${periodo}-11`,
+    });
+    const despues = await getResumenFinanzas(periodo);
+    expect(despues.facturacion.find((f) => f.empresaId === 'emp-2')?.alDia).toBe(
+      false
+    );
+    expect(despues.ingresosDelMes).toBe(antes.ingresosDelMes + 20000);
+  });
+
   it('registrar un cobro deja a la empresa al día', async () => {
     await crearMovimiento({
       tipo: 'ingreso',
@@ -35,9 +51,9 @@ describe('resumen de finanzas (demo)', () => {
       fecha: `${periodo}-10`,
     });
     const r = await getResumenFinanzas(periodo);
-    expect(r.facturacion.find((f) => f.empresaId === 'emp-2')?.alDia).toBe(
-      true
-    );
+    const negro = r.facturacion.find((f) => f.empresaId === 'emp-2');
+    expect(negro?.alDia).toBe(true);
+    expect(negro?.cobradoEnPeriodo).toBe(60000);
     expect(r.empresasVencidas).toBe(0);
   });
 

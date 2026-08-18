@@ -97,7 +97,7 @@ const DashboardPage = () => {
   const empresas = cEmpresas.datos;
 
   const cFinanzas = useCarga(
-    () => getResumenFinanzas(new Date().toISOString().slice(0, 7)),
+    () => getResumenFinanzas(hoyISO().slice(0, 7)),
     [],
     { activo: esSuperadmin, contexto: 'inicio/finanzas' }
   );
@@ -246,8 +246,8 @@ const DashboardPage = () => {
             <span className="text-sm text-amber-900">
               <strong>
                 {pagosPendientes === 1
-                  ? '1 empresa con el pago pendiente'
-                  : `${pagosPendientes} empresas con el pago pendiente`}
+                  ? '1 empresa no cubrió el abono'
+                  : `${pagosPendientes} empresas no cubrieron el abono`}
               </strong>{' '}
               este mes. Revisá Finanzas.
             </span>
@@ -260,8 +260,8 @@ const DashboardPage = () => {
             valor={metricas?.empresasActivas ?? '…'}
             detalle={
               metricas && metricas.empresasSuspendidas > 0
-                ? `+${metricas.empresasSuspendidas} suspendidas`
-                : 'todas al día'
+                ? `${metricas.empresasSuspendidas} suspendidas`
+                : 'ninguna suspendida'
             }
             href="/empresas"
             icono={IconBuildingFactory2}

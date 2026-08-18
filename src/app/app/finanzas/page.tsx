@@ -24,7 +24,7 @@ import { MovimientoModal } from '@/components/app/finanzas/MovimientoModal';
 import { AbonoModal } from '@/components/app/finanzas/AbonoModal';
 import { BarrasIngresoGasto } from '@/components/app/finanzas/BarrasIngresoGasto';
 import { formatearPesos } from '@/lib/formato';
-import { hoyISO } from '@/lib/fechas';
+import { formatearPeriodo, hoyISO } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   crearMovimiento,
@@ -43,6 +43,10 @@ import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
 
 const periodoActual = hoyISO().slice(0, 7);
+
+const faltaDelAbono = (f: FacturacionEmpresa): number =>
+  Math.max(0, f.abonoMensual - f.cobradoEnPeriodo);
+
 const MESES = [
   'ene',
   'feb',
@@ -60,11 +64,10 @@ const MESES = [
 
 /** Últimos 6 períodos (YYYY-MM) terminando en el actual. */
 const ultimosPeriodos = (): string[] => {
-  const base = new Date(`${periodoActual}-01T00:00:00`);
+  const [anio, mes] = periodoActual.split('-').map(Number);
   return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(base);
-    d.setMonth(d.getMonth() - (5 - i));
-    return d.toISOString().slice(0, 7);
+    const d = new Date(anio, mes - 1 - (5 - i), 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
 };
 
@@ -138,6 +141,8 @@ const FinanzasPage = () => {
   });
 
   const registrarCobro = async (f: FacturacionEmpresa) => {
+    const falta = faltaDelAbono(f);
+    if (falta <= 0) return;
     const fecha = periodo === periodoActual ? hoyISO() : `${periodo}-15`;
     try {
       await crearMovimiento({
@@ -145,13 +150,10 @@ const FinanzasPage = () => {
         concepto: `Abono mensual — ${f.nombre}`,
         categoria: 'Abono',
         empresaId: f.empresaId,
-        monto: f.abonoMensual,
+        monto: falta,
         fecha,
       });
-      avisoExito(
-        'Cobro registrado',
-        `${f.nombre}: ${formatearPesos(f.abonoMensual)}`
-      );
+      avisoExito('Cobro registrado', `${f.nombre}: ${formatearPesos(falta)}`);
       cargar();
     } catch (err) {
       avisoError(
@@ -212,12 +214,19 @@ const FinanzasPage = () => {
           <div className="text-sm text-amber-900">
             <p className="font-bold">
               {vencidas.length === 1
-                ? '1 empresa con el pago pendiente este mes'
-                : `${vencidas.length} empresas con el pago pendiente este mes`}
+                ? `1 empresa no cubrió el abono de ${formatearPeriodo(periodo)}`
+                : `${vencidas.length} empresas no cubrieron el abono de ${formatearPeriodo(periodo)}`}
             </p>
-            <p className="mt-0.5 text-amber-800">
-              {vencidas.map((f) => f.nombre).join(', ')}.
-            </p>
+            <ul className="mt-1 space-y-0.5 text-amber-800">
+              {vencidas.map((f) => (
+                <li key={f.empresaId}>
+                  {f.nombre}
+                  {f.cobradoEnPeriodo > 0
+                    ? ` · recibiste ${formatearPesos(f.cobradoEnPeriodo)}, faltan ${formatearPesos(faltaDelAbono(f))}`
+                    : ` · faltan ${formatearPesos(f.abonoMensual)}`}
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       )}
@@ -250,7 +259,7 @@ const FinanzasPage = () => {
           valor={resumen ? formatearPesos(resumen.mrr) : '…'}
           detalle={
             resumen
-              ? `${resumen.empresasAlDia} al día · ${resumen.empresasVencidas} pendientes`
+              ? `${resumen.empresasAlDia} cubrieron el abono · ${resumen.empresasVencidas} no`
               : 'MRR'
           }
           icono={IconRepeat}
@@ -269,7 +278,9 @@ const FinanzasPage = () => {
           Facturación por empresa
         </h2>
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-          Lo que te paga cada cliente este mes. Registrá el cobro cuando entre.
+          El abono es lo que te tiene que pagar cada cliente en este período.
+          Lo recibido cuenta si el ingreso está vinculado a esa empresa. Si
+          falta, registrá el cobro del saldo.
         </p>
         <div className="mt-4 flex flex-col divide-y divide-line">
           {resumen?.facturacion.map((f) => (
@@ -281,8 +292,14 @@ const FinanzasPage = () => {
                 <p className="truncate font-semibold text-ink">{f.nombre}</p>
                 <p className="text-xs text-ink-soft">
                   {f.empleados} {f.empleados === 1 ? 'empleado' : 'empleados'} ·
-                  abono {formatearPesos(f.abonoMensual)} · cobrado{' '}
-                  {formatearPesos(f.cobradoEnPeriodo)}
+                  abono {formatearPesos(f.abonoMensual)}
+                  {f.abonoMensual > 0 && f.estado === 'activa'
+                    ? f.alDia
+                      ? ` · cubierto (${formatearPesos(f.cobradoEnPeriodo)})`
+                      : f.cobradoEnPeriodo > 0
+                        ? ` · recibido ${formatearPesos(f.cobradoEnPeriodo)} · faltan ${formatearPesos(faltaDelAbono(f))}`
+                        : ` · sin cobro este período`
+                    : null}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -296,11 +313,15 @@ const FinanzasPage = () => {
                   </span>
                 ) : f.alDia ? (
                   <span className="flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
-                    <IconCheck size={13} /> Al día
+                    <IconCheck size={13} /> Cubierto
+                  </span>
+                ) : f.cobradoEnPeriodo > 0 ? (
+                  <span className="rounded-full bg-paper px-2.5 py-1 text-xs font-bold text-ink">
+                    Faltan {formatearPesos(faltaDelAbono(f))}
                   </span>
                 ) : (
-                  <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
-                    Pendiente
+                  <span className="rounded-full bg-paper px-2.5 py-1 text-xs font-bold text-ink">
+                    Sin cobro
                   </span>
                 )}
                 <Boton
@@ -313,7 +334,7 @@ const FinanzasPage = () => {
                 {f.estado === 'activa' && f.abonoMensual > 0 && !f.alDia && (
                   <Boton tamano="sm" onClick={() => void registrarCobro(f)}>
                     <IconCash size={14} />
-                    Registrar cobro
+                    {f.cobradoEnPeriodo > 0 ? 'Registrar saldo' : 'Registrar cobro'}
                   </Boton>
                 )}
               </div>
@@ -329,6 +350,12 @@ const FinanzasPage = () => {
           items={ingresos}
           onBorrar={borrar}
           positivo
+          aviso={
+            ingresos.some((m) => !m.empresaId) &&
+            (vencidas?.length ?? 0) > 0
+              ? 'Hay ingresos sin empresa: no cubren el abono de ningún cliente.'
+              : undefined
+          }
         />
         <MovimientoLista
           titulo="Gastos del mes"
@@ -360,12 +387,14 @@ const MovimientoLista = ({
   items,
   onBorrar,
   positivo,
+  aviso,
 }: {
   titulo: string;
   vacio: string;
   items: MovimientoFinanciero[];
   onBorrar: (id: string) => void;
   positivo?: boolean;
+  aviso?: string;
 }) => (
   <Panel>
     <div className="flex items-center gap-2">
@@ -374,6 +403,7 @@ const MovimientoLista = ({
         {titulo}
       </h2>
     </div>
+    {aviso && <p className="mt-2 text-xs text-ink-soft">{aviso}</p>}
     {items.length === 0 ? (
       <p className="mt-4 text-sm text-ink-soft">{vacio}</p>
     ) : (
