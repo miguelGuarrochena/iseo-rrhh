@@ -79,10 +79,8 @@ const VISIBLES = 3;
 /**
  * La caja del aviso.
  *
- * El amarillo de fondo era ilegible a pantalla completa: mareaba y
- * competía con las tarjetas de adentro. El aviso se marca con el ícono
- * y, si frena, con el borde rojo; el resto es el mismo panel blanco
- * que el resto de la ficha.
+ * Sin el lavado amarillo: fondo paper (el celeste suave de la app) y
+ * borde de marca. Se distingue de los paneles blancos sin gritar.
  */
 const Cartel = ({
   frena,
@@ -98,14 +96,14 @@ const Cartel = ({
   const Icono = frena ? IconAlertTriangle : IconInfoCircle;
   return (
     <div
-      className={`rounded-3xl border bg-surface p-4 sm:p-5 ${
-        frena ? 'border-red-300' : 'border-line'
+      className={`rounded-3xl border bg-paper p-4 sm:p-5 ${
+        frena ? 'border-red-200' : 'border-brand-200'
       } ${className}`}
     >
       <div className="flex items-center gap-2.5">
         <span
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-            frena ? 'bg-red-100 text-red-700' : 'bg-paper text-ink-soft'
+            frena ? 'bg-red-100 text-red-700' : 'bg-brand-100 text-brand-700'
           }`}
         >
           <Icono size={19} stroke={2} />
