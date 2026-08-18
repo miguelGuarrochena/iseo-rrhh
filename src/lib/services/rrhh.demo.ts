@@ -2134,6 +2134,9 @@ export const crearComunicacion = async (datos: {
     actualizadoEn: hoyISO(),
   };
   comunicacionesMock.unshift(nueva);
+  tocarComunicacionDemo(nueva.id);
+  // Lo que acabás de escribir no es novedad para vos.
+  await marcarComunicacionLeida(nueva.id);
   return simular(nueva);
 };
 
@@ -2212,8 +2215,22 @@ export const eliminarFeriado = async (feriadoId: string): Promise<void> => {
   return simular(undefined);
 };
 
-/** Marcas de lectura del usuario de la demo: comunicacionId -> fecha. */
+/**
+ * Lectura y actividad de la demo, en instantes completos.
+ *
+ * `Comunicacion.actualizadoEn` es una fecha sin hora (así viaja a las
+ * pantallas), y comparar una fecha contra un instante para decidir si
+ * algo está sin leer da resultados arbitrarios dentro del mismo día.
+ * Estos dos mapas guardan la hora exacta, que es lo que en producción
+ * fecha el servidor.
+ */
 const lecturasMock = new Map<string, string>();
+const actividadMock = new Map<string, string>();
+
+/** Marca actividad en la conversación: la vuelve "sin leer" para el resto. */
+const tocarComunicacionDemo = (comunicacionId: string) => {
+  actividadMock.set(comunicacionId, new Date().toISOString());
+};
 
 export const marcarComunicacionLeida = async (
   comunicacionId: string
@@ -2221,16 +2238,30 @@ export const marcarComunicacionLeida = async (
   lecturasMock.set(comunicacionId, new Date().toISOString());
 };
 
+/** Conversaciones que este usuario todavía no miró, con su alcance. */
+const sinLeerDemo = (): Comunicacion[] => {
+  const usuario = useAuthStore.getState().usuario;
+  const esGestor =
+    usuario?.rol === 'admin_rrhh' ||
+    usuario?.rol === 'supervisor' ||
+    usuario?.rol === 'superadmin';
+  return comunicacionesMock.filter((c) => {
+    // El colaborador cuenta las suyas; el gestor, las de la empresa.
+    if (
+      esGestor
+        ? c.empresaId !== empresaDemo()
+        : c.empleadoId !== usuario?.empleadoId
+    ) {
+      return false;
+    }
+    const leido = lecturasMock.get(c.id);
+    const actividad = actividadMock.get(c.id) ?? c.actualizadoEn;
+    return !leido || leido < actividad;
+  });
+};
+
 export const getComunicacionesSinLeer = async (): Promise<string[]> =>
-  simular(
-    comunicacionesMock
-      .filter(
-        (c) =>
-          !lecturasMock.has(c.id) ||
-          (lecturasMock.get(c.id) ?? '') < c.actualizadoEn
-      )
-      .map((c) => c.id)
-  );
+  simular(sinLeerDemo().map((c) => c.id));
 
 export const responderComunicacion = async (
   comunicacionId: string,
@@ -2245,10 +2276,9 @@ export const responderComunicacion = async (
   };
   mensajesComMock.push(msg);
   const com = comunicacionesMock.find((c) => c.id === comunicacionId);
-  if (com) {
-    com.estado = 'en_curso';
-    com.actualizadoEn = hoyISO();
-  }
+  if (com && com.estado === 'abierta') com.estado = 'en_curso';
+  if (com) com.actualizadoEn = hoyISO();
+  tocarComunicacionDemo(comunicacionId);
   await marcarComunicacionLeida(comunicacionId);
   return simular(msg);
 };
@@ -2261,6 +2291,10 @@ export const cerrarComunicacion = async (
     com.estado = 'cerrada';
     com.actualizadoEn = hoyISO();
   }
+  tocarComunicacionDemo(comunicacionId);
+  // Para quien cierra no es novedad: si no, cerrar te dejaba a vos mismo
+  // un "sin leer" que no se iba.
+  await marcarComunicacionLeida(comunicacionId);
   return simular(undefined);
 };
 
@@ -2360,11 +2394,7 @@ export const getPendientesResumen = async (): Promise<PendientesResumen> => {
   const ausenciasPorResolver = ausenciasMock.filter(
     (a) => a.estado === 'pendiente'
   ).length;
-  const comunicacionesSinLeer = comunicacionesMock.filter(
-    (c) =>
-      !lecturasMock.has(c.id) ||
-      (lecturasMock.get(c.id) ?? '') < c.actualizadoEn
-  ).length;
+  const comunicacionesSinLeer = sinLeerDemo().length;
   const documentosPorFirmar = docsFirmaDestMock.filter(
     (d) => !d.firmadoEn
   ).length;

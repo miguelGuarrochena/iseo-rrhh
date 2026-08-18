@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { IconLogout2 } from '@tabler/icons-react';
@@ -9,9 +8,10 @@ import { navItemsPorRol } from './navItems';
 import { Boton } from './ui/Boton';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useModulos } from '@/lib/auth/useModulos';
-import { getEmpresa, getPendientesResumen } from '@/lib/services/rrhh';
+import { getEmpresa } from '@/lib/services/rrhh';
 import { PendientesResumen } from '@/types/rrhh';
 import { useCarga } from '@/lib/useCarga';
+import { usePendientes } from '@/lib/pendientes';
 
 /** Marca de la empresa: su logo si lo cargaron, si no el nombre. */
 const MarcaEmpresa = ({
@@ -43,7 +43,7 @@ export const Sidebar = () => {
   const modulos = useModulos();
   const pathname = usePathname();
   const router = useRouter();
-  const [pendientes, setPendientes] = useState<PendientesResumen | null>(null);
+  const pendientes = usePendientes(Boolean(usuario), usuario?.id);
 
   // Sólo alimenta el encabezado del menú: si falla, el menú anda igual.
   const cEmpresa = useCarga(() => getEmpresa(), [usuario], {
@@ -51,13 +51,6 @@ export const Sidebar = () => {
     contexto: 'sidebar/empresa',
   });
   const empresa = cEmpresa.datos ?? null;
-
-  useEffect(() => {
-    if (!usuario) return;
-    void getPendientesResumen()
-      .then(setPendientes)
-      .catch(() => undefined);
-  }, [usuario]);
 
   if (!usuario || !rolEfectivo) return null;
 

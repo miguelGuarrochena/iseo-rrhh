@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Modal } from '@mantine/core';
 import { IconMessagePlus, IconMessages } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -11,6 +12,7 @@ import { BloqueError } from '@/components/app/EstadoCarga';
 import { HiloMensajes } from './HiloMensajes';
 import { Redactor } from './Redactor';
 import { useCarga } from '@/lib/useCarga';
+import { refrescarPendientes } from '@/lib/pendientes';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { interpretarError } from '@/lib/errores';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
@@ -50,6 +52,8 @@ const tipoLabels: Record<TipoComunicacion, string> = {
  */
 export const ChatColaborador = ({ empleadoId }: { empleadoId: string }) => {
   const { usuario } = useAuth();
+  // La campanita linkea a la conversación concreta (`?c=<id>`).
+  const idDeAviso = useSearchParams().get('c');
   const [abiertoId, setAbiertoId] = useState<string | null>(null);
   const [mensajes, setMensajes] = useState<ComunicacionMensaje[]>([]);
   const [modal, setModal] = useState(false);
@@ -69,12 +73,13 @@ export const ChatColaborador = ({ empleadoId }: { empleadoId: string }) => {
   );
   const hilos = carga.datos;
 
-  // Se abre solo el más reciente: si sólo hay uno, la pantalla ya es el
-  // chat sin que haya que elegir nada.
+  // Se abre solo el que traía el aviso; si no vino de un aviso, el más
+  // reciente. Con un solo tema la pantalla ya es el chat sin elegir nada.
   useEffect(() => {
     if (abiertoId || hilos.length === 0) return;
-    setAbiertoId(hilos[0].id);
-  }, [hilos, abiertoId]);
+    const deAviso = idDeAviso && hilos.find((h) => h.id === idDeAviso);
+    setAbiertoId(deAviso ? deAviso.id : hilos[0].id);
+  }, [hilos, abiertoId, idDeAviso]);
 
   const abierto = hilos.find((h) => h.id === abiertoId) ?? null;
 
@@ -92,7 +97,9 @@ export const ChatColaborador = ({ empleadoId }: { empleadoId: string }) => {
         });
     };
     traer();
-    void marcarComunicacionLeida(abiertoId);
+    // Abrir el hilo lo da por leído y baja el numerito del menú en el
+    // acto, sin esperar a la próxima recarga.
+    void marcarComunicacionLeida(abiertoId).then(refrescarPendientes);
     return suscribirMensajes(abiertoId, traer);
   }, [abiertoId]);
 
@@ -103,6 +110,7 @@ export const ChatColaborador = ({ empleadoId }: { empleadoId: string }) => {
       const msgs = await getMensajesComunicacion(abiertoId);
       setMensajes(msgs);
       carga.recargar();
+      refrescarPendientes();
     } catch (err) {
       const { titulo, detalle } = interpretarError(err);
       avisoError(titulo, detalle);
@@ -133,6 +141,7 @@ export const ChatColaborador = ({ empleadoId }: { empleadoId: string }) => {
       setErrores({});
       setModal(false);
       carga.recargar();
+      refrescarPendientes();
       setAbiertoId(creada.id);
     } catch (err) {
       const { detalle } = interpretarError(err);
@@ -227,7 +236,12 @@ export const ChatColaborador = ({ empleadoId }: { empleadoId: string }) => {
               comunicacion={abierto}
               mensajes={mensajes}
               usuarioId={usuario?.id}
-              nombreDelOtro="RRHH"
+              /* Del lado del colaborador todo lo que no es suyo es
+                 RRHH. El nombre de quién contestó no se puede mostrar:
+                 no tiene permiso para leer la tabla de usuarios, y
+                 tampoco le aporta —le contesta el área, no una
+                 persona en particular. */
+              nombreDeAutor={() => 'RRHH'}
               autoScroll
             />
           </div>

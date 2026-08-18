@@ -1313,16 +1313,29 @@ export const getVacacionesAprobadasMiSector = async (
   return filas.map(aVacacionSector);
 };
 
-/** Avisa a varios usuarios (best-effort: nunca rompe la acción principal). */
+/**
+ * Avisa a varios usuarios (best-effort: nunca rompe la acción principal).
+ *
+ * `referenciaId` ata el aviso al registro del que habla. Sirve para
+ * apagarlo cuando la persona efectivamente lee ese registro, en vez de
+ * esperar a que despliegue la campana: ver el mensaje y que el numerito
+ * siga prendido es la queja de siempre.
+ */
 const notificarUsuarios = async (
   usuarioIds: string[],
   tipo: Notificacion['tipo'],
   titulo: string,
   cuerpo: string,
-  link?: string
+  link?: string,
+  referenciaId?: string
 ): Promise<void> => {
   const propios = useAuthStore.getState().usuario?.id;
-  const destinos = usuarioIds.filter((id) => id && id !== propios);
+  // Nadie se notifica a sí mismo, y el mismo destinatario no recibe dos
+  // veces el mismo aviso: un gestor que además es el dueño del legajo
+  // entraba dos veces en la lista y le llegaba duplicado.
+  const destinos = [
+    ...new Set(usuarioIds.filter((id) => id && id !== propios)),
+  ];
   if (destinos.length === 0) return;
   await sb()
     .from('notificaciones')
@@ -1333,6 +1346,7 @@ const notificarUsuarios = async (
         titulo,
         cuerpo,
         link: link ?? null,
+        referencia_id: referenciaId ?? null,
       }))
     );
 };
@@ -1369,12 +1383,15 @@ const avisarPorMail = async (
 };
 
 const usuariosGestores = async (): Promise<string[]> => {
-  const { data } = await sb()
-    .from('usuarios')
-    .select('id')
-    .eq('empresa_id', empresaId())
-    .in('rol', ['admin_rrhh', 'supervisor']);
-  return (data ?? []).map((u) => u.id);
+  // Por RPC y no leyendo `usuarios`: la policy de esa tabla le muestra al
+  // colaborador una sola fila, la suya. Consultarla desde su sesión
+  // devolvía vacío y el aviso a RRHH no se mandaba a nadie —así se
+  // perdían en silencio los avisos de todo lo que abre un colaborador,
+  // no sólo las comunicaciones—.
+  const { data } = await sb().rpc('gestores_de_empresa', {
+    p_empresa_id: empresaId(),
+  });
+  return (data as string[] | null) ?? [];
 };
 
 export const crearAusencia = async (
@@ -3604,14 +3621,29 @@ export const crearComunicacion = async (datos: {
     .select()
     .single();
   const com = aComunicacion(oFalla(data, error));
+  // Lo que acabás de escribir no es una novedad para vos: sin esto, la
+  // conversación recién creada te aparecía a vos mismo como "sin leer".
+  await marcarComunicacionLeida(com.id);
   try {
-    const gestores = await usuariosGestores();
+    const [gestores, empleado] = await Promise.all([
+      usuariosGestores(),
+      getEmpleado(datos.empleadoId),
+    ]);
+    // El aviso dice de quién es el tema. "Nuevo reclamo" a secas obliga
+    // a entrar para saber a quién le pasa qué, y con varios avisos
+    // encima no se distinguen entre sí.
+    const quien = empleado
+      ? `${empleado.apellido}, ${empleado.nombre}`
+      : 'Un colaborador';
     await notificarUsuarios(
       gestores,
       'comunicacion',
-      `Nuevo ${datos.tipo}`,
+      `Nuevo ${datos.tipo} de ${quien}`,
       datos.asunto,
-      '/comunicaciones'
+      // Con el id, el aviso abre la conversación de la que habla en vez
+      // de dejar a la persona buscándola en la bandeja.
+      `/comunicaciones?c=${com.id}`,
+      com.id
     );
   } catch {
     // no bloquea
@@ -3679,13 +3711,15 @@ export const responderComunicacion = async (
     })
     .select()
     .single();
-  await sb()
-    .from('comunicaciones')
-    .update({
-      estado: 'en_curso',
-      actualizado_en: new Date().toISOString(),
-    })
-    .eq('id', comunicacionId);
+  // El error se mira acá y no al final: si el mensaje no se guardó, no
+  // corresponde marcar leído ni avisarle a nadie que respondieron.
+  const mensaje = aMensajeComunicacion(oFalla(data, error));
+  // El estado y la fecha de actividad los mueve un trigger al insertar
+  // el mensaje. Hacerlo desde acá no servía: la policy de UPDATE sobre
+  // `comunicaciones` es sólo para gestores, así que cuando respondía el
+  // colaborador el UPDATE afectaba cero filas —sin error— y su respuesta
+  // no le encendía el "sin leer" a RRHH.
+  //
   // Tu propia respuesta no te tiene que aparecer como novedad.
   await marcarComunicacionLeida(comunicacionId);
 
@@ -3704,52 +3738,76 @@ export const responderComunicacion = async (
       .eq('id', comunicacionId)
       .single();
     if (com) {
+      const empleadoId = com.empleado_id as string;
       const { data: duenio } = await sb()
         .from('usuarios')
         .select('id')
-        .eq('empleado_id', com.empleado_id)
+        .eq('empleado_id', empleadoId)
         .maybeSingle();
-      // Si responde un gestor, avisa al colaborador; si responde el
-      // colaborador, avisa a los gestores. `notificarUsuarios` ya
-      // descarta al autor, así que mandar a ambos lados es seguro.
-      const destinos = [
-        ...(duenio?.id ? [duenio.id as string] : []),
-        ...(await usuariosGestores()),
-      ];
-      await notificarUsuarios(
-        destinos,
-        'comunicacion',
-        'Respondieron tu comunicación',
-        String(com.asunto),
-        '/comunicaciones'
-      );
+      const duenioId = (duenio?.id as string | undefined) ?? null;
+      const gestores = await usuariosGestores();
+      const respondioElDuenio = duenioId === uid;
+
+      // Los dos lados reciben un aviso distinto y por eso van en dos
+      // envíos. Antes los dos recibían "Respondieron tu comunicación":
+      // al gestor le llegaba un aviso que no era suyo, sin decir de qué
+      // colaborador hablaba, y con dos temas abiertos era indistinguible.
+      if (respondioElDuenio) {
+        const empleado = await getEmpleado(empleadoId);
+        const quien = empleado
+          ? `${empleado.apellido}, ${empleado.nombre}`
+          : 'Un colaborador';
+        await notificarUsuarios(
+          gestores,
+          'comunicacion',
+          `${quien} respondió`,
+          String(com.asunto),
+          `/comunicaciones?c=${comunicacionId}`,
+          comunicacionId
+        );
+      } else if (duenioId) {
+        await notificarUsuarios(
+          [duenioId],
+          'comunicacion',
+          'RRHH respondió tu mensaje',
+          String(com.asunto),
+          `/comunicaciones?c=${comunicacionId}`,
+          comunicacionId
+        );
+      }
       void avisarPorMail('comunicacion_respondida', comunicacionId);
     }
   } catch {
     // No bloquea la respuesta: el mensaje ya quedó guardado.
   }
 
-  return aMensajeComunicacion(oFalla(data, error));
+  return mensaje;
 };
 
 /**
- * Deja constancia de que este usuario miró la conversación. Se vuelve a
- * marcar sin leer sola cuando llega un mensaje nuevo, porque la
- * comparación es contra `actualizado_en`.
+ * Deja constancia de que este usuario miró la conversación, y de paso
+ * apaga el aviso de la campanita que la traía. Se vuelve a marcar sin
+ * leer sola cuando llega un mensaje nuevo, porque la comparación es
+ * contra `actualizado_en`.
+ *
+ * Va por RPC y no por un upsert directo para que `leido_en` lo ponga el
+ * reloj del servidor, el mismo que fecha `actualizado_en`. Con el reloj
+ * del navegador unos segundos atrasado —cosa habitual— la marca quedaba
+ * antes de la última actividad y la conversación seguía figurando sin
+ * leer aunque la acabaras de abrir.
  */
 export const marcarComunicacionLeida = async (
   comunicacionId: string
 ): Promise<void> => {
   const uid = useAuthStore.getState().usuario?.id;
   if (!uid) return;
-  await sb().from('comunicacion_lecturas').upsert(
-    {
-      comunicacion_id: comunicacionId,
-      usuario_id: uid,
-      leido_en: new Date().toISOString(),
-    },
-    { onConflict: 'comunicacion_id,usuario_id' }
-  );
+  // No propaga el error a propósito: marcar leído es un adorno del
+  // listado y se dispara en medio de otras acciones (responder, cerrar).
+  // Que falle no puede hacer parecer fallida a la acción que ya se
+  // guardó; a lo sumo el "sin leer" tarda un rato más en apagarse.
+  await sb().rpc('comunicacion_marcar_leida', {
+    p_comunicacion_id: comunicacionId,
+  });
 };
 
 /**
@@ -3800,14 +3858,18 @@ export const getComunicacionesSinLeer = async (): Promise<string[]> => {
 export const cerrarComunicacion = async (
   comunicacionId: string
 ): Promise<void> => {
+  // `actualizado_en` lo pone el trigger. Cerrar sí cuenta como
+  // actividad: al colaborador le corresponde ver que le dieron el tema
+  // por cerrado.
   const { error } = await sb()
     .from('comunicaciones')
-    .update({
-      estado: 'cerrada',
-      actualizado_en: new Date().toISOString(),
-    })
+    .update({ estado: 'cerrada' })
     .eq('id', comunicacionId);
   if (error) throw new Error(error.message);
+  // Pero para quien cierra no es novedad. Sin esto, cerrar un tema te lo
+  // dejaba a vos mismo como "sin leer" con un 1 en el menú que no se iba
+  // nunca: el "1 fantasma" que se reportó.
+  await marcarComunicacionLeida(comunicacionId);
 };
 
 // ---------- Documentos para firma ----------

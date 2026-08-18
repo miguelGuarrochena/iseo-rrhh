@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Avatar, Menu, useMantineColorScheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
@@ -55,6 +56,19 @@ export const AppHeader = () => {
     inicial: [] as Notificacion[],
   });
   const notificaciones = cNotis.datos;
+
+  /**
+   * La campana se refresca sola cada tanto. Antes se pedía una sola vez
+   * al montar: un aviso que llegaba mientras la persona estaba adentro
+   * de la app no aparecía hasta recargar la página, y uno que se apagaba
+   * al leer la conversación seguía contando.
+   */
+  const recargarNotis = cNotis.recargar;
+  useEffect(() => {
+    if (!usuario) return;
+    const id = window.setInterval(recargarNotis, 60_000);
+    return () => window.clearInterval(id);
+  }, [usuario, recargarNotis]);
 
   if (!usuario) return null;
 

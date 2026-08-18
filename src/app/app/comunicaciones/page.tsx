@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Modal } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconMessages, IconPlus } from '@tabler/icons-react';
@@ -26,6 +27,7 @@ import {
   getEmpleados,
   getEmpleadosConCuenta,
   getMensajesComunicacion,
+  getUsuariosDeEmpresa,
   marcarComunicacionLeida,
   responderComunicacion,
   suscribirMensajes,
@@ -36,12 +38,14 @@ import {
   Empleado,
   EstadoComunicacion,
   TipoComunicacion,
+  Usuario,
 } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
 import { ChatColaborador } from '@/components/app/comunicaciones/ChatColaborador';
 import { HiloMensajes } from '@/components/app/comunicaciones/HiloMensajes';
 import { Redactor } from '@/components/app/comunicaciones/Redactor';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
+import { refrescarPendientes } from '@/lib/pendientes';
 
 const tipoLabels: Record<TipoComunicacion, string> = {
   consulta: 'Consulta',
@@ -59,6 +63,8 @@ const POR_PAGINA = 8;
 
 const ComunicacionesPage = () => {
   const { usuario, rolEfectivo } = useAuth();
+  // La campanita linkea a la conversación concreta (`?c=<id>`).
+  const idDeAviso = useSearchParams().get('c');
   const esEmpleado = rolEfectivo === 'empleado';
   const [filtroEmpleado, setFiltroEmpleado] = useState('');
   const [seleccion, setSeleccion] = useState<Comunicacion | null>(null);
@@ -138,8 +144,30 @@ const ComunicacionesPage = () => {
       copia.delete(c.id);
       return copia;
     });
-    void marcarComunicacionLeida(c.id);
+    // El numerito del menú tiene que bajar al leer, no en la próxima
+    // recarga de la página: es justamente lo que se ve mal.
+    void marcarComunicacionLeida(c.id).then(refrescarPendientes);
   };
+
+  /**
+   * Abre sola la conversación que traía el aviso, una vez que llegó la
+   * lista. Una sola vez: después de eso manda lo que elija la persona,
+   * si no volver a otra conversación te devolvía a ésta.
+   */
+  const [avisoAbierto, setAvisoAbierto] = useState(false);
+  useEffect(() => {
+    if (avisoAbierto || !idDeAviso) return;
+    const c = lista.find((x) => x.id === idDeAviso);
+    if (!c) return;
+    setAvisoAbierto(true);
+    setSeleccion(c);
+    setSinLeer((previo) => {
+      const copia = new Set(previo);
+      copia.delete(c.id);
+      return copia;
+    });
+    void marcarComunicacionLeida(c.id).then(refrescarPendientes);
+  }, [idDeAviso, lista, avisoAbierto]);
 
   useEffect(() => {
     if (!seleccion) {
@@ -167,6 +195,28 @@ const ComunicacionesPage = () => {
   const nombreEmpleado = (id: string) => {
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.apellido}, ${e.nombre}` : 'Colaborador';
+  };
+
+  // Para firmar cada mensaje con quién lo escribió de verdad. Sin esto
+  // toda respuesta ajena llevaba el nombre del colaborador del tema,
+  // aunque la hubiera escrito otra persona de RRHH.
+  const cUsuarios = useCarga(() => getUsuariosDeEmpresa(), [soloMias], {
+    activo: !soloMias && Boolean(usuario),
+    contexto: 'comunicaciones/usuarios',
+    inicial: [] as Usuario[],
+  });
+
+  const nombreDeAutor = (autorId: string): string => {
+    const u = cUsuarios.datos.find((x) => x.id === autorId);
+    if (!u) {
+      // Puede ser alguien de ISEO entrando a la empresa: no figura en la
+      // lista de usuarios y no hay forma de nombrarlo desde acá. Decir
+      // "RRHH" es genérico, pero no le pone el nombre de otra persona.
+      return 'RRHH';
+    }
+    return seleccion && u.empleadoId === seleccion.empleadoId
+      ? nombreEmpleado(seleccion.empleadoId)
+      : u.nombreCompleto;
   };
 
   const cCuentas = useCarga(() => getEmpleadosConCuenta(), [soloMias], {
@@ -216,6 +266,7 @@ const ComunicacionesPage = () => {
       setErrores({});
       close();
       cargar();
+      refrescarPendientes();
     } catch (err) {
       avisoError(
         'No pudimos enviar',
@@ -232,6 +283,7 @@ const ComunicacionesPage = () => {
       const msgs = await getMensajesComunicacion(seleccion.id);
       setMensajes(msgs);
       cargar();
+      refrescarPendientes();
       avisoExito('Respuesta enviada');
     } catch (err) {
       avisoError(
@@ -248,6 +300,7 @@ const ComunicacionesPage = () => {
       avisoExito('Conversación cerrada');
       setSeleccion(null);
       cargar();
+      refrescarPendientes();
     } catch (err) {
       avisoError(
         'No pudimos cerrar',
@@ -344,6 +397,16 @@ const ComunicacionesPage = () => {
                   <h2 className="text-base font-bold text-ink">
                     {seleccion.asunto}
                   </h2>
+                  {/* De quién es el tema, arriba de todo. En la bandeja
+                      se elige por asunto y el panel no decía con quién
+                      se estaba hablando: con dos temas parecidos de dos
+                      personas distintas es fácil contestarle al que no
+                      era. */}
+                  {!esEmpleado && (
+                    <p className="text-sm font-semibold text-ink">
+                      {nombreEmpleado(seleccion.empleadoId)}
+                    </p>
+                  )}
                   <p className="text-xs text-ink-soft">
                     {tipoLabels[seleccion.tipo]} ·{' '}
                     {estadoLabels[seleccion.estado]}
@@ -364,7 +427,7 @@ const ComunicacionesPage = () => {
                   comunicacion={seleccion}
                   mensajes={mensajes}
                   usuarioId={usuario.id}
-                  nombreDelOtro={nombreEmpleado(seleccion.empleadoId)}
+                  nombreDeAutor={nombreDeAutor}
                   autoScroll
                 />
               </div>

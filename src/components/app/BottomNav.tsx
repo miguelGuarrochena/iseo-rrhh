@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Drawer } from '@mantine/core';
@@ -9,8 +8,8 @@ import { IconLogout2, IconMenu2 } from '@tabler/icons-react';
 import { navItemsPorRol, tabsDeBarra } from './navItems';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useModulos } from '@/lib/auth/useModulos';
-import { getPendientesResumen } from '@/lib/services/rrhh';
 import { PendientesResumen } from '@/types/rrhh';
+import { usePendientes } from '@/lib/pendientes';
 
 const MAX_TABS = 5;
 
@@ -32,20 +31,7 @@ export const BottomNav = () => {
   const router = useRouter();
   const [masAbierto, { open: abrirMas, close: cerrarMas }] =
     useDisclosure(false);
-  const [pendientes, setPendientes] = useState<PendientesResumen | null>(null);
-
-  useEffect(() => {
-    if (!usuario) return;
-    void getPendientesResumen()
-      .then(setPendientes)
-      .catch(() => undefined);
-    const id = window.setInterval(() => {
-      void getPendientesResumen()
-        .then(setPendientes)
-        .catch(() => undefined);
-    }, 60_000);
-    return () => window.clearInterval(id);
-  }, [usuario]);
+  const pendientes = usePendientes(Boolean(usuario), usuario?.id);
 
   if (!usuario || !rolEfectivo) return null;
 

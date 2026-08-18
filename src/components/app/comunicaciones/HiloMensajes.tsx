@@ -8,8 +8,15 @@ interface HiloMensajesProps {
   mensajes: ComunicacionMensaje[];
   /** Id del usuario logueado, para alinear sus mensajes a la derecha. */
   usuarioId?: string;
-  /** Cómo se llama el otro lado según quién mira. */
-  nombreDelOtro: string;
+  /**
+   * Quién escribió cada mensaje, resuelto por quien mira.
+   *
+   * Antes era un solo nombre, "el otro lado", que se le ponía a todo lo
+   * que no fuera propio. En una empresa con más de un gestor eso
+   * mentía: la respuesta de un compañero de RRHH aparecía firmada con
+   * el nombre del colaborador del tema.
+   */
+  nombreDeAutor: (autorId: string) => string;
   /** Chat del colaborador: crece y hace scroll al último mensaje. */
   autoScroll?: boolean;
 }
@@ -25,7 +32,7 @@ export const HiloMensajes = ({
   comunicacion,
   mensajes,
   usuarioId,
-  nombreDelOtro,
+  nombreDeAutor,
   autoScroll,
 }: HiloMensajesProps) => {
   const fin = useRef<HTMLDivElement>(null);
@@ -56,7 +63,7 @@ export const HiloMensajes = ({
             className={`flex flex-col gap-0.5 ${mio ? 'items-end' : 'items-start'}`}
           >
             <span className="px-1 text-[0.65rem] font-bold text-ink-soft">
-              {mio ? 'Vos' : nombreDelOtro}
+              {mio ? 'Vos' : nombreDeAutor(m.autorId)}
             </span>
             <div
               className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
