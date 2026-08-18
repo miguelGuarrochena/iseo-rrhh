@@ -204,6 +204,7 @@ export const CapturaFacial = ({
             motivo={estado?.diagnostico.ultimoMotivo ?? null}
             lado={estado?.lado ?? null}
             procesando={procesando}
+            exigencia={exigencia}
           />
         )}
 

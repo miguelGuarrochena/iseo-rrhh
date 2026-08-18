@@ -18,7 +18,7 @@ import {
 } from '@tabler/icons-react';
 import type { MotivoRechazo } from '@/lib/facial/calidad';
 import type { Fase } from '@/lib/facial/motor';
-import type { Lado } from '@/lib/facial/liveness';
+import type { Exigencia, Lado } from '@/lib/facial/liveness';
 
 const iconoMotivo = (motivo: MotivoRechazo | null): ReactNode => {
   const props = { size: 22, stroke: 2 } as const;
@@ -71,6 +71,16 @@ const pasoActivo = (fase: Fase, procesando: boolean): 1 | 2 | 3 => {
   return 1;
 };
 
+const etiquetasPaso = (exigencia: Exigencia): [string, string, string] => {
+  if (exigencia === 'parpadeo_y_desafio') {
+    return ['Encuadrar', 'Gesto', 'Listo'];
+  }
+  if (exigencia === 'parpadeo') {
+    return ['Encuadrar', 'Parpadear', 'Listo'];
+  }
+  return ['Encuadrar', 'Capturar', 'Listo'];
+};
+
 const Paso = ({
   n,
   etiqueta,
@@ -120,6 +130,7 @@ export const GuiaEncuadre = ({
   motivo,
   lado,
   procesando,
+  exigencia = 'ninguna',
 }: {
   fase: Fase;
   mensaje: string;
@@ -128,6 +139,7 @@ export const GuiaEncuadre = ({
   motivo: MotivoRechazo | null;
   lado: Lado | null;
   procesando: boolean;
+  exigencia?: Exigencia;
 }) => {
   const tomas = Math.min(muestras, Math.round(progreso * muestras));
   const alineado = fase === 'encuadrando' && !motivo;
@@ -135,18 +147,35 @@ export const GuiaEncuadre = ({
   const mostrarSilueta =
     fase === 'buscando' || (fase === 'encuadrando' && !!motivo);
   const paso = pasoActivo(fase, procesando);
+  const [p1, p2, p3] = etiquetasPaso(exigencia);
   const listo = procesando || fase === 'listo';
+  const pideParpadeo = /parpade/i.test(mensaje);
+  const enDesafio = fase === 'desafio';
 
   const icono =
-    fase === 'desafio' && lado === 'izquierda' ? (
+    enDesafio && lado === 'izquierda' ? (
       <IconArrowLeft size={22} stroke={2} />
-    ) : fase === 'desafio' && lado === 'derecha' ? (
+    ) : enDesafio && lado === 'derecha' ? (
       <IconArrowRight size={22} stroke={2} />
+    ) : pideParpadeo ? (
+      <IconEye size={22} stroke={2} />
     ) : capturando || listo ? (
       <IconCircleCheck size={22} stroke={2} />
     ) : (
       iconoMotivo(motivo)
     );
+
+  const detalle = listo
+    ? 'Ya está. Un segundo…'
+    : enDesafio
+      ? lado === 'izquierda'
+        ? 'Girá hacia tu izquierda y volvé al frente.'
+        : 'Girá hacia tu derecha y volvé al frente.'
+      : pideParpadeo
+        ? 'Un parpadeo natural alcanza. No hace falta apretar nada.'
+        : capturando
+          ? `Toma ${Math.max(1, tomas)} de ${muestras}. Quedate así.`
+          : 'Poné la cara en el óvalo, de frente y quieto.';
 
   return (
     <div className="pointer-events-none absolute inset-0">
@@ -160,11 +189,28 @@ export const GuiaEncuadre = ({
         }}
       />
 
+      {enDesafio && (
+        <div
+          aria-hidden
+          className={`absolute top-1/2 -translate-y-1/2 text-sky-200 ${
+            lado === 'izquierda' ? 'left-3' : 'right-3'
+          }`}
+        >
+          {lado === 'izquierda' ? (
+            <IconArrowLeft size={52} stroke={2.2} />
+          ) : (
+            <IconArrowRight size={52} stroke={2.2} />
+          )}
+        </div>
+      )}
+
       <div
         className={`absolute left-1/2 top-1/2 h-3/4 w-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[3px] transition-colors duration-200 ${colorAro(
           fase,
           alineado
-        )} ${capturando ? 'shadow-[0_0_0_6px_rgba(52,211,153,0.25)]' : ''}`}
+        )} ${capturando ? 'shadow-[0_0_0_6px_rgba(52,211,153,0.25)]' : ''} ${
+          enDesafio ? 'shadow-[0_0_0_6px_rgba(56,189,248,0.3)]' : ''
+        }`}
       >
         <Esquina className="left-[-6px] top-[-6px] rounded-tl-md border-l-[3px] border-t-[3px]" />
         <Esquina className="right-[-6px] top-[-6px] rounded-tr-md border-r-[3px] border-t-[3px]" />
@@ -178,9 +224,9 @@ export const GuiaEncuadre = ({
       </div>
 
       <div className="absolute inset-x-0 top-0 flex justify-center gap-1.5 bg-gradient-to-b from-ink/70 to-transparent px-3 pb-8 pt-3">
-        <Paso n={1} etiqueta="Encuadrar" activo={paso === 1} />
-        <Paso n={2} etiqueta="Capturar" activo={paso === 2} />
-        <Paso n={3} etiqueta="Listo" activo={paso === 3} />
+        <Paso n={1} etiqueta={p1} activo={paso === 1} />
+        <Paso n={2} etiqueta={p2} activo={paso === 2} />
+        <Paso n={3} etiqueta={p3} activo={paso === 3} />
       </div>
 
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/85 to-transparent px-4 pb-3 pt-10">
@@ -202,15 +248,7 @@ export const GuiaEncuadre = ({
             <p aria-live="polite" className="text-sm font-bold leading-snug">
               {mensaje}
             </p>
-            <p className="text-xs font-medium text-white/75">
-              {listo
-                ? 'Ya está. Un segundo…'
-                : capturando
-                  ? `Toma ${Math.max(1, tomas)} de ${muestras}. No hace falta apretar nada.`
-                  : fase === 'desafio'
-                    ? 'Seguí la flecha y volvé al frente.'
-                    : 'Poné la cara en el óvalo, de frente y quieto.'}
-            </p>
+            <p className="text-xs font-medium text-white/75">{detalle}</p>
           </div>
         </div>
       </div>

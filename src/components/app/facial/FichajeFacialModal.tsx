@@ -185,8 +185,8 @@ export const FichajeFacialModal = ({
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed text-ink-soft">
             {modo === 'identificar'
-              ? 'Poné la cara en el óvalo, con buena luz. Si no te reconoce, pedile a RRHH que vuelva a cargar tu foto.'
-              : 'Mirá a la cámara para confirmar que sos vos y registrar el fichaje.'}
+              ? 'Poné la cara en el óvalo. La cámara te va a pedir parpadear y girar la cabeza: seguí lo que aparece en pantalla.'
+              : 'Poné la cara en el óvalo. Cuando te lo pida, parpadeá una vez. No hace falta apretar ningún botón.'}
           </p>
 
           <AvisoBateria bateria={bateria} />
@@ -218,6 +218,11 @@ export const FichajeFacialModal = ({
             muestras={3}
             intento={intento}
             sugerirFichajeManual
+            ayuda={
+              modo === 'identificar'
+                ? 'Si no te reconoce, pedile a RRHH que vuelva a registrar tu rostro.'
+                : 'La cámara te va diciendo qué hacer. Quedate en el óvalo.'
+            }
           />
         </div>
       )}
