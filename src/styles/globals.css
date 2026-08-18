@@ -55,18 +55,21 @@
 }
 
 .hover-bloque {
-  transition: opacity var(--dur-hover) var(--ease-out);
+  transition:
+    background-color var(--dur-hover) var(--ease-out),
+    border-color var(--dur-hover) var(--ease-out);
 }
 
-/* Hover de bloques clickeables: el fondo se queda (si pasa a blanco
-   el bloque se "pierde" contra la tarjeta) y baja un poco la opacidad.
+/* Hover de filas: un tinte de marca, no opacidad. Bajar la opacidad o
+   pintar de blanco hace que el bloque se pierda contra la tarjeta.
 
    Va detrás de `hover: hover` porque en pantallas táctiles el navegador
    dispara :hover al tocar y el resaltado queda pegado hasta que se toca
    otra cosa: parece una fila seleccionada que no se puede deseleccionar. */
 @media (hover: hover) and (pointer: fine) {
   .hover-bloque:hover {
-    opacity: 0.94;
+    background-color: rgb(74 122 245 / 0.12);
+    border-color: rgb(74 122 245 / 0.4);
   }
 }
 
@@ -684,6 +687,10 @@ a:focus-visible,
 }
 [data-mantine-color-scheme='dark'] .app-scope .hover\:bg-brand-50:hover {
   background-color: rgba(74, 122, 245, 0.2) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .hover-bloque:hover {
+  background-color: rgba(74, 122, 245, 0.2);
+  border-color: rgba(74, 122, 245, 0.45);
 }
 [data-mantine-color-scheme='dark'] .app-scope .hover\:bg-red-50:hover,
 [data-mantine-color-scheme='dark'] .app-scope .hover\:bg-red-100:hover {
