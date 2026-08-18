@@ -190,9 +190,9 @@ const ColaboradoresPage = () => {
       {/* Una línea, no la lista entera: quién es está al lado de cada
           nombre. Acá sólo hace falta saber que hay algo que mirar. */}
       {resumen.personas > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5">
-          <p className="text-sm leading-relaxed text-amber-900">
-            <span className="font-bold">
+        <div className="rounded-2xl border border-line bg-surface px-5 py-3.5">
+          <p className="text-sm leading-relaxed text-ink-soft">
+            <span className="font-bold text-ink">
               {resumen.personas === 1
                 ? 'A 1 persona le falta un dato.'
                 : `A ${resumen.personas} personas les faltan datos.`}

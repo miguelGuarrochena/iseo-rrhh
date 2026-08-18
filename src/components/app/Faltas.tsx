@@ -33,7 +33,7 @@ export const ChipFalta = ({
     } ${
       falta.severidad === 'bloquea'
         ? 'bg-red-100 text-red-800'
-        : 'bg-amber-100 text-amber-800'
+        : 'border border-line bg-paper text-ink'
     }`}
   >
     {falta.titulo}
@@ -53,7 +53,9 @@ export const ChipsFaltas = ({ faltas }: { faltas: Falta[] }) => {
     <span
       title={faltas.map((f) => `${f.titulo}: ${f.detalle}`).join('\n\n')}
       className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[0.65rem] font-bold ${
-        frena ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+        frena
+          ? 'bg-red-100 text-red-800'
+          : 'border border-line bg-paper text-ink'
       }`}
     >
       Faltan {faltas.length} datos
@@ -77,12 +79,10 @@ const VISIBLES = 3;
 /**
  * La caja del aviso.
  *
- * El fondo tiñe el bloque —eso es lo que lo hace un aviso y no un panel
- * más—, pero cada falta se dibuja adentro sobre superficie normal. Antes
- * todo el cartel era del mismo marrón: título, nombres, consecuencia y
- * acción compartían color, tamaño y peso, así que no había forma de
- * saltear lo que ya sabías ni de encontrar qué había que hacer sin leer
- * los tres renglones enteros.
+ * El amarillo de fondo era ilegible a pantalla completa: mareaba y
+ * competía con las tarjetas de adentro. El aviso se marca con el ícono
+ * y, si frena, con el borde rojo; el resto es el mismo panel blanco
+ * que el resto de la ficha.
  */
 const Cartel = ({
   frena,
@@ -98,25 +98,19 @@ const Cartel = ({
   const Icono = frena ? IconAlertTriangle : IconInfoCircle;
   return (
     <div
-      className={`rounded-3xl border p-4 sm:p-5 ${
-        frena ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
+      className={`rounded-3xl border bg-surface p-4 sm:p-5 ${
+        frena ? 'border-red-300' : 'border-line'
       } ${className}`}
     >
       <div className="flex items-center gap-2.5">
         <span
           className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-            frena ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'
+            frena ? 'bg-red-100 text-red-700' : 'bg-paper text-ink-soft'
           }`}
         >
           <Icono size={19} stroke={2} />
         </span>
-        <p
-          className={`min-w-0 text-[0.9375rem] font-bold ${
-            frena ? 'text-red-900' : 'text-amber-900'
-          }`}
-        >
-          {titulo}
-        </p>
+        <p className="min-w-0 text-[0.9375rem] font-bold text-ink">{titulo}</p>
       </div>
       {/* `list-none`: el reset de la app saca el padding de la lista pero
           no el marcador, así que a la izquierda de cada tarjeta quedaba
@@ -155,7 +149,7 @@ const ItemFalta = ({
       {cuantos !== undefined && (
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-            frena ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+            frena ? 'bg-red-100 text-red-800' : 'bg-paper text-ink-soft'
           }`}
         >
           {cuantos}
