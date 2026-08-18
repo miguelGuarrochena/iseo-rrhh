@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import {
   IconArrowUpRight,
   IconBuildingBank,
+  IconChevronDown,
   IconCoin,
   IconDownload,
   IconGift,
@@ -12,6 +13,7 @@ import {
   IconPlus,
   IconReceipt2,
   IconReportMoney,
+  IconSearch,
   IconTrendingUp,
   IconUsers,
 } from '@tabler/icons-react';
@@ -50,6 +52,75 @@ import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 10;
+
+type ColumnaMasa =
+  | 'colaborador'
+  | 'periodo'
+  | 'bruto'
+  | 'descuentos'
+  | 'neto';
+
+const COLUMNAS_MASA: { id: ColumnaMasa; etiqueta: string }[] = [
+  { id: 'colaborador', etiqueta: 'Colaborador' },
+  { id: 'periodo', etiqueta: 'Período' },
+  { id: 'bruto', etiqueta: 'Bruto' },
+  { id: 'descuentos', etiqueta: 'Descuentos' },
+  { id: 'neto', etiqueta: 'Neto' },
+];
+
+const esColumnaNumerica = (col: ColumnaMasa) =>
+  col === 'bruto' || col === 'descuentos' || col === 'neto';
+
+const CabeceraOrdenable = ({
+  col,
+  orden,
+  onOrdenar,
+  align = 'left',
+}: {
+  col: ColumnaMasa;
+  orden: { col: ColumnaMasa; dir: 'asc' | 'desc' };
+  onOrdenar: (col: ColumnaMasa) => void;
+  align?: 'left' | 'right';
+}) => {
+  const activo = orden.col === col;
+  const etiqueta = COLUMNAS_MASA.find((c) => c.id === col)?.etiqueta ?? col;
+  const sentido = activo
+    ? orden.dir === 'asc'
+      ? esColumnaNumerica(col)
+        ? 'de menor a mayor'
+        : 'de A a Z'
+      : esColumnaNumerica(col)
+        ? 'de mayor a menor'
+        : 'de Z a A'
+    : esColumnaNumerica(col)
+      ? 'de mayor a menor'
+      : 'de A a Z';
+  return (
+    <th
+      className={`pb-2.5 ${align === 'right' ? 'pr-4 text-right' : 'pr-4 text-left'}`}
+      aria-sort={
+        activo ? (orden.dir === 'asc' ? 'ascending' : 'descending') : 'none'
+      }
+    >
+      <button
+        type="button"
+        onClick={() => onOrdenar(col)}
+        aria-label={`Ordenar por ${etiqueta.toLowerCase()}, ${sentido}`}
+        className={`inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-xs font-bold uppercase tracking-wider ${
+          align === 'right' ? 'w-full justify-end' : ''
+        } ${activo ? 'text-ink' : 'text-ink-soft hover:text-ink'}`}
+      >
+        {etiqueta}
+        <IconChevronDown
+          size={14}
+          className={`shrink-0 transition-transform ${
+            activo && orden.dir === 'asc' ? 'rotate-180' : ''
+          } ${activo ? 'opacity-100' : 'opacity-40'}`}
+        />
+      </button>
+    </th>
+  );
+};
 
 /** Gráfico de líneas simple en SVG (sin librerías). */
 const LineaEvolucion = ({
@@ -288,6 +359,13 @@ const VistaAdmin = () => {
   const [empleadoFijo, setEmpleadoFijo] = useState<string | undefined>();
   const [cargasPct, setCargasPct] = useState(CARGAS_PATRONALES);
   const [aguinaldoAbierto, setAguinaldoAbierto] = useState(false);
+  const [busqueda, setBusqueda] = useState('');
+  const [orden, setOrden] = useState<{ col: ColumnaMasa; dir: 'asc' | 'desc' }>(
+    {
+      col: 'bruto',
+      dir: 'desc',
+    }
+  );
 
   const cRems = useCarga(() => getRemuneracionesTodas(), [], {
     contexto: 'remuneraciones',
@@ -336,16 +414,84 @@ const VistaAdmin = () => {
       ),
     }));
   }, [empleados, rems, cRems.fase, cEmpleados.fase]);
+
+  const nombre = (id: string) => {
+    const e = empleados.find((x) => x.id === id);
+    return e ? `${e.nombre} ${e.apellido}` : '—';
+  };
+
+  const descuentosDe = (f: { empleadoId: string; periodo: string }) => {
+    const rem = rems.find(
+      (r) => r.empleadoId === f.empleadoId && r.periodo === f.periodo
+    );
+    return (rem?.aportes ?? 0) + (rem?.otrosDescuentos ?? 0);
+  };
+
+  const filasOrdenadas = useMemo(() => {
+    const q = busqueda.trim().toLowerCase();
+    const nombreDe = (id: string) => {
+      const e = empleados.find((x) => x.id === id);
+      return e ? `${e.nombre} ${e.apellido}` : '—';
+    };
+    const descDe = (f: { empleadoId: string; periodo: string }) => {
+      const rem = rems.find(
+        (r) => r.empleadoId === f.empleadoId && r.periodo === f.periodo
+      );
+      return (rem?.aportes ?? 0) + (rem?.otrosDescuentos ?? 0);
+    };
+    const filas = q
+      ? resumen.porEmpleado.filter((f) => {
+          const n = nombreDe(f.empleadoId).toLowerCase();
+          const periodoLargo = formatearPeriodo(f.periodo).toLowerCase();
+          return (
+            n.includes(q) || periodoLargo.includes(q) || f.periodo.includes(q)
+          );
+        })
+      : resumen.porEmpleado;
+    const dir = orden.dir === 'asc' ? 1 : -1;
+    return [...filas].sort((a, b) => {
+      let cmp = 0;
+      switch (orden.col) {
+        case 'colaborador':
+          cmp = nombreDe(a.empleadoId).localeCompare(
+            nombreDe(b.empleadoId),
+            'es'
+          );
+          break;
+        case 'periodo':
+          cmp = a.periodo.localeCompare(b.periodo);
+          break;
+        case 'bruto':
+          cmp = a.bruto - b.bruto;
+          break;
+        case 'descuentos':
+          cmp = descDe(a) - descDe(b);
+          break;
+        case 'neto':
+          cmp = a.neto - b.neto;
+          break;
+      }
+      return cmp * dir;
+    });
+  }, [resumen.porEmpleado, busqueda, orden, empleados, rems]);
+
   const {
     pagina,
     setPagina,
     totalPaginas,
     visibles: filasVisibles,
-  } = usePaginacion(resumen.porEmpleado, POR_PAGINA);
+  } = usePaginacion(filasOrdenadas, POR_PAGINA);
 
-  const nombre = (id: string) => {
-    const e = empleados.find((x) => x.id === id);
-    return e ? `${e.nombre} ${e.apellido}` : '—';
+  useEffect(() => {
+    setPagina(1);
+  }, [busqueda, orden, setPagina]);
+
+  const toggleOrden = (col: ColumnaMasa) => {
+    setOrden((prev) =>
+      prev.col === col
+        ? { col, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+        : { col, dir: esColumnaNumerica(col) ? 'desc' : 'asc' }
+    );
   };
 
   const abrirNueva = () => {
@@ -397,13 +543,6 @@ const VistaAdmin = () => {
     });
     descargarCSV('remuneraciones-liquidacion.csv', filas);
     avisoExito('Export listo', 'Se descargó el CSV para tu contador.');
-  };
-
-  const descuentosDe = (f: { empleadoId: string; periodo: string }) => {
-    const rem = rems.find(
-      (r) => r.empleadoId === f.empleadoId && r.periodo === f.periodo
-    );
-    return (rem?.aportes ?? 0) + (rem?.otrosDescuentos ?? 0);
   };
 
   return (
@@ -498,7 +637,50 @@ const VistaAdmin = () => {
           </div>
         ) : (
           <div className="mt-4 min-w-0">
-            <ul className="flex flex-col gap-2 md:hidden">
+            <div className="relative">
+              <IconSearch
+                size={18}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft"
+              />
+              <input
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre o período…"
+                className="h-12 w-full rounded-xl border border-line bg-surface pl-11 pr-4 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
+              />
+            </div>
+            <div className="mt-3 flex flex-wrap gap-1.5 md:hidden">
+              {COLUMNAS_MASA.map((c) => {
+                const activo = orden.col === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => toggleOrden(c.id)}
+                    className={`inline-flex cursor-pointer items-center gap-0.5 rounded-full border px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wide ${
+                      activo
+                        ? 'border-brand-300 bg-brand-50 text-brand-800'
+                        : 'border-line bg-surface text-ink-soft'
+                    }`}
+                  >
+                    {c.etiqueta}
+                    <IconChevronDown
+                      size={12}
+                      className={`transition-transform ${
+                        activo && orden.dir === 'asc' ? 'rotate-180' : ''
+                      } ${activo ? 'opacity-100' : 'opacity-40'}`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+            {filasOrdenadas.length === 0 ? (
+              <p className="mt-4 text-sm text-ink-soft">
+                Nadie coincide con “{busqueda.trim()}”.
+              </p>
+            ) : (
+              <>
+            <ul className="mt-4 flex flex-col gap-2 md:hidden">
               {filasVisibles.map((f) => (
                 <li key={f.empleadoId}>
                   <div
@@ -566,15 +748,38 @@ const VistaAdmin = () => {
                 </li>
               ))}
             </ul>
-            <div className="hidden min-w-0 overflow-x-auto md:block">
+            <div className="mt-4 hidden min-w-0 overflow-x-auto md:block">
               <table className="w-full min-w-[34rem] text-sm">
                 <thead>
-                  <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wider text-ink-soft">
-                    <th className="pb-2.5 pr-4">Colaborador</th>
-                    <th className="pb-2.5 pr-4">Período</th>
-                    <th className="pb-2.5 pr-4 text-right">Bruto</th>
-                    <th className="pb-2.5 pr-4 text-right">Descuentos</th>
-                    <th className="pb-2.5 pr-4 text-right">Neto</th>
+                  <tr className="border-b border-line">
+                    <CabeceraOrdenable
+                      col="colaborador"
+                      orden={orden}
+                      onOrdenar={toggleOrden}
+                    />
+                    <CabeceraOrdenable
+                      col="periodo"
+                      orden={orden}
+                      onOrdenar={toggleOrden}
+                    />
+                    <CabeceraOrdenable
+                      col="bruto"
+                      orden={orden}
+                      onOrdenar={toggleOrden}
+                      align="right"
+                    />
+                    <CabeceraOrdenable
+                      col="descuentos"
+                      orden={orden}
+                      onOrdenar={toggleOrden}
+                      align="right"
+                    />
+                    <CabeceraOrdenable
+                      col="neto"
+                      orden={orden}
+                      onOrdenar={toggleOrden}
+                      align="right"
+                    />
                     <th className="pb-2.5" aria-label="Acciones" />
                   </tr>
                 </thead>
@@ -625,6 +830,8 @@ const VistaAdmin = () => {
               totalPaginas={totalPaginas}
               onCambiar={setPagina}
             />
+              </>
+            )}
           </div>
         )}
         <p className="mt-4 text-xs text-ink-soft">
