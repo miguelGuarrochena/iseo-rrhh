@@ -188,7 +188,7 @@ export const CampoFecha = ({
     <div
       role="dialog"
       aria-label="Elegir fecha"
-      className="w-full max-w-sm rounded-t-2xl border border-line bg-surface p-4 shadow-lift sm:rounded-2xl"
+      className="w-full rounded-t-2xl border border-line bg-surface p-5 shadow-lift sm:rounded-2xl"
     >
       <div className="mb-3 flex items-center justify-between">
         <button
@@ -306,7 +306,7 @@ export const CampoFecha = ({
               className="absolute inset-0 cursor-pointer bg-ink/40"
               onClick={() => setAbierto(false)}
             />
-            <div className="relative z-10 w-full sm:w-auto">{calendario}</div>
+            <div className="relative z-10 w-full sm:w-[22rem]">{calendario}</div>
           </div>,
           document.body
         )}

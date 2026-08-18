@@ -102,29 +102,29 @@ export const CampoMes = ({
     <div
       role="dialog"
       aria-label="Elegir período"
-      className="w-full max-w-sm rounded-t-2xl border border-line bg-surface p-4 shadow-lift sm:rounded-2xl"
+      className="w-full rounded-t-2xl border border-line bg-surface p-5 shadow-lift sm:rounded-2xl"
     >
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => setAnio((a) => a - 1)}
           aria-label="Año anterior"
-          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 sm:h-10 sm:w-10"
+          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700"
         >
-          <IconChevronLeft size={16} />
+          <IconChevronLeft size={18} />
         </button>
-        <span className="text-sm font-bold text-ink">{anio}</span>
+        <span className="text-base font-bold tabular-nums text-ink">{anio}</span>
         <button
           type="button"
           onClick={() => setAnio((a) => a + 1)}
           aria-label="Año siguiente"
-          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 sm:h-10 sm:w-10"
+          className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700"
         >
-          <IconChevronRight size={16} />
+          <IconChevronRight size={18} />
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2.5">
         {MESES_CORTO.map((m, i) => {
           const activa = mesSel === i && anioSel === anio;
           return (
@@ -135,7 +135,7 @@ export const CampoMes = ({
                 onChange(`${anio}-${pad(i + 1)}`);
                 setAbierto(false);
               }}
-              className={`rounded-xl border py-2.5 text-sm font-semibold transition-colors ${
+              className={`min-h-11 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-colors ${
                 activa
                   ? 'border-brand-300 bg-brand-100 text-brand-800'
                   : 'cursor-pointer border-line bg-surface text-ink hover:border-brand-300 hover:text-brand-700'
@@ -180,7 +180,7 @@ export const CampoMes = ({
               className="absolute inset-0 cursor-pointer bg-ink/40"
               onClick={() => setAbierto(false)}
             />
-            <div className="relative z-10 w-full sm:w-auto">{panel}</div>
+            <div className="relative z-10 w-full sm:w-[22rem]">{panel}</div>
           </div>,
           document.body
         )}
