@@ -333,7 +333,7 @@ const DiagnosticoFacialPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
         <h1 className="text-2xl font-extrabold text-ink">Diagnóstico facial</h1>
         <p className="mt-1 text-sm leading-relaxed text-ink-soft">

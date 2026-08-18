@@ -163,7 +163,7 @@ const OrganigramaPage = () => {
   if (modulos && modulos.organigrama === false) {
     return (
       <div className="flex flex-col gap-3">
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Organigrama
         </h1>
         <p className="text-sm text-ink-soft">
@@ -185,12 +185,12 @@ const OrganigramaPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Organigrama
         </h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           La estructura del equipo según quién reporta a quién.
           {esAdmin
             ? ' Tocá a una persona para cambiar su supervisor.'

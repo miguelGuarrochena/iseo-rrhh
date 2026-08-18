@@ -39,8 +39,10 @@ export const ErroresPanel = () => {
     <Panel>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-ink">Errores registrados</h2>
-          <p className="mt-1 text-sm text-ink-soft">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Errores registrados
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Lo que falló en la app, con el mensaje técnico completo. Sirve para
             diagnosticar sin tener que pedirle nada a quien lo reportó.
           </p>
@@ -62,7 +64,7 @@ export const ErroresPanel = () => {
           {lista.map((e) => (
             <details
               key={e.id}
-              className="rounded-xl border border-line bg-surface px-4 py-3"
+              className="rounded-xl border border-line bg-paper px-4 py-3"
             >
               <summary className="cursor-pointer list-none text-sm font-semibold text-ink">
                 <span className="text-ink-soft tabular-nums">

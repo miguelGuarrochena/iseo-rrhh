@@ -45,7 +45,7 @@ export const Switch = ({
     {/* Pista: gris apagada, color de marca encendida. */}
     <span
       aria-hidden="true"
-      className="absolute inset-0 rounded-full border border-line bg-paper transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] peer-checked:border-brand-600 peer-checked:bg-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40"
+      className="absolute inset-0 rounded-full border border-line-strong bg-paper transition-colors duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] peer-checked:border-brand-600 peer-checked:bg-brand-600 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-600/40"
     />
 
     {/*

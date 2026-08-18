@@ -110,8 +110,8 @@ export const AppHeader = () => {
   };
 
   return (
-    <header className="sticky top-0 z-30 px-4 pt-3 sm:px-6">
-      <div className="flex items-center justify-between gap-4 rounded-2xl border border-line bg-surface/80 px-4 py-2.5 backdrop-blur-md sm:px-5">
+    <header className="cabecera-app sticky top-0 z-30 px-4 pb-3 pt-3 sm:px-6 lg:px-8">
+      <div className="flex items-center justify-between gap-2 rounded-2xl border border-line bg-surface/85 px-3 py-2 shadow-sm backdrop-blur-md sm:gap-3 sm:px-4 sm:py-2.5">
         {/* `flex-1` y no `shrink-0`: con un nombre largo en un celular
             angosto, un bloque que no se encoge empuja los botones fuera
             de la pantalla en vez de recortarse. */}
@@ -143,7 +143,7 @@ export const AppHeader = () => {
           <button
             aria-label="Cambiar tema"
             onClick={() => setColorScheme(oscuro ? 'light' : 'dark')}
-            className="hidden h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-ink-soft transition-colors hover:bg-paper hover:text-ink sm:flex"
+            className="presionable hidden h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-ink-soft hover:bg-paper hover:text-ink sm:flex"
           >
             {oscuro ? (
               <IconSun size={20} stroke={1.8} />
@@ -161,7 +161,7 @@ export const AppHeader = () => {
             <Menu.Target>
               <button
                 aria-label="Notificaciones"
-                className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-ink-soft transition-colors hover:bg-paper hover:text-ink"
+                className="presionable relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-ink-soft hover:bg-paper hover:text-ink"
               >
                 <IconBell size={20} stroke={1.8} />
                 {sinLeer > 0 && (
@@ -197,7 +197,7 @@ export const AppHeader = () => {
             <Menu.Target>
               <button
                 aria-label="Menú de usuario"
-                className="cursor-pointer rounded-full border-0 bg-transparent p-0"
+                className="presionable flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0"
               >
                 <Avatar color="brand" radius="xl" size={40}>
                   {iniciales(usuario.nombreCompleto)}

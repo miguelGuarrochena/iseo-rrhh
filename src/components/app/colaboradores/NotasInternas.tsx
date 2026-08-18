@@ -77,7 +77,9 @@ export const NotasInternas = ({ empleadoId }: NotasInternasProps) => {
   return (
     <div>
       <div className="flex items-center gap-2">
-        <h2 className="text-base font-bold text-ink">Notas internas</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Notas internas
+        </h2>
         <span className="flex items-center gap-1 rounded-full bg-paper px-2 py-0.5 text-[0.65rem] font-bold text-ink-soft">
           <IconLock size={11} /> Solo administradores
         </span>
@@ -120,7 +122,7 @@ export const NotasInternas = ({ empleadoId }: NotasInternasProps) => {
           notas.map((n) => (
             <div
               key={n.id}
-              className="flex items-start justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3"
+              className="flex items-start justify-between gap-3 rounded-xl border border-line bg-paper px-4 py-3"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-ink">

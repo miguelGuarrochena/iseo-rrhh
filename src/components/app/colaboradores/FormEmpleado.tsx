@@ -341,7 +341,9 @@ export const FormEmpleado = ({
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-4" noValidate>
       <Panel>
-        <h2 className="text-base font-bold text-ink">Foto</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Foto
+        </h2>
         <div className="mt-4 flex items-center gap-4">
           {datos.fotoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -390,7 +392,9 @@ export const FormEmpleado = ({
       </Panel>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Datos personales</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Datos personales
+        </h2>
         <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
           <Campo
             etiqueta="Nombre *"
@@ -466,8 +470,10 @@ export const FormEmpleado = ({
       </Panel>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Contacto de emergencia</h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Contacto de emergencia
+        </h2>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           A quién avisar ante una urgencia con este colaborador.
         </p>
         <div className="mt-4 grid gap-3.5 sm:grid-cols-3">
@@ -494,8 +500,10 @@ export const FormEmpleado = ({
       <Panel>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-bold text-ink">Grupo familiar</h2>
-            <p className="mt-1 text-sm text-ink-soft">
+            <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+              Grupo familiar
+            </h2>
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
               Cónyuge, hijos u otros familiares a cargo.
             </p>
           </div>
@@ -556,7 +564,9 @@ export const FormEmpleado = ({
       </Panel>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Datos laborales</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Datos laborales
+        </h2>
         <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
           <Campo
             etiqueta="Puesto"
@@ -609,7 +619,9 @@ export const FormEmpleado = ({
       </Panel>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Pago y coberturas</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Pago y coberturas
+        </h2>
         <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
           <CampoSelect
             etiqueta="Modalidad de pago"
@@ -650,8 +662,10 @@ export const FormEmpleado = ({
       </Panel>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Fichaje</h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Fichaje
+        </h2>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Definí dónde y cómo ficha este colaborador. En todos los casos se
           confirma la identidad con reconocimiento facial.
         </p>

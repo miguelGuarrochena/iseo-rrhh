@@ -66,7 +66,7 @@ const EditarColaboradorPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
         <Breadcrumbs
           items={[
@@ -78,7 +78,7 @@ const EditarColaboradorPage = () => {
             { etiqueta: 'Editar' },
           ]}
         />
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Editar colaborador
         </h1>
       </div>

@@ -312,13 +312,13 @@ const ComunicacionesPage = () => {
   if (!usuario) return null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Comunicaciones
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Consultas, reclamos y pedidos de tu equipo, con historial.
           </p>
         </div>
@@ -385,7 +385,7 @@ const ComunicacionesPage = () => {
           />
         </ListaCard>
 
-        <div className="rounded-2xl border border-line bg-surface p-4">
+        <div className="rounded-2xl border border-line bg-paper p-4">
           {!seleccion ? (
             <p className="text-sm text-ink-soft">
               Elegí una conversación para ver el detalle y responder.
@@ -394,7 +394,7 @@ const ComunicacionesPage = () => {
             <div className="flex flex-col gap-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
-                  <h2 className="text-base font-bold text-ink">
+                  <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
                     {seleccion.asunto}
                   </h2>
                   {/* De quién es el tema, arriba de todo. En la bandeja

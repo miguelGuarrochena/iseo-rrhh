@@ -120,7 +120,7 @@ const ModulosEmpresaPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
         <Breadcrumbs
           items={[
@@ -129,7 +129,7 @@ const ModulosEmpresaPage = () => {
             { etiqueta: 'Módulos' },
           ]}
         />
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-ink">
+        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           <IconLayoutGrid size={24} className="text-ink-soft" />
           Módulos de {empresa.nombre}
         </h1>
@@ -163,7 +163,9 @@ const ModulosEmpresaPage = () => {
 
       <Panel>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-base font-bold text-ink">Secciones</h2>
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Secciones
+          </h2>
           <p className="text-sm text-ink-soft">
             {prendidos} de {MODULOS_OPCIONALES.length} prendidas
           </p>
@@ -252,7 +254,9 @@ const ModulosEmpresaPage = () => {
           empresa que ves vos, para poder prendérselo o apagárselo a un
           cliente que lo pide por teléfono sin tener que entrar como él. */}
       <Panel>
-        <h2 className="text-base font-bold text-ink">Resumen semanal</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Resumen semanal
+        </h2>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Los lunes le llega a quien administra RRHH en {empresa.nombre} un mail
           con lo que quedó pendiente: ausencias sin resolver, recibos sin

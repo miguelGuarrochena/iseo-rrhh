@@ -227,12 +227,12 @@ const DashboardPage = () => {
 
   if (esSuperadmin) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 sm:gap-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Hola, {nombrePila}
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             El estado de tu negocio hoy.
           </p>
         </div>
@@ -254,7 +254,7 @@ const DashboardPage = () => {
           </button>
         )}
 
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           <StatCard
             etiqueta="Empresas activas"
             valor={metricas?.empresasActivas ?? '…'}
@@ -327,12 +327,12 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Hola, {nombrePila}
         </h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           {esEmpleado ? 'Tu resumen de hoy.' : 'El resumen de tu equipo hoy.'}
         </p>
       </div>
@@ -393,7 +393,7 @@ const DashboardPage = () => {
           />
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
           <StatCard
             etiqueta="Por aprobar"
             valor={pendientes.length}

@@ -63,10 +63,10 @@ export const CuposLicenciaPanel = () => {
 
   return (
     <Panel>
-      <h2 className="text-base font-bold text-ink">
+      <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
         Cupos anuales de licencias legales
       </h2>
-      <p className="mt-1 text-sm text-ink-soft">
+      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
         Días disponibles por año para cada tipo. El saldo se muestra al
         solicitar o cargar una ausencia.
       </p>
@@ -86,7 +86,7 @@ export const CuposLicenciaPanel = () => {
                   [tipo]: Number(e.target.value),
                 }))
               }
-              className="w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none focus:border-brand-600"
+              className="w-full rounded-xl border border-line-strong bg-surface px-4 py-3 text-base text-ink outline-none focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]"
             />
           </label>
         ))}

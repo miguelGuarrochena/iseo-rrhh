@@ -18,6 +18,7 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
+import { BotonIcono } from '@/components/app/ui/BotonIcono';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
@@ -230,7 +231,7 @@ const RecibosPage = () => {
         onClick={() => abrirVersiones(r)}
         aria-label={`Ver versiones anteriores del recibo de ${formatearPeriodo(r.periodo)}`}
       >
-        <IconHistory size={14} />
+        <IconHistory />
         {previas.length} anterior{previas.length === 1 ? '' : 'es'}
       </Boton>
     );
@@ -427,13 +428,13 @@ const RecibosPage = () => {
   if (!usuario) return null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Recibos de sueldo
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             {soloPropios
               ? 'Consultá y firmá tus recibos con validez digital.'
               : 'Estado de firmas del equipo.'}
@@ -489,7 +490,7 @@ const RecibosPage = () => {
                 onClick={() => void publicarTodos(borradores)}
                 disabled={publicando}
               >
-                <IconWritingSign size={14} />
+                <IconWritingSign />
                 Firmar y publicar todos
               </Boton>
             </div>
@@ -510,7 +511,7 @@ const RecibosPage = () => {
                       tamano="sm"
                       onClick={() => void verRecibo(r)}
                     >
-                      <IconEye size={14} />
+                      <IconEye />
                       Ver
                     </Boton>
                     <Boton
@@ -518,17 +519,18 @@ const RecibosPage = () => {
                       onClick={() => void publicarRecibo(r)}
                       disabled={publicando}
                     >
-                      <IconWritingSign size={14} />
+                      <IconWritingSign />
                       Firmar y publicar
                     </Boton>
                     {rolEfectivo === 'admin_rrhh' && (
-                      <Boton
-                        variante="rechazar"
+                      <BotonIcono
+                        variante="peligro"
                         tamano="sm"
+                        etiqueta={`Eliminar el recibo de ${formatearPeriodo(r.periodo)}`}
                         onClick={() => void borrarRecibo(r)}
                       >
-                        <IconTrash size={14} />
-                      </Boton>
+                        <IconTrash />
+                      </BotonIcono>
                     )}
                   </div>
                 }
@@ -592,24 +594,24 @@ const RecibosPage = () => {
                       tamano="sm"
                       onClick={() => void verRecibo(r)}
                     >
-                      <IconEye size={14} />
+                      <IconEye />
                       Ver
                     </Boton>
                     {soloPropios && r.estadoFirma === 'pendiente' && (
                       <Boton tamano="sm" onClick={() => abrirFirma(r)}>
-                        <IconSignature size={14} />
+                        <IconSignature />
                         Firmar
                       </Boton>
                     )}
                     {rolEfectivo === 'admin_rrhh' && (
-                      <Boton
-                        variante="rechazar"
+                      <BotonIcono
+                        variante="peligro"
                         tamano="sm"
+                        etiqueta={`Eliminar el recibo de ${formatearPeriodo(r.periodo)}`}
                         onClick={() => void borrarRecibo(r)}
-                        aria-label="Eliminar recibo"
                       >
-                        <IconTrash size={14} />
-                      </Boton>
+                        <IconTrash />
+                      </BotonIcono>
                     )}
                   </div>
                 }
@@ -666,25 +668,25 @@ const RecibosPage = () => {
                     tamano="sm"
                     onClick={() => void verRecibo(r)}
                   >
-                    <IconEye size={14} />
+                    <IconEye />
                     Ver
                   </Boton>
-                  <Boton
-                    variante="secundario"
+                  <BotonIcono
                     tamano="sm"
+                    etiqueta={`Descargar el recibo de ${formatearPeriodo(r.periodo)}`}
                     onClick={() => void descargarRecibo(r)}
-                    aria-label={`Descargar recibo de ${formatearPeriodo(r.periodo)}`}
                   >
-                    <IconDownload size={14} />
-                  </Boton>
+                    <IconDownload />
+                  </BotonIcono>
                   {rolEfectivo === 'admin_rrhh' && (
-                    <Boton
-                      variante="rechazar"
+                    <BotonIcono
+                      variante="peligro"
                       tamano="sm"
+                      etiqueta={`Eliminar el recibo de ${formatearPeriodo(r.periodo)}`}
                       onClick={() => void borrarRecibo(r)}
                     >
-                      <IconTrash size={14} />
-                    </Boton>
+                      <IconTrash />
+                    </BotonIcono>
                   )}
                 </div>
               }
@@ -858,7 +860,7 @@ const RecibosPage = () => {
                     tamano="sm"
                     onClick={() => void verRecibo(v)}
                   >
-                    <IconEye size={14} />
+                    <IconEye />
                     Ver PDF
                   </Boton>
                   <Boton
@@ -873,7 +875,7 @@ const RecibosPage = () => {
                     }
                     aria-label={`Descargar la versión ${arr.length - i}`}
                   >
-                    <IconDownload size={14} />
+                    <IconDownload />
                     Descargar
                   </Boton>
                 </div>

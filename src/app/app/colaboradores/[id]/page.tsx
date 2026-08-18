@@ -408,7 +408,7 @@ const FichaColaboradorPage = () => {
               </div>
             )}
             <div className="min-w-0">
-              <h1 className="flex flex-wrap items-center gap-2.5 text-2xl font-bold tracking-tight text-ink">
+              <h1 className="flex flex-wrap items-center gap-2.5 text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
                 {empleado.nombre} {empleado.apellido}
                 {!empleado.activo && (
                   <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
@@ -461,7 +461,7 @@ const FichaColaboradorPage = () => {
       )}
 
       {/* Indicadores de control del empleado */}
-      <div className="grid min-w-0 grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           etiqueta="Vacaciones"
           valor={saldo ? `${saldo.diasDisponibles}` : '…'}
@@ -506,7 +506,9 @@ const FichaColaboradorPage = () => {
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <Panel>
-          <h2 className="text-base font-bold text-ink">Datos personales</h2>
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Datos personales
+          </h2>
           <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
             <Dato etiqueta="DNI" valor={empleado.dni} />
             <Dato etiqueta="CUIL" valor={empleado.cuil} />
@@ -525,7 +527,9 @@ const FichaColaboradorPage = () => {
         </Panel>
 
         <Panel>
-          <h2 className="text-base font-bold text-ink">Datos laborales</h2>
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Datos laborales
+          </h2>
           <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
             <Dato etiqueta="Puesto" valor={empleado.puesto} />
             <Dato etiqueta="Sector" valor={empleado.sector} />
@@ -551,8 +555,10 @@ const FichaColaboradorPage = () => {
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <Panel>
-          <h2 className="text-base font-bold text-ink">Checklist del legajo</h2>
-          <p className="mt-1 text-sm text-ink-soft">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Checklist del legajo
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Lo que falta se puede subir desde acá: no hace falta ir a otra
             pantalla y volver.
           </p>
@@ -648,7 +654,7 @@ const FichaColaboradorPage = () => {
             {(empleado.modalidadContratacion === 'monotributista' ||
               regimen === 'simplificado') && (
               <Panel>
-                <h2 className="text-base font-bold text-ink">
+                <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
                   Costo monotributo
                 </h2>
                 <MonotributoPanel
@@ -661,7 +667,9 @@ const FichaColaboradorPage = () => {
             {/* Al cerrar el año, los días que no se tomó se cargan acá y
                 se suman al saldo del período siguiente. */}
             <Panel>
-              <h2 className="text-base font-bold text-ink">Vacaciones</h2>
+              <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+                Vacaciones
+              </h2>
               <VacacionesPendientesPanel
                 empleadoId={empleado.id}
                 anio={ANIO_ACTUAL}

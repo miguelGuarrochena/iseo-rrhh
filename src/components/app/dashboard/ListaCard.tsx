@@ -16,13 +16,13 @@ interface ListaCardProps {
 
 /** Fila fantasma mientras cargan los datos. */
 const FilaEsqueleto = () => (
-  <div className="flex animate-pulse items-center gap-3.5 rounded-2xl border border-line bg-surface px-4 py-3.5 sm:px-5">
-    <span className="h-9 w-9 flex-shrink-0 rounded-full bg-paper" />
+  <div className="flex animate-pulse items-center gap-3.5 rounded-2xl border border-line bg-paper px-4 py-3.5 sm:px-5">
+    <span className="h-9 w-9 flex-shrink-0 rounded-full bg-surface" />
     <div className="flex min-w-0 flex-1 flex-col gap-2">
-      <span className="h-3.5 w-2/5 rounded-full bg-paper" />
-      <span className="h-3 w-3/5 rounded-full bg-paper/70" />
+      <span className="h-3.5 w-2/5 rounded-full bg-surface" />
+      <span className="h-3 w-3/5 rounded-full bg-surface/70" />
     </div>
-    <span className="h-6 w-16 shrink-0 rounded-full bg-paper" />
+    <span className="h-6 w-16 shrink-0 rounded-full bg-surface" />
   </div>
 );
 
@@ -43,20 +43,22 @@ export const ListaCard = ({
     (children !== undefined && children !== null && children !== false);
 
   return (
-    <section className="aparece min-w-0 max-w-full rounded-3xl border border-line bg-surface p-5 sm:p-6">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-bold text-ink">{titulo}</h2>
+    <section className="aparece min-w-0 max-w-full rounded-3xl border border-line bg-surface p-5 sm:p-6 lg:p-7">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          {titulo}
+        </h2>
         {accion && (
           <Link
             href={accion.href}
-            className="shrink-0 text-sm font-semibold text-brand-700 no-underline transition-colors hover:text-brand-600 hover:underline"
+            className="shrink-0 rounded-lg px-1 py-1 text-sm font-semibold text-brand-700 no-underline transition-colors hover:text-brand-600 hover:underline"
           >
             {accion.etiqueta} →
           </Link>
         )}
       </div>
       <div
-        className={`mt-4 flex flex-col gap-3 ${cargando ? '' : 'aparece-lista'}`}
+        className={`divisor-panel mt-4 flex flex-col gap-2.5 pt-5 ${cargando ? '' : 'aparece-lista'}`}
       >
         {cargando ? (
           <>
@@ -100,9 +102,9 @@ export const ListaItem = ({
   const fila = (
     <div
       onClick={onClick}
-      className={`flex flex-col gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${
+      className={`flex flex-col gap-3 rounded-2xl border border-line bg-paper px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${
         clickeable
-          ? 'hover-bloque cursor-pointer transition-[background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-brand-300'
+          ? 'cursor-pointer transition-[background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-brand-300 hover:bg-surface active:scale-[0.995]'
           : ''
       }`}
     >
@@ -122,9 +124,13 @@ export const ListaItem = ({
           )
         )}
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-ink">{principal}</p>
+          <p className="truncate text-[0.9375rem] font-semibold text-ink">
+            {principal}
+          </p>
           {secundario && (
-            <p className="truncate text-xs text-ink-soft">{secundario}</p>
+            <p className="mt-0.5 truncate text-[0.8125rem] text-ink-soft">
+              {secundario}
+            </p>
           )}
         </div>
       </div>

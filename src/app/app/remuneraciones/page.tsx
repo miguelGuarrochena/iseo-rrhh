@@ -42,6 +42,7 @@ import { formatearPesos, formatearPorcentaje } from '@/lib/formato';
 import { formatearPeriodo } from '@/lib/fechas';
 import { descargarCSV } from '@/lib/csv';
 import { Boton } from '@/components/app/ui/Boton';
+import { BotonIcono } from '@/components/app/ui/BotonIcono';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
@@ -53,12 +54,7 @@ import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 10;
 
-type ColumnaMasa =
-  | 'colaborador'
-  | 'periodo'
-  | 'bruto'
-  | 'descuentos'
-  | 'neto';
+type ColumnaMasa = 'colaborador' | 'periodo' | 'bruto' | 'descuentos' | 'neto';
 
 const COLUMNAS_MASA: { id: ColumnaMasa; etiqueta: string }[] = [
   { id: 'colaborador', etiqueta: 'Colaborador' },
@@ -97,7 +93,7 @@ const CabeceraOrdenable = ({
       : 'de A a Z';
   return (
     <th
-      className={`pb-2.5 ${align === 'right' ? 'pr-4 text-right' : 'pr-4 text-left'}`}
+      className={align === 'right' ? 'text-right' : 'text-left'}
       aria-sort={
         activo ? (orden.dir === 'asc' ? 'ascending' : 'descending') : 'none'
       }
@@ -106,7 +102,7 @@ const CabeceraOrdenable = ({
         type="button"
         onClick={() => onOrdenar(col)}
         aria-label={`Ordenar por ${etiqueta.toLowerCase()}, ${sentido}`}
-        className={`inline-flex cursor-pointer items-center gap-0.5 border-0 bg-transparent p-0 text-xs font-bold uppercase tracking-wider ${
+        className={`inline-flex min-h-8 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 text-[0.6875rem] font-bold uppercase tracking-[0.06em] ${
           align === 'right' ? 'w-full justify-end' : ''
         } ${activo ? 'text-ink' : 'text-ink-soft hover:text-ink'}`}
       >
@@ -196,7 +192,7 @@ const UltimaLiquidacion = ({ rem }: { rem: Remuneracion }) => {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <IconReceipt2 size={18} className="text-ink-soft" />
-          <h2 className="text-base font-bold text-ink">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
             Tu última liquidación
           </h2>
         </div>
@@ -251,7 +247,7 @@ const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
 
   if (rems.length === 0) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 sm:gap-8">
         <p className="rounded-xl bg-paper px-4 py-3 text-sm text-ink-soft">
           Todavía no hay remuneraciones cargadas.
         </p>
@@ -261,8 +257,8 @@ const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div className="flex flex-col gap-6 sm:gap-8">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           etiqueta="Sueldo bruto actual"
           valor={a.ultima ? formatearPesos(a.ultima.montoBruto) : '—'}
@@ -296,8 +292,12 @@ const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
       {a.ultima && <UltimaLiquidacion rem={a.ultima} />}
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Evolución salarial</h2>
-        <p className="mt-1 text-sm text-ink-soft">Sueldo bruto mes a mes.</p>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Evolución salarial
+        </h2>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
+          Sueldo bruto mes a mes.
+        </p>
         <div className="mt-4">
           <LineaEvolucion
             puntos={a.ordenadas.map((r) => ({
@@ -318,7 +318,9 @@ const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
       </Panel>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Historial de aumentos</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Historial de aumentos
+        </h2>
         {a.aumentos.length === 0 ? (
           <p className="mt-3 text-sm text-ink-soft">
             Sin aumentos registrados.
@@ -328,7 +330,7 @@ const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
             {a.aumentos.map((au) => (
               <div
                 key={au.periodo}
-                className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-3"
+                className="flex items-center justify-between rounded-xl border border-line bg-paper px-4 py-3"
               >
                 <div>
                   <p className="text-sm font-semibold text-ink">
@@ -546,8 +548,8 @@ const VistaAdmin = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div className="flex flex-col gap-6 sm:gap-8">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           etiqueta="Masa salarial"
           valor={formatearPesos(resumen.masaSalarialBruta)}
@@ -582,25 +584,18 @@ const VistaAdmin = () => {
         titulo="Estos no entran en los números de arriba"
       />
 
-      <Panel>
-        <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-bold text-ink">
-              Remuneración por colaborador
-            </h2>
-            <p className="mt-0.5 text-sm text-ink-soft">
-              Último período cargado de cada uno. Tocá la fila para ir a la
-              ficha o el lápiz para editar el período.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <Panel
+        titulo="Remuneración por colaborador"
+        descripcion="Último período cargado de cada uno. Tocá la fila para ir a la ficha o el lápiz para editar el período."
+        acciones={
+          <>
             <Boton
               variante="secundario"
               tamano="sm"
               onClick={exportarLiquidacion}
               disabled={resumen.porEmpleado.length === 0}
             >
-              <IconDownload size={14} />
+              <IconDownload />
               Exportar para liquidación
             </Boton>
             <Boton
@@ -608,45 +603,43 @@ const VistaAdmin = () => {
               tamano="sm"
               onClick={() => setAguinaldoAbierto(true)}
             >
-              <IconGift size={14} />
+              <IconGift />
               Generar aguinaldo
             </Boton>
             <Boton variante="negro" tamano="sm" onClick={abrirNueva}>
-              <IconPlus size={14} />
+              <IconPlus />
               Cargar remuneración
             </Boton>
-          </div>
-        </div>
-
+          </>
+        }
+      >
         {cRems.fase === 'error' && cRems.error ? (
-          <div className="mt-4">
-            <BloqueError error={cRems.error} onReintentar={cRems.recargar} />
-          </div>
+          <BloqueError error={cRems.error} onReintentar={cRems.recargar} />
         ) : cRems.fase === 'cargando' ? (
-          <p className="mt-4 text-sm text-ink-soft">Cargando sueldos…</p>
+          <p className="text-sm text-ink-soft">Cargando sueldos…</p>
         ) : resumen.porEmpleado.length === 0 ? (
-          <div className="mt-4 flex flex-col items-start gap-3 rounded-xl bg-paper px-5 py-6">
+          <div className="flex flex-col items-start gap-4 rounded-2xl bg-paper px-5 py-6">
             <p className="text-sm text-ink-soft">
               Todavía no hay sueldos cargados. Cargá la primera remuneración y
               acá vas a ver la masa salarial y el detalle por colaborador.
             </p>
-            <Boton tamano="sm" onClick={abrirNueva}>
-              <IconPlus size={14} />
+            <Boton onClick={abrirNueva}>
+              <IconPlus />
               Cargar la primera
             </Boton>
           </div>
         ) : (
-          <div className="mt-4 min-w-0">
+          <div className="min-w-0">
             <div className="relative">
               <IconSearch
                 size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft"
+                className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink-soft"
               />
               <input
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar por nombre o período…"
-                className="h-12 w-full rounded-xl border border-line bg-surface pl-11 pr-4 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
+                className="campo-app campo-app-con-icono"
               />
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5 md:hidden">
@@ -657,7 +650,7 @@ const VistaAdmin = () => {
                     key={c.id}
                     type="button"
                     onClick={() => toggleOrden(c.id)}
-                    className={`inline-flex cursor-pointer items-center gap-0.5 rounded-full border px-2.5 py-1 text-[0.7rem] font-bold uppercase tracking-wide ${
+                    className={`presionable inline-flex min-h-9 cursor-pointer items-center gap-1 rounded-full border px-3 py-1 text-[0.7rem] font-bold uppercase tracking-wide ${
                       activo
                         ? 'border-brand-300 bg-brand-50 text-brand-800'
                         : 'border-line bg-surface text-ink-soft'
@@ -680,161 +673,158 @@ const VistaAdmin = () => {
               </p>
             ) : (
               <>
-            <ul className="mt-4 flex flex-col gap-2 md:hidden">
-              {filasVisibles.map((f) => (
-                <li key={f.empleadoId}>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() =>
-                      router.push(`/colaboradores/${f.empleadoId}`)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        router.push(`/colaboradores/${f.empleadoId}`);
-                      }
-                    }}
-                    className="hover-bloque cursor-pointer rounded-2xl border border-line bg-paper px-4 py-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-ink">
-                          {nombre(f.empleadoId)}
-                        </p>
-                        <p className="text-xs text-ink-soft">
-                          {formatearPeriodo(f.periodo)}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        aria-label={`Editar remuneración de ${nombre(f.empleadoId)}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          abrirEdicion(f.empleadoId, f.periodo);
-                        }}
-                        className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
-                      >
-                        <IconPencil size={15} />
-                      </button>
-                    </div>
-                    <div className="mt-3">
-                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
-                        Neto
-                      </p>
-                      <p className="break-words text-lg font-bold tabular-nums tracking-tight text-ink">
-                        {formatearPesos(f.neto)}
-                      </p>
-                      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-                        <div className="min-w-0">
-                          <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
-                            Bruto
-                          </dt>
-                          <dd className="break-words text-sm font-semibold tabular-nums text-ink">
-                            {formatearPesos(f.bruto)}
-                          </dd>
-                        </div>
-                        <div className="min-w-0">
-                          <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
-                            Descuentos
-                          </dt>
-                          <dd className="break-words text-sm tabular-nums text-red-700/80">
-                            − {formatearPesos(descuentosDe(f))}
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-4 hidden min-w-0 overflow-x-auto md:block">
-              <table className="w-full min-w-[34rem] text-sm">
-                <thead>
-                  <tr className="border-b border-line">
-                    <CabeceraOrdenable
-                      col="colaborador"
-                      orden={orden}
-                      onOrdenar={toggleOrden}
-                    />
-                    <CabeceraOrdenable
-                      col="periodo"
-                      orden={orden}
-                      onOrdenar={toggleOrden}
-                    />
-                    <CabeceraOrdenable
-                      col="bruto"
-                      orden={orden}
-                      onOrdenar={toggleOrden}
-                      align="right"
-                    />
-                    <CabeceraOrdenable
-                      col="descuentos"
-                      orden={orden}
-                      onOrdenar={toggleOrden}
-                      align="right"
-                    />
-                    <CabeceraOrdenable
-                      col="neto"
-                      orden={orden}
-                      onOrdenar={toggleOrden}
-                      align="right"
-                    />
-                    <th className="pb-2.5" aria-label="Acciones" />
-                  </tr>
-                </thead>
-                <tbody>
+                <ul className="mt-4 flex flex-col gap-2 md:hidden">
                   {filasVisibles.map((f) => (
-                    <tr
-                      key={f.empleadoId}
-                      onClick={() =>
-                        router.push(`/colaboradores/${f.empleadoId}`)
-                      }
-                      className="cursor-pointer border-b border-line/60 transition-colors hover:bg-paper"
-                    >
-                      <td className="py-3 pr-4 font-semibold text-ink">
-                        {nombre(f.empleadoId)}
-                      </td>
-                      <td className="py-3 pr-4 text-ink-soft">
-                        {formatearPeriodo(f.periodo)}
-                      </td>
-                      <td className="py-3 pr-4 text-right tabular-nums text-ink">
-                        {formatearPesos(f.bruto)}
-                      </td>
-                      <td className="py-3 pr-4 text-right tabular-nums text-red-700/80">
-                        − {formatearPesos(descuentosDe(f))}
-                      </td>
-                      <td className="py-3 pr-4 text-right font-bold tabular-nums text-ink">
-                        {formatearPesos(f.neto)}
-                      </td>
-                      <td className="py-3 text-right">
-                        <button
-                          type="button"
-                          aria-label={`Editar remuneración de ${nombre(f.empleadoId)}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            abrirEdicion(f.empleadoId, f.periodo);
-                          }}
-                          className="cursor-pointer rounded-full border border-line bg-surface p-1.5 text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
-                        >
-                          <IconPencil size={15} />
-                        </button>
-                      </td>
-                    </tr>
+                    <li key={f.empleadoId}>
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          router.push(`/colaboradores/${f.empleadoId}`)
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            router.push(`/colaboradores/${f.empleadoId}`);
+                          }
+                        }}
+                        className="hover-bloque cursor-pointer rounded-2xl border border-line bg-paper px-4 py-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate font-semibold text-ink">
+                              {nombre(f.empleadoId)}
+                            </p>
+                            <p className="text-xs text-ink-soft">
+                              {formatearPeriodo(f.periodo)}
+                            </p>
+                          </div>
+                          <BotonIcono
+                            etiqueta={`Editar remuneración de ${nombre(f.empleadoId)}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirEdicion(f.empleadoId, f.periodo);
+                            }}
+                          >
+                            <IconPencil />
+                          </BotonIcono>
+                        </div>
+                        <div className="mt-3">
+                          <p className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                            Neto
+                          </p>
+                          <p className="break-words text-lg font-bold tabular-nums tracking-tight text-ink">
+                            {formatearPesos(f.neto)}
+                          </p>
+                          <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+                            <div className="min-w-0">
+                              <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                                Bruto
+                              </dt>
+                              <dd className="break-words text-sm font-semibold tabular-nums text-ink">
+                                {formatearPesos(f.bruto)}
+                              </dd>
+                            </div>
+                            <div className="min-w-0">
+                              <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                                Descuentos
+                              </dt>
+                              <dd className="break-words text-sm tabular-nums text-red-700/80">
+                                − {formatearPesos(descuentosDe(f))}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+                      </div>
+                    </li>
                   ))}
-                </tbody>
-              </table>
-            </div>
-            <Paginacion
-              pagina={pagina}
-              totalPaginas={totalPaginas}
-              onCambiar={setPagina}
-            />
+                </ul>
+                <div className="mt-5 hidden min-w-0 overflow-x-auto md:block">
+                  <table className="tabla-app min-w-[34rem] text-sm">
+                    <thead>
+                      <tr>
+                        <CabeceraOrdenable
+                          col="colaborador"
+                          orden={orden}
+                          onOrdenar={toggleOrden}
+                        />
+                        <CabeceraOrdenable
+                          col="periodo"
+                          orden={orden}
+                          onOrdenar={toggleOrden}
+                        />
+                        <CabeceraOrdenable
+                          col="bruto"
+                          orden={orden}
+                          onOrdenar={toggleOrden}
+                          align="right"
+                        />
+                        <CabeceraOrdenable
+                          col="descuentos"
+                          orden={orden}
+                          onOrdenar={toggleOrden}
+                          align="right"
+                        />
+                        <CabeceraOrdenable
+                          col="neto"
+                          orden={orden}
+                          onOrdenar={toggleOrden}
+                          align="right"
+                        />
+                        <th aria-label="Acciones" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filasVisibles.map((f) => (
+                        <tr
+                          key={f.empleadoId}
+                          onClick={() =>
+                            router.push(`/colaboradores/${f.empleadoId}`)
+                          }
+                          className="cursor-pointer transition-colors hover:bg-paper"
+                        >
+                          <td className="font-semibold text-ink">
+                            {nombre(f.empleadoId)}
+                          </td>
+                          <td className="text-ink-soft">
+                            {formatearPeriodo(f.periodo)}
+                          </td>
+                          <td className="text-right tabular-nums text-ink">
+                            {formatearPesos(f.bruto)}
+                          </td>
+                          <td className="text-right tabular-nums text-red-700/80">
+                            − {formatearPesos(descuentosDe(f))}
+                          </td>
+                          <td className="text-right font-bold tabular-nums text-ink">
+                            {formatearPesos(f.neto)}
+                          </td>
+                          <td className="text-right">
+                            <BotonIcono
+                              tamano="sm"
+                              etiqueta={`Editar remuneración de ${nombre(f.empleadoId)}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirEdicion(f.empleadoId, f.periodo);
+                              }}
+                            >
+                              <IconPencil />
+                            </BotonIcono>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <Paginacion
+                  pagina={pagina}
+                  totalPaginas={totalPaginas}
+                  onCambiar={setPagina}
+                />
               </>
             )}
           </div>
         )}
-        <p className="mt-4 text-xs text-ink-soft">
+        <p className="divisor-panel mt-6 pt-5 text-[0.8125rem] leading-relaxed text-ink-soft">
           Las cargas sociales son una estimación ({Math.round(cargasPct * 100)}%
           sobre el bruto, configurable en Configuración). Para valores exactos,
           consultá con tu contador.
@@ -875,12 +865,12 @@ const RemuneracionesPage = () => {
   const esAdmin = rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin';
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Remuneraciones
         </h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           {esAdmin
             ? 'Masa salarial, costos y sueldos del equipo.'
             : 'Tu evolución salarial y aguinaldo estimado.'}

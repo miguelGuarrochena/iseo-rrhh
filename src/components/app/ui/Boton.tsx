@@ -22,32 +22,43 @@ interface BotonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * sólo las propiedades que cambian. Antes era `transition-all
  * duration-300`: 300ms se siente lento en el botón que más se toca de la
  * app, y `all` anima de más (incluido el layout) por si acaso.
+ *
+ * `boton-app` normaliza el tamaño del ícono contra la tipografía del
+ * botón: los llamadores pasaban `size={14}`, `16` y `18` para el mismo
+ * botón según la pantalla y la fila de acciones quedaba despareja.
  */
 const base =
-  'presionable inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-xl border-0 font-semibold disabled:cursor-default disabled:opacity-60 disabled:hover:translate-y-0 disabled:active:transform-none';
+  'boton-app presionable inline-flex cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-xl font-semibold leading-none disabled:cursor-default disabled:opacity-55 disabled:hover:translate-y-0 disabled:active:transform-none';
 
 /**
- * En mobile se fuerza una altura mínima cómoda para el pulgar (44px en
- * `md`, 40px en `sm`; el mínimo que recomiendan Apple y Google es 44).
- * Desde `sm:` se vuelve a la altura natural, que con mouse se ve mejor.
+ * Alturas pensadas para el dedo primero: 44px en `md` y 40px en `sm`,
+ * el mínimo que recomiendan Apple y Google.
+ *
+ * Con mouse bajan a 40 y 36 —no a "lo que salga": antes `sm:min-h-0`
+ * dejaba el `sm` en 28px de alto con texto de 12px, y una barra de
+ * herramientas hecha de esos botones se leía como una fila de links.
  */
 const tamanos: Record<Tamano, string> = {
-  md: 'min-h-11 px-5 py-2.5 text-[0.95rem] sm:min-h-0',
-  sm: 'min-h-10 px-3.5 py-1.5 text-xs sm:min-h-0',
+  md: 'min-h-11 px-5 py-2.5 text-[0.95rem] sm:min-h-10',
+  sm: 'min-h-10 px-3.5 py-2 text-[0.8125rem] sm:min-h-9',
 };
 
 /**
  * Sistema de botones de la app: pastel + borde fino, sin sombras.
  * Los colores viven en globals.css (variables, con tema claro/oscuro).
+ *
+ * Todas las variantes llevan 1px de borde —`sutil` uno transparente—
+ * para que dos botones distintos puestos uno al lado del otro midan lo
+ * mismo de alto.
  */
 const estilos: Record<Variante, string> = {
   primario: 'btn-primario',
   negro: 'btn-negro',
-  secundario:
-    'border border-line bg-surface text-ink hover:border-brand-300 hover:text-brand-700',
+  secundario: 'btn-secundario',
   aprobar: 'btn-aprobar',
   rechazar: 'btn-rechazar',
-  sutil: 'border-0 bg-transparent text-ink-soft hover:bg-paper hover:text-ink',
+  sutil:
+    'border border-transparent bg-transparent text-ink-soft hover:bg-paper hover:text-ink',
 };
 
 export const Boton = ({

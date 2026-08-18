@@ -161,10 +161,10 @@ export const ChatColaborador = ({ empleadoId }: { empleadoId: string }) => {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Comunicaciones
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Tu canal directo con RRHH. Queda todo registrado con fecha.
           </p>
         </div>
@@ -183,7 +183,7 @@ export const ChatColaborador = ({ empleadoId }: { empleadoId: string }) => {
             <IconMessages size={26} stroke={1.6} />
           </span>
           <div className="sm:max-w-md">
-            <p className="text-base font-bold text-ink">
+            <p className="text-[1.0625rem] font-bold tracking-tight text-ink">
               Escribile a RRHH desde acá
             </p>
             <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
@@ -224,7 +224,9 @@ export const ChatColaborador = ({ empleadoId }: { empleadoId: string }) => {
       {abierto && (
         <Panel className="flex flex-col gap-4">
           <div>
-            <h2 className="text-base font-bold text-ink">{abierto.asunto}</h2>
+            <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+              {abierto.asunto}
+            </h2>
             <p className="text-xs text-ink-soft">
               {tipoLabels[abierto.tipo]}
               {abierto.estado === 'cerrada' && ' · cerrada por RRHH'}

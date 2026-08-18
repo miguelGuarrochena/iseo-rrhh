@@ -461,7 +461,7 @@ export const RemuneracionModal = ({
           <TituloBloque icono={IconReceipt2} texto="Descuentos del período" />
 
           {automaticos.partes.length > 0 ? (
-            <div className="flex flex-col divide-y divide-line/60 rounded-xl border border-line bg-surface px-4 py-1">
+            <div className="flex flex-col divide-y divide-line/60 rounded-xl border border-line bg-paper px-4 py-1">
               {automaticos.partes.map((p, i) => (
                 <div
                   key={`${p.etiqueta}-${i}`}

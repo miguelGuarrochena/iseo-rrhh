@@ -50,7 +50,12 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         <Sidebar />
         <div className="min-w-0 lg:pl-64">
           <AppHeader />
-          <main className="mx-auto min-w-0 max-w-5xl px-4 pb-24 pt-6 sm:px-6 lg:pb-10">
+          {/* `max-w-6xl`: con el menú lateral ocupando 256px, el ancho
+              anterior dejaba las grillas de cuatro tarjetas en columnas
+              de ~230px, donde un monto de siete dígitos no entra en un
+              renglón. El `pb` grande es para que la barra de navegación
+              de abajo (mobile) no tape la última fila. */}
+          <main className="mx-auto min-w-0 max-w-6xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-12">
             {children}
           </main>
         </div>

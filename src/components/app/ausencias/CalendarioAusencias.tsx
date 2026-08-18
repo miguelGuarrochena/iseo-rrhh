@@ -97,20 +97,20 @@ export const CalendarioAusencias = ({
           type="button"
           onClick={() => mover(-1)}
           aria-label="Mes anterior"
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+          className="presionable flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 sm:h-10 sm:w-10"
         >
-          <IconChevronLeft size={16} />
+          <IconChevronLeft size={18} />
         </button>
-        <span className="text-sm font-bold text-ink">
+        <span className="text-[0.9375rem] font-bold text-ink">
           {MESES[mes]} {anio}
         </span>
         <button
           type="button"
           onClick={() => mover(1)}
           aria-label="Mes siguiente"
-          className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+          className="presionable flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 sm:h-10 sm:w-10"
         >
-          <IconChevronRight size={16} />
+          <IconChevronRight size={18} />
         </button>
       </div>
 
@@ -138,7 +138,7 @@ export const CalendarioAusencias = ({
         {DIAS.map((d, i) => (
           <span
             key={`${d}-${i}`}
-            className="text-[0.65rem] font-bold uppercase text-ink-soft"
+            className="pb-1 text-[0.6875rem] font-bold uppercase tracking-wide text-ink-soft"
           >
             {d}
           </span>
@@ -168,7 +168,7 @@ export const CalendarioAusencias = ({
                       .join(', ')}`
                   : undefined
               }
-              className={`relative flex aspect-square flex-col items-center justify-center gap-0.5 rounded-xl border text-sm transition-colors ${
+              className={`relative flex min-h-[3.25rem] flex-col items-center justify-center gap-1 rounded-xl border p-1 text-sm transition-colors sm:min-h-[3.75rem] ${
                 cantidad > 0
                   ? 'cursor-pointer border-line bg-brand-50/60 text-ink hover:border-brand-300 hover:bg-brand-100/70'
                   : esHoy
@@ -234,7 +234,7 @@ export const CalendarioAusencias = ({
               return (
                 <div
                   key={a.id}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2.5"
+                  className="flex items-center justify-between gap-2 rounded-xl border border-line bg-paper px-3.5 py-3"
                 >
                   <span className="flex min-w-0 items-center gap-2.5">
                     <span

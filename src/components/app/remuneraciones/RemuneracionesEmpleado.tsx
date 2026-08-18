@@ -105,7 +105,9 @@ export const RemuneracionesEmpleado = ({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <IconReportMoney size={18} className="shrink-0 text-ink-soft" />
-          <h2 className="text-base font-bold text-ink">Remuneraciones</h2>
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Remuneraciones
+          </h2>
         </div>
         {puedeEditar && (
           <Boton variante="secundario" tamano="sm" onClick={abrirNuevo}>
@@ -168,9 +170,9 @@ export const RemuneracionesEmpleado = ({
                         type="button"
                         onClick={(e) => void borrar(r, e)}
                         aria-label="Eliminar"
-                        className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600 sm:h-9 sm:w-9"
+                        className="presionable inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-transparent text-ink-soft hover:border-red-200 hover:bg-red-50 hover:text-red-600 sm:h-10 sm:w-10"
                       >
-                        <IconTrash size={16} />
+                        <IconTrash size={17} />
                       </button>
                     )}
                   </div>

@@ -32,9 +32,9 @@ const PlataformaPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-ink">
+        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           <IconSettings size={24} className="text-ink-soft" />
           Plataforma
         </h1>

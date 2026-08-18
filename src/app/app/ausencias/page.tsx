@@ -306,13 +306,13 @@ const AusenciasPage = () => {
   const resueltasVisibles = paginar(resueltas, pagina, POR_PAGINA);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Ausencias
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             {esEmpleado
               ? 'Tus vacaciones, licencias y solicitudes.'
               : 'Solicitudes del equipo: cargá ausencias, aprobá o exportá el historial.'}
@@ -389,7 +389,7 @@ const AusenciasPage = () => {
 
       {!esEmpleado && (
         <Panel>
-          <h2 className="text-base font-bold text-ink">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
             Calendario de ausencias
           </h2>
           <p className="mb-4 mt-1 text-sm text-ink-soft">
@@ -427,7 +427,7 @@ const AusenciasPage = () => {
 
       {esEmpleado && empleadoActual?.sector && (
         <Panel>
-          <h2 className="text-base font-bold text-ink">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
             Vacaciones aprobadas de tu sector
           </h2>
           <p className="mb-4 mt-1 text-sm text-ink-soft">
@@ -562,9 +562,9 @@ const AusenciasPage = () => {
                       onClick={() => void borrarAusencia(a)}
                       aria-label="Eliminar ausencia"
                       title="Eliminar: usá esto sólo si se cargó por error"
-                      className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600 sm:h-9 sm:w-9"
+                      className="presionable inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-transparent text-ink-soft hover:border-red-200 hover:bg-red-50 hover:text-red-600 sm:h-10 sm:w-10"
                     >
-                      <IconTrash size={16} />
+                      <IconTrash size={17} />
                     </button>
                   )}
                 </div>

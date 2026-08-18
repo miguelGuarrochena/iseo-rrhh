@@ -127,7 +127,7 @@ export const MonotributoPanel = ({ empleadoId, puedeEditar }: Props) => {
           {lista.map((f) => (
             <li
               key={f.id}
-              className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm"
+              className="flex items-center justify-between gap-2 rounded-lg border border-line bg-paper px-3 py-2 text-sm"
             >
               <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
                 <span>

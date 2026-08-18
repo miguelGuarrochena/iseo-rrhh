@@ -72,7 +72,7 @@ export const Sidebar = () => {
         <Logo size="sm" />
       </Link>
 
-      <nav className="mt-8 flex flex-1 flex-col gap-1 overflow-y-auto">
+      <nav className="mt-8 flex flex-1 flex-col gap-1 overflow-y-auto pb-2">
         {navItemsPorRol(rolEfectivo, modulos).map((item) => {
           const ruta = pathname.replace(/^\/app(?=\/|$)/, '') || '/';
           const activo =
@@ -83,7 +83,7 @@ export const Sidebar = () => {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex items-center gap-3 rounded-xl border px-3.5 py-2.5 text-[0.95rem] font-semibold no-underline transition-colors ${
+              className={`relative flex min-h-11 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-[0.95rem] font-semibold no-underline transition-colors ${
                 activo
                   ? 'border-brand-300 bg-brand-100 text-brand-800'
                   : 'border-transparent text-ink-soft hover:bg-paper hover:text-ink'

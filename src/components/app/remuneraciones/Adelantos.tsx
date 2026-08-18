@@ -93,12 +93,14 @@ export const AdelantosEmpleado = ({ empleadoId }: { empleadoId: string }) => {
   };
 
   return (
-    <Panel>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
+    <Panel
+      titulo={
+        <span className="flex items-center gap-2">
           <IconCashBanknote size={18} className="text-ink-soft" />
-          <h2 className="text-base font-bold text-ink">Adelantos</h2>
-        </div>
+          Adelantos
+        </span>
+      }
+      acciones={
         <Boton
           variante="secundario"
           tamano="sm"
@@ -106,20 +108,20 @@ export const AdelantosEmpleado = ({ empleadoId }: { empleadoId: string }) => {
         >
           Pedir adelanto
         </Boton>
-      </div>
-
+      }
+    >
       {carga.fase === 'error' && carga.error ? (
         <BloqueError error={carga.error} onReintentar={carga.recargar} />
       ) : adelantos.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-soft">
+        <p className="text-sm text-ink-soft">
           No pediste adelantos. Si lo necesitás, pedilo acá y RRHH lo revisa.
         </p>
       ) : (
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
           {adelantos.map((a) => (
             <div
               key={a.id}
-              className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3"
+              className="flex items-center justify-between gap-2 rounded-xl border border-line bg-paper px-4 py-3"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-ink">
@@ -266,29 +268,29 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
   const resueltos = adelantos.filter((a) => a.estado !== 'pendiente');
 
   return (
-    <Panel>
-      <div className="flex items-center gap-2">
-        <IconCashBanknote size={18} className="text-ink-soft" />
-        <h2 className="text-base font-bold text-ink">Adelantos</h2>
-        {pendientes.length > 0 && (
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800">
-            {pendientes.length} por resolver
-          </span>
-        )}
-      </div>
-
+    <Panel
+      titulo={
+        <span className="flex flex-wrap items-center gap-2">
+          <IconCashBanknote size={18} className="text-ink-soft" />
+          Adelantos
+          {pendientes.length > 0 && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+              {pendientes.length} por resolver
+            </span>
+          )}
+        </span>
+      }
+    >
       {carga.fase === 'error' && carga.error ? (
         <BloqueError error={carga.error} onReintentar={carga.recargar} />
       ) : adelantos.length === 0 ? (
-        <p className="mt-3 text-sm text-ink-soft">
-          No hay pedidos de adelanto.
-        </p>
+        <p className="text-sm text-ink-soft">No hay pedidos de adelanto.</p>
       ) : (
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="flex flex-col gap-2">
           {[...pendientes, ...resueltos].slice(0, 8).map((a) => (
             <div
               key={a.id}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-surface px-4 py-3"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-paper px-4 py-3.5"
             >
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-ink">
@@ -303,22 +305,23 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
                 {a.estado === 'pendiente' ? (
                   <>
                     <Boton
+                      variante="aprobar"
                       tamano="sm"
                       onClick={() => {
                         setPeriodo(hoyISO().slice(0, 7));
                         setAAprobar(a);
                       }}
                     >
-                      <IconCheck size={14} />
+                      <IconCheck />
                       Aprobar
                     </Boton>
                     <Boton
-                      variante="secundario"
+                      variante="rechazar"
                       tamano="sm"
                       onClick={() => void resolver(a, false)}
                       disabled={resolviendo}
                     >
-                      <IconX size={14} />
+                      <IconX />
                       Rechazar
                     </Boton>
                   </>
@@ -331,9 +334,9 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
                     onClick={() => void borrar(a)}
                     aria-label="Eliminar pedido de adelanto"
                     title="Eliminar: usá esto sólo si se cargó por error"
-                    className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg border-0 bg-transparent text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600 sm:h-9 sm:w-9"
+                    className="presionable inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-transparent bg-transparent text-ink-soft hover:border-red-200 hover:bg-red-50 hover:text-red-600 sm:h-10 sm:w-10"
                   >
-                    <IconTrash size={16} />
+                    <IconTrash size={17} />
                   </button>
                 )}
               </div>
@@ -342,7 +345,7 @@ export const AdelantosAdmin = ({ empleados }: { empleados: Empleado[] }) => {
         </div>
       )}
 
-      <p className="mt-4 text-xs text-ink-soft">
+      <p className="divisor-panel mt-6 pt-5 text-[0.8125rem] leading-relaxed text-ink-soft">
         Al aprobar, el adelanto aparece como descuento sugerido al cargar la
         remuneración del período elegido.
       </p>

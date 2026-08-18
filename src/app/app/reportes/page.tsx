@@ -153,12 +153,12 @@ const ReportesPage = () => {
     // que alcanza con chequear si esa empresa tiene dotación cargada.
     const tieneDatos = dotacion > 0;
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 sm:gap-8">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Reportes
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             La foto general de tus clientes.
           </p>
         </div>
@@ -191,7 +191,7 @@ const ReportesPage = () => {
 
         <div className="grid gap-4 lg:grid-cols-2">
           <Panel>
-            <h2 className="mb-4 text-base font-bold text-ink">
+            <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
               Empleados por empresa
             </h2>
             <Barras
@@ -202,7 +202,7 @@ const ReportesPage = () => {
             />
           </Panel>
           <Panel>
-            <h2 className="mb-4 text-base font-bold text-ink">
+            <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
               Ausencias por tipo (todas las empresas)
             </h2>
             <Dona
@@ -243,20 +243,20 @@ const ReportesPage = () => {
           <>
             <div className="grid gap-4 lg:grid-cols-2">
               <Panel>
-                <h2 className="mb-4 text-base font-bold text-ink">
+                <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
                   Minutos de llegada tarde — {nombreSel}
                 </h2>
                 <Barras datos={topTarde} sufijo=" min" />
               </Panel>
               <Panel>
-                <h2 className="mb-4 text-base font-bold text-ink">
+                <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
                   Horas extras — {nombreSel}
                 </h2>
                 <Barras datos={topExtras} sufijo=" hs" />
               </Panel>
             </div>
             <Panel>
-              <h2 className="mb-4 text-base font-bold text-ink">
+              <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
                 Presentismo de hoy — {nombreSel}
               </h2>
               <Dona
@@ -280,10 +280,12 @@ const ReportesPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">Reportes</h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
+          Reportes
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Control del mes: ausentismo, puntualidad, horas extras y firmas.
         </p>
       </div>
@@ -294,7 +296,7 @@ const ReportesPage = () => {
         <BloqueError error={cDetalle.error} onReintentar={cDetalle.recargar} />
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           etiqueta="Ausentismo"
           valor={resumen ? `${resumen.ausentismoPct}%` : '…'}
@@ -332,13 +334,13 @@ const ReportesPage = () => {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel>
-          <h2 className="mb-4 text-base font-bold text-ink">
+          <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
             Minutos de llegada tarde por colaborador
           </h2>
           <Barras datos={topTarde} sufijo=" min" />
         </Panel>
         <Panel>
-          <h2 className="mb-4 text-base font-bold text-ink">
+          <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
             Horas extras por colaborador
           </h2>
           <Barras datos={topExtras} sufijo=" hs" />
@@ -347,7 +349,7 @@ const ReportesPage = () => {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel>
-          <h2 className="mb-4 text-base font-bold text-ink">
+          <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
             Ausencias por tipo (año)
           </h2>
           <Dona
@@ -357,7 +359,7 @@ const ReportesPage = () => {
           />
         </Panel>
         <Panel>
-          <h2 className="mb-4 text-base font-bold text-ink">
+          <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
             Presentismo de hoy
           </h2>
           <Dona

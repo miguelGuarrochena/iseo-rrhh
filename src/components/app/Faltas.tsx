@@ -24,7 +24,7 @@ export const ChipFalta = ({
   <span
     title={`${falta.detalle} ${falta.comoSeArregla}`}
     className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 font-bold ${
-      compacto ? 'text-[0.65rem]' : 'text-xs'
+      compacto ? 'text-[0.6875rem]' : 'text-xs'
     } ${
       falta.severidad === 'bloquea'
         ? 'bg-red-100 text-red-800'
@@ -76,12 +76,12 @@ export const BloqueFaltas = ({
 
   return (
     <div
-      className={`rounded-2xl border px-5 py-4 ${
+      className={`rounded-2xl border p-5 ${
         frena ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
       } ${className}`}
     >
       <p
-        className={`flex items-start gap-2 text-sm font-bold ${
+        className={`flex items-start gap-2.5 text-[0.9375rem] font-bold ${
           frena ? 'text-red-900' : 'text-amber-900'
         }`}
       >
@@ -91,11 +91,11 @@ export const BloqueFaltas = ({
             ? 'Falta un dato'
             : `Faltan ${faltas.length} datos`)}
       </p>
-      <ul className="mt-2.5 flex flex-col gap-2.5">
+      <ul className="mt-3 flex flex-col gap-3">
         {faltas.map((f) => (
           <li
             key={f.clave}
-            className={`text-xs leading-relaxed ${
+            className={`text-sm leading-relaxed ${
               frena ? 'text-red-900' : 'text-amber-900'
             }`}
           >
@@ -103,7 +103,7 @@ export const BloqueFaltas = ({
             {f.ruta ? (
               <Link
                 href={f.ruta}
-                className={`font-semibold underline underline-offset-2 ${
+                className={`font-bold underline decoration-2 underline-offset-4 ${
                   frena ? 'text-red-900' : 'text-amber-900'
                 }`}
               >
@@ -161,12 +161,12 @@ export const BloqueFaltasDeVarios = ({
 
   return (
     <div
-      className={`rounded-2xl border px-5 py-4 ${
+      className={`rounded-2xl border p-5 ${
         frena ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
       } ${className}`}
     >
       <p
-        className={`flex items-start gap-2 text-sm font-bold ${
+        className={`flex items-start gap-2.5 text-[0.9375rem] font-bold ${
           frena ? 'text-red-900' : 'text-amber-900'
         }`}
       >
@@ -176,11 +176,11 @@ export const BloqueFaltasDeVarios = ({
             ? 'A 1 persona le falta algo'
             : `A ${conAlgo.length} personas les falta algo`)}
       </p>
-      <ul className="mt-2.5 flex flex-col gap-2.5">
+      <ul className="mt-3 flex flex-col gap-3">
         {grupos.map((g) => (
           <li
             key={g.falta.clave}
-            className={`text-xs leading-relaxed ${
+            className={`text-sm leading-relaxed ${
               frena ? 'text-red-900' : 'text-amber-900'
             }`}
           >
@@ -193,7 +193,7 @@ export const BloqueFaltasDeVarios = ({
             {g.falta.ruta ? (
               <Link
                 href={destinoDe(g.falta, g.nombres.length) ?? g.falta.ruta}
-                className={`font-semibold underline underline-offset-2 ${
+                className={`font-bold underline decoration-2 underline-offset-4 ${
                   frena ? 'text-red-900' : 'text-amber-900'
                 }`}
               >

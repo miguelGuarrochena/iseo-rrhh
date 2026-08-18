@@ -142,7 +142,7 @@ const LoginPage = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="tu@empresa.com"
                   autoComplete="email"
-                  className="rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
+                  className="rounded-xl border border-line-strong bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]"
                 />
               </label>
 

@@ -66,7 +66,7 @@ export const BottomNav = () => {
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line-strong bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div className="mx-auto flex max-w-md items-stretch justify-around">
           {tabs.map((item) => {
             const activo = esActivo(item.href);
@@ -76,30 +76,40 @@ export const BottomNav = () => {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`relative flex min-w-0 flex-1 flex-col items-center gap-0.5 px-1 pb-2 pt-2.5 text-[0.65rem] font-semibold no-underline transition-colors ${
-                  activo ? 'text-brand-600' : 'text-ink-soft'
+                className={`relative flex min-w-0 flex-1 flex-col items-center gap-1 px-1 pb-2 pt-2 text-[0.6875rem] font-semibold no-underline transition-colors ${
+                  activo ? 'text-brand-700' : 'text-ink-soft'
                 }`}
               >
-                <span className="relative">
-                  <Icono size={22} stroke={activo ? 2 : 1.6} />
+                <span
+                  className={`relative flex h-8 w-12 items-center justify-center rounded-full transition-colors ${
+                    activo ? 'bg-brand-100' : 'bg-transparent'
+                  }`}
+                >
+                  <Icono size={21} stroke={activo ? 2.1 : 1.6} />
                   <Badge n={n} />
                 </span>
-                <span className="truncate">{item.etiqueta}</span>
+                <span className="w-full truncate text-center">
+                  {item.etiqueta}
+                </span>
               </Link>
             );
           })}
           {conMas && (
             <button
               onClick={abrirMas}
-              className={`relative flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-0.5 border-0 bg-transparent px-1 pb-2 pt-2.5 text-[0.65rem] font-semibold transition-colors ${
-                restoActivo ? 'text-brand-600' : 'text-ink-soft'
+              className={`relative flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 border-0 bg-transparent px-1 pb-2 pt-2 text-[0.6875rem] font-semibold transition-colors ${
+                restoActivo ? 'text-brand-700' : 'text-ink-soft'
               }`}
             >
-              <span className="relative">
-                <IconMenu2 size={22} stroke={restoActivo ? 2 : 1.6} />
+              <span
+                className={`relative flex h-8 w-12 items-center justify-center rounded-full transition-colors ${
+                  restoActivo ? 'bg-brand-100' : 'bg-transparent'
+                }`}
+              >
+                <IconMenu2 size={21} stroke={restoActivo ? 2.1 : 1.6} />
                 <Badge n={badgeMas} />
               </span>
-              <span className="truncate">Más</span>
+              <span className="w-full truncate text-center">Más</span>
             </button>
           )}
         </div>
@@ -126,7 +136,7 @@ export const BottomNav = () => {
                 key={item.href}
                 href={item.href}
                 onClick={cerrarMas}
-                className={`relative flex items-center gap-3 rounded-xl border px-3.5 py-3 text-[0.95rem] font-semibold no-underline transition-colors ${
+                className={`relative flex min-h-12 items-center gap-3 rounded-xl border px-3.5 py-3 text-[0.95rem] font-semibold no-underline transition-colors ${
                   activo
                     ? 'border-brand-300 bg-brand-100 text-brand-800'
                     : 'border-transparent text-ink-soft hover:bg-paper hover:text-ink'
@@ -144,7 +154,7 @@ export const BottomNav = () => {
           {enEmpresa && (
             <button
               onClick={salir}
-              className="mt-2 flex cursor-pointer items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 text-[0.95rem] font-semibold text-ink transition-colors hover:border-brand-300"
+              className="mt-2 flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-line-strong bg-surface px-3.5 py-3 text-[0.95rem] font-semibold text-ink transition-colors hover:border-brand-400"
             >
               <IconLogout2 size={20} stroke={1.8} />
               Salir de la empresa

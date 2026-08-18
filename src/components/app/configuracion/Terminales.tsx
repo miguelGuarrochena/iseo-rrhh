@@ -92,8 +92,10 @@ export const Terminales = () => {
 
   return (
     <div>
-      <h2 className="text-base font-bold text-ink">Terminales de fichaje</h2>
-      <p className="mt-1 text-sm text-ink-soft">
+      <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+        Terminales de fichaje
+      </h2>
+      <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
         Primer paso: autorizá esta tablet. Después andá a Fichaje y tocá Modo
         planta. Así el equipo ficha con la cara y nadie ve sueldos ni legajos.
       </p>
@@ -131,7 +133,7 @@ export const Terminales = () => {
           {terminales.map((t) => (
             <div
               key={t.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-xl border border-line bg-paper px-4 py-3"
             >
               <div className="flex items-center gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">

@@ -243,8 +243,8 @@ export const GenerarAguinaldoModal = ({
                     aria-label={`Monto del aguinaldo de ${f.empleado.nombre} ${f.empleado.apellido}`}
                     className={`w-32 shrink-0 rounded-lg border bg-surface px-2.5 py-1.5 text-right text-sm text-ink outline-none disabled:opacity-50 ${
                       f.error
-                        ? 'border-red-300 focus:border-red-500'
-                        : 'border-line focus:border-brand-600'
+                        ? 'border-red-300 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.18)]'
+                        : 'border-line-strong focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]'
                     }`}
                   />
                 </label>

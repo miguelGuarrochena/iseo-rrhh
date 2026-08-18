@@ -87,7 +87,7 @@ export const CampoHora = ({
     setTimeout(() => setAbierto(false), 120);
   };
 
-  const borde = error ? 'border-red-300' : 'border-line';
+  const borde = error ? 'border-red-300' : 'border-line-strong';
 
   return (
     <div
@@ -99,9 +99,9 @@ export const CampoHora = ({
       )}
       <div className="relative">
         <div
-          className={`flex w-full items-center rounded-xl border bg-surface transition-colors focus-within:border-brand-600 ${
+          className={`flex w-full items-center rounded-xl border bg-surface transition-[border-color,box-shadow] focus-within:border-brand-500 focus-within:shadow-[0_0_0_3px_rgba(74,122,245,0.18)] ${
             compacto ? 'gap-1 px-2.5 py-1.5' : 'gap-2 px-4 py-3'
-          } ${borde} ${abierto ? 'border-brand-600' : ''}`}
+          } ${borde} ${abierto ? 'border-brand-500 shadow-[0_0_0_3px_rgba(74,122,245,0.18)]' : ''}`}
         >
           <input
             type="text"
@@ -128,14 +128,14 @@ export const CampoHora = ({
             onClick={() => setAbierto((v) => !v)}
             aria-label="Elegir hora"
             aria-expanded={abierto}
-            className="shrink-0 cursor-pointer text-ink-soft transition-colors hover:text-brand-700"
+            className="-mr-1.5 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-paper hover:text-brand-700"
           >
             <IconClock size={compacto ? 15 : 18} stroke={1.8} />
           </button>
         </div>
 
         {abierto && (
-          <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-line bg-surface py-1.5">
+          <div className="absolute inset-x-0 top-full z-50 mt-1.5 max-h-56 overflow-y-auto rounded-xl border border-line-strong bg-surface py-1.5 shadow-lift">
             {HORAS.map((h) => (
               <button
                 key={h}

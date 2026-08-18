@@ -25,6 +25,12 @@
   --ink-rgb: 47 46 58;
   --ink-soft-rgb: 126 124 140;
   --line-rgb: 228 232 241;
+  /* Borde de los controles (inputs, botones secundarios, chips de
+     acción). `--line` sirve para separar bloques, pero contra el
+     blanco tiene 1.1:1 y un botón dibujado con él directamente no se
+     ve: parecía texto suelto. Este llega a 3:1, el mínimo que pide la
+     WCAG para el límite de un control. */
+  --line-strong-rgb: 191 201 221;
 
   /* Curvas de movimiento. Una sola fuente para toda la landing: sin
      esto cada componente inventa su propia y el conjunto se nota
@@ -45,6 +51,7 @@
   --ink-rgb: 238 240 246;
   --ink-soft-rgb: 162 166 182;
   --line-rgb: 70 75 94;
+  --line-strong-rgb: 104 112 138;
 }
 
 /* Hover de bloques (StatCard, filas): fondo opaco y sutil, sin que el
@@ -327,6 +334,14 @@ section[id] {
   --btn-primario-border: #8facff;
   --btn-primario-text: #1a45ab;
   --btn-primario-hover: #b8caff;
+  /* Secundario: antes era blanco con borde `--line` sobre un panel
+     blanco, o sea invisible. Ahora tiene relleno propio y un borde
+     que se ve, para que se lea como botón y no como texto. */
+  --btn-secundario-bg: #f3f6fc;
+  --btn-secundario-border: #bfc9dd;
+  --btn-secundario-text: #2f2e3a;
+  --btn-secundario-hover: #e6ecf9;
+  --btn-secundario-border-hover: #8facff;
   --btn-aprobar-bg: #ecfdf5;
   --btn-aprobar-border: #a7f3d0;
   --btn-aprobar-text: #065f46;
@@ -348,6 +363,11 @@ section[id] {
   --btn-primario-border: rgba(120, 156, 250, 0.55);
   --btn-primario-text: #bcccfd;
   --btn-primario-hover: rgba(74, 122, 245, 0.32);
+  --btn-secundario-bg: rgba(255, 255, 255, 0.06);
+  --btn-secundario-border: rgba(214, 222, 244, 0.28);
+  --btn-secundario-text: #eef0f6;
+  --btn-secundario-hover: rgba(255, 255, 255, 0.12);
+  --btn-secundario-border-hover: rgba(120, 156, 250, 0.7);
   --btn-aprobar-bg: rgba(16, 185, 129, 0.15);
   --btn-aprobar-border: rgba(16, 185, 129, 0.45);
   --btn-aprobar-text: #6ee7b7;
@@ -371,6 +391,15 @@ section[id] {
 }
 .btn-primario:hover:not(:disabled) {
   background-color: var(--btn-primario-hover);
+}
+.btn-secundario {
+  background-color: var(--btn-secundario-bg);
+  border: 1px solid var(--btn-secundario-border);
+  color: var(--btn-secundario-text);
+}
+.btn-secundario:hover:not(:disabled) {
+  background-color: var(--btn-secundario-hover);
+  border-color: var(--btn-secundario-border-hover);
 }
 .btn-aprobar {
   background-color: var(--btn-aprobar-bg);
@@ -496,4 +525,166 @@ section[id] {
   body:has(.app-scope) .mantine-Modal-body {
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
   }
+}
+
+/* ------------------------------------------------------------------
+   Controles: íconos, campos y tablas
+
+   Tres cosas que cada pantalla venía resolviendo por su cuenta y que
+   por eso no se parecían entre sí: el tamaño del ícono adentro de un
+   botón, el alto y el foco de un input suelto (el buscador de cada
+   listado) y el respiro de las tablas.
+   ------------------------------------------------------------------ */
+
+/* El ícono acompaña al texto: se mide contra la tipografía del botón y
+   no contra el `size` que haya pasado quien lo escribió. Así el mismo
+   botón en dos pantallas se ve igual aunque uno diga 14 y el otro 18. */
+.boton-app > svg {
+  width: 1.15em;
+  height: 1.15em;
+  flex-shrink: 0;
+}
+
+/* Campo de texto suelto (buscadores de listado). El borde usa
+   `line-strong` porque un input tiene que verse antes de tocarlo, y el
+   foco suma un aro: cambiar 1px de borde es un aviso demasiado tímido
+   para el control donde se está escribiendo. */
+.campo-app {
+  width: 100%;
+  min-height: 3rem;
+  border-radius: 0.875rem;
+  border: 1px solid rgb(var(--line-strong-rgb));
+  background-color: rgb(var(--surface-rgb));
+  color: rgb(var(--ink-rgb));
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  outline: none;
+  transition:
+    border-color var(--dur-hover) var(--ease-out),
+    box-shadow var(--dur-hover) var(--ease-out);
+}
+.campo-app::placeholder {
+  color: rgb(var(--ink-soft-rgb) / 0.6);
+}
+.campo-app:hover:not(:focus) {
+  border-color: rgb(var(--ink-soft-rgb) / 0.55);
+}
+.campo-app:focus {
+  border-color: #4a7af5;
+  box-shadow: 0 0 0 3px rgba(74, 122, 245, 0.18);
+}
+/* Con ícono adelante (lupa) el texto arranca después de él. */
+.campo-app-con-icono {
+  padding-left: 2.875rem;
+}
+
+/* Tablas: encabezado que se lee como encabezado y filas con aire
+   suficiente para seguir un renglón largo sin perderse de fila. */
+.tabla-app {
+  width: 100%;
+  border-collapse: collapse;
+}
+.tabla-app thead th {
+  padding: 0 1rem 0.75rem 0;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(var(--ink-soft-rgb));
+  border-bottom: 1px solid rgb(var(--line-strong-rgb));
+  vertical-align: bottom;
+}
+.tabla-app tbody td {
+  padding: 0.875rem 1rem 0.875rem 0;
+  border-bottom: 1px solid rgb(var(--line-rgb));
+}
+.tabla-app tbody tr:last-child td {
+  border-bottom: 0;
+}
+.tabla-app th:last-child,
+.tabla-app td:last-child {
+  padding-right: 0;
+}
+
+/* Separador entre el encabezado de un panel y su contenido. Sin él, el
+   título, los botones y la primera fila quedaban a la misma distancia
+   entre sí y no se leía dónde empieza el contenido. */
+.divisor-panel {
+  border-top: 1px solid rgb(var(--line-rgb));
+}
+
+/* Aro de foco: el 0.5 de opacidad anterior quedaba por debajo del 3:1
+   contra el blanco, que es justo el caso en el que hace falta. */
+button:focus-visible,
+a:focus-visible,
+[role='button']:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.75);
+  outline-offset: 2px;
+}
+.campo-app:focus-visible {
+  outline: none;
+}
+
+/* La barra superior flota sobre el contenido con `sticky`. Sin esto,
+   entre el borde de arriba de la ventana y la pastilla del encabezado
+   quedaba una franja transparente por la que se veía pasar el contenido
+   al scrollear. El desenfoque se desvanece hacia abajo para que no se
+   note dónde termina la franja. */
+.cabecera-app::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--paper-rgb) / 0.85),
+    rgb(var(--paper-rgb) / 0)
+  );
+  mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent);
+  pointer-events: none;
+}
+
+/* ------------------------------------------------------------------
+   Modo oscuro: tonos pastel que faltaban
+
+   Los carteles de "falta un dato" (Faltas.tsx) usan el 50 y el 900 de
+   ámbar y rojo, y ninguno de los dos estaba traducido: en oscuro el
+   cartel quedaba como un rectángulo blanco amarillento, más brillante
+   que cualquier otra cosa de la pantalla.
+
+   Las variantes `hover:` necesitan su propia regla: el selector de
+   clase `.bg-brand-50` no alcanza a `hover:bg-brand-50`, que es otro
+   nombre de clase.
+   ------------------------------------------------------------------ */
+[data-mantine-color-scheme='dark'] .app-scope .bg-amber-50 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .border-amber-200 {
+  border-color: rgba(245, 158, 11, 0.38) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .text-amber-900 {
+  color: #fcd34d !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .border-red-200 {
+  border-color: rgba(239, 68, 68, 0.4) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .text-red-900,
+[data-mantine-color-scheme='dark'] .app-scope .text-red-800 {
+  color: #fca5a5 !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .bg-brand-50 {
+  background-color: rgba(74, 122, 245, 0.16) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .hover\:bg-brand-50:hover {
+  background-color: rgba(74, 122, 245, 0.2) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .hover\:bg-red-50:hover,
+[data-mantine-color-scheme='dark'] .app-scope .hover\:bg-red-100:hover {
+  background-color: rgba(239, 68, 68, 0.22) !important;
+}
+[data-mantine-color-scheme='dark'] .app-scope .hover\:border-red-200:hover {
+  border-color: rgba(239, 68, 68, 0.45) !important;
 }

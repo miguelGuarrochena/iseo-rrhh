@@ -238,13 +238,13 @@ const DocumentosFirmaPage = () => {
   if (!usuario) return null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Documentos a firmar
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Políticas, reglamentos y notificaciones con firma digital.
           </p>
         </div>
@@ -448,7 +448,7 @@ const DocumentosFirmaPage = () => {
               .map((d) => (
                 <div
                   key={d.id}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-line bg-surface px-3 py-2.5"
+                  className="flex items-center justify-between gap-2 rounded-xl border border-line bg-paper px-3 py-2.5"
                 >
                   <span className="text-sm font-semibold text-ink">
                     {nombreEmpleado(d.empleadoId)}

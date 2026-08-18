@@ -157,11 +157,11 @@ const DetalleConvenio = ({ convenio }: { convenio: Convenio }) => {
       {/* Asistente IA (se oculta con NEXT_PUBLIC_MOSTRAR_IA=0) */}
       {iaVisible() && (
         <Panel>
-          <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+          <h2 className="flex items-center gap-2 text-[1.0625rem] font-bold tracking-tight text-ink">
             <IconSparkles size={18} className="text-brand-600" />
             Preguntá al asistente
           </h2>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Respuestas basadas en el texto de {convenio.nombre}, con la cita del
             artículo.
           </p>
@@ -172,7 +172,7 @@ const DetalleConvenio = ({ convenio }: { convenio: Convenio }) => {
               onChange={(e) => setPregunta(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void preguntar(pregunta)}
               placeholder="Escribí tu pregunta…"
-              className="flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
+              className="flex-1 rounded-xl border border-line-strong bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]"
             />
             <Boton
               onClick={() => void preguntar(pregunta)}
@@ -210,7 +210,7 @@ const DetalleConvenio = ({ convenio }: { convenio: Convenio }) => {
 
       {/* Búsqueda por texto */}
       <Panel>
-        <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+        <h2 className="flex items-center gap-2 text-[1.0625rem] font-bold tracking-tight text-ink">
           <IconSearch size={18} className="text-ink-soft" />
           Buscar en el convenio
         </h2>
@@ -218,7 +218,7 @@ const DetalleConvenio = ({ convenio }: { convenio: Convenio }) => {
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscá por palabra: vacaciones, licencias, horas extras…"
-          className="mt-4 w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
+          className="mt-4 w-full rounded-xl border border-line-strong bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]"
         />
         <div className="mt-4 flex flex-col gap-2">
           {busqueda.trim() && resultados.length === 0 && (
@@ -227,7 +227,7 @@ const DetalleConvenio = ({ convenio }: { convenio: Convenio }) => {
           {resultados.map((p, i) => (
             <p
               key={i}
-              className="whitespace-pre-wrap rounded-xl border border-line bg-surface px-4 py-3 text-sm leading-relaxed text-ink"
+              className="whitespace-pre-wrap rounded-xl border border-line bg-paper px-4 py-3 text-sm leading-relaxed text-ink"
             >
               {p}
             </p>
@@ -280,7 +280,7 @@ const ConvenioPage = () => {
     c.contenido.replace(/\s+/g, ' ').slice(0, 140).trim() + '…';
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           {seleccionado && convenios.length > 1 && !editando && (
@@ -294,12 +294,12 @@ const ConvenioPage = () => {
             </button>
           )}
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink">
+            <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
               {seleccionado && !creando
                 ? seleccionado.nombre
                 : 'Convenios colectivos'}
             </h1>
-            <p className="mt-1 text-sm text-ink-soft">
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
               {seleccionado && !creando
                 ? `Actualizado ${seleccionado.actualizadoEn ? formatearFecha(seleccionado.actualizadoEn) : 'recientemente'}.`
                 : 'Los convenios de tu empresa, consultables con IA.'}
@@ -382,7 +382,7 @@ const ConvenioPage = () => {
                   key={c.id}
                   type="button"
                   onClick={() => setSeleccionado(c)}
-                  className="hover-bloque flex cursor-pointer flex-col gap-2 rounded-2xl border border-line bg-surface px-5 py-4 text-left transition-colors hover:border-brand-300"
+                  className="hover-bloque flex cursor-pointer flex-col gap-2 rounded-2xl border border-line bg-paper px-5 py-4 text-left transition-colors hover:border-brand-300"
                 >
                   <span className="flex items-center gap-2">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">

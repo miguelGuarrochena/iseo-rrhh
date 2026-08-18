@@ -276,7 +276,7 @@ export const HistorialFichadas = () => {
     <Panel className="flex flex-col gap-4">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-base font-bold text-ink">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
             Historial de fichadas
           </h2>
           <p className="mt-0.5 text-sm text-ink-soft">

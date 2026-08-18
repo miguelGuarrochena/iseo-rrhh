@@ -170,10 +170,17 @@ export const Selector = ({
     }
   };
 
+  /**
+   * Mismo alto que un `Campo` y que un `Boton`: estos selectores viven
+   * en las barras de filtros al lado de un buscador y de un botón, y
+   * cada uno medía distinto. Los mínimos son los de siempre —44px con
+   * el dedo, 40 con el mouse— así que la pantalla ya no tiene que
+   * forzarlos a mano con `[&>button]:h-12`.
+   */
   const claseBoton =
     tamano === 'sm'
-      ? 'rounded-lg px-2.5 py-1.5 text-xs font-semibold'
-      : 'rounded-xl px-4 py-2.5 text-sm font-medium';
+      ? 'min-h-10 rounded-lg px-3 py-1.5 text-[0.8125rem] font-semibold sm:min-h-9'
+      : 'min-h-11 rounded-xl px-4 py-2.5 text-sm font-medium sm:min-h-10';
 
   const panel = pos && (
     <div
@@ -187,7 +194,7 @@ export const Selector = ({
         maxHeight: pos.alto,
         ...(pos.arriba ? { bottom: pos.offset } : { top: pos.offset }),
       }}
-      className="z-[400] overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface py-1.5 shadow-xl"
+      className="z-[400] overflow-y-auto overscroll-contain rounded-xl border border-line-strong bg-surface py-1.5 shadow-xl"
     >
       {opciones.map((o, i) => {
         const elegida = o.valor === valor;
@@ -199,7 +206,7 @@ export const Selector = ({
             aria-selected={elegida}
             onClick={() => elegir(o.valor)}
             onMouseEnter={() => setResaltada(i)}
-            className={`flex w-full cursor-pointer items-center justify-between gap-3 px-3.5 py-2 text-left text-sm transition-colors ${
+            className={`flex min-h-10 w-full cursor-pointer items-center justify-between gap-3 px-3.5 py-2 text-left text-sm transition-colors ${
               i === resaltada
                 ? 'bg-brand-100 text-brand-800'
                 : 'bg-transparent text-ink'
@@ -228,8 +235,8 @@ export const Selector = ({
           error
             ? 'border-red-300'
             : abierto
-              ? 'border-brand-600'
-              : 'border-line hover:border-brand-300'
+              ? 'border-brand-500 shadow-[0_0_0_3px_rgba(74,122,245,0.18)]'
+              : 'border-line-strong hover:border-brand-400'
         }`}
       >
         <span className="truncate">{actual?.etiqueta ?? '—'}</span>

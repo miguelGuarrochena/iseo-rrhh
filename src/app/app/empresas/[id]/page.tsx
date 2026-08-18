@@ -154,7 +154,7 @@ const EmpresaDetallePage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <Breadcrumbs
         items={[
           { etiqueta: 'Empresas', href: '/empresas' },
@@ -165,7 +165,7 @@ const EmpresaDetallePage = () => {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-ink">
+            <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
               {empresa.nombre}
             </h1>
             <span
@@ -178,7 +178,7 @@ const EmpresaDetallePage = () => {
               {activa ? 'Activa' : 'Suspendida'}
             </span>
           </div>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             {empresa.plan ? `Plan ${empresa.plan} · ` : ''}CUIT {empresa.cuit}
           </p>
         </div>
@@ -209,7 +209,7 @@ const EmpresaDetallePage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           etiqueta="Empleados"
           valor={factura?.empleados ?? '…'}
@@ -242,7 +242,9 @@ const EmpresaDetallePage = () => {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel>
-          <h2 className="text-base font-bold text-ink">Datos de la empresa</h2>
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Datos de la empresa
+          </h2>
           <div className="mt-4 grid grid-cols-2 gap-4">
             <Dato etiqueta="Nombre comercial" valor={empresa.nombre} />
             <Dato etiqueta="Razón social" valor={empresa.razonSocial} />
@@ -261,7 +263,7 @@ const EmpresaDetallePage = () => {
         </Panel>
 
         <Panel>
-          <h2 className="text-base font-bold text-ink">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
             Cobros de los últimos meses
           </h2>
           <BarrasMensuales datos={serie} />
@@ -271,7 +273,7 @@ const EmpresaDetallePage = () => {
       <Panel>
         <div className="flex items-center gap-2">
           <IconReceipt2 size={18} className="text-ink-soft" />
-          <h2 className="text-base font-bold text-ink">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
             Ingresos de esta empresa
           </h2>
         </div>

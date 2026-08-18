@@ -102,7 +102,7 @@ export const CampoArchivo = ({
             ? 'border-dashed border-brand-400 bg-brand-50'
             : errorAMostrar
               ? 'border-red-300'
-              : 'border-line'
+              : 'border-line-strong'
         }`}
       >
         <Boton

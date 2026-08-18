@@ -58,10 +58,12 @@ const AyudaPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">Ayuda</h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
+          Ayuda
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Preguntas frecuentes y un asistente para tus dudas sobre la app.
         </p>
       </div>
@@ -69,11 +71,11 @@ const AyudaPage = () => {
       {/* Asistente IA (se oculta con NEXT_PUBLIC_MOSTRAR_IA=0) */}
       {iaVisible() && (
         <Panel>
-          <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+          <h2 className="flex items-center gap-2 text-[1.0625rem] font-bold tracking-tight text-ink">
             <IconSparkles size={18} className="text-brand-600" />
             Asistente de ayuda
           </h2>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Escribí tu duda y te explico cómo hacerlo en la app.
           </p>
           <div className="mt-4 flex flex-col gap-2 sm:flex-row">
@@ -82,7 +84,7 @@ const AyudaPage = () => {
               onChange={(e) => setPregunta(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void preguntar(pregunta)}
               placeholder="Ej. ¿Cómo pido vacaciones?"
-              className="flex-1 rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
+              className="flex-1 rounded-xl border border-line-strong bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]"
             />
             <Boton
               onClick={() => void preguntar(pregunta)}
@@ -106,7 +108,9 @@ const AyudaPage = () => {
 
       {/* FAQ */}
       <Panel>
-        <h2 className="text-base font-bold text-ink">Preguntas frecuentes</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Preguntas frecuentes
+        </h2>
         <div className="mt-4 flex flex-col gap-5">
           {categorias.map((cat) => (
             <div key={cat.titulo}>
@@ -153,11 +157,11 @@ const AyudaPage = () => {
 
       {/* Contacto soporte */}
       <Panel>
-        <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+        <h2 className="flex items-center gap-2 text-[1.0625rem] font-bold tracking-tight text-ink">
           <IconLifebuoy size={18} className="text-ink-soft" />
           ¿Seguís con dudas?
         </h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Escribinos y te damos una mano.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">

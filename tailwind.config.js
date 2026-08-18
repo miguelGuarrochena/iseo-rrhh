@@ -14,6 +14,7 @@ module.exports = {
         ink: 'rgb(var(--ink-rgb) / <alpha-value>)',
         'ink-soft': 'rgb(var(--ink-soft-rgb) / <alpha-value>)',
         line: 'rgb(var(--line-rgb) / <alpha-value>)',
+        'line-strong': 'rgb(var(--line-strong-rgb) / <alpha-value>)',
         // Azul de marca modernizado
         brand: {
           50: '#eef3ff',

@@ -142,7 +142,9 @@ export const EnrolamientoFacial = ({
   return (
     <>
       <div className="flex h-full min-w-0 flex-col">
-        <h2 className="text-base font-bold text-ink">Reconocimiento facial</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Reconocimiento facial
+        </h2>
         <p className="mt-1 text-sm leading-relaxed text-ink-soft">
           Para fichar en la terminal de planta. No se guarda ninguna foto: se
           toma un código del rostro.

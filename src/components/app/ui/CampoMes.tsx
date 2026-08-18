@@ -96,7 +96,7 @@ export const CampoMes = ({
     ? `${MESES[Number(value.split('-')[1]) - 1]} ${value.split('-')[0]}`
     : placeholder;
 
-  const borde = error ? 'border-red-300' : 'border-line';
+  const borde = error ? 'border-red-300' : 'border-line-strong';
 
   const panel = (
     <div
@@ -109,7 +109,7 @@ export const CampoMes = ({
           type="button"
           onClick={() => setAnio((a) => a - 1)}
           aria-label="Año anterior"
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 sm:h-10 sm:w-10"
         >
           <IconChevronLeft size={16} />
         </button>
@@ -118,7 +118,7 @@ export const CampoMes = ({
           type="button"
           onClick={() => setAnio((a) => a + 1)}
           aria-label="Año siguiente"
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 sm:h-10 sm:w-10"
         >
           <IconChevronRight size={16} />
         </button>
@@ -157,7 +157,7 @@ export const CampoMes = ({
           type="button"
           onClick={() => setAbierto((v) => !v)}
           aria-expanded={abierto}
-          className={`flex w-full items-center justify-between gap-2 rounded-xl border bg-surface px-4 py-3 text-left text-base outline-none transition-colors ${borde} ${
+          className={`flex w-full items-center justify-between gap-2 rounded-xl border bg-surface min-h-12 px-4 py-3 text-left text-base outline-none transition-[border-color,box-shadow] focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)] ${borde} ${
             abierto ? 'border-brand-600' : ''
           } ${value ? 'text-ink' : 'text-ink-soft/60'}`}
         >

@@ -110,23 +110,23 @@ const MiCuentaPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
         {/* Se llega desde el menú del avatar, no desde la navegación: sin
             esto la única salida era el botón del navegador. */}
         <Breadcrumbs
           items={[{ etiqueta: 'Inicio', href: '/' }, { etiqueta: 'Mi cuenta' }]}
         />
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Mi cuenta
         </h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Tus datos de acceso a la plataforma. Nada de esto lo ven los demás.
         </p>
       </div>
 
       <Panel>
-        <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+        <h2 className="flex items-center gap-2 text-[1.0625rem] font-bold tracking-tight text-ink">
           <IconUser size={18} className="text-ink-soft" />
           Tus datos
         </h2>
@@ -163,11 +163,11 @@ const MiCuentaPage = () => {
       </Panel>
 
       <Panel>
-        <h2 className="flex items-center gap-2 text-base font-bold text-ink">
+        <h2 className="flex items-center gap-2 text-[1.0625rem] font-bold tracking-tight text-ink">
           <IconLock size={18} className="text-ink-soft" />
           Cambiar contraseña
         </h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Te pedimos la actual para confirmar que sos vos: si dejaste la sesión
           abierta en algún lado, que nadie pueda quedarse con tu cuenta.
         </p>

@@ -174,13 +174,13 @@ const FinanzasPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Finanzas
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             El negocio de ISEO: facturación de tus empresas, ingresos y gastos.
           </p>
         </div>
@@ -228,7 +228,7 @@ const FinanzasPage = () => {
         <BloqueError error={cResumen.error} onReintentar={cResumen.recargar} />
       )}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           etiqueta="Ingresos del mes"
           valor={resumen ? formatearPesos(resumen.ingresosDelMes) : '…'}
@@ -258,17 +258,17 @@ const FinanzasPage = () => {
       </div>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
           Ingresos y gastos — últimos meses
         </h2>
         <BarrasIngresoGasto datos={serieMensual} />
       </Panel>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
           Facturación por empresa
         </h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Lo que te paga cada cliente este mes. Registrá el cobro cuando entre.
         </p>
         <div className="mt-4 flex flex-col divide-y divide-line">
@@ -370,7 +370,9 @@ const MovimientoLista = ({
   <Panel>
     <div className="flex items-center gap-2">
       <IconReceipt2 size={18} className="text-ink-soft" />
-      <h2 className="text-base font-bold text-ink">{titulo}</h2>
+      <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+        {titulo}
+      </h2>
     </div>
     {items.length === 0 ? (
       <p className="mt-4 text-sm text-ink-soft">{vacio}</p>

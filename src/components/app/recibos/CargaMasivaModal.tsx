@@ -533,7 +533,7 @@ export const CargaMasivaModal = ({
             {filas.map((f, i) => (
               <div
                 key={f.id}
-                className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5"
+                className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-paper px-3 py-2.5"
               >
                 <span className="min-w-0 flex-1">
                   {/* El nombre es editable: se escribe encima y listo. */}
@@ -542,7 +542,7 @@ export const CargaMasivaModal = ({
                     onChange={(e) => renombrar(i, e.target.value)}
                     aria-label="Nombre del archivo"
                     disabled={f.estado === 'subido'}
-                    className="w-full truncate rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-sm font-semibold text-ink outline-none transition-colors hover:border-line focus:border-brand-600 focus:bg-surface disabled:hover:border-transparent"
+                    className="w-full truncate rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-sm font-semibold text-ink outline-none transition-colors hover:border-line focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)] focus:bg-surface disabled:hover:border-transparent"
                   />
                   <span className="mt-0.5 block px-1.5 text-xs text-ink-soft">
                     {/* Lo más útil primero: de quién parece ser. */}
@@ -658,9 +658,9 @@ export const CargaMasivaModal = ({
                     type="button"
                     onClick={() => quitar(i)}
                     aria-label="Quitar archivo"
-                    className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600 sm:h-9 sm:w-9"
+                    className="presionable inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-transparent text-ink-soft hover:border-red-200 hover:bg-red-50 hover:text-red-600 sm:h-10 sm:w-10"
                   >
-                    <IconTrash size={16} />
+                    <IconTrash size={17} />
                   </button>
                 )}
               </div>

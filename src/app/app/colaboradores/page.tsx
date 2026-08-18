@@ -157,13 +157,13 @@ const ColaboradoresPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Colaboradores
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             {empleados.filter((e) => e.activo).length} activos. Entrá a la ficha
             para ver todo: legajo, indicadores y solicitudes.
           </p>
@@ -174,8 +174,11 @@ const ColaboradoresPage = () => {
               <IconFileSpreadsheet size={18} />
               Importar Excel
             </Boton>
+            {/* El `Link` sí se estira en la columna del celular, pero el
+                botón de adentro es `inline-flex` y quedaba a la mitad
+                del ancho del secundario que tiene arriba. */}
             <Link href="/colaboradores/nuevo" className="no-underline">
-              <Boton type="button" variante="negro">
+              <Boton type="button" variante="negro" className="w-full">
                 <IconPlus size={18} />
                 Alta de colaborador
               </Boton>
@@ -213,7 +216,7 @@ const ColaboradoresPage = () => {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar por nombre, puesto, sector o DNI…"
-              className="h-12 w-full rounded-xl border border-line bg-surface pl-11 pr-4 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-600"
+              className="h-12 w-full rounded-xl border border-line-strong bg-surface pl-11 pr-4 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50 focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]"
             />
           </div>
           <Selector

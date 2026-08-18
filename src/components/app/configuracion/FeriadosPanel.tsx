@@ -116,8 +116,10 @@ export const FeriadosPanel = () => {
     <Panel>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-base font-bold text-ink">Feriados</h2>
-          <p className="mt-1 text-sm text-ink-soft">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Feriados
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Los nacionales (fijos, trasladables y Carnaval / Viernes Santo) se
             cargan solos cada año. Acá sumás puentes turísticos y días no
             laborables de la empresa; se descuentan de las vacaciones cuando las
@@ -156,7 +158,7 @@ export const FeriadosPanel = () => {
           {lista.map((f) => (
             <div
               key={f.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3"
+              className="flex items-center justify-between gap-3 rounded-xl border border-line bg-paper px-4 py-3"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-ink">

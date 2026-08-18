@@ -182,7 +182,7 @@ export const CampoFecha = ({
     }
   };
 
-  const borde = error ? 'border-red-300' : 'border-line';
+  const borde = error ? 'border-red-300' : 'border-line-strong';
 
   const calendario = (
     <div
@@ -195,7 +195,7 @@ export const CampoFecha = ({
           type="button"
           onClick={() => mover(-1)}
           aria-label="Mes anterior"
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 sm:h-10 sm:w-10"
         >
           <IconChevronLeft size={16} />
         </button>
@@ -206,7 +206,7 @@ export const CampoFecha = ({
           type="button"
           onClick={() => mover(1)}
           aria-label="Mes siguiente"
-          className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+          className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft transition-colors hover:border-brand-400 hover:bg-brand-50 hover:text-brand-700 sm:h-10 sm:w-10"
         >
           <IconChevronRight size={16} />
         </button>
@@ -262,8 +262,10 @@ export const CampoFecha = ({
       <span className="text-sm font-semibold text-ink">{etiqueta}</span>
       <div ref={contenedor} className="relative">
         <div
-          className={`flex w-full items-center gap-2 rounded-xl border bg-surface px-4 py-3 transition-colors focus-within:border-brand-600 ${borde} ${
-            abierto ? 'border-brand-600' : ''
+          className={`flex w-full items-center gap-2 rounded-xl border bg-surface px-4 py-3 transition-[border-color,box-shadow] focus-within:border-brand-500 focus-within:shadow-[0_0_0_3px_rgba(74,122,245,0.18)] ${borde} ${
+            abierto
+              ? 'border-brand-500 shadow-[0_0_0_3px_rgba(74,122,245,0.18)]'
+              : ''
           }`}
         >
           <input

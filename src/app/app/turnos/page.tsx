@@ -121,7 +121,7 @@ const FilaDia = ({
   };
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-surface px-4 py-3">
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-paper px-4 py-3">
       <div className="w-24 shrink-0">
         <p className="text-sm font-bold text-ink">{etiqueta}</p>
         <p className="text-xs text-ink-soft">
@@ -409,10 +409,12 @@ const TurnosPage = () => {
   if (!usuario) return null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">Turnos</h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
+          Turnos
+        </h1>
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Asigná horarios y compará con la fichada real: tarde, salidas antes,
           extras y ausencias.
         </p>
@@ -459,7 +461,7 @@ const TurnosPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
           etiqueta="Ausencias"
           valor={resumen.ausencias}
@@ -487,34 +489,36 @@ const TurnosPage = () => {
       </div>
 
       {empleadoId && puedeGestionar && (
-        <Panel className="flex flex-wrap items-end gap-4">
-          <div>
-            <p className="text-sm font-bold text-ink">Horario habitual</p>
-            <p className="text-xs text-ink-soft">
-              Cargalo una vez y aplicalo a toda la semana o el mes. Después
-              ajustás los días que difieran.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <CampoHora value={baseEntrada} onChange={setBaseEntrada} />
-            <span className="text-ink-soft">→</span>
-            <CampoHora value={baseSalida} onChange={setBaseSalida} />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Boton
-              variante="secundario"
-              onClick={() => void aplicarSemana()}
-              disabled={aplicando}
-            >
-              Aplicar a la semana
-            </Boton>
-            <Boton
-              variante="negro"
-              onClick={() => void aplicarMes()}
-              disabled={aplicando}
-            >
-              Aplicar al mes
-            </Boton>
+        <Panel
+          titulo="Horario habitual"
+          descripcion="Cargalo una vez y aplicalo a toda la semana o el mes. Después ajustás los días que difieran."
+        >
+          {/* Los dos horarios y los botones que los aplican son un solo
+              gesto: iban en la misma línea que el título y la barra
+              quedaba con tres bloques sueltos que no se leían como
+              pasos. */}
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="flex items-center gap-2">
+              <CampoHora value={baseEntrada} onChange={setBaseEntrada} />
+              <span className="text-ink-soft">→</span>
+              <CampoHora value={baseSalida} onChange={setBaseSalida} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Boton
+                variante="secundario"
+                onClick={() => void aplicarSemana()}
+                disabled={aplicando}
+              >
+                Aplicar a la semana
+              </Boton>
+              <Boton
+                variante="negro"
+                onClick={() => void aplicarMes()}
+                disabled={aplicando}
+              >
+                Aplicar al mes
+              </Boton>
+            </div>
           </div>
         </Panel>
       )}

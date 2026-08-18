@@ -52,7 +52,9 @@ const Seccion = ({
   children: ReactNode;
 }) => (
   <Panel>
-    <h2 className="text-base font-bold text-ink">{titulo}</h2>
+    <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+      {titulo}
+    </h2>
     <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
   </Panel>
 );
@@ -110,12 +112,12 @@ const MiLegajoPage = () => {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Mi legajo
         </h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Tus datos registrados. Si algo no está bien, avisá a RRHH.
         </p>
       </div>
@@ -158,7 +160,9 @@ const MiLegajoPage = () => {
       </Seccion>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Grupo familiar</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Grupo familiar
+        </h2>
         {empleado.grupoFamiliar.length === 0 ? (
           <p className="mt-3 text-sm text-ink-soft">Sin familiares cargados.</p>
         ) : (
@@ -166,7 +170,7 @@ const MiLegajoPage = () => {
             {empleado.grupoFamiliar.map((f, i) => (
               <div
                 key={`${f.nombreCompleto}-${i}`}
-                className="flex items-center justify-between rounded-xl border border-line bg-surface px-4 py-2.5"
+                className="flex items-center justify-between rounded-xl border border-line bg-paper px-4 py-2.5"
               >
                 <span className="text-sm font-semibold text-ink">
                   {f.nombreCompleto}
@@ -193,7 +197,9 @@ const MiLegajoPage = () => {
       </Seccion>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Documentación</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Documentación
+        </h2>
         {documentos.length === 0 ? (
           <p className="mt-3 text-sm text-ink-soft">
             No hay documentos cargados.
@@ -203,7 +209,7 @@ const MiLegajoPage = () => {
             {documentos.map((doc) => (
               <div
                 key={doc.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-line bg-surface px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-line bg-paper px-4 py-3"
               >
                 <div className="flex min-w-0 items-center gap-3">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">

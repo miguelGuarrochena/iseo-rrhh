@@ -15,7 +15,7 @@ import { useCarga } from '@/lib/useCarga';
 import { Switch } from '@/components/app/ui/Switch';
 
 const campoClase =
-  'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-600';
+  'w-full rounded-xl border border-line-strong bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]';
 
 /**
  * Configuración general de la plataforma (solo superadmin):
@@ -55,10 +55,10 @@ export const ConfigPlataformaForm = () => {
   return (
     <form onSubmit={guardar} className="flex flex-col gap-4" noValidate>
       <Panel>
-        <h2 className="text-base font-bold text-ink">
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
           Valores por defecto para empresas nuevas
         </h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Horarios por defecto para empresas nuevas. Cada empresa después los
           ajusta en su propia configuración, y el modo de fichaje se define por
           colaborador.
@@ -112,7 +112,9 @@ export const ConfigPlataformaForm = () => {
       </Panel>
 
       <Panel>
-        <h2 className="text-base font-bold text-ink">Avisos por mail</h2>
+        <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Avisos por mail
+        </h2>
         <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-soft">
           Cada lunes le llega a quien administra RRHH un resumen de lo que quedó
           pendiente en su empresa: ausencias sin resolver, recibos sin firmar,

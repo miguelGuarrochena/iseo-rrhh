@@ -40,7 +40,7 @@ import { faltasDeEmpresa } from '@/lib/requisitos';
 import { BloqueFaltas } from '@/components/app/Faltas';
 
 const campoClase =
-  'w-full rounded-xl border border-line bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-600';
+  'w-full rounded-xl border border-line-strong bg-surface px-4 py-3 text-base text-ink outline-none transition-colors focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]';
 
 const ConfiguracionPage = () => {
   const { usuario, rolEfectivo, empresaVista } = useAuth();
@@ -202,12 +202,12 @@ const ConfiguracionPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Configuración
         </h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Parámetros de {nombreEmpresa}.
         </p>
       </div>
@@ -218,7 +218,9 @@ const ConfiguracionPage = () => {
 
       <form onSubmit={guardar} className="flex flex-col gap-4">
         <Panel>
-          <h2 className="text-base font-bold text-ink">Datos de la empresa</h2>
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Datos de la empresa
+          </h2>
           <div className="mt-4 flex items-center gap-4">
             {logoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -296,8 +298,10 @@ const ConfiguracionPage = () => {
         </Panel>
 
         <Panel>
-          <h2 className="text-base font-bold text-ink">Fichaje</h2>
-          <p className="mt-1 text-sm text-ink-soft">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Fichaje
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             El modo de fichaje (en planta, celular con GPS o remoto) se
             configura por colaborador desde su ficha. Acá definís los horarios y
             la tolerancia que aplican a toda la empresa.
@@ -346,8 +350,10 @@ const ConfiguracionPage = () => {
         </Panel>
 
         <Panel>
-          <h2 className="text-base font-bold text-ink">Remuneraciones</h2>
-          <p className="mt-1 text-sm text-ink-soft">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Remuneraciones
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Se usa para estimar el costo laboral total en Remuneraciones (masa
             salarial + cargas).
           </p>
@@ -399,8 +405,10 @@ const ConfiguracionPage = () => {
         </Panel>
 
         <Panel>
-          <h2 className="text-base font-bold text-ink">Vacaciones</h2>
-          <p className="mt-1 text-sm text-ink-soft">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Vacaciones
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Por defecto se cuentan días corridos, que es lo que fija la LCT
             (art. 150). Algunas empresas otorgan días hábiles: es más generoso
             —los mismos 14 días cubren unas tres semanas— y por eso está
@@ -472,8 +480,10 @@ const ConfiguracionPage = () => {
             el alcance de lo contratado. Tener el mismo interruptor en dos
             lugares es la forma más rápida de que queden desincronizados. */}
         <Panel>
-          <h2 className="text-base font-bold text-ink">Secciones activas</h2>
-          <p className="mt-1 text-sm text-ink-soft">
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Secciones activas
+          </h2>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Estas son las secciones que tiene habilitadas la empresa. Si
             necesitás prender o apagar alguna, escribinos: forma parte del
             alcance contratado.
@@ -503,7 +513,9 @@ const ConfiguracionPage = () => {
         <FeriadosPanel />
 
         <Panel>
-          <h2 className="text-base font-bold text-ink">Alertas</h2>
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Alertas
+          </h2>
           <label className="mt-4 flex max-w-xs flex-col gap-1.5">
             <span className="text-sm font-semibold text-ink">
               Días de aviso antes de un vencimiento
@@ -534,7 +546,9 @@ const ConfiguracionPage = () => {
         {/* Ausente = prendido, para que las empresas que ya existen lo
             tengan sin que nadie entre a activarlo. */}
         <Panel>
-          <h2 className="text-base font-bold text-ink">Resumen semanal</h2>
+          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+            Resumen semanal
+          </h2>
           <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-soft">
             Los lunes te llega un mail con lo que quedó pendiente: ausencias sin
             resolver, recibos sin firmar, consultas sin responder y vencimientos

@@ -153,7 +153,7 @@ export const FichajeFacialModal = ({
               guardada, y esa es justo la pantalla donde la persona
               confirma que fichó bien.
             */}
-            <p className="mt-1 text-sm text-ink-soft">
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
               {resultado.nombre ? `${resultado.nombre} · ` : ''}
               {new Date(resultado.timestamp).toLocaleTimeString('es-AR', {
                 hour: '2-digit',

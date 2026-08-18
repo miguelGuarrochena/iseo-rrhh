@@ -7,7 +7,7 @@ const claseBase =
   'w-full rounded-xl border bg-surface px-4 py-3 text-base text-ink outline-none transition-colors placeholder:text-ink-soft/50';
 
 const claseDe = (error?: string) =>
-  `${claseBase} ${error ? 'border-red-300 focus:border-red-500' : 'border-line focus:border-brand-600'}`;
+  `${claseBase} ${error ? 'border-red-300 focus:border-red-500 focus:shadow-[0_0_0_3px_rgba(239,68,68,0.18)]' : 'border-line-strong focus:border-brand-500 focus:shadow-[0_0_0_3px_rgba(74,122,245,0.18)]'}`;
 
 interface BaseProps {
   etiqueta: string;

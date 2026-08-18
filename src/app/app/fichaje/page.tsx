@@ -81,7 +81,9 @@ const PanelFichajePropio = ({
         <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-brand-700">
           <IconDeviceTablet size={32} stroke={1.6} />
         </span>
-        <p className="text-base font-bold text-ink">Fichás en la terminal</p>
+        <p className="text-[1.0625rem] font-bold tracking-tight text-ink">
+          Fichás en la terminal
+        </p>
         <p className="max-w-sm text-sm text-ink-soft">
           Tu fichaje es en planta: acercate a la tablet de la empresa y fichá
           con reconocimiento facial. Desde este dispositivo no se ficha.
@@ -281,13 +283,13 @@ const FichajePage = () => {
   if (!usuario) return null;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink">
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
             Fichaje
           </h1>
-          <p className="mt-1 text-sm text-ink-soft">
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             {esEmpleado
               ? 'Registrá tu ingreso y egreso desde el celular.'
               : 'El presentismo de hoy, en vivo.'}

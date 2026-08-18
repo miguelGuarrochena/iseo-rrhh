@@ -44,7 +44,7 @@ const NuevoColaboradorPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 sm:gap-8">
       <div>
         <Breadcrumbs
           items={[
@@ -52,10 +52,10 @@ const NuevoColaboradorPage = () => {
             { etiqueta: 'Alta de colaborador' },
           ]}
         />
-        <h1 className="text-2xl font-bold tracking-tight text-ink">
+        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
           Alta de colaborador
         </h1>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           Los campos personales se pueden completar después; los laborales
           básicos son obligatorios.
         </p>
