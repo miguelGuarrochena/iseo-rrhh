@@ -234,10 +234,14 @@ const VistaColaborador = ({ empleadoId }: { empleadoId: string }) => {
               valor: r.montoBruto,
             }))}
           />
-          <div className="mt-2 flex justify-between text-xs text-ink-soft">
-            {a.ordenadas.map((r) => (
-              <span key={r.periodo}>{formatearPeriodo(r.periodo)}</span>
-            ))}
+          <div className="mt-2 min-w-0 overflow-x-auto">
+            <div className="flex justify-between gap-2 text-xs text-ink-soft">
+              {a.ordenadas.map((r) => (
+                <span key={r.periodo} className="shrink-0">
+                  {formatearPeriodo(r.periodo)}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </Panel>
@@ -493,45 +497,33 @@ const VistaAdmin = () => {
             </Boton>
           </div>
         ) : (
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[34rem] text-sm">
-              <thead>
-                <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wider text-ink-soft">
-                  <th className="pb-2.5 pr-4">Colaborador</th>
-                  <th className="pb-2.5 pr-4">Período</th>
-                  <th className="pb-2.5 pr-4 text-right">Bruto</th>
-                  <th className="hidden pb-2.5 pr-4 text-right sm:table-cell">
-                    Descuentos
-                  </th>
-                  <th className="pb-2.5 pr-4 text-right">Neto</th>
-                  <th className="pb-2.5" aria-label="Acciones" />
-                </tr>
-              </thead>
-              <tbody>
-                {filasVisibles.map((f) => (
-                  <tr
-                    key={f.empleadoId}
+          <div className="mt-4 min-w-0">
+            <ul className="flex flex-col gap-2 md:hidden">
+              {filasVisibles.map((f) => (
+                <li key={f.empleadoId}>
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() =>
                       router.push(`/colaboradores/${f.empleadoId}`)
                     }
-                    className="cursor-pointer border-b border-line/60 transition-colors hover:bg-paper"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        router.push(`/colaboradores/${f.empleadoId}`);
+                      }
+                    }}
+                    className="hover-bloque cursor-pointer rounded-2xl border border-line bg-paper px-4 py-3"
                   >
-                    <td className="py-3 pr-4 font-semibold text-ink">
-                      {nombre(f.empleadoId)}
-                    </td>
-                    <td className="py-3 pr-4 text-ink-soft">
-                      {formatearPeriodo(f.periodo)}
-                    </td>
-                    <td className="py-3 pr-4 text-right text-ink">
-                      {formatearPesos(f.bruto)}
-                    </td>
-                    <td className="hidden py-3 pr-4 text-right text-red-700/80 sm:table-cell">
-                      − {formatearPesos(descuentosDe(f))}
-                    </td>
-                    <td className="py-3 pr-4 text-right font-bold text-ink">
-                      {formatearPesos(f.neto)}
-                    </td>
-                    <td className="py-3 text-right">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-ink">
+                          {nombre(f.empleadoId)}
+                        </p>
+                        <p className="text-xs text-ink-soft">
+                          {formatearPeriodo(f.periodo)}
+                        </p>
+                      </div>
                       <button
                         type="button"
                         aria-label={`Editar remuneración de ${nombre(f.empleadoId)}`}
@@ -539,15 +531,95 @@ const VistaAdmin = () => {
                           e.stopPropagation();
                           abrirEdicion(f.empleadoId, f.periodo);
                         }}
-                        className="cursor-pointer rounded-full border border-line bg-surface p-1.5 text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+                        className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
                       >
                         <IconPencil size={15} />
                       </button>
-                    </td>
+                    </div>
+                    <div className="mt-3">
+                      <p className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                        Neto
+                      </p>
+                      <p className="break-words text-lg font-bold tabular-nums tracking-tight text-ink">
+                        {formatearPesos(f.neto)}
+                      </p>
+                      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+                        <div className="min-w-0">
+                          <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                            Bruto
+                          </dt>
+                          <dd className="break-words text-sm font-semibold tabular-nums text-ink">
+                            {formatearPesos(f.bruto)}
+                          </dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                            Descuentos
+                          </dt>
+                          <dd className="break-words text-sm tabular-nums text-red-700/80">
+                            − {formatearPesos(descuentosDe(f))}
+                          </dd>
+                        </div>
+                      </dl>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden min-w-0 overflow-x-auto md:block">
+              <table className="w-full min-w-[34rem] text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wider text-ink-soft">
+                    <th className="pb-2.5 pr-4">Colaborador</th>
+                    <th className="pb-2.5 pr-4">Período</th>
+                    <th className="pb-2.5 pr-4 text-right">Bruto</th>
+                    <th className="pb-2.5 pr-4 text-right">Descuentos</th>
+                    <th className="pb-2.5 pr-4 text-right">Neto</th>
+                    <th className="pb-2.5" aria-label="Acciones" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filasVisibles.map((f) => (
+                    <tr
+                      key={f.empleadoId}
+                      onClick={() =>
+                        router.push(`/colaboradores/${f.empleadoId}`)
+                      }
+                      className="cursor-pointer border-b border-line/60 transition-colors hover:bg-paper"
+                    >
+                      <td className="py-3 pr-4 font-semibold text-ink">
+                        {nombre(f.empleadoId)}
+                      </td>
+                      <td className="py-3 pr-4 text-ink-soft">
+                        {formatearPeriodo(f.periodo)}
+                      </td>
+                      <td className="py-3 pr-4 text-right tabular-nums text-ink">
+                        {formatearPesos(f.bruto)}
+                      </td>
+                      <td className="py-3 pr-4 text-right tabular-nums text-red-700/80">
+                        − {formatearPesos(descuentosDe(f))}
+                      </td>
+                      <td className="py-3 pr-4 text-right font-bold tabular-nums text-ink">
+                        {formatearPesos(f.neto)}
+                      </td>
+                      <td className="py-3 text-right">
+                        <button
+                          type="button"
+                          aria-label={`Editar remuneración de ${nombre(f.empleadoId)}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            abrirEdicion(f.empleadoId, f.periodo);
+                          }}
+                          className="cursor-pointer rounded-full border border-line bg-surface p-1.5 text-ink-soft transition-colors hover:border-brand-300 hover:text-brand-700"
+                        >
+                          <IconPencil size={15} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <Paginacion
               pagina={pagina}
               totalPaginas={totalPaginas}

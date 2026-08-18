@@ -361,68 +361,115 @@ export const HistorialFichadas = () => {
               No hay fichadas en ese rango con esos filtros.
             </p>
           ) : (
-            <div className="-mx-2 overflow-x-auto">
-              <table className="w-full min-w-[42rem] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wide text-ink-soft">
-                    <th className="px-2 py-2">Fecha</th>
-                    <th className="px-2 py-2">Hora</th>
-                    <th className="px-2 py-2">Colaborador</th>
-                    <th className="px-2 py-2">Fichaje</th>
-                    <th className="px-2 py-2">Método</th>
-                    <th className="px-2 py-2">Sector</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movimientos.map((f) => {
-                    const e = empleadoDe.get(f.empleadoId);
-                    const Icono = iconoMetodo(f.metodo);
-                    return (
-                      <tr
-                        key={f.id}
-                        className="border-b border-line/60 last:border-0"
-                      >
-                        <td className="whitespace-nowrap px-2 py-2.5 text-ink-soft">
-                          {formatearFecha(diaLocal(f.timestamp))}
-                        </td>
-                        <td className="whitespace-nowrap px-2 py-2.5 font-semibold text-ink">
-                          {horaLocal(f.timestamp)}
-                        </td>
-                        <td className="px-2 py-2.5 text-ink">
-                          {e ? `${e.apellido} ${e.nombre}` : '—'}
-                        </td>
-                        <td className="px-2 py-2.5">
-                          <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                              f.tipo === 'ingreso'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-red-100 text-red-700'
-                            }`}
-                          >
-                            {f.tipo === 'ingreso' ? 'Entrada' : 'Salida'}
+            <div className="min-w-0">
+              <ul className="flex flex-col gap-2 md:hidden">
+                {movimientos.map((f) => {
+                  const e = empleadoDe.get(f.empleadoId);
+                  const Icono = iconoMetodo(f.metodo);
+                  return (
+                    <li
+                      key={f.id}
+                      className="rounded-2xl border border-line bg-paper px-4 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-semibold text-ink">
+                            {e ? `${e.apellido} ${e.nombre}` : '—'}
+                          </p>
+                          <p className="text-xs text-ink-soft">
+                            {formatearFecha(diaLocal(f.timestamp))} ·{' '}
+                            {horaLocal(f.timestamp)}
+                          </p>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${
+                            f.tipo === 'ingreso'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {f.tipo === 'ingreso' ? 'Entrada' : 'Salida'}
+                        </span>
+                      </div>
+                      <p className="mt-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-soft">
+                        <span className="inline-flex items-center gap-1">
+                          <Icono size={14} className="shrink-0" />
+                          {metodoLabel[f.metodo]}
+                        </span>
+                        {e?.sector && <span>· {e.sector}</span>}
+                        {f.fueraDeZona && (
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-bold text-amber-800">
+                            Fuera de zona
                           </span>
-                          {f.fueraDeZona && (
-                            <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-bold text-amber-800">
-                              Fuera de zona
+                        )}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="-mx-2 hidden min-w-0 overflow-x-auto md:block">
+                <table className="w-full min-w-[42rem] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wide text-ink-soft">
+                      <th className="px-2 py-2">Fecha</th>
+                      <th className="px-2 py-2">Hora</th>
+                      <th className="px-2 py-2">Colaborador</th>
+                      <th className="px-2 py-2">Fichaje</th>
+                      <th className="px-2 py-2">Método</th>
+                      <th className="px-2 py-2">Sector</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {movimientos.map((f) => {
+                      const e = empleadoDe.get(f.empleadoId);
+                      const Icono = iconoMetodo(f.metodo);
+                      return (
+                        <tr
+                          key={f.id}
+                          className="border-b border-line/60 last:border-0"
+                        >
+                          <td className="whitespace-nowrap px-2 py-2.5 text-ink-soft">
+                            {formatearFecha(diaLocal(f.timestamp))}
+                          </td>
+                          <td className="whitespace-nowrap px-2 py-2.5 font-semibold text-ink">
+                            {horaLocal(f.timestamp)}
+                          </td>
+                          <td className="px-2 py-2.5 text-ink">
+                            {e ? `${e.apellido} ${e.nombre}` : '—'}
+                          </td>
+                          <td className="px-2 py-2.5">
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+                                f.tipo === 'ingreso'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {f.tipo === 'ingreso' ? 'Entrada' : 'Salida'}
                             </span>
-                          )}
-                        </td>
-                        <td className="px-2 py-2.5 text-ink-soft">
-                          <span className="flex items-center gap-1.5">
-                            <Icono size={14} className="shrink-0" />
-                            <span className="text-xs">
-                              {metodoLabel[f.metodo]}
+                            {f.fueraDeZona && (
+                              <span className="ml-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-bold text-amber-800">
+                                Fuera de zona
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-2 py-2.5 text-ink-soft">
+                            <span className="flex items-center gap-1.5">
+                              <Icono size={14} className="shrink-0" />
+                              <span className="text-xs">
+                                {metodoLabel[f.metodo]}
+                              </span>
                             </span>
-                          </span>
-                        </td>
-                        <td className="px-2 py-2.5 text-xs text-ink-soft">
-                          {e?.sector ?? '—'}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                          </td>
+                          <td className="px-2 py-2.5 text-xs text-ink-soft">
+                            {e?.sector ?? '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
           <Paginacion
@@ -442,65 +489,125 @@ export const HistorialFichadas = () => {
                 : 'Ningún colaborador coincide con esos filtros.'}
             </p>
           ) : (
-            <div className="-mx-2 overflow-x-auto">
-              <table className="w-full min-w-[34rem] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wide text-ink-soft">
-                    <th className="px-2 py-2">Colaborador</th>
-                    <th className="px-2 py-2 text-right">Días trabajados</th>
-                    <th className="px-2 py-2 text-right">Horas totales</th>
-                    <th className="px-2 py-2 text-right">
-                      Jornadas sin cerrar
-                    </th>
-                    <th className="px-2 py-2 text-right">En curso</th>
-                    <th className="px-2 py-2 text-right">
-                      Feriados trabajados
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filasResumen.map(({ fila: f, sinCerrar, enCurso }) => {
-                    return (
-                      <tr
-                        key={f.empleado.id}
-                        className="border-b border-line/60 last:border-0"
-                      >
-                        <td className="px-2 py-2.5 text-ink">
-                          {f.empleado.apellido} {f.empleado.nombre}
-                        </td>
-                        <td className="px-2 py-2.5 text-right font-semibold text-ink">
+            <div className="min-w-0">
+              <ul className="flex flex-col gap-2 md:hidden">
+                {filasResumen.map(({ fila: f, sinCerrar, enCurso }) => (
+                  <li
+                    key={f.empleado.id}
+                    className="rounded-2xl border border-line bg-paper px-4 py-3"
+                  >
+                    <p className="truncate font-semibold text-ink">
+                      {f.empleado.apellido} {f.empleado.nombre}
+                    </p>
+                    <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                      <div>
+                        <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                          Días
+                        </dt>
+                        <dd className="font-semibold text-ink">
                           {f.diasTrabajados}
-                        </td>
-                        <td className="px-2 py-2.5 text-right font-semibold text-ink">
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                          Horas
+                        </dt>
+                        <dd className="font-semibold text-ink">
                           {f.horasTotales}
-                        </td>
-                        <td
-                          className={`px-2 py-2.5 text-right font-semibold ${
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                          Sin cerrar
+                        </dt>
+                        <dd
+                          className={`font-semibold ${
                             sinCerrar > 0 ? 'text-amber-700' : 'text-ink-soft'
                           }`}
                         >
                           {sinCerrar}
-                        </td>
-                        <td className="px-2 py-2.5 text-right">
-                          {enCurso > 0 ? (
-                            <span
-                              title="Entró y todavía no salió: está trabajando, no es un error para corregir."
-                              className="rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-bold text-emerald-800"
-                            >
-                              {enCurso} en curso
-                            </span>
-                          ) : (
-                            <span className="text-ink-soft">—</span>
-                          )}
-                        </td>
-                        <td className="px-2 py-2.5 text-right text-ink-soft">
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                          Feriados
+                        </dt>
+                        <dd className="text-ink-soft">
                           {f.feriadosTrabajados}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                        </dd>
+                      </div>
+                    </dl>
+                    {enCurso > 0 && (
+                      <span
+                        title="Entró y todavía no salió: está trabajando, no es un error para corregir."
+                        className="mt-2 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-bold text-emerald-800"
+                      >
+                        {enCurso} en curso
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="-mx-2 hidden min-w-0 overflow-x-auto md:block">
+                <table className="w-full min-w-[34rem] border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wide text-ink-soft">
+                      <th className="px-2 py-2">Colaborador</th>
+                      <th className="px-2 py-2 text-right">Días trabajados</th>
+                      <th className="px-2 py-2 text-right">Horas totales</th>
+                      <th className="px-2 py-2 text-right">
+                        Jornadas sin cerrar
+                      </th>
+                      <th className="px-2 py-2 text-right">En curso</th>
+                      <th className="px-2 py-2 text-right">
+                        Feriados trabajados
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filasResumen.map(({ fila: f, sinCerrar, enCurso }) => {
+                      return (
+                        <tr
+                          key={f.empleado.id}
+                          className="border-b border-line/60 last:border-0"
+                        >
+                          <td className="px-2 py-2.5 text-ink">
+                            {f.empleado.apellido} {f.empleado.nombre}
+                          </td>
+                          <td className="px-2 py-2.5 text-right font-semibold text-ink">
+                            {f.diasTrabajados}
+                          </td>
+                          <td className="px-2 py-2.5 text-right font-semibold text-ink">
+                            {f.horasTotales}
+                          </td>
+                          <td
+                            className={`px-2 py-2.5 text-right font-semibold ${
+                              sinCerrar > 0 ? 'text-amber-700' : 'text-ink-soft'
+                            }`}
+                          >
+                            {sinCerrar}
+                          </td>
+                          <td className="px-2 py-2.5 text-right">
+                            {enCurso > 0 ? (
+                              <span
+                                title="Entró y todavía no salió: está trabajando, no es un error para corregir."
+                                className="rounded-full bg-emerald-100 px-2 py-0.5 text-[0.65rem] font-bold text-emerald-800"
+                              >
+                                {enCurso} en curso
+                              </span>
+                            ) : (
+                              <span className="text-ink-soft">—</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-2.5 text-right text-ink-soft">
+                            {f.feriadosTrabajados}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
           <p className="text-xs text-ink-soft">

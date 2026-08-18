@@ -81,11 +81,11 @@ export const BloqueFaltas = ({
       } ${className}`}
     >
       <p
-        className={`flex items-center gap-2 text-sm font-bold ${
+        className={`flex items-start gap-2 text-sm font-bold ${
           frena ? 'text-red-900' : 'text-amber-900'
         }`}
       >
-        <Icono size={18} />
+        <Icono size={18} className="mt-0.5 shrink-0" />
         {titulo ??
           (faltas.length === 1
             ? 'Falta un dato'
@@ -166,11 +166,11 @@ export const BloqueFaltasDeVarios = ({
       } ${className}`}
     >
       <p
-        className={`flex items-center gap-2 text-sm font-bold ${
+        className={`flex items-start gap-2 text-sm font-bold ${
           frena ? 'text-red-900' : 'text-amber-900'
         }`}
       >
-        <Icono size={18} />
+        <Icono size={18} className="mt-0.5 shrink-0" />
         {titulo ??
           (conAlgo.length === 1
             ? 'A 1 persona le falta algo'

@@ -385,7 +385,7 @@ const FichaColaboradorPage = () => {
   };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <Breadcrumbs
@@ -407,8 +407,8 @@ const FichaColaboradorPage = () => {
                 <IconUser size={26} stroke={1.8} />
               </div>
             )}
-            <div>
-              <h1 className="flex items-center gap-2.5 text-2xl font-bold tracking-tight text-ink">
+            <div className="min-w-0">
+              <h1 className="flex flex-wrap items-center gap-2.5 text-2xl font-bold tracking-tight text-ink">
                 {empleado.nombre} {empleado.apellido}
                 {!empleado.activo && (
                   <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
@@ -434,7 +434,7 @@ const FichaColaboradorPage = () => {
         </div>
 
         {rolEfectivo === 'admin_rrhh' && empleado.activo && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Link
               href={`/colaboradores/${empleado.id}/editar`}
               className="no-underline"
@@ -461,7 +461,7 @@ const FichaColaboradorPage = () => {
       )}
 
       {/* Indicadores de control del empleado */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid min-w-0 grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard
           etiqueta="Vacaciones"
           valor={saldo ? `${saldo.diasDisponibles}` : '…'}
@@ -504,10 +504,10 @@ const FichaColaboradorPage = () => {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <Panel>
           <h2 className="text-base font-bold text-ink">Datos personales</h2>
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
             <Dato etiqueta="DNI" valor={empleado.dni} />
             <Dato etiqueta="CUIL" valor={empleado.cuil} />
             <Dato etiqueta="Teléfono" valor={empleado.telefono} />
@@ -526,7 +526,7 @@ const FichaColaboradorPage = () => {
 
         <Panel>
           <h2 className="text-base font-bold text-ink">Datos laborales</h2>
-          <div className="mt-4 grid grid-cols-2 gap-4">
+          <div className="mt-4 grid min-w-0 grid-cols-2 gap-4">
             <Dato etiqueta="Puesto" valor={empleado.puesto} />
             <Dato etiqueta="Sector" valor={empleado.sector} />
             <Dato
@@ -549,7 +549,7 @@ const FichaColaboradorPage = () => {
         </Panel>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <Panel>
           <h2 className="text-base font-bold text-ink">Checklist del legajo</h2>
           <p className="mt-1 text-sm text-ink-soft">
@@ -563,7 +563,7 @@ const FichaColaboradorPage = () => {
               return (
                 <div
                   key={item.id}
-                  className="flex items-center gap-3 rounded-xl bg-paper px-4 py-2.5"
+                  className="flex min-w-0 items-center gap-3 rounded-xl bg-paper px-4 py-2.5"
                 >
                   <button
                     type="button"
@@ -610,6 +610,7 @@ const FichaColaboradorPage = () => {
                     <Boton
                       variante="secundario"
                       tamano="sm"
+                      className="shrink-0"
                       onClick={() => abrirDocDeChecklist(item)}
                     >
                       <IconUpload size={14} />

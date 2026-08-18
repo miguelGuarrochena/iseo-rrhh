@@ -138,7 +138,7 @@ export const Dona = ({ datos, centro, centroDetalle }: DonaProps) => {
           )}
         </div>
       </div>
-      <div className="flex min-w-[10rem] flex-1 flex-col gap-2">
+      <div className="flex min-w-[8rem] flex-1 flex-col gap-2">
         {datos.map((d, i) => {
           const pct = total > 0 ? Math.round((d.valor / total) * 100) : 0;
           return (

@@ -141,15 +141,15 @@ export const EnrolamientoFacial = ({
 
   return (
     <>
-      <div className="flex h-full flex-col">
+      <div className="flex h-full min-w-0 flex-col">
         <h2 className="text-base font-bold text-ink">Reconocimiento facial</h2>
-        <p className="mt-1 text-sm text-ink-soft">
+        <p className="mt-1 text-sm leading-relaxed text-ink-soft">
           Para fichar en la terminal de planta. No se guarda ninguna foto: se
           toma un código del rostro.
         </p>
 
         {!enrolado ? (
-          <div className="mt-4 flex flex-1 flex-col rounded-2xl bg-paper px-4 py-4">
+          <div className="mt-4 flex min-w-0 flex-1 flex-col rounded-2xl bg-paper px-4 py-4">
             <p className="text-sm font-semibold text-ink">
               Todavía no tiene el rostro registrado
             </p>
@@ -168,8 +168,8 @@ export const EnrolamientoFacial = ({
             </Boton>
           </div>
         ) : hayQueReenrolar ? (
-          <div className="mt-4 flex flex-1 flex-col rounded-2xl bg-amber-50 px-4 py-4">
-            <p className="flex items-start gap-1.5 text-sm font-semibold text-amber-900">
+          <div className="mt-4 flex min-w-0 flex-1 flex-col rounded-2xl bg-amber-50 px-4 py-4">
+            <p className="flex min-w-0 items-start gap-1.5 text-sm font-semibold text-amber-900">
               <IconAlertTriangle size={16} className="mt-0.5 shrink-0" />
               Hay que volver a tomarle el rostro
             </p>
@@ -193,8 +193,8 @@ export const EnrolamientoFacial = ({
             </div>
           </div>
         ) : (
-          <div className="mt-4 flex flex-1 flex-col rounded-2xl bg-emerald-50 px-4 py-4">
-            <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+          <div className="mt-4 flex min-w-0 flex-1 flex-col rounded-2xl bg-emerald-50 px-4 py-4">
+            <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-semibold text-emerald-800">
               <IconCircleCheck size={16} />
               Rostro registrado
               {empleado.consentimientoBiometrico?.fecha

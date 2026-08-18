@@ -10,6 +10,7 @@ import { eliminarRemuneracion, getRemuneraciones } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
 import { formatearPeriodo } from '@/lib/fechas';
+import { tipoReciboLabels } from '@/lib/etiquetas';
 import { Remuneracion } from '@/types/rrhh';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
@@ -20,6 +21,30 @@ interface Props {
   /** Convenio del empleado (se arrastra a cada remuneración). */
   convenioEmpleado?: string;
 }
+
+const Cifra = ({
+  etiqueta,
+  valor,
+  resta = false,
+}: {
+  etiqueta: string;
+  valor: number;
+  resta?: boolean;
+}) => (
+  <div className="min-w-0 rounded-xl bg-surface px-3 py-2">
+    <p className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+      {etiqueta}
+    </p>
+    <p
+      className={`mt-0.5 break-words text-sm font-semibold tabular-nums ${
+        resta ? 'text-ink-soft' : 'text-ink'
+      }`}
+    >
+      {resta ? '− ' : ''}
+      {formatearPesos(valor)}
+    </p>
+  </div>
+);
 
 export const RemuneracionesEmpleado = ({
   empleadoId,
@@ -78,14 +103,15 @@ export const RemuneracionesEmpleado = ({
   return (
     <Panel>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <IconReportMoney size={18} className="text-ink-soft" />
+        <div className="flex min-w-0 items-center gap-2">
+          <IconReportMoney size={18} className="shrink-0 text-ink-soft" />
           <h2 className="text-base font-bold text-ink">Remuneraciones</h2>
         </div>
         {puedeEditar && (
           <Boton variante="secundario" tamano="sm" onClick={abrirNuevo}>
             <IconPlus size={14} />
-            Cargar remuneración
+            <span className="sm:hidden">Cargar</span>
+            <span className="hidden sm:inline">Cargar remuneración</span>
           </Boton>
         )}
       </div>
@@ -99,57 +125,83 @@ export const RemuneracionesEmpleado = ({
             : 'Todavía no hay remuneraciones cargadas.'}
         </p>
       ) : (
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[38rem] text-sm">
-            <thead>
-              <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wider text-ink-soft">
-                <th className="pb-2 pr-4">Período</th>
-                <th className="pb-2 pr-4 text-right">Bruto</th>
-                <th className="pb-2 pr-4 text-right">Aportes</th>
-                <th className="pb-2 pr-4 text-right">Neto</th>
-                <th className="pb-2">Convenio</th>
-                {puedeEditar && <th className="pb-2" />}
-              </tr>
-            </thead>
-            <tbody>
-              {rems.map((r) => (
-                <tr
-                  key={r.id}
+        <ul className="mt-4 flex max-h-[28rem] flex-col gap-2 overflow-y-auto overscroll-contain">
+          {rems.map((r) => {
+            const subtitulo = [
+              r.tipo !== 'mensual' ? tipoReciboLabels[r.tipo] : null,
+              r.convenio || null,
+            ]
+              .filter(Boolean)
+              .join(' · ');
+            return (
+              <li key={r.id}>
+                <div
+                  role={puedeEditar ? 'button' : undefined}
+                  tabIndex={puedeEditar ? 0 : undefined}
                   onClick={() => abrirEditar(r)}
-                  className={`border-b border-line/60 ${
-                    puedeEditar ? 'cursor-pointer hover:bg-paper' : ''
+                  onKeyDown={(e) => {
+                    if (!puedeEditar) return;
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      abrirEditar(r);
+                    }
+                  }}
+                  className={`rounded-2xl border border-line bg-paper px-4 py-3 ${
+                    puedeEditar
+                      ? 'hover-bloque cursor-pointer transition-[background-color,border-color] duration-150 hover:border-brand-300'
+                      : ''
                   }`}
                 >
-                  <td className="py-2.5 pr-4 font-semibold text-ink">
-                    {formatearPeriodo(r.periodo)}
-                  </td>
-                  <td className="py-2.5 pr-4 text-right text-ink">
-                    {formatearPesos(r.montoBruto)}
-                  </td>
-                  <td className="py-2.5 pr-4 text-right text-ink-soft">
-                    − {formatearPesos(r.aportes ?? 0)}
-                  </td>
-                  <td className="py-2.5 pr-4 text-right font-bold text-ink">
-                    {formatearPesos(r.montoNeto)}
-                  </td>
-                  <td className="py-2.5 text-ink-soft">{r.convenio || '—'}</td>
-                  {puedeEditar && (
-                    <td className="py-2.5 text-right">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-ink">
+                        {formatearPeriodo(r.periodo)}
+                      </p>
+                      {subtitulo && (
+                        <p className="mt-0.5 text-xs text-ink-soft">
+                          {subtitulo}
+                        </p>
+                      )}
+                    </div>
+                    {puedeEditar && (
                       <button
                         type="button"
                         onClick={(e) => void borrar(r, e)}
                         aria-label="Eliminar"
-                        className="cursor-pointer rounded-lg inline-flex h-11 w-11 items-center justify-center sm:h-9 sm:w-9 text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600"
+                        className="inline-flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-red-50 hover:text-red-600 sm:h-9 sm:w-9"
                       >
                         <IconTrash size={16} />
                       </button>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                    )}
+                  </div>
+                  <p className="mt-3 text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                    Neto
+                  </p>
+                  <p className="break-words text-xl font-bold tabular-nums tracking-tight text-ink">
+                    {formatearPesos(r.montoNeto)}
+                  </p>
+                  <div className="mt-3 grid grid-cols-2 gap-2">
+                    <Cifra etiqueta="Bruto" valor={r.montoBruto} />
+                    <Cifra etiqueta="Aportes" valor={r.aportes ?? 0} resta />
+                    {(r.noRemunerativo ?? 0) > 0 && (
+                      <Cifra
+                        etiqueta="No remunerativo"
+                        valor={r.noRemunerativo ?? 0}
+                      />
+                    )}
+                    {(r.otrosDescuentos ?? 0) > 0 && (
+                      <Cifra
+                        etiqueta="Otros descuentos"
+                        valor={r.otrosDescuentos ?? 0}
+                        resta
+                      />
+                    )}
+                  </div>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {puedeEditar && (

@@ -46,11 +46,11 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   return (
     <RequireAuth>
       <RedDeSeguridad />
-      <div className="app-scope bg-app min-h-screen">
+      <div className="app-scope bg-app min-h-screen overflow-x-clip">
         <Sidebar />
-        <div className="lg:pl-64">
+        <div className="min-w-0 lg:pl-64">
           <AppHeader />
-          <main className="mx-auto max-w-5xl px-4 pb-24 pt-6 sm:px-6 lg:pb-10">
+          <main className="mx-auto min-w-0 max-w-5xl px-4 pb-24 pt-6 sm:px-6 lg:pb-10">
             {children}
           </main>
         </div>

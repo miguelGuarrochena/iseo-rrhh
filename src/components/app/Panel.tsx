@@ -11,7 +11,7 @@ interface PanelProps {
  */
 export const Panel = ({ children, className }: PanelProps) => (
   <section
-    className={`aparece rounded-3xl border border-line bg-surface p-5 sm:p-7 ${className ?? ''}`}
+    className={`aparece min-w-0 max-w-full rounded-3xl border border-line bg-surface p-5 sm:p-7 ${className ?? ''}`}
   >
     {children}
   </section>

@@ -43,7 +43,7 @@ export const ListaCard = ({
     (children !== undefined && children !== null && children !== false);
 
   return (
-    <section className="aparece rounded-3xl border border-line bg-surface p-5 sm:p-6">
+    <section className="aparece min-w-0 max-w-full rounded-3xl border border-line bg-surface p-5 sm:p-6">
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-base font-bold text-ink">{titulo}</h2>
         {accion && (
@@ -150,7 +150,7 @@ export const ListaItem = ({
   );
 
   return href ? (
-    <Link href={href} className="no-underline">
+    <Link href={href} className="min-w-0 no-underline">
       {fila}
     </Link>
   ) : (

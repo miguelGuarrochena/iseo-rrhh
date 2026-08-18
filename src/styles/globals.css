@@ -121,6 +121,26 @@ body {
   overflow-x: hidden;
 }
 
+/* En la app, un hijo más ancho que la pantalla (tabla de 38rem, monto
+   con espacios duros) no puede empujar a los hermanos: el grid/flex
+   tiene que poder encogerse y el texto tiene que pasar de renglón. */
+.app-scope {
+  overflow-wrap: break-word;
+}
+
+.app-scope main,
+.app-scope main .grid,
+.app-scope main .flex {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.app-scope main .grid > *,
+.app-scope main .flex > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
 body {
   background-color: var(--paper);
   color: var(--ink);
