@@ -278,9 +278,9 @@ const FinanzasPage = () => {
           Facturación por empresa
         </h2>
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-          El abono es lo que te tiene que pagar cada cliente en este período.
-          Lo recibido cuenta si el ingreso está vinculado a esa empresa. Si
-          falta, registrá el cobro del saldo.
+          El abono es lo que te tiene que pagar cada cliente en este período. Lo
+          recibido cuenta si el ingreso está vinculado a esa empresa. Si falta,
+          registrá el cobro del saldo.
         </p>
         <div className="mt-4 flex flex-col divide-y divide-line">
           {resumen?.facturacion.map((f) => (
@@ -334,7 +334,9 @@ const FinanzasPage = () => {
                 {f.estado === 'activa' && f.abonoMensual > 0 && !f.alDia && (
                   <Boton tamano="sm" onClick={() => void registrarCobro(f)}>
                     <IconCash size={14} />
-                    {f.cobradoEnPeriodo > 0 ? 'Registrar saldo' : 'Registrar cobro'}
+                    {f.cobradoEnPeriodo > 0
+                      ? 'Registrar saldo'
+                      : 'Registrar cobro'}
                   </Boton>
                 )}
               </div>
@@ -351,8 +353,7 @@ const FinanzasPage = () => {
           onBorrar={borrar}
           positivo
           aviso={
-            ingresos.some((m) => !m.empresaId) &&
-            (vencidas?.length ?? 0) > 0
+            ingresos.some((m) => !m.empresaId) && (vencidas?.length ?? 0) > 0
               ? 'Hay ingresos sin empresa: no cubren el abono de ningún cliente.'
               : undefined
           }

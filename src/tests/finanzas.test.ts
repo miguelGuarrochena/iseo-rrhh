@@ -36,9 +36,9 @@ describe('resumen de finanzas (demo)', () => {
       fecha: `${periodo}-11`,
     });
     const despues = await getResumenFinanzas(periodo);
-    expect(despues.facturacion.find((f) => f.empresaId === 'emp-2')?.alDia).toBe(
-      false
-    );
+    expect(
+      despues.facturacion.find((f) => f.empresaId === 'emp-2')?.alDia
+    ).toBe(false);
     expect(despues.ingresosDelMes).toBe(antes.ingresosDelMes + 20000);
   });
 

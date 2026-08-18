@@ -113,7 +113,9 @@ export const CampoMes = ({
         >
           <IconChevronLeft size={18} />
         </button>
-        <span className="text-base font-bold tabular-nums text-ink">{anio}</span>
+        <span className="text-base font-bold tabular-nums text-ink">
+          {anio}
+        </span>
         <button
           type="button"
           onClick={() => setAnio((a) => a + 1)}

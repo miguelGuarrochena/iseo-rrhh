@@ -306,7 +306,9 @@ export const CampoFecha = ({
               className="absolute inset-0 cursor-pointer bg-ink/40"
               onClick={() => setAbierto(false)}
             />
-            <div className="relative z-10 w-full sm:w-[22rem]">{calendario}</div>
+            <div className="relative z-10 w-full sm:w-[22rem]">
+              {calendario}
+            </div>
           </div>,
           document.body
         )}
