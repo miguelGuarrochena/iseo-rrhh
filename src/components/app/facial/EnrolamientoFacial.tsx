@@ -141,66 +141,85 @@ export const EnrolamientoFacial = ({
 
   return (
     <>
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-            <IconFaceId size={20} stroke={1.9} />
-          </span>
-          <div>
-            <p className="text-sm font-bold text-ink">Reconocimiento facial</p>
-            {/*
-              Tres estados, no dos. "Registrado" y "puede fichar" dejaron
-              de ser lo mismo: el servidor sólo compara contra plantillas
-              de la versión vigente, así que alguien registrado con el
-              pipeline anterior rebota en la terminal. Mostrarle el tilde
-              verde sería mandarlo a descubrirlo con la fila atrás.
-            */}
-            {!enrolado ? (
-              <p className="mt-0.5 text-sm text-ink-soft">
-                Sin rostro registrado. No puede fichar con la cara todavía.
-              </p>
-            ) : hayQueReenrolar ? (
-              <p className="mt-0.5 flex items-start gap-1.5 text-sm font-semibold text-amber-700">
-                <IconAlertTriangle size={15} className="mt-0.5 shrink-0" />
-                <span>
-                  Registrado con una versión anterior del sistema. Hay que
-                  volver a tomarle el rostro para que pueda fichar.
-                </span>
-              </p>
-            ) : (
-              <p className="mt-0.5 flex items-center gap-1.5 text-sm text-emerald-700">
-                <IconCircleCheck size={15} />
-                Rostro registrado
-                {empleado.consentimientoBiometrico?.fecha
-                  ? ` · ${empleado.consentimientoBiometrico.fecha}`
-                  : ''}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="flex shrink-0 gap-2">
-          {enrolado && (
+      <div>
+        <h2 className="text-base font-bold text-ink">Reconocimiento facial</h2>
+        <p className="mt-1 text-sm text-ink-soft">
+          Para fichar en la terminal de planta. No se guarda ninguna foto: se
+          toma un código del rostro.
+        </p>
+
+        {!enrolado ? (
+          <div className="mt-4 rounded-2xl bg-paper px-4 py-4">
+            <p className="text-sm font-semibold text-ink">
+              Todavía no tiene el rostro registrado
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+              {nombre} no puede fichar con la cara hasta que lo registres. Hace
+              falta que esté presente, de frente y con buena luz.
+            </p>
             <Boton
-              variante="secundario"
-              tamano="sm"
-              onClick={() => void quitar()}
+              variante="primario"
+              className="mt-4"
+              onClick={abrir}
               disabled={guardando}
             >
-              <IconTrash size={15} />
+              <IconFaceId size={18} stroke={1.9} />
+              Registrar rostro
             </Boton>
-          )}
-          <Boton
-            variante={hayQueReenrolar ? 'primario' : 'secundario'}
-            tamano="sm"
-            onClick={abrir}
-          >
-            {hayQueReenrolar
-              ? 'Volver a tomar'
-              : enrolado
-                ? 'Volver a registrar'
-                : 'Registrar rostro'}
-          </Boton>
-        </div>
+          </div>
+        ) : hayQueReenrolar ? (
+          <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-4">
+            <p className="flex items-start gap-1.5 text-sm font-semibold text-amber-900">
+              <IconAlertTriangle size={16} className="mt-0.5 shrink-0" />
+              Hay que volver a tomarle el rostro
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-amber-800">
+              Está registrado con una versión anterior. Hasta que no lo
+              actualices, la terminal no lo va a reconocer.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Boton variante="primario" onClick={abrir} disabled={guardando}>
+                <IconFaceId size={18} stroke={1.9} />
+                Volver a tomar
+              </Boton>
+              <Boton
+                variante="secundario"
+                onClick={() => void quitar()}
+                disabled={guardando}
+              >
+                <IconTrash size={16} />
+                Quitar
+              </Boton>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-4">
+            <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
+              <IconCircleCheck size={16} />
+              Rostro registrado
+              {empleado.consentimientoBiometrico?.fecha
+                ? ` · ${empleado.consentimientoBiometrico.fecha}`
+                : ''}
+            </p>
+            <p className="mt-1 text-sm leading-relaxed text-emerald-800/80">
+              Ya puede fichar con la cara. Si cambia el aspecto (barba, lentes)
+              o deja de reconocerlo, volvé a registrarlo.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Boton variante="secundario" onClick={abrir} disabled={guardando}>
+                Volver a registrar
+              </Boton>
+              <Boton
+                variante="secundario"
+                onClick={() => void quitar()}
+                disabled={guardando}
+              >
+                <IconTrash size={16} />
+                Quitar
+              </Boton>
+            </div>
+          </div>
+        )}
       </div>
 
       <Modal
@@ -244,7 +263,8 @@ export const EnrolamientoFacial = ({
               }
               procesando={guardando}
               mensajeProcesando="Registrando el rostro…"
-              ayuda="Mirá al óvalo y quedate quieto. La barra verde avanza sola."
+              ayuda="Poné la cara en el óvalo. Los puntos verdes marcan cada toma."
+              pausaAlCompletar={1200}
               exigencia="ninguna"
               muestras={MUESTRAS_ENROLADO}
               intento={intento}

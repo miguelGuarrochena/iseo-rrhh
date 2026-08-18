@@ -17,6 +17,7 @@ import {
 } from '@/lib/facial/motor';
 import type { Exigencia } from '@/lib/facial/liveness';
 import { PanelDiagnostico } from './PanelDiagnostico';
+import { GuiaEncuadre } from './GuiaEncuadre';
 
 interface CapturaFacialProps {
   /**
@@ -42,43 +43,16 @@ interface CapturaFacialProps {
   mensajeProcesando?: string;
   /** Ayuda corta debajo de la cámara. */
   ayuda?: string;
+  /**
+   * Pausa visible en "Listo" antes de entregar la plantilla.
+   * El enrolamiento la usa para que no se cierre el modal de un saque.
+   */
+  pausaAlCompletar?: number;
 }
 
 const AYUDA_FICHAJE_MANUAL =
   'Enchufá el dispositivo si está con poca batería. Si sigue igual, avisale a RRHH para que te fichen a mano mientras se carga.';
 
-/** Color del óvalo según qué tan cerca está el cuadro de servir. */
-const colorAro = (estado: EstadoMotor | null): string => {
-  if (!estado) return 'border-white/60';
-  switch (estado.fase) {
-    case 'listo':
-      return 'border-emerald-400';
-    case 'capturando':
-      return 'border-emerald-300';
-    case 'desafio':
-      return 'border-sky-300';
-    case 'encuadrando':
-      return 'border-amber-300';
-    case 'fallo':
-      return 'border-red-400';
-    default:
-      return 'border-white/60';
-  }
-};
-
-/**
- * Cámara frontal con reconocimiento continuo.
- *
- * Qué cambió respecto de la versión anterior
- * ------------------------------------------
- * No hay botón de capturar. Antes el flujo era: apretar, esperar cuatro
- * segundos de prueba de vida, y calcular el descriptor sobre el cuadro
- * que hubiera en ese momento. Ahora la cámara mira continuamente, cada
- * cuadro se puntúa, y el sistema se queda con los mejores. La persona no
- * tiene que hacer nada más que ponerse enfrente — y en todo momento la
- * pantalla dice qué falta, en vez de dejarla mirando fijo sin entender
- * qué pasa.
- */
 export const CapturaFacial = ({
   onPlantilla,
   procesando = false,
@@ -88,12 +62,16 @@ export const CapturaFacial = ({
   sugerirFichajeManual = false,
   mensajeProcesando = 'Registrando el fichaje…',
   ayuda,
+  pausaAlCompletar = 0,
 }: CapturaFacialProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const motorRef = useRef<MotorFacial | null>(null);
   const onPlantillaRef = useRef(onPlantilla);
   onPlantillaRef.current = onPlantilla;
+  const pausaAlCompletarRef = useRef(pausaAlCompletar);
+  pausaAlCompletarRef.current = pausaAlCompletar;
+  const cierreRef = useRef<number | null>(null);
 
   const [falla, setFalla] = useState<FallaCamara | null>(null);
   const [iniciando, setIniciando] = useState(true);
@@ -138,8 +116,18 @@ export const CapturaFacial = ({
       exigencia,
       muestras,
       onEstado: setEstado,
-      onPlantilla: (plantilla, detalle) =>
-        onPlantillaRef.current(plantilla, detalle),
+      onPlantilla: (plantilla, detalle) => {
+        const pausa = pausaAlCompletarRef.current;
+        if (pausa <= 0) {
+          onPlantillaRef.current(plantilla, detalle);
+          return;
+        }
+        if (cierreRef.current !== null) window.clearTimeout(cierreRef.current);
+        cierreRef.current = window.setTimeout(() => {
+          cierreRef.current = null;
+          onPlantillaRef.current(plantilla, detalle);
+        }, pausa);
+      },
     });
     motorRef.current = motor;
     await motor.iniciar();
@@ -149,6 +137,7 @@ export const CapturaFacial = ({
   useEffect(() => {
     void arrancar();
     return () => {
+      if (cierreRef.current !== null) window.clearTimeout(cierreRef.current);
       motorRef.current?.detener();
       motorRef.current = null;
       const stream = streamRef.current;
@@ -206,12 +195,15 @@ export const CapturaFacial = ({
           className="h-full w-full -scale-x-100 object-cover"
         />
 
-        {/* Guía de encuadre. El color es información, no decoración: dice
-            si el cuadro sirve sin obligar a leer el texto. */}
-        {!fallo && (
-          <div
-            aria-hidden
-            className={`pointer-events-none absolute left-1/2 top-1/2 h-3/4 w-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[3px] transition-colors duration-200 ${colorAro(estado)}`}
+        {!fallo && !iniciando && fase !== 'cargando' && (
+          <GuiaEncuadre
+            fase={fase}
+            mensaje={mensaje}
+            progreso={estado?.progreso ?? 0}
+            muestras={muestras}
+            motivo={estado?.diagnostico.ultimoMotivo ?? null}
+            lado={estado?.lado ?? null}
+            procesando={procesando}
           />
         )}
 
@@ -236,42 +228,13 @@ export const CapturaFacial = ({
             <Boton
               variante="primario"
               tamano="md"
-              className="w-full max-w-xs"
+              className="w-full max-w-xs pointer-events-auto"
               onClick={() => motorRef.current?.reiniciarIntento()}
             >
               <IconRefresh size={18} /> Probar de nuevo
             </Boton>
           </div>
         )}
-
-        {/*
-          `aria-live="polite"` en el mensaje y no sólo en el aviso de
-          parpadeo: quien usa lector de pantalla necesita las mismas
-          indicaciones de encuadre que todos los demás.
-        */}
-        {!fallo && (
-          <div
-            aria-live="polite"
-            className="absolute inset-x-0 bottom-0 bg-ink/75 px-4 py-2.5 text-center text-sm font-semibold text-white"
-          >
-            {mensaje}
-          </div>
-        )}
-
-        {/* Progreso de muestras: la persona ve que algo avanza. */}
-        {!fallo &&
-          (fase === 'capturando' ||
-            fase === 'desafio' ||
-            (fase === 'encuadrando' && (estado?.progreso ?? 0) > 0)) && (
-            <div className="absolute inset-x-0 bottom-11 h-1 bg-white/25">
-              <div
-                className="h-full bg-emerald-400 transition-[width] duration-200"
-                style={{
-                  width: `${Math.round((estado?.progreso ?? 0) * 100)}%`,
-                }}
-              />
-            </div>
-          )}
       </div>
 
       {ayuda && !fallo && !iniciando && fase !== 'cargando' && (

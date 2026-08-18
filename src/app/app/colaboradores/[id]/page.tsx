@@ -623,7 +623,7 @@ const FichaColaboradorPage = () => {
         </Panel>
 
         {empleado.activo && (
-          <Panel>
+          <Panel className="self-start">
             <EnrolamientoFacial
               empleado={empleado}
               onActualizado={(e) => setEmpleado({ ...e })}
