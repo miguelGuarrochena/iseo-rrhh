@@ -38,6 +38,10 @@ interface CapturaFacialProps {
   intento?: number;
   /** Si la cámara no abre, sugiere fichada a mano. */
   sugerirFichajeManual?: boolean;
+  /** Texto mientras el padre guarda (enrolar / fichar). */
+  mensajeProcesando?: string;
+  /** Ayuda corta debajo de la cámara. */
+  ayuda?: string;
 }
 
 const AYUDA_FICHAJE_MANUAL =
@@ -82,6 +86,8 @@ export const CapturaFacial = ({
   muestras = 3,
   intento = 0,
   sugerirFichajeManual = false,
+  mensajeProcesando = 'Registrando el fichaje…',
+  ayuda,
 }: CapturaFacialProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -161,20 +167,23 @@ export const CapturaFacial = ({
   if (falla) {
     const esFallaCamara = falla === 'sin_camara' || falla === 'camara_ocupada';
     return (
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-line bg-paper/60 p-6 text-center">
-        <IconFaceId size={32} className="text-ink-soft" />
-        <p className="text-sm text-ink-soft">{MENSAJE_FALLA[falla]}</p>
+      <div className="flex flex-col items-center gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-6 text-center">
+        <IconFaceId size={36} className="text-amber-800" />
+        <p className="text-sm font-semibold leading-relaxed text-amber-950">
+          {MENSAJE_FALLA[falla]}
+        </p>
         {sugerirFichajeManual && esFallaCamara && (
-          <p className="rounded-xl bg-amber-50 px-4 py-2.5 text-sm font-medium leading-relaxed text-amber-900">
+          <p className="text-sm font-medium leading-relaxed text-amber-900">
             {AYUDA_FICHAJE_MANUAL}
           </p>
         )}
         <Boton
-          variante="secundario"
-          tamano="sm"
+          variante="primario"
+          tamano="md"
+          className="w-full max-w-xs"
           onClick={() => void arrancar()}
         >
-          <IconRefresh size={16} /> Reintentar
+          <IconRefresh size={18} /> Reintentar
         </Boton>
       </div>
     );
@@ -182,8 +191,9 @@ export const CapturaFacial = ({
 
   const fase = estado?.fase ?? 'cargando';
   const mensaje = procesando
-    ? 'Registrando el fichaje…'
+    ? mensajeProcesando
     : (estado?.mensaje ?? 'Preparando el sistema…');
+  const fallo = fase === 'fallo' && !procesando;
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -198,10 +208,12 @@ export const CapturaFacial = ({
 
         {/* Guía de encuadre. El color es información, no decoración: dice
             si el cuadro sirve sin obligar a leer el texto. */}
-        <div
-          aria-hidden
-          className={`pointer-events-none absolute left-1/2 top-1/2 h-3/4 w-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[3px] transition-colors duration-200 ${colorAro(estado)}`}
-        />
+        {!fallo && (
+          <div
+            aria-hidden
+            className={`pointer-events-none absolute left-1/2 top-1/2 h-3/4 w-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[3px] transition-colors duration-200 ${colorAro(estado)}`}
+          />
+        )}
 
         {(iniciando || fase === 'cargando') && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-surface/85 text-sm text-ink-soft">
@@ -210,37 +222,62 @@ export const CapturaFacial = ({
           </div>
         )}
 
+        {fallo && (
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-ink/80 px-5 py-6 text-center">
+            <p className="text-base font-bold leading-snug text-white">
+              No se completó la captura
+            </p>
+            <p
+              aria-live="assertive"
+              className="max-w-sm text-sm font-medium leading-relaxed text-white/90"
+            >
+              {mensaje}
+            </p>
+            <Boton
+              variante="primario"
+              tamano="md"
+              className="w-full max-w-xs"
+              onClick={() => motorRef.current?.reiniciarIntento()}
+            >
+              <IconRefresh size={18} /> Probar de nuevo
+            </Boton>
+          </div>
+        )}
+
         {/*
           `aria-live="polite"` en el mensaje y no sólo en el aviso de
           parpadeo: quien usa lector de pantalla necesita las mismas
           indicaciones de encuadre que todos los demás.
         */}
-        <div
-          aria-live="polite"
-          className="absolute inset-x-0 bottom-0 bg-ink/75 px-4 py-2.5 text-center text-sm font-semibold text-white"
-        >
-          {mensaje}
-        </div>
-
-        {/* Progreso de muestras: la persona ve que algo avanza. */}
-        {(fase === 'capturando' || fase === 'desafio') && (
-          <div className="absolute inset-x-0 bottom-11 h-1 bg-white/25">
-            <div
-              className="h-full bg-emerald-400 transition-[width] duration-200"
-              style={{ width: `${Math.round((estado?.progreso ?? 0) * 100)}%` }}
-            />
+        {!fallo && (
+          <div
+            aria-live="polite"
+            className="absolute inset-x-0 bottom-0 bg-ink/75 px-4 py-2.5 text-center text-sm font-semibold text-white"
+          >
+            {mensaje}
           </div>
         )}
+
+        {/* Progreso de muestras: la persona ve que algo avanza. */}
+        {!fallo &&
+          (fase === 'capturando' ||
+            fase === 'desafio' ||
+            (fase === 'encuadrando' && (estado?.progreso ?? 0) > 0)) && (
+            <div className="absolute inset-x-0 bottom-11 h-1 bg-white/25">
+              <div
+                className="h-full bg-emerald-400 transition-[width] duration-200"
+                style={{
+                  width: `${Math.round((estado?.progreso ?? 0) * 100)}%`,
+                }}
+              />
+            </div>
+          )}
       </div>
 
-      {fase === 'fallo' && !procesando && (
-        <Boton
-          variante="secundario"
-          tamano="sm"
-          onClick={() => motorRef.current?.reiniciarIntento()}
-        >
-          <IconRefresh size={16} /> Probar de nuevo
-        </Boton>
+      {ayuda && !fallo && !iniciando && fase !== 'cargando' && (
+        <p className="text-center text-sm leading-relaxed text-ink-soft">
+          {ayuda}
+        </p>
       )}
 
       {verDiagnostico && estado && (

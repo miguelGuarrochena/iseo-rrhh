@@ -13,6 +13,7 @@ import {
   estadisticasDeImagen,
   evaluarCalidad,
   evaluarGeometria,
+  MENSAJE_FALLO,
   MENSAJE_MOTIVO,
   PUNTAJE_ACEPTABLE,
   UMBRALES,
@@ -343,5 +344,11 @@ describe('evaluarCalidad', () => {
     expect(
       Object.values(MENSAJE_MOTIVO).every((texto) => texto.length > 0)
     ).toBe(true);
+    expect(
+      Object.values(MENSAJE_FALLO).every((texto) => texto.length > 0)
+    ).toBe(true);
+    expect(Object.keys(MENSAJE_FALLO).sort()).toEqual(
+      Object.keys(MENSAJE_MOTIVO).sort()
+    );
   });
 });

@@ -213,10 +213,10 @@ export const EnrolamientoFacial = ({
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed text-ink-soft">
-            {nombre} tiene que mirar a la cámara unos segundos, con buena luz y
-            sin lentes de sol. No se guarda ninguna imagen: se toman varias
-            medidas del rostro y se guarda un promedio, un código del que no se
-            puede reconstruir la cara.
+            {nombre} tiene que mirar al óvalo de frente, con buena luz y sin
+            lentes de sol. No hace falta apretar ningún botón: la cámara toma
+            varias tomas sola. No se guarda ninguna imagen, sólo un código del
+            que no se puede reconstruir la cara.
           </p>
 
           <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-line bg-paper/60 p-3">
@@ -243,12 +243,14 @@ export const EnrolamientoFacial = ({
                 void capturar(plantilla, detalle)
               }
               procesando={guardando}
+              mensajeProcesando="Registrando el rostro…"
+              ayuda="Mirá al óvalo y quedate quieto. La barra verde avanza sola."
               exigencia="ninguna"
               muestras={MUESTRAS_ENROLADO}
               intento={intento}
             />
           ) : (
-            <p className="rounded-xl bg-amber-50 px-4 py-3 text-center text-sm text-amber-800">
+            <p className="rounded-xl bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900">
               Marcá el consentimiento para habilitar la cámara.
             </p>
           )}

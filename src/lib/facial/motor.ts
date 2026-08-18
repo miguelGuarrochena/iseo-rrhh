@@ -42,6 +42,7 @@ import {
   estadisticasDeImagen,
   evaluarCalidad,
   evaluarGeometria,
+  MENSAJE_FALLO,
   MENSAJE_MOTIVO,
   PUNTAJE_ACEPTABLE,
   type MotivoRechazo,
@@ -796,9 +797,7 @@ export class MotorFacial {
     this.entregado = true;
     this.pasarA(
       'fallo',
-      peor
-        ? `${MENSAJE_MOTIVO[peor]}. Probá de nuevo.`
-        : 'No llegamos a verte bien. Probá de nuevo.'
+      peor ? MENSAJE_FALLO[peor] : 'No llegamos a verte bien.'
     );
     return true;
   }

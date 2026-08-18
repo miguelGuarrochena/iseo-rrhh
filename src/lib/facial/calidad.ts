@@ -115,6 +115,30 @@ export const MENSAJE_MOTIVO: Record<MotivoRechazo, string> = {
   borroso: 'La imagen sale borrosa: quedate quieto y limpiá la cámara',
 };
 
+/**
+ * Texto cuando el intento ya se cortó. Distinto del de encuadre: allá
+ * todavía se puede corregir; acá hay que explicar qué falló y qué
+ * cambiar antes del botón de reintentar.
+ */
+export const MENSAJE_FALLO: Record<MotivoRechazo, string> = {
+  sin_rostro: 'No encontramos una cara frente a la cámara.',
+  varios_rostros:
+    'Había más de una persona en el encuadre. Que quede una sola.',
+  lejos: 'Estabas demasiado lejos. Acercate al óvalo.',
+  cerca: 'Estabas demasiado cerca. Alejate un poco.',
+  descentrado: 'La cara no quedó en el óvalo. Centrala y mirá de frente.',
+  inclinado: 'La cabeza quedó inclinada. Enderezala.',
+  de_perfil: 'No estabas mirando de frente a la cámara.',
+  cabeza_baja: 'La vista quedó baja. Levantala un poco.',
+  ojos_cerrados: 'Los ojos se vieron cerrados. Mantenelos abiertos.',
+  oscuro: 'Faltó luz. Buscá un lugar más iluminado, de frente a la luz.',
+  quemado: 'Había demasiada luz de fondo. Date vuelta o corré la lámpara.',
+  sin_contraste: 'La imagen salió plana. Probá con otra luz, de frente.',
+  movido: 'Hubo demasiado movimiento. Quedate quieto un segundo.',
+  borroso:
+    'La imagen salió borrosa. Quedate quieto y, si hace falta, limpiá la cámara.',
+};
+
 export interface EstadisticasImagen {
   /** Luminancia media, 0-255. */
   luma: number;
