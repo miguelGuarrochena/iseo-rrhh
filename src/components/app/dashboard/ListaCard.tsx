@@ -103,9 +103,7 @@ export const ListaItem = ({
     <div
       onClick={onClick}
       className={`flex flex-col gap-3 rounded-2xl border border-line bg-paper px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5 ${
-        clickeable
-          ? 'cursor-pointer transition-[background-color,border-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-brand-300 hover:bg-surface active:scale-[0.995]'
-          : ''
+        clickeable ? 'hover-bloque cursor-pointer' : ''
       }`}
     >
       <div className="flex min-w-0 items-center gap-3.5">

@@ -54,15 +54,19 @@
   --line-strong-rgb: 104 112 138;
 }
 
-/* Hover de bloques (StatCard, filas): fondo opaco y sutil, sin que el
-   bloque se "pierda" contra el fondo. Se adapta al tema.
+.hover-bloque {
+  transition: opacity var(--dur-hover) var(--ease-out);
+}
+
+/* Hover de bloques clickeables: el fondo se queda (si pasa a blanco
+   el bloque se "pierde" contra la tarjeta) y baja un poco la opacidad.
 
    Va detrás de `hover: hover` porque en pantallas táctiles el navegador
    dispara :hover al tocar y el resaltado queda pegado hasta que se toca
    otra cosa: parece una fila seleccionada que no se puede deseleccionar. */
 @media (hover: hover) and (pointer: fine) {
   .hover-bloque:hover {
-    background-color: rgb(var(--surface-hover-rgb));
+    opacity: 0.82;
   }
 }
 
