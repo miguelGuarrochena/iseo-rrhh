@@ -1,7 +1,12 @@
 'use client';
 
+import { ReactNode, useState } from 'react';
 import Link from 'next/link';
-import { IconAlertTriangle, IconInfoCircle } from '@tabler/icons-react';
+import {
+  IconAlertTriangle,
+  IconArrowNarrowRight,
+  IconInfoCircle,
+} from '@tabler/icons-react';
 import { Falta, bloquea } from '@/lib/requisitos';
 
 /**
@@ -57,6 +62,150 @@ export const ChipsFaltas = ({ faltas }: { faltas: Falta[] }) => {
 };
 
 /**
+ * Cuántos avisos se ven antes de tener que pedir el resto.
+ *
+ * Una empresa con cuarenta legajos a medio cargar junta siete u ocho
+ * grupos, y cada uno son tres renglones: el cartel pasaba los 600px y
+ * empujaba fuera de la pantalla justo lo que el aviso pedía mirar. Tres
+ * entran de un vistazo y el resto está a un click.
+ *
+ * Lo que frena no se recorta nunca: ahí el costo de no verlo es que
+ * alguien termine viendo el dato de otra persona.
+ */
+const VISIBLES = 3;
+
+/**
+ * La caja del aviso.
+ *
+ * El fondo tiñe el bloque —eso es lo que lo hace un aviso y no un panel
+ * más—, pero cada falta se dibuja adentro sobre superficie normal. Antes
+ * todo el cartel era del mismo marrón: título, nombres, consecuencia y
+ * acción compartían color, tamaño y peso, así que no había forma de
+ * saltear lo que ya sabías ni de encontrar qué había que hacer sin leer
+ * los tres renglones enteros.
+ */
+const Cartel = ({
+  frena,
+  titulo,
+  children,
+  className = '',
+}: {
+  frena: boolean;
+  titulo: string;
+  children: ReactNode;
+  className?: string;
+}) => {
+  const Icono = frena ? IconAlertTriangle : IconInfoCircle;
+  return (
+    <div
+      className={`rounded-3xl border p-4 sm:p-5 ${
+        frena ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
+      } ${className}`}
+    >
+      <div className="flex items-center gap-2.5">
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+            frena ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-800'
+          }`}
+        >
+          <Icono size={19} stroke={2} />
+        </span>
+        <p
+          className={`min-w-0 text-[0.9375rem] font-bold ${
+            frena ? 'text-red-900' : 'text-amber-900'
+          }`}
+        >
+          {titulo}
+        </p>
+      </div>
+      {/* `list-none`: el reset de la app saca el padding de la lista pero
+          no el marcador, así que a la izquierda de cada tarjeta quedaba
+          un puntito suelto, afuera de la caja. */}
+      <ul className="mt-3.5 flex list-none flex-col gap-2">{children}</ul>
+    </div>
+  );
+};
+
+/**
+ * Una falta. Cuatro niveles distintos y cada uno con su tratamiento:
+ * qué falta (título), a quiénes (nombres), qué consecuencia tiene
+ * (cuerpo) y qué hacer (acción, en el azul con el que la app marca todo
+ * lo que se puede tocar).
+ */
+const ItemFalta = ({
+  frena,
+  titulo,
+  cuantos,
+  personas,
+  detalle,
+  accion,
+  ruta,
+}: {
+  frena: boolean;
+  titulo: string;
+  cuantos?: number;
+  personas?: string;
+  detalle: string;
+  accion: string;
+  ruta?: string;
+}) => (
+  <li className="rounded-2xl border border-line bg-surface px-4 py-3.5">
+    <div className="flex flex-wrap items-center gap-2">
+      <p className="text-[0.9375rem] font-bold text-ink">{titulo}</p>
+      {cuantos !== undefined && (
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-bold ${
+            frena ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+          }`}
+        >
+          {cuantos}
+        </span>
+      )}
+    </div>
+    {personas && (
+      <p className="mt-1 text-[0.8125rem] leading-snug text-ink-soft">
+        {personas}
+      </p>
+    )}
+    <p className="mt-2 text-sm leading-relaxed text-ink-soft">{detalle}</p>
+    {ruta ? (
+      <Link
+        href={ruta}
+        className="mt-2.5 inline-flex items-start gap-1.5 text-sm font-bold text-brand-700 no-underline underline-offset-4 transition-colors hover:text-brand-600 hover:underline"
+      >
+        <IconArrowNarrowRight size={17} className="mt-0.5 shrink-0" />
+        <span>{accion}</span>
+      </Link>
+    ) : (
+      <p className="mt-2.5 text-sm font-semibold text-ink">{accion}</p>
+    )}
+  </li>
+);
+
+/** Botón para desplegar los avisos que quedaron guardados. */
+const VerResto = ({
+  cuantos,
+  abierto,
+  onCambiar,
+}: {
+  cuantos: number;
+  abierto: boolean;
+  onCambiar: () => void;
+}) => (
+  <li>
+    <button
+      type="button"
+      onClick={onCambiar}
+      className="presionable min-h-11 w-full cursor-pointer rounded-2xl border border-line bg-surface/60 px-4 text-sm font-bold text-ink-soft hover:bg-surface hover:text-ink"
+    >
+      {abierto
+        ? 'Ver menos'
+        : `Ver los otros ${cuantos} ${cuantos === 1 ? 'aviso' : 'avisos'}`}
+    </button>
+  </li>
+);
+
+/**
  * Panel con el detalle. Cada falta dice qué consecuencia tiene y lleva
  * al lugar donde se arregla: un aviso que no dice cómo salir de ahí es
  * sólo una molestia.
@@ -70,52 +219,41 @@ export const BloqueFaltas = ({
   titulo?: string;
   className?: string;
 }) => {
+  const [abierto, setAbierto] = useState(false);
   if (faltas.length === 0) return null;
   const frena = bloquea(faltas);
-  const Icono = frena ? IconAlertTriangle : IconInfoCircle;
+  const recorta = !frena && faltas.length > VISIBLES && !abierto;
+  const visibles = recorta ? faltas.slice(0, VISIBLES) : faltas;
 
   return (
-    <div
-      className={`rounded-2xl border p-5 ${
-        frena ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
-      } ${className}`}
+    <Cartel
+      frena={frena}
+      className={className}
+      titulo={
+        titulo ??
+        (faltas.length === 1
+          ? 'Falta un dato'
+          : `Faltan ${faltas.length} datos`)
+      }
     >
-      <p
-        className={`flex items-start gap-2.5 text-[0.9375rem] font-bold ${
-          frena ? 'text-red-900' : 'text-amber-900'
-        }`}
-      >
-        <Icono size={18} className="mt-0.5 shrink-0" />
-        {titulo ??
-          (faltas.length === 1
-            ? 'Falta un dato'
-            : `Faltan ${faltas.length} datos`)}
-      </p>
-      <ul className="mt-3 flex flex-col gap-3">
-        {faltas.map((f) => (
-          <li
-            key={f.clave}
-            className={`text-sm leading-relaxed ${
-              frena ? 'text-red-900' : 'text-amber-900'
-            }`}
-          >
-            <span className="font-bold">{f.titulo}.</span> {f.detalle}{' '}
-            {f.ruta ? (
-              <Link
-                href={f.ruta}
-                className={`font-bold underline decoration-2 underline-offset-4 ${
-                  frena ? 'text-red-900' : 'text-amber-900'
-                }`}
-              >
-                {f.comoSeArregla}
-              </Link>
-            ) : (
-              <span className="font-semibold">{f.comoSeArregla}</span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
+      {visibles.map((f) => (
+        <ItemFalta
+          key={f.clave}
+          frena={frena}
+          titulo={f.titulo}
+          detalle={f.detalle}
+          accion={f.comoSeArregla}
+          ruta={f.ruta}
+        />
+      ))}
+      {!frena && faltas.length > VISIBLES && (
+        <VerResto
+          cuantos={faltas.length - VISIBLES}
+          abierto={abierto}
+          onCambiar={() => setAbierto((v) => !v)}
+        />
+      )}
+    </Cartel>
   );
 };
 
@@ -133,6 +271,7 @@ export const BloqueFaltasDeVarios = ({
   titulo?: string;
   className?: string;
 }) => {
+  const [abierto, setAbierto] = useState(false);
   const conAlgo = items.filter((i) => i.faltas.length > 0);
   if (conAlgo.length === 0) return null;
 
@@ -157,54 +296,41 @@ export const BloqueFaltasDeVarios = ({
   const destinoDe = (falta: Falta, cuantos: number) =>
     cuantos > 1 ? falta.ruta?.split('?')[0] : falta.ruta;
   const frena = grupos.some((g) => g.falta.severidad === 'bloquea');
-  const Icono = frena ? IconAlertTriangle : IconInfoCircle;
+  const recorta = !frena && grupos.length > VISIBLES && !abierto;
+  const visibles = recorta ? grupos.slice(0, VISIBLES) : grupos;
 
   return (
-    <div
-      className={`rounded-2xl border p-5 ${
-        frena ? 'border-red-200 bg-red-50' : 'border-amber-200 bg-amber-50'
-      } ${className}`}
+    <Cartel
+      frena={frena}
+      className={className}
+      titulo={
+        titulo ??
+        (conAlgo.length === 1
+          ? 'A 1 persona le falta algo'
+          : `A ${conAlgo.length} personas les falta algo`)
+      }
     >
-      <p
-        className={`flex items-start gap-2.5 text-[0.9375rem] font-bold ${
-          frena ? 'text-red-900' : 'text-amber-900'
-        }`}
-      >
-        <Icono size={18} className="mt-0.5 shrink-0" />
-        {titulo ??
-          (conAlgo.length === 1
-            ? 'A 1 persona le falta algo'
-            : `A ${conAlgo.length} personas les falta algo`)}
-      </p>
-      <ul className="mt-3 flex flex-col gap-3">
-        {grupos.map((g) => (
-          <li
-            key={g.falta.clave}
-            className={`text-sm leading-relaxed ${
-              frena ? 'text-red-900' : 'text-amber-900'
-            }`}
-          >
-            <span className="font-bold">
-              {g.falta.titulo} ({g.nombres.length})
-            </span>{' '}
-            — {g.nombres.slice(0, 3).join(', ')}
-            {g.nombres.length > 3 && ` y ${g.nombres.length - 3} más`}.{' '}
-            {g.falta.detalle}{' '}
-            {g.falta.ruta ? (
-              <Link
-                href={destinoDe(g.falta, g.nombres.length) ?? g.falta.ruta}
-                className={`font-bold underline decoration-2 underline-offset-4 ${
-                  frena ? 'text-red-900' : 'text-amber-900'
-                }`}
-              >
-                {g.falta.comoSeArregla}
-              </Link>
-            ) : (
-              <span className="font-semibold">{g.falta.comoSeArregla}</span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
+      {visibles.map((g) => (
+        <ItemFalta
+          key={g.falta.clave}
+          frena={frena}
+          titulo={g.falta.titulo}
+          cuantos={g.nombres.length}
+          personas={`${g.nombres.slice(0, 3).join(', ')}${
+            g.nombres.length > 3 ? ` y ${g.nombres.length - 3} más` : ''
+          }`}
+          detalle={g.falta.detalle}
+          accion={g.falta.comoSeArregla}
+          ruta={destinoDe(g.falta, g.nombres.length) ?? g.falta.ruta}
+        />
+      ))}
+      {!frena && grupos.length > VISIBLES && (
+        <VerResto
+          cuantos={grupos.length - VISIBLES}
+          abierto={abierto}
+          onCambiar={() => setAbierto((v) => !v)}
+        />
+      )}
+    </Cartel>
   );
 };
