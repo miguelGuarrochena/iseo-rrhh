@@ -623,7 +623,7 @@ const FichaColaboradorPage = () => {
         </Panel>
 
         {empleado.activo && (
-          <Panel className="self-start">
+          <Panel className="flex h-full flex-col">
             <EnrolamientoFacial
               empleado={empleado}
               onActualizado={(e) => setEmpleado({ ...e })}

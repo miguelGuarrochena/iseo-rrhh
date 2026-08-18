@@ -141,7 +141,7 @@ export const EnrolamientoFacial = ({
 
   return (
     <>
-      <div>
+      <div className="flex h-full flex-col">
         <h2 className="text-base font-bold text-ink">Reconocimiento facial</h2>
         <p className="mt-1 text-sm text-ink-soft">
           Para fichar en la terminal de planta. No se guarda ninguna foto: se
@@ -149,7 +149,7 @@ export const EnrolamientoFacial = ({
         </p>
 
         {!enrolado ? (
-          <div className="mt-4 rounded-2xl bg-paper px-4 py-4">
+          <div className="mt-4 flex flex-1 flex-col rounded-2xl bg-paper px-4 py-4">
             <p className="text-sm font-semibold text-ink">
               Todavía no tiene el rostro registrado
             </p>
@@ -159,7 +159,7 @@ export const EnrolamientoFacial = ({
             </p>
             <Boton
               variante="primario"
-              className="mt-4"
+              className="mt-auto self-start"
               onClick={abrir}
               disabled={guardando}
             >
@@ -168,7 +168,7 @@ export const EnrolamientoFacial = ({
             </Boton>
           </div>
         ) : hayQueReenrolar ? (
-          <div className="mt-4 rounded-2xl bg-amber-50 px-4 py-4">
+          <div className="mt-4 flex flex-1 flex-col rounded-2xl bg-amber-50 px-4 py-4">
             <p className="flex items-start gap-1.5 text-sm font-semibold text-amber-900">
               <IconAlertTriangle size={16} className="mt-0.5 shrink-0" />
               Hay que volver a tomarle el rostro
@@ -177,7 +177,7 @@ export const EnrolamientoFacial = ({
               Está registrado con una versión anterior. Hasta que no lo
               actualices, la terminal no lo va a reconocer.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-auto flex flex-wrap gap-2 pt-4">
               <Boton variante="primario" onClick={abrir} disabled={guardando}>
                 <IconFaceId size={18} stroke={1.9} />
                 Volver a tomar
@@ -193,7 +193,7 @@ export const EnrolamientoFacial = ({
             </div>
           </div>
         ) : (
-          <div className="mt-4 rounded-2xl bg-emerald-50 px-4 py-4">
+          <div className="mt-4 flex flex-1 flex-col rounded-2xl bg-emerald-50 px-4 py-4">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-emerald-800">
               <IconCircleCheck size={16} />
               Rostro registrado
@@ -205,7 +205,7 @@ export const EnrolamientoFacial = ({
               Ya puede fichar con la cara. Si cambia el aspecto (barba, lentes)
               o deja de reconocerlo, volvé a registrarlo.
             </p>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-auto flex flex-wrap gap-2 pt-4">
               <Boton variante="secundario" onClick={abrir} disabled={guardando}>
                 Volver a registrar
               </Boton>
