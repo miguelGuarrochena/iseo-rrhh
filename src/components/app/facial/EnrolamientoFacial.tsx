@@ -27,7 +27,7 @@ import { Empleado } from '@/types/rrhh';
  * gastar un par de segundos más acá.
  *
  * El motor junta hasta 12 candidatos y se queda con los 5 de mejor
- * puntaje, separados por al menos 220 ms entre sí: no son cinco cuadros
+ * puntaje, separados entre sí: no son cinco cuadros
  * consecutivos casi idénticos, sino cinco momentos distintos, con
  * variaciones naturales de pose y expresión. Eso es lo que hace que
  * promediarlos cancele ruido en vez de repetirlo.

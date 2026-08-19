@@ -482,4 +482,4 @@ export const evaluarCalidad = (e: EntradaCalidad): Veredicto => {
 export const PUNTAJE_ACEPTABLE = 0.35;
 
 /** Cuadros consecutivos buenos antes de empezar a reconocer. */
-export const CUADROS_ESTABLES = 3;
+export const CUADROS_ESTABLES = 2;

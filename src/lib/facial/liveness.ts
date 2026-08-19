@@ -21,11 +21,11 @@
  * | Máscara, deepfake en vivo | no corta | no corta |
  *
  * El desafío de pose funciona porque el lado se sortea **en el momento**
- * y hay que responderlo en menos de cuatro segundos. Un atacante con un
- * vídeo pregrabado tendría que tener material de la persona girando a
- * los dos lados y elegir el correcto antes de que se venza la ventana.
- * No es imposible; es varios órdenes de magnitud más caro que sostener
- * un teléfono frente a la cámara.
+ * y hay que responderlo en una ventana corta. Un atacante con un vídeo
+ * pregrabado tendría que tener material de la persona girando a los dos
+ * lados y elegir el correcto antes de que se venza la ventana. No es
+ * imposible; es varios órdenes de magnitud más caro que sostener un
+ * teléfono frente a la cámara.
  *
  * Lo que **no** se va a afirmar en ningún lado del producto es que esto
  * resiste una máscara o un deepfake en vivo. No los resiste. Cerrar eso
@@ -97,13 +97,20 @@ export type Lado = 'izquierda' | 'derecha';
  * puerta de calidad (0,16), así que no se puede cumplir el desafío
  * quedándose quieto, y bastante menos que un perfil completo, así que no
  * hay que hacer contorsiones con una fila esperando atrás.
+ *
+ * 0,24 alcanza para que no sea un vistazo accidental y para que un
+ * operario lo complete en un segundo, no en un giro de perfil.
  */
-export const YAW_DESAFIO = 0.3;
+export const YAW_DESAFIO = 0.24;
 
 /** Vuelta al frente para dar por cerrado el desafío. */
 export const YAW_FRONTAL = 0.15;
 
-/** Ventana para responder. Vencida, se sortea otro lado. */
+/**
+ * Ventana para completar el gesto. Vencida, se **repite el mismo lado**:
+ * sortear el otro en el mismo intento era lo que hacía que en planta
+ * pareciera que había que mirar a los dos lados.
+ */
 export const MS_DESAFIO = 4000;
 
 /**
@@ -126,8 +133,8 @@ export const sortearLado = (): Lado => {
 
 /** Texto para la persona. "Tu izquierda", no "la izquierda de la pantalla". */
 export const PEDIDO_DESAFIO: Record<Lado, string> = {
-  izquierda: 'Girá la cabeza hacia tu izquierda',
-  derecha: 'Girá la cabeza hacia tu derecha',
+  izquierda: 'Parpadeá y mirá a tu izquierda',
+  derecha: 'Parpadeá y mirá a tu derecha',
 };
 
 /**
@@ -165,6 +172,30 @@ export const cumpleDesafio = (
     if (Math.abs(y) <= YAW_FRONTAL) return true;
   }
 
+  return false;
+};
+
+/**
+ * ¿Giró al lado contrario después de estar de frente?
+ *
+ * Si pasó, el intento de este lado ya no se puede completar con esa
+ * secuencia: `cumpleDesafio` queda en falso para siempre. Hay que
+ * reiniciar el gesto **sin** cambiar de lado, para no mandar a la
+ * persona a hacer los dos giros en el mismo intento.
+ */
+export const giroAlReves = (
+  lado: Lado,
+  yaws: ReadonlyArray<number>
+): boolean => {
+  const signo = lado === 'izquierda' ? 1 : -1;
+  let vioFrente = false;
+  for (const y of yaws) {
+    if (!vioFrente) {
+      if (Math.abs(y) <= YAW_FRONTAL) vioFrente = true;
+      continue;
+    }
+    if (y * signo <= -YAW_DESAFIO) return true;
+  }
   return false;
 };
 

@@ -57,6 +57,7 @@ import { poseDeReferencias, referenciasDeMalla } from './geometria';
 import {
   cumpleDesafio,
   evaluarLiveness,
+  giroAlReves,
   MENSAJE_LIVENESS,
   MS_DESAFIO,
   PEDIDO_DESAFIO,
@@ -196,7 +197,7 @@ export interface DetallePlantilla {
 const MS_ENTRE_PERCEPCIONES = 66;
 
 /** Separación mínima entre descriptores: dos cuadros seguidos son casi el mismo. */
-const MS_ENTRE_DESCRIPTORES = 220;
+const MS_ENTRE_DESCRIPTORES = 180;
 
 /** Después de esto se corta el intento y se explica qué faltó. */
 const MS_LIMITE_INTENTO = 25_000;
@@ -762,25 +763,48 @@ export class MotorFacial {
    * Se pregunta **sólo por el desafío**, no por la prueba de vida
    * entera. Preguntar por la entera tenía un defecto: `evaluarLiveness`
    * chequea el parpadeo antes que el giro, así que mientras la persona
-   * no hubiera parpadeado nunca daba por cumplido el desafío — y a los
-   * cuatro segundos se sorteaba otro lado, y otro, con la persona
-   * girando la cabeza sin que nada avanzara. El parpadeo se verifica
-   * igual, pero al cerrar, que es donde corresponde.
+   * no hubiera parpadeado nunca daba por cumplido el desafío — y se
+   * relanzaba el gesto, con la persona girando la cabeza sin que nada
+   * avanzara. El parpadeo se verifica igual, pero al cerrar, que es
+   * donde corresponde.
    */
   private atenderDesafio(ahora: number): void {
     if (!this.lado) return;
 
     if (cumpleDesafio(this.lado, this.yaws)) {
       this.estables = 0;
-      this.pasarA('capturando', 'Volvé a mirar de frente');
+      this.pasarA('capturando', 'Quedate de frente');
+      return;
+    }
+
+    if (giroAlReves(this.lado, this.yaws)) {
+      this.repetirDesafio(
+        this.lado === 'izquierda'
+          ? 'Ese no. Mirá a tu izquierda'
+          : 'Ese no. Mirá a tu derecha'
+      );
       return;
     }
 
     if (ahora - this.inicioDesafio > MS_DESAFIO) {
-      // Se sortea otro lado en vez de repetir el mismo: repetirlo le
-      // daría a un atacante un segundo intento con el lado ya conocido.
-      this.lanzarDesafio();
+      // Mismo lado: sortear el otro en el mismo intento hacía que en
+      // planta hicieran los dos giros, que es justo lo que se siente
+      // lento. El sorteo impredecible ya ocurrió al lanzar el desafío.
+      this.repetirDesafio();
     }
+  }
+
+  /**
+   * Reinicia el gesto sin cambiar de lado.
+   *
+   * Hay que vaciar los yaw: si la persona giró al revés,
+   * `cumpleDesafio` queda en falso para esa secuencia.
+   */
+  private repetirDesafio(mensaje?: string): void {
+    if (!this.lado) return;
+    this.yaws = [];
+    this.inicioDesafio = performance.now();
+    this.pasarA('desafio', mensaje ?? PEDIDO_DESAFIO[this.lado]);
   }
 
   private vencio(ahora: number): boolean {

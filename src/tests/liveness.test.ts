@@ -17,6 +17,7 @@ import {
   CUADROS_MINIMOS,
   CUADROS_PARA_TRABADA,
   evaluarLiveness,
+  giroAlReves,
   hayParpadeo,
   OJO_ABIERTO,
   OJO_CERRADO,
@@ -89,6 +90,25 @@ describe('cumpleDesafio', () => {
   it('no acepta un giro que no llega al mínimo pedido', () => {
     const tibio = (YAW_DESAFIO + YAW_FRONTAL) / 2;
     expect(cumpleDesafio('izquierda', [frente, tibio, frente])).toBe(false);
+  });
+});
+
+describe('giroAlReves', () => {
+  const frente = 0;
+  const giroIzq = YAW_DESAFIO + 0.05;
+  const giroDer = -(YAW_DESAFIO + 0.05);
+
+  it('detecta el giro al lado contrario después de estar de frente', () => {
+    expect(giroAlReves('izquierda', [frente, giroDer])).toBe(true);
+    expect(giroAlReves('derecha', [frente, giroIzq])).toBe(true);
+  });
+
+  it('no marca como al revés el giro pedido', () => {
+    expect(giroAlReves('izquierda', [frente, giroIzq, frente])).toBe(false);
+  });
+
+  it('no marca como al revés quedarse de frente', () => {
+    expect(giroAlReves('izquierda', [frente, frente])).toBe(false);
   });
 });
 

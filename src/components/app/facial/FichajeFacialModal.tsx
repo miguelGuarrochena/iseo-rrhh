@@ -185,7 +185,7 @@ export const FichajeFacialModal = ({
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed text-ink-soft">
             {modo === 'identificar'
-              ? 'Poné la cara en el óvalo. La cámara te va a pedir parpadear y girar la cabeza: seguí lo que aparece en pantalla.'
+              ? 'Poné la cara en el óvalo, de frente. No hace falta girar ni apretar nada.'
               : 'Poné la cara en el óvalo. Cuando te lo pida, parpadeá una vez. No hace falta apretar ningún botón.'}
           </p>
 
@@ -198,24 +198,16 @@ export const FichajeFacialModal = ({
           )}
 
           {/*
-            La exigencia de prueba de vida no es la misma en los dos
-            modos, porque el riesgo no es el mismo:
-            - **identificar** (tablet de planta, sin nadie mirando): es
-              donde vive el ataque realista, el compañero que ficha por
-              el que llegó tarde. Un parpadeo no lo corta —un vídeo de
-              cinco segundos parpadea— así que además se pide un giro de
-              cabeza hacia un lado sorteado en el momento.
-            - **verificar** (celular propio): la sesión ya dice quién es
-              y la cara sólo confirma. Alcanza con el parpadeo; sumar un
-              desafío ahí es fricción sin riesgo que la justifique.
+            Los dos modos piden lo mismo: mirar de frente y un parpadeo
+            natural. El giro de cabeza (parpadeo_y_desafio) cortaba un
+            vídeo pregrabado, pero en planta la fila no lo bancaba. Una
+            foto impresa o en otro teléfono sigue sin pasar: no parpadea.
           */}
           <CapturaFacial
             onPlantilla={(plantilla) => void procesar(plantilla)}
             procesando={procesando}
-            exigencia={
-              modo === 'identificar' ? 'parpadeo_y_desafio' : 'parpadeo'
-            }
-            muestras={3}
+            exigencia="parpadeo"
+            muestras={modo === 'identificar' ? 2 : 3}
             intento={intento}
             sugerirFichajeManual
             ayuda={

@@ -310,6 +310,9 @@ describe('rostros presentes en el cuadro', () => {
  * Cerrar las filas en negrita necesita un modelo de anti-spoofing por
  * textura (MiniFASNet, Apache 2.0, ~600 KB) o un SDK certificado iBeta.
  * Está identificado y no está implementado.
+ *
+ * El fichaje de la app usa el nivel `parpadeo` (de frente, sin giro).
+ * `parpadeo_y_desafio` sigue testeado acá porque el motor lo conserva.
  */
 describe('protección frente a presentación (lo que hay y lo que no)', () => {
   const abierto = 0.1;
@@ -360,10 +363,10 @@ describe('protección frente a presentación (lo que hay y lo que no)', () => {
   });
 
   it('DOCUMENTADO: un vídeo de frente que parpadea SÍ pasa el nivel de parpadeo', () => {
-    // Este test afirma una **limitación**, no una protección. Está acá
-    // para que nadie lea la suite y concluya que el sistema resiste un
-    // vídeo: en el modo de sólo parpadeo, no lo resiste. Por eso el
-    // kiosco —que es donde vive este ataque— usa `parpadeo_y_desafio`.
+    // Este test afirma una **limitación**, no una protección. El fichaje
+    // (planta y celular) usa este nivel: una foto no pasa, un vídeo de
+    // frente sí. El giro de cabeza (`parpadeo_y_desafio`) sigue en el
+    // motor por si se vuelve a pedir, pero el producto no lo usa.
     const r = evaluarLiveness({
       exigencia: 'parpadeo',
       cierres: parpadeoCompleto,
@@ -373,7 +376,7 @@ describe('protección frente a presentación (lo que hay y lo que no)', () => {
     expect(r).toEqual({ vivo: true });
   });
 
-  it('el kiosco NO se conforma con el parpadeo', () => {
+  it('el nivel con giro sigue exigiendo el lado sorteado', () => {
     const r = evaluarLiveness({
       exigencia: 'parpadeo_y_desafio',
       cierres: parpadeoCompleto,

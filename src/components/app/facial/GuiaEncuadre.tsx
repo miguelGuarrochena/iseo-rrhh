@@ -169,8 +169,8 @@ export const GuiaEncuadre = ({
     ? 'Ya está. Un segundo…'
     : enDesafio
       ? lado === 'izquierda'
-        ? 'Girá hacia tu izquierda y volvé al frente.'
-        : 'Girá hacia tu derecha y volvé al frente.'
+        ? 'Un vistazo a tu izquierda y volvé. Parpadeá al pasar.'
+        : 'Un vistazo a tu derecha y volvé. Parpadeá al pasar.'
       : pideParpadeo
         ? 'Un parpadeo natural alcanza. No hace falta apretar nada.'
         : capturando
