@@ -100,9 +100,22 @@ export const formatearPeriodo = (periodo: string): string => {
   return `${MESES[Number(mes) - 1] ?? mes} ${anio}`;
 };
 
-/** "2026-07-02T07:55:00" → "07:55" */
+/** "2026-07-02T07:55:00" → "07:55" o "09:54 p.m." */
 export const formatearHora = (timestamp: string): string =>
-  new Date(timestamp).toLocaleTimeString('es-AR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  formatearHoraDe(new Date(timestamp));
+
+/**
+ * Hora de un `Date` (reloj de la tablet). es-AR escribe "p. m." con
+ * espacio; en pantalla se lee "p.m.".
+ */
+export const formatearHoraDe = (fecha: Date): string =>
+  compactarMeridiano(
+    fecha.toLocaleTimeString('es-AR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  );
+
+/** "p. m." / "a. m." → "p.m." / "a.m." */
+export const compactarMeridiano = (hora: string): string =>
+  hora.replace(/([ap])\.\s+m\./gi, '$1.m.');

@@ -15,6 +15,7 @@ import {
   PAUSA_ENTRE_MARCAS_KIOSCO_MIN,
 } from '@/lib/kiosco';
 import { Fichaje } from '@/types/rrhh';
+import { formatearHora } from '@/lib/fechas';
 
 type Modo = 'verificar' | 'identificar';
 
@@ -252,10 +253,7 @@ const ConfirmacionFichaje = ({
 }) => {
   const esIngreso = resultado.tipo === 'ingreso';
   const repetida = Boolean(resultado.repetida);
-  const hora = new Date(resultado.timestamp).toLocaleTimeString('es-AR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const hora = formatearHora(resultado.timestamp);
 
   const titulo = repetida
     ? esIngreso

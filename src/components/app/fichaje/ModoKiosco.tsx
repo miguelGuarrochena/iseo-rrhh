@@ -24,6 +24,7 @@ import { Empleado } from '@/types/rrhh';
 import { useCarga } from '@/lib/useCarga';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useBateria } from '@/lib/dispositivo/useBateria';
+import { formatearHoraDe } from '@/lib/fechas';
 
 type Pestania = 'fichar' | 'opciones';
 
@@ -72,13 +73,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
   const empleados = cEmpleados.datos;
 
   useEffect(() => {
-    const tick = () =>
-      setHora(
-        new Date().toLocaleTimeString('es-AR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      );
+    const tick = () => setHora(formatearHoraDe(new Date()));
     tick();
     const id = setInterval(tick, 10_000);
     return () => clearInterval(id);

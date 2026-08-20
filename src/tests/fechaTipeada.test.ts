@@ -1,5 +1,5 @@
 import { parsearFechaTipeada } from '@/components/app/ui/CampoFecha';
-import { expandirAnio } from '@/lib/fechas';
+import { compactarMeridiano, expandirAnio } from '@/lib/fechas';
 
 describe('parsearFechaTipeada', () => {
   it('acepta dd/mm/aaaa y normaliza a ISO', () => {
@@ -66,5 +66,17 @@ describe('expandirAnio', () => {
     expect(expandirAnio(37, hoy)).toBe(1937);
     expect(expandirAnio(85, hoy)).toBe(1985);
     expect(expandirAnio(99, hoy)).toBe(1999);
+  });
+});
+
+describe('compactarMeridiano', () => {
+  it('deja p.m. y a.m. sin el espacio de es-AR', () => {
+    expect(compactarMeridiano('09:54 p. m.')).toBe('09:54 p.m.');
+    expect(compactarMeridiano('09:54 a. m.')).toBe('09:54 a.m.');
+  });
+
+  it('no toca una hora de 24 h ni un p.m. que ya está compacto', () => {
+    expect(compactarMeridiano('21:54')).toBe('21:54');
+    expect(compactarMeridiano('09:54 p.m.')).toBe('09:54 p.m.');
   });
 });
