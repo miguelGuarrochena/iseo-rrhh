@@ -83,17 +83,21 @@ export const FichajeFacialModal = ({
     onCerrar();
   };
 
-  // En planta no hay que tocar "Fichar a otro": se muestra quién fichó
-  // un momento y la cámara vuelve sola para el que sigue.
+  // En planta se muestra quién fichó unos segundos y se cierra el
+  // modal: el que sigue ve otra vez "Tocá Fichar", no una cámara ya
+  // abierta que parece que fichó solo.
+  // onCerrar viene inline del padre; meterlo en deps reiniciaría el
+  // reloj en cada render y la confirmación nunca terminaría.
   useEffect(() => {
     if (!resultado || modo !== 'identificar') return;
     const id = window.setTimeout(() => {
-      setResultado(null);
       setError(null);
+      setResultado(null);
       setIntento((n) => n + 1);
+      onCerrar();
     }, CONFIRMACION_KIOSCO_MS);
     return () => window.clearTimeout(id);
-  }, [resultado, modo]);
+  }, [modo, resultado]);
 
   /**
    * Manda el descriptor y las coordenadas crudas; el resto lo decide el

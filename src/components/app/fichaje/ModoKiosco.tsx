@@ -14,7 +14,6 @@ import {
   empresaDelKiosco,
   intentosPinKiosco,
   MAX_INTENTOS_PIN,
-  PAUSA_ENTRE_MARCAS_KIOSCO_MIN,
   pinBloqueado,
   pinLargoKiosco,
   puedeAdministrarTerminal,
@@ -187,7 +186,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
   const etiquetaFichar =
     cargando && abrirAlEstarListo ? 'Conectando…' : 'Tocá para fichar';
   const ayudaFichar = puedeFichar
-    ? 'Se abre la cámara. Sin tocar, no ficha nadie.'
+    ? 'Tocá Fichar para abrir la cámara.'
     : cargando
       ? 'Estamos reconectando. Si no abre, tocá de nuevo.'
       : 'No hay conexión. Tocá para reintentar. Si sigue, avisá a tu responsable.';
@@ -211,7 +210,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
               {empresa?.nombre ?? 'Fichaje en planta'}
             </p>
             <p className="truncate text-xs text-ink-soft">
-              Tocá Fichar para abrir la cámara. No está prendida todo el tiempo.
+              Solo se ficha. Nadie ve el resto de la app.
             </p>
           </div>
         </div>
@@ -240,6 +239,9 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
                   month: 'long',
                 })}
               </p>
+              <p className="mt-3 text-lg font-bold leading-snug text-ink sm:text-xl">
+                Tocá Fichar para abrir la cámara
+              </p>
             </div>
 
             {!puedeFichar && (
@@ -253,30 +255,6 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
               <AvisoBateria bateria={bateria} className="max-w-sm" />
             )}
 
-            <div className="w-full max-w-md rounded-2xl border border-line bg-surface px-5 py-4 text-left">
-              <p className="text-xl font-extrabold tracking-tight text-ink">
-                Para fichar
-              </p>
-              <ol className="mt-3 flex flex-col gap-2.5 text-base font-medium leading-snug text-ink">
-                <li>
-                  <strong className="text-brand-700">1.</strong> Tocá el botón
-                  Fichar. La cámara no está prendida hasta que lo toques.
-                </li>
-                <li>
-                  <strong className="text-brand-700">2.</strong> Cara de frente
-                  en el óvalo y parpadeá una vez.
-                </li>
-                <li>
-                  <strong className="text-brand-700">3.</strong> Mirá si dice
-                  Ingreso o Egreso. Después, el que sigue toca Fichar.
-                </li>
-              </ol>
-              <p className="mt-3 text-sm leading-relaxed text-ink-soft">
-                Si ya ingresaste, esperá {PAUSA_ENTRE_MARCAS_KIOSCO_MIN} minutos
-                para el egreso. Si no, dejá pasar al que sigue.
-              </p>
-            </div>
-
             <button
               type="button"
               onClick={tocarFichar}
@@ -288,7 +266,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
               <span className="text-2xl font-extrabold text-ink">
                 {etiquetaFichar}
               </span>
-              <span className="max-w-64 text-sm font-semibold leading-relaxed text-ink-soft">
+              <span className="max-w-72 text-base font-semibold leading-relaxed text-ink-soft">
                 {ayudaFichar}
               </span>
             </button>
