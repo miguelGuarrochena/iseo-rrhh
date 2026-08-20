@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Modal } from '@mantine/core';
-import { IconCircleCheck } from '@tabler/icons-react';
+import { IconLogin2, IconLogout2 } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { CapturaFacial } from './CapturaFacial';
 import { AvisoBateria } from './AvisoBateria';
@@ -40,8 +40,8 @@ interface Resultado {
   timestamp: string;
 }
 
-/** Cuánto se muestra el nombre y la hora en la tablet antes de la siguiente cara. */
-const CONFIRMACION_KIOSCO_MS = 4000;
+/** Cuánto se muestra quién fichó en la tablet antes de la siguiente cara. */
+const CONFIRMACION_KIOSCO_MS = 5000;
 
 /**
  * Fichaje por reconocimiento facial. En 'verificar' confirma que sos vos;
@@ -173,55 +173,17 @@ export const FichajeFacialModal = ({
       styles={{ title: { fontWeight: 800 } }}
     >
       {resultado ? (
-        <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <span className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-            <IconCircleCheck size={36} />
-          </span>
-          <div>
-            <p className="text-lg font-bold text-ink">
-              {resultado.tipo === 'ingreso'
-                ? 'Ingreso registrado'
-                : 'Egreso registrado'}
-            </p>
-            {/*
-              La hora que se muestra es la que **registró el servidor**,
-              no `new Date()` del dispositivo. Una tablet con el reloj
-              corrido mostraba una hora distinta de la que quedó
-              guardada, y esa es justo la pantalla donde la persona
-              confirma que fichó bien.
-            */}
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-              {resultado.nombre ? `${resultado.nombre} · ` : ''}
-              {new Date(resultado.timestamp).toLocaleTimeString('es-AR', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })}
-            </p>
-            {resultado.fueraDeZona && (
-              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
-                Registrado fuera de la zona de trabajo
-              </p>
-            )}
-            {modo === 'identificar' && (
-              <p className="mt-3 text-xs text-ink-soft">
-                {resultado.tipo === 'ingreso'
-                  ? 'Cuando te vayas, volvé a mirar la cámara.'
-                  : 'Listo. El que sigue puede acercarse.'}
-              </p>
-            )}
-          </div>
-          {modo === 'verificar' && (
-            <Boton className="w-full" onClick={cerrar}>
-              Listo
-            </Boton>
-          )}
-        </div>
+        <ConfirmacionFichaje
+          resultado={resultado}
+          modo={modo}
+          onListo={cerrar}
+        />
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed text-ink-soft">
             {modo === 'identificar'
-              ? 'Poné la cara en el óvalo, de frente. No hace falta girar, parpadear ni apretar nada.'
-              : 'Poné la cara en el óvalo, de frente. No hace falta apretar ningún botón.'}
+              ? 'Poné la cara en el óvalo, de frente, y parpadeá una vez. Una foto no sirve.'
+              : 'Poné la cara en el óvalo, de frente, y parpadeá una vez. No hace falta apretar ningún botón.'}
           </p>
 
           <AvisoBateria bateria={bateria} />
@@ -233,16 +195,15 @@ export const FichajeFacialModal = ({
           )}
 
           {/*
-            Sin parpadeo ni giro. Pedir un gesto chocaba con la puerta de
-            calidad: al cerrar los ojos el cuadro se descartaba, la UI
-            decía "abrí los ojos" y el intento volvía a encuadrar. En
-            planta la presencia la da la terminal autorizada más el
-            match de la cara; un gesto extra dejaba la fila parada.
+            El parpadeo es lo que corta una foto impresa o en otro
+            teléfono. El giro de cabeza se dejó: en planta la fila no lo
+            bancaba. Un vídeo de frente que parpadea todavía pasa; eso
+            está documentado y no se afirma lo contrario.
           */}
           <CapturaFacial
             onPlantilla={(plantilla) => void procesar(plantilla)}
             procesando={procesando}
-            exigencia="ninguna"
+            exigencia="parpadeo"
             muestras={modo === 'identificar' ? 2 : 3}
             intento={intento}
             sugerirFichajeManual
@@ -255,5 +216,80 @@ export const FichajeFacialModal = ({
         </div>
       )}
     </Modal>
+  );
+};
+
+/**
+ * Lo que tiene que leerse a un metro, en un segundo, con gente atrás:
+ * si fue entrada o salida, quién, y a qué hora. El resto es ruido.
+ */
+const ConfirmacionFichaje = ({
+  resultado,
+  modo,
+  onListo,
+}: {
+  resultado: Resultado;
+  modo: Modo;
+  onListo: () => void;
+}) => {
+  const esIngreso = resultado.tipo === 'ingreso';
+  const hora = new Date(resultado.timestamp).toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return (
+    <div
+      className={`flex flex-col items-center gap-5 rounded-2xl px-4 py-8 text-center ${
+        esIngreso ? 'bg-emerald-50' : 'bg-sky-50'
+      }`}
+    >
+      <span
+        className={`flex h-24 w-24 items-center justify-center rounded-full ${
+          esIngreso ? 'bg-emerald-600 text-white' : 'bg-sky-600 text-white'
+        }`}
+      >
+        {esIngreso ? (
+          <IconLogin2 size={48} stroke={2} />
+        ) : (
+          <IconLogout2 size={48} stroke={2} />
+        )}
+      </span>
+      <p
+        className={`text-4xl font-extrabold tracking-tight sm:text-5xl ${
+          esIngreso ? 'text-emerald-800' : 'text-sky-900'
+        }`}
+      >
+        {esIngreso ? 'Ingreso' : 'Egreso'}
+      </p>
+      {resultado.nombre && (
+        <p className="text-2xl font-bold leading-tight text-ink">
+          {resultado.nombre}
+        </p>
+      )}
+      {/*
+        Hora que registró el servidor, no el reloj de la tablet.
+      */}
+      <p className="text-4xl font-extrabold tabular-nums tracking-tight text-ink">
+        {hora}
+      </p>
+      {resultado.fueraDeZona && (
+        <p className="rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-800">
+          Registrado fuera de la zona de trabajo
+        </p>
+      )}
+      {modo === 'identificar' && (
+        <p className="max-w-sm text-sm font-medium leading-relaxed text-ink-soft">
+          {esIngreso
+            ? 'Cuando te vayas, volvé a mirar la cámara.'
+            : 'Listo. El que sigue puede acercarse.'}
+        </p>
+      )}
+      {modo === 'verificar' && (
+        <Boton className="mt-2 w-full max-w-xs" onClick={onListo}>
+          Listo
+        </Boton>
+      )}
+    </div>
   );
 };
