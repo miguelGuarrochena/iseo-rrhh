@@ -179,16 +179,46 @@ export const GuiaEncuadre = ({
 
   return (
     <div className="pointer-events-none absolute inset-0">
-      {/* Oscurece fuera del óvalo para que el blanco sea la cara. */}
-      <div
-        aria-hidden
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 25% 37.5% at 50% 50%, transparent 70%, rgba(15, 18, 28, 0.55) 71%)',
-        }}
-      />
+      {/*
+        El óvalo se mide contra el **alto** del cuadro y saca el ancho de
+        una proporción de cabeza real (72 de ancho por 100 de alto: 150 mm
+        por 225 mm de una cabeza adulta). Antes era `h-3/4 w-1/2`, que
+        contra un cuadro 4:3 daba una figura casi redonda: la gente
+        acomodaba la cara al ancho y quedaba lejos, o entraba la cara pero
+        no la cabeza. Al ir en porcentajes del contenedor —y no en
+        píxeles— crece con la pantalla: en la tablet el óvalo es tan
+        grande como el cuadro, que es lo que faltaba.
 
+        El oscurecido de afuera es una sombra del propio óvalo, no un
+        gradiente aparte. Así no hay dos geometrías que mantener
+        sincronizadas: el recorte es exactamente el óvalo, mida lo que
+        mida.
+      */}
+      <div
+        className={`absolute left-1/2 top-1/2 h-[80%] aspect-[72/100] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[3px] transition-colors duration-200 ${colorAro(
+          fase,
+          alineado
+        )}`}
+        style={{
+          boxShadow: capturando
+            ? '0 0 0 6px rgba(52, 211, 153, 0.25), 0 0 0 100vmax rgba(15, 18, 28, 0.55)'
+            : enDesafio
+              ? '0 0 0 6px rgba(56, 189, 248, 0.3), 0 0 0 100vmax rgba(15, 18, 28, 0.55)'
+              : '0 0 0 100vmax rgba(15, 18, 28, 0.55)',
+        }}
+      >
+        <Esquina className="left-[-6px] top-[-6px] rounded-tl-md border-l-[3px] border-t-[3px]" />
+        <Esquina className="right-[-6px] top-[-6px] rounded-tr-md border-r-[3px] border-t-[3px]" />
+        <Esquina className="bottom-[-6px] left-[-6px] rounded-bl-md border-b-[3px] border-l-[3px]" />
+        <Esquina className="bottom-[-6px] right-[-6px] rounded-br-md border-b-[3px] border-r-[3px]" />
+        {mostrarSilueta && (
+          <div className="absolute inset-[12%] opacity-50">
+            <Silueta />
+          </div>
+        )}
+      </div>
+
+      {/* Después del óvalo: si fueran antes, las taparía su sombra. */}
       {enDesafio && (
         <div
           aria-hidden
@@ -203,25 +233,6 @@ export const GuiaEncuadre = ({
           )}
         </div>
       )}
-
-      <div
-        className={`absolute left-1/2 top-1/2 h-3/4 w-1/2 -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-[3px] transition-colors duration-200 ${colorAro(
-          fase,
-          alineado
-        )} ${capturando ? 'shadow-[0_0_0_6px_rgba(52,211,153,0.25)]' : ''} ${
-          enDesafio ? 'shadow-[0_0_0_6px_rgba(56,189,248,0.3)]' : ''
-        }`}
-      >
-        <Esquina className="left-[-6px] top-[-6px] rounded-tl-md border-l-[3px] border-t-[3px]" />
-        <Esquina className="right-[-6px] top-[-6px] rounded-tr-md border-r-[3px] border-t-[3px]" />
-        <Esquina className="bottom-[-6px] left-[-6px] rounded-bl-md border-b-[3px] border-l-[3px]" />
-        <Esquina className="bottom-[-6px] right-[-6px] rounded-br-md border-b-[3px] border-r-[3px]" />
-        {mostrarSilueta && (
-          <div className="absolute inset-[12%] opacity-50">
-            <Silueta />
-          </div>
-        )}
-      </div>
 
       <div className="absolute inset-x-0 top-0 flex justify-center gap-1.5 bg-gradient-to-b from-ink/70 to-transparent px-3 pb-8 pt-3">
         <Paso n={1} etiqueta={p1} activo={paso === 1} />

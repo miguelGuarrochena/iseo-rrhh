@@ -132,6 +132,14 @@ export const FichajeFacialModal = ({
       onClose={cerrar}
       title={titulo}
       radius="lg"
+      /*
+       * En tablet el modal por defecto (420 px) dejaba una cámara
+       * chiquita en el medio de una pantalla de 10". El óvalo, que va en
+       * porcentajes del cuadro, quedaba chico por arrastre. Con `xl` el
+       * cuadro usa el ancho real del dispositivo —Mantine igual lo
+       * recorta al viewport— y en el celular no cambia nada.
+       */
+      size="xl"
       centered
       styles={{ title: { fontWeight: 800 } }}
     >

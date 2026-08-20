@@ -186,7 +186,19 @@ export const CapturaFacial = ({
 
   return (
     <div className="flex flex-col items-center gap-3">
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-line bg-ink/5">
+      {/*
+        El cuadro ocupa todo el ancho disponible, pero sin pasarse del
+        alto de la ventana: en una tablet el modal es ancho y un 4:3 a
+        ancho completo se iba abajo del pliegue, así que la persona veía
+        el óvalo recortado o tenía que hacer scroll con la cara en la
+        cámara. El tope de ancho lo fija el alto que queda libre —el
+        título, el texto y la ayuda ocupan alrededor de 18rem— y de ahí
+        sale el ancho por la proporción 4:3.
+      */}
+      <div
+        className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl border border-line bg-ink/5"
+        style={{ maxWidth: 'calc((100dvh - 18rem) * 4 / 3)' }}
+      >
         <video
           ref={videoRef}
           playsInline
