@@ -25,6 +25,7 @@ import {
   YAW_DESAFIO,
   YAW_FRONTAL,
 } from '@/lib/facial/liveness';
+import { UMBRALES } from '@/lib/facial/calidad';
 
 const abierto = OJO_ABIERTO - 0.05;
 const cerrado = OJO_CERRADO + 0.05;
@@ -56,6 +57,13 @@ describe('hayParpadeo', () => {
     expect(
       hayParpadeo([abierto, entremedio, abierto, entremedio, abierto])
     ).toBe(false);
+  });
+
+  it('cuenta un parpadeo que la puerta de calidad ya vio como ojos cerrados', () => {
+    // Si acá se pidiera más que UMBRALES.ojoCerrado (0,55), el operario
+    // parpadeaba, la UI decía "abrí los ojos" y el fichaje no cerraba.
+    expect(OJO_CERRADO).toBeLessThanOrEqual(UMBRALES.ojoCerrado);
+    expect(hayParpadeo([abierto, UMBRALES.ojoCerrado, abierto])).toBe(true);
   });
 });
 

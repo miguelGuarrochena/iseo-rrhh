@@ -558,8 +558,10 @@ export class MotorFacial {
       this.estables = 0;
       this.centroAnterior = null;
       this.diagnostico.ultimoMotivo = 'sin_rostro';
-      if (this.fase !== 'desafio')
+      if (this.fase !== 'desafio' && !this.esperandoParpadeo()) {
         this.pasarA('buscando', MENSAJE_MOTIVO.sin_rostro);
+      }
+      this.intentarCerrarPorLiveness();
       return;
     }
     if (cuadro.caras > 1) {
@@ -603,6 +605,7 @@ export class MotorFacial {
     if (this.fase === 'desafio') {
       this.atenderDesafio(ahora);
       this.centroAnterior = centro;
+      this.intentarCerrarPorLiveness();
       return;
     }
 
@@ -621,7 +624,10 @@ export class MotorFacial {
       this.estables = 0;
       this.contarMotivo('descentrado');
       this.diagnostico.ultimoMotivo = 'descentrado';
-      this.pasarA('encuadrando', MENSAJE_MOTIVO.descentrado);
+      if (!this.esperandoParpadeo()) {
+        this.pasarA('encuadrando', MENSAJE_MOTIVO.descentrado);
+      }
+      this.intentarCerrarPorLiveness();
       return;
     }
 
@@ -630,7 +636,14 @@ export class MotorFacial {
       this.estables = 0;
       this.contarMotivo(geo.motivo as MotivoRechazo);
       this.diagnostico.ultimoMotivo = geo.motivo as MotivoRechazo;
-      this.pasarA('encuadrando', MENSAJE_MOTIVO[geo.motivo as MotivoRechazo]);
+      // Si ya pedimos el parpadeo, un cuadro con ojos cerrados o un
+      // micro-movimiento no es un error de encuadre: es el gesto. Si
+      // acá dijéramos "abrí los ojos", la persona parpadea, la consigna
+      // se contradice y el fichaje no cierra nunca.
+      if (!this.esperandoParpadeo()) {
+        this.pasarA('encuadrando', MENSAJE_MOTIVO[geo.motivo as MotivoRechazo]);
+      }
+      this.intentarCerrarPorLiveness();
       return;
     }
 
@@ -667,7 +680,10 @@ export class MotorFacial {
       const motivo = veredicto.motivo ?? veredicto.debil ?? 'borroso';
       this.contarMotivo(motivo);
       this.diagnostico.ultimoMotivo = motivo;
-      this.pasarA('encuadrando', MENSAJE_MOTIVO[motivo]);
+      if (!this.esperandoParpadeo()) {
+        this.pasarA('encuadrando', MENSAJE_MOTIVO[motivo]);
+      }
+      this.intentarCerrarPorLiveness();
       return;
     }
 
@@ -675,11 +691,16 @@ export class MotorFacial {
     this.diagnostico.ultimoMotivo = null;
     this.diagnostico.cuadrosAceptados++;
     if (this.estables < CUADROS_ESTABLES) {
-      this.pasarA('encuadrando', 'Quedate así…');
+      if (!this.esperandoParpadeo()) {
+        this.pasarA('encuadrando', 'Quedate así…');
+      }
+      this.intentarCerrarPorLiveness();
       return;
     }
 
-    this.pasarA('capturando', 'Verificando…');
+    if (!this.esperandoParpadeo()) {
+      this.pasarA('capturando', 'Verificando…');
+    }
     await this.tomarMuestra(chip, veredicto.puntaje, ahora);
 
     // Se reintenta cerrar en cada cuadro bueno, no sólo al tomar una
@@ -694,6 +715,26 @@ export class MotorFacial {
     if (!this.entregado && this.candidatos.length >= this.opciones.muestras) {
       this.cerrar();
     }
+  }
+
+  private esperandoParpadeo(): boolean {
+    return (
+      !this.entregado &&
+      this.candidatos.length >= this.opciones.muestras &&
+      (this.opciones.exigencia === 'parpadeo' ||
+        this.opciones.exigencia === 'parpadeo_y_desafio')
+    );
+  }
+
+  /**
+   * Con las muestras ya juntas, el parpadeo se evalúa en **cualquier**
+   * cuadro —también uno rechazado por ojos cerrados o movimiento.
+   * Si sólo se evaluaba en cuadros "buenos", el instante del parpadeo
+   * (que la puerta descarta) nunca cerraba el ciclo, y al volver a
+   * abrir los ojos a veces el cuadro seguía en `movido`.
+   */
+  private intentarCerrarPorLiveness(): void {
+    if (this.esperandoParpadeo()) this.cerrar();
   }
 
   private dimensiones(): { ancho: number; alto: number } {

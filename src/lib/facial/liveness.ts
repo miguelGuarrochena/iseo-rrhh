@@ -47,9 +47,14 @@
  * confunde con la mirada baja ni con los anteojos, que eran los dos
  * casos que rompían el EAR— y ya viene calculado en la misma pasada, o
  * sea que no cuesta nada.
+ *
+ * `OJO_CERRADO` tiene que ser **menor o igual** que `UMBRALES.ojoCerrado`
+ * (0,55). Si el detector pide más que la puerta de calidad, la persona
+ * parpadea, la pantalla dice "abrí los ojos" y el fichaje nunca termina:
+ * el cuadro ya se vio como cerrado, pero acá no cuenta.
  */
-export const OJO_CERRADO = 0.6;
-export const OJO_ABIERTO = 0.35;
+export const OJO_CERRADO = 0.45;
+export const OJO_ABIERTO = 0.28;
 
 /** Cuadros mínimos para poder afirmar algo sobre el parpadeo. */
 export const CUADROS_MINIMOS = 6;
