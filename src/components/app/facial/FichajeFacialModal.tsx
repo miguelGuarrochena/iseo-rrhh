@@ -115,9 +115,23 @@ export const FichajeFacialModal = ({
       // El servidor distingue "no te reconocí" de "se cayó la conexión";
       // mostrar siempre "probá de nuevo" hacía que la persona insistiera
       // contra la cámara cuando el problema era otro.
-      const { detalle, titulo } = interpretarError(err);
-      setError(detalle || titulo);
-      setIntento((n) => n + 1);
+      const interpretado = interpretarError(err);
+      // En el kiosco "elegí una empresa" es un callejón: el dueño de
+      // ISEO no tiene empresa en el JWT, y mandarlo a /empresas con la
+      // tablet bloqueada no arregla nada. El arreglo de verdad está en
+      // el RPC (F-06); este texto es por si igual llega acá.
+      const enKioscoSinEmpresa =
+        modo === 'identificar' && interpretado.tipo === 'empresa';
+      setError(
+        enKioscoSinEmpresa
+          ? 'Esta tablet no tiene una empresa asignada. Pedile a RRHH que la vuelva a autorizar.'
+          : interpretado.detalle || interpretado.titulo
+      );
+      // "Sin empresa activa" no es reintentable: reiniciar la cámara
+      // era el bucle eterno (captura → RPC rechaza → parpadeá de nuevo).
+      if (interpretado.reintentable) {
+        setIntento((n) => n + 1);
+      }
     } finally {
       setProcesando(false);
     }
@@ -193,8 +207,8 @@ export const FichajeFacialModal = ({
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed text-ink-soft">
             {modo === 'identificar'
-              ? 'Poné la cara en el óvalo, de frente. No hace falta girar ni apretar nada.'
-              : 'Poné la cara en el óvalo. Cuando te lo pida, parpadeá una vez. No hace falta apretar ningún botón.'}
+              ? 'Poné la cara en el óvalo, de frente. No hace falta girar, parpadear ni apretar nada.'
+              : 'Poné la cara en el óvalo, de frente. No hace falta apretar ningún botón.'}
           </p>
 
           <AvisoBateria bateria={bateria} />
@@ -206,15 +220,16 @@ export const FichajeFacialModal = ({
           )}
 
           {/*
-            Los dos modos piden lo mismo: mirar de frente y un parpadeo
-            natural. El giro de cabeza (parpadeo_y_desafio) cortaba un
-            vídeo pregrabado, pero en planta la fila no lo bancaba. Una
-            foto impresa o en otro teléfono sigue sin pasar: no parpadea.
+            Sin parpadeo ni giro. Pedir un gesto chocaba con la puerta de
+            calidad: al cerrar los ojos el cuadro se descartaba, la UI
+            decía "abrí los ojos" y el intento volvía a encuadrar. En
+            planta la presencia la da la terminal autorizada más el
+            match de la cara; un gesto extra dejaba la fila parada.
           */}
           <CapturaFacial
             onPlantilla={(plantilla) => void procesar(plantilla)}
             procesando={procesando}
-            exigencia="parpadeo"
+            exigencia="ninguna"
             muestras={modo === 'identificar' ? 2 : 3}
             intento={intento}
             sugerirFichajeManual

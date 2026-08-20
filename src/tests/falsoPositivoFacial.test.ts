@@ -311,8 +311,9 @@ describe('rostros presentes en el cuadro', () => {
  * textura (MiniFASNet, Apache 2.0, ~600 KB) o un SDK certificado iBeta.
  * Está identificado y no está implementado.
  *
- * El fichaje de la app usa el nivel `parpadeo` (de frente, sin giro).
- * `parpadeo_y_desafio` sigue testeado acá porque el motor lo conserva.
+ * El fichaje de la app usa el nivel `ninguna` (de frente, sin gesto).
+ * `parpadeo` y `parpadeo_y_desafio` siguen testeados acá porque el motor
+ * los conserva.
  */
 describe('protección frente a presentación (lo que hay y lo que no)', () => {
   const abierto = 0.1;
@@ -364,9 +365,9 @@ describe('protección frente a presentación (lo que hay y lo que no)', () => {
 
   it('DOCUMENTADO: un vídeo de frente que parpadea SÍ pasa el nivel de parpadeo', () => {
     // Este test afirma una **limitación**, no una protección. El fichaje
-    // (planta y celular) usa este nivel: una foto no pasa, un vídeo de
-    // frente sí. El giro de cabeza (`parpadeo_y_desafio`) sigue en el
-    // motor por si se vuelve a pedir, pero el producto no lo usa.
+    // no usa este nivel: una foto impresa pasaría el match si alguien la
+    // sostiene frente a la tablet. El parpadeo y el giro siguen en el
+    // motor por si se vuelven a pedir.
     const r = evaluarLiveness({
       exigencia: 'parpadeo',
       cierres: parpadeoCompleto,

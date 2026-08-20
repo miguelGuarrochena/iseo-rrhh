@@ -41,6 +41,16 @@ insert into usuarios (id, email, rol, nombre_completo, empresa_id, empleado_id) 
  ('5a000000-0000-0000-0000-0000000000f2','rrhh-a@t.test','admin_rrhh','RRHH A','5a000000-0000-0000-0000-00000000000a', null),
  ('5a000000-0000-0000-0000-0000000000f3','sup-a@t.test','supervisor','Sup A','5a000000-0000-0000-0000-00000000000a', null);
 
+-- Rostro enrolado en A: hace falta para el 1:N del superadmin (F-06).
+insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso,
+  puesto, sector, modo_fichaje, descriptor_facial, descriptor_version, consentimiento_biometrico) values
+ ('5a000000-0000-0000-0000-0000000000e1','5a000000-0000-0000-0000-00000000000a',
+  'Emp','A','sa-e1','2020-01-01','Op','Prod','planta','[0,0,0]'::jsonb, 1,
+  '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb),
+ ('5a000000-0000-0000-0000-0000000000e2','5a000000-0000-0000-0000-00000000000b',
+  'Emp','B','sb-e1','2020-01-01','Op','Prod','planta','[1,1,1]'::jsonb, 1,
+  '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb);
+
 create function pg_temp.como(p uuid) returns void language sql as $$
   select set_config('request.jwt.claims',
     json_build_object('sub', p, 'role', 'authenticated')::text, true);
@@ -196,6 +206,57 @@ begin
     join pg_namespace n on n.oid = p.pronamespace
    where n.nspname = 'public' and p.proname = 'retirar_plantillas_faciales';
   assert v_n = 1, format('retirar_plantillas_faciales tiene %s firmas', v_n);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- 9. F-06: el superadmin ficha en el kiosco con la terminal, no con JWT
+-- ---------------------------------------------------------------------
+-- `auth_empresa()` le da NULL. Antes el RPC cortaba con "Sin empresa
+-- activa" aunque la tablet estuviera autorizada. Ahora el tenant sale
+-- de la terminal, y sólo si el secreto coincide.
+select pg_temp.como('5a000000-0000-0000-0000-0000000000f1');
+do $$
+declare
+  v_term uuid;
+  v_sec text;
+  v_f fichajes;
+  ok boolean := false;
+begin
+  select id, secreto into v_term, v_sec
+    from autorizar_terminal('Tablet kiosco super', '5a000000-0000-0000-0000-00000000000a');
+
+  -- Sin terminal sigue sin poder: F-01 no se afloja de paso.
+  begin
+    perform fichar_con_rostro('[0.01,0.01,0.01]'::jsonb);
+  exception when insufficient_privilege then ok := true;
+  end;
+  assert ok, 'el superadmin 1:N sin terminal tiene que fallar';
+
+  -- Con la credencial de A, ficha al enrolado de A.
+  select * into v_f from fichar_con_rostro(
+    '[0.01,0.01,0.01]'::jsonb, null, null, null, null, v_term, v_sec);
+  assert v_f.empleado_id = '5a000000-0000-0000-0000-0000000000e1',
+    'tiene que fichar al enrolado de la empresa de la terminal';
+  assert v_f.empresa_id = '5a000000-0000-0000-0000-00000000000a',
+    'la marca queda en la empresa de la terminal, no en un tenant inventado';
+  assert v_f.metodo = 'facial_tablet',
+    'el 1:N del superadmin también se registra como facial_tablet';
+
+  -- Secreto malo: mismo mensaje que una tablet desautorizada, no un
+  -- oráculo de "esa terminal existe pero el hash no calza".
+  ok := false;
+  begin
+    perform fichar_con_rostro(
+      '[0.011,0.01,0.01]'::jsonb, null, null, null, null, v_term, repeat('a', 64));
+  exception when insufficient_privilege then ok := true;
+  end;
+  assert ok, 'un secreto incorrecto tiene que rechazarse';
+
+  -- Y no puede haber fichado a nadie de B: el secreto de A no abre B.
+  assert not exists (
+    select 1 from fichajes
+     where empleado_id = '5a000000-0000-0000-0000-0000000000e2'
+  ), 'el kiosco del superadmin no puede marcar en otra empresa';
 end $$;
 
 select 'superadmin_terminales: OK' as resultado;
