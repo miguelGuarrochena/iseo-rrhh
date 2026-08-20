@@ -3,8 +3,9 @@
 import { IconBackspace } from '@tabler/icons-react';
 
 /**
- * Teclado numérico grande para el PIN de la tablet: se toca con el
- * pulgar, sin teclado del sistema tapando la pantalla.
+ * Teclado numérico para el PIN de la tablet: se toca con el pulgar,
+ * sin teclado del sistema tapando la pantalla. Las teclas son de un
+ * tamaño fijo, como las de un teléfono: ni pastillas ni cartones.
  */
 export const PinPad = ({
   value,
@@ -34,11 +35,11 @@ export const PinPad = ({
   };
 
   const botonBase =
-    'flex aspect-square w-full cursor-pointer items-center justify-center rounded-2xl border text-2xl font-bold disabled:cursor-default disabled:opacity-40';
+    'flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-2xl border text-xl font-bold disabled:cursor-default disabled:opacity-40';
   const boton = `${botonBase} border-line bg-surface text-ink`;
 
   return (
-    <div className="flex w-full flex-col items-center gap-4">
+    <div className="flex flex-col items-center gap-4">
       <div className="flex gap-2.5" aria-hidden>
         {Array.from({ length: max }).map((_, i) => (
           <span
@@ -50,13 +51,12 @@ export const PinPad = ({
         ))}
       </div>
       {/*
-        El ancho tiene que estar en la grilla, no en cada tecla. Con
-        `grid-cols-3` Tailwind usa `minmax(0, 1fr)`: si el contenedor
-        se achica al contenido (un flex centrado), las columnas caen a
-        cero y las teclas quedan como pastillas altas pegadas. Un ancho
-        concreto las deja cuadradas, con aire, para el pulgar.
+        Teclas de tamaño fijo, como un PIN de teléfono. `grid-cols-3`
+        con `1fr` o `w-full` + `aspect-square` o se achica a pastillas
+        o se come la pantalla. Las columnas van en `4rem` para que no
+        dependan del contenedor.
       */}
-      <div className="grid w-full max-w-[18rem] grid-cols-3 gap-3">
+      <div className="grid w-max grid-cols-[4rem_4rem_4rem] gap-3">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((n) => (
           <button
             key={n}
