@@ -34,12 +34,12 @@ export const PinPad = ({
   };
 
   const botonBase =
-    'flex min-h-14 min-w-14 cursor-pointer items-center justify-center rounded-2xl border text-xl font-bold disabled:cursor-default disabled:opacity-40';
+    'flex aspect-square w-full cursor-pointer items-center justify-center rounded-2xl border text-2xl font-bold disabled:cursor-default disabled:opacity-40';
   const boton = `${botonBase} border-line bg-surface text-ink`;
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="flex gap-2" aria-hidden>
+    <div className="flex w-full flex-col items-center gap-4">
+      <div className="flex gap-2.5" aria-hidden>
         {Array.from({ length: max }).map((_, i) => (
           <span
             key={i}
@@ -49,7 +49,14 @@ export const PinPad = ({
           />
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      {/*
+        El ancho tiene que estar en la grilla, no en cada tecla. Con
+        `grid-cols-3` Tailwind usa `minmax(0, 1fr)`: si el contenedor
+        se achica al contenido (un flex centrado), las columnas caen a
+        cero y las teclas quedan como pastillas altas pegadas. Un ancho
+        concreto las deja cuadradas, con aire, para el pulgar.
+      */}
+      <div className="grid w-full max-w-[18rem] grid-cols-3 gap-3">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((n) => (
           <button
             key={n}
