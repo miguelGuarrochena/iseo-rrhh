@@ -19,6 +19,7 @@ import { Empresa, Usuario } from '@/types/rrhh';
 
 const CLAVE_ACTIVO = 'iseo_kiosco_activo';
 const CLAVE_PIN = 'iseo_kiosco_pin';
+const CLAVE_PIN_LARGO = 'iseo_kiosco_pin_largo';
 const CLAVE_EMPRESA = 'iseo_kiosco_empresa';
 const CLAVE_INTENTOS = 'iseo_kiosco_intentos';
 
@@ -53,6 +54,7 @@ const limpiarKiosco = (): void => {
   if (!enNavegador()) return;
   window.localStorage.removeItem(CLAVE_ACTIVO);
   window.localStorage.removeItem(CLAVE_PIN);
+  window.localStorage.removeItem(CLAVE_PIN_LARGO);
   window.localStorage.removeItem(CLAVE_EMPRESA);
   window.localStorage.removeItem(CLAVE_INTENTOS);
 };
@@ -72,6 +74,18 @@ export const empresaDelKiosco = (): Empresa | null => {
   }
 };
 
+/**
+ * Cuántos dígitos tiene el PIN de esta tablet. Se guarda al activar
+ * (el hash no dice el largo) para mostrar esa cantidad de puntos, no
+ * siempre 6. Si la tablet se bloqueó antes de existir esta clave, no
+ * se inventa: el teclado admite 4 a 6 y los puntos crecen desde 4.
+ */
+export const pinLargoKiosco = (): number | null => {
+  if (!enNavegador() || !kioscoActivo()) return null;
+  const n = Number(window.localStorage.getItem(CLAVE_PIN_LARGO));
+  return Number.isInteger(n) && n >= 4 && n <= 6 ? n : null;
+};
+
 /** Bloquea este dispositivo en modo kiosco con el PIN dado. */
 export const activarKiosco = async (
   pin: string,
@@ -79,6 +93,7 @@ export const activarKiosco = async (
 ): Promise<void> => {
   if (!enNavegador()) return;
   window.localStorage.setItem(CLAVE_PIN, await hashPin(pin));
+  window.localStorage.setItem(CLAVE_PIN_LARGO, String(pin.length));
   window.localStorage.setItem(CLAVE_ACTIVO, '1');
   window.localStorage.removeItem(CLAVE_INTENTOS);
   if (empresa) {

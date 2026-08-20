@@ -202,6 +202,9 @@ end $$;
 
 -- Una marca de referencia, del kiosco, para anular.
 select pg_temp.como('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7c1');
+update fichajes
+   set ts = ts - interval '3 minutes'
+ where empleado_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e3';
 create temp table victima as
 select * from fichar_con_rostro(
   '[9,9.01,9]'::jsonb, null, null, null, null,

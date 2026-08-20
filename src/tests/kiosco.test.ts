@@ -5,6 +5,7 @@ import {
   kioscoActivo,
   MAX_INTENTOS_PIN,
   pinBloqueado,
+  pinLargoKiosco,
   pinValido,
   puedeAdministrarTerminal,
   salirKioscoForzado,
@@ -44,6 +45,13 @@ describe('modo kiosco', () => {
 
     expect(await desactivarKiosco('4321')).toBe(true);
     expect(kioscoActivo()).toBe(false);
+  });
+
+  it('guarda el largo del PIN para mostrar esa cantidad de puntos', async () => {
+    await activarKiosco('4321');
+    expect(pinLargoKiosco()).toBe(4);
+    await desactivarKiosco('4321');
+    expect(pinLargoKiosco()).toBeNull();
   });
 
   it('no guarda el PIN en claro', async () => {

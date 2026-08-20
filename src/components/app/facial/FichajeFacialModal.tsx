@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { IconCircleCheck } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
@@ -25,7 +25,7 @@ interface FichajeFacialModalProps {
   resolverNombre?: (empleadoId: string) => string;
   /** Si captura ubicación GPS (celular y tablet sí; remoto no). */
   pedirUbicacion?: boolean;
-  onFichado: (fichaje: Fichaje, empleadoId: string) => void;
+  onFichado?: (fichaje: Fichaje, empleadoId: string) => void;
   // Ya no recibe `descriptorEmpleado` ni `geocerca`: el rostro enrolado y
   // la zona de trabajo viven en el servidor y no bajan al cliente. Es lo
   // que impide falsear la confianza o el "dentro de zona" desde acá.
@@ -39,6 +39,9 @@ interface Resultado {
   /** Hora que registró el **servidor**, no la del dispositivo. */
   timestamp: string;
 }
+
+/** Cuánto se muestra el nombre y la hora en la tablet antes de la siguiente cara. */
+const CONFIRMACION_KIOSCO_MS = 4000;
 
 /**
  * Fichaje por reconocimiento facial. En 'verificar' confirma que sos vos;
@@ -70,6 +73,18 @@ export const FichajeFacialModal = ({
     setResultado(null);
     onCerrar();
   };
+
+  // En planta no hay que tocar "Fichar a otro": se muestra quién fichó
+  // un momento y la cámara vuelve sola para el que sigue.
+  useEffect(() => {
+    if (!resultado || modo !== 'identificar') return;
+    const id = window.setTimeout(() => {
+      setResultado(null);
+      setError(null);
+      setIntento((n) => n + 1);
+    }, CONFIRMACION_KIOSCO_MS);
+    return () => window.clearTimeout(id);
+  }, [resultado, modo]);
 
   /**
    * Manda el descriptor y las coordenadas crudas; el resto lo decide el
@@ -110,7 +125,7 @@ export const FichajeFacialModal = ({
         fueraDeZona: fichaje.fueraDeZona,
         timestamp: fichaje.timestamp,
       });
-      onFichado(fichaje, fichaje.empleadoId);
+      onFichado?.(fichaje, fichaje.empleadoId);
     } catch (err) {
       // El servidor distingue "no te reconocí" de "se cayó la conexión";
       // mostrar siempre "probá de nuevo" hacía que la persona insistiera
@@ -187,21 +202,19 @@ export const FichajeFacialModal = ({
                 Registrado fuera de la zona de trabajo
               </p>
             )}
-          </div>
-          <div className="flex w-full gap-2">
             {modo === 'identificar' && (
-              <Boton
-                variante="secundario"
-                className="flex-1"
-                onClick={() => setResultado(null)}
-              >
-                Fichar a otro
-              </Boton>
+              <p className="mt-3 text-xs text-ink-soft">
+                {resultado.tipo === 'ingreso'
+                  ? 'Cuando te vayas, volvé a mirar la cámara.'
+                  : 'Listo. El que sigue puede acercarse.'}
+              </p>
             )}
-            <Boton className="flex-1" onClick={cerrar}>
+          </div>
+          {modo === 'verificar' && (
+            <Boton className="w-full" onClick={cerrar}>
               Listo
             </Boton>
-          </div>
+          )}
         </div>
       ) : (
         <div className="flex flex-col gap-4">

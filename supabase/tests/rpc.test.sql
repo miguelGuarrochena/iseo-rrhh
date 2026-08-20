@@ -353,10 +353,15 @@ begin
   assert v_f.metodo = 'facial_tablet',
     'el camino RPC no se convierte en manual aunque el JWT sea de otro rol';
 
+  -- Para alternar de verdad hay que simular que ya se fue de la tablet.
+  update fichajes set ts = ts - interval '3 minutes' where id = v_f.id;
+
   -- Descriptor distinto (no replay) → egreso.
   select * into v_f from fichar_con_rostro(
     '[0.01,0.01,0.011]'::jsonb, null, -34.6, -58.4, null, v_t, v_s);
   assert v_f.tipo = 'egreso', 'la segunda marca alterna a egreso';
+
+  update fichajes set ts = ts - interval '3 minutes' where id = v_f.id;
 
   -- Tercera marca, lejísimos: el kiosco sigue sin opinar sobre la zona.
   select * into v_f from fichar_con_rostro(
@@ -364,6 +369,8 @@ begin
   assert v_f.tipo = 'ingreso', 'la tercera marca vuelve a ingreso';
   assert v_f.fuera_de_zona is null,
     'a 111 km de la planta el kiosco tampoco marca fuera de zona';
+
+  update fichajes set ts = ts - interval '3 minutes' where id = v_f.id;
 end $$;
 
 -- FIC-002 antirreplay: el mismo descriptor exacto se rechaza, con la
@@ -754,6 +761,10 @@ set request.jwt.claims =
 do $$
 declare v_f fichajes;
 begin
+  update fichajes
+     set ts = ts - interval '3 minutes'
+   where empleado_id = '22222222-2222-2222-2222-222222222222';
+
   select * into v_f from fichar_con_rostro(
     '[0.01,0.012,0.01]'::jsonb, null, -34.6, -58.4, null,
     (select id from term_rpc), (select secreto from term_rpc));

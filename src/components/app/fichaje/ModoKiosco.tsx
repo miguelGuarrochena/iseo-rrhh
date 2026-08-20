@@ -16,12 +16,11 @@ import {
   intentosPinKiosco,
   MAX_INTENTOS_PIN,
   pinBloqueado,
+  pinLargoKiosco,
   puedeAdministrarTerminal,
   salirKioscoForzado,
 } from '@/lib/kiosco';
-import { avisoExito } from '@/lib/avisos';
 import { getEmpleados, getEmpresa } from '@/lib/services/rrhh';
-import { formatearHora } from '@/lib/fechas';
 import { Empleado } from '@/types/rrhh';
 import { useCarga } from '@/lib/useCarga';
 import { useAuth } from '@/lib/auth/AuthProvider';
@@ -50,6 +49,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
   const [bloqueado, setBloqueado] = useState(pinBloqueado());
   const [abrirAlEstarListo, setAbrirAlEstarListo] = useState(false);
   const bateria = useBateria();
+  const largoPin = pinLargoKiosco();
 
   useEffect(() => {
     if (empresaVista?.id || usuario?.empresaId) return;
@@ -327,6 +327,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
                 </p>
                 <PinPad
                   value={pin}
+                  max={largoPin ?? 6}
                   onChange={(v) => {
                     setPin(v);
                     setPinError(null);
@@ -396,15 +397,6 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
          */
         pedirUbicacion={false}
         resolverNombre={nombreEmpleado}
-        onFichado={(marca, empleadoId) => {
-          setCamaraAbierta(false);
-          avisoExito(
-            marca.tipo === 'ingreso'
-              ? 'Ingreso registrado'
-              : 'Egreso registrado',
-            `${nombreEmpleado(empleadoId)} · ${formatearHora(marca.timestamp)}.`
-          );
-        }}
       />
     </div>
   );

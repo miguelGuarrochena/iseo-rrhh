@@ -37,11 +37,13 @@ export const PinPad = ({
   const botonBase =
     'flex h-16 w-16 shrink-0 cursor-pointer items-center justify-center rounded-2xl border text-xl font-bold disabled:cursor-default disabled:opacity-40';
   const boton = `${botonBase} border-line bg-surface text-ink`;
+  // Si no sabemos el largo (tablet vieja), se muestran 4 y crecen hasta 6.
+  const huecos = Math.min(max, Math.max(4, value.length || 4));
 
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="flex gap-2.5" aria-hidden>
-        {Array.from({ length: max }).map((_, i) => (
+        {Array.from({ length: huecos }).map((_, i) => (
           <span
             key={i}
             className={`h-3 w-3 rounded-full ${

@@ -191,6 +191,15 @@ begin
      where empleado_id = '7e111111-1111-1111-1111-1111111111e1'
        and metodo = 'facial_tablet'
   ), 'la marca del kiosco se registra como facial_tablet';
+
+  -- La misma cara otra vez, ya: no es un egreso. Sigue en el óvalo.
+  r := pg_temp.fichar('[0.012,0.01,0.01]'::jsonb,
+        (select id from cred where etiqueta='A_ok'),
+        (select secreto from cred where etiqueta='A_ok'));
+  assert r = 'OK', 'el segundo reconocimiento inmediato no tiene que fallar';
+  assert (select count(*) from fichajes
+           where empleado_id = '7e111111-1111-1111-1111-1111111111e1') = 1,
+    'un segundo reconocimiento inmediato no inserta otra marca';
 end $$;
 
 -- CASO 2: secreto incorrecto → FAIL.
@@ -344,6 +353,12 @@ select pg_temp.como('7e111111-1111-1111-1111-1111111111a1');
 do $$
 declare r text; v_f fichajes;
 begin
+  -- La pausa de 2 min del kiosco devolvería la marca reciente. Esto
+  -- simula que esa persona ya se fue y volvió a fichar de verdad.
+  update fichajes
+     set ts = ts - interval '3 minutes'
+   where empleado_id = '7e111111-1111-1111-1111-1111111111e1';
+
   -- Descriptor nuevo → entra, y alterna sobre la marca anterior.
   select * into v_f from fichar_con_rostro(
     '[0.006,0.005,0.005]'::jsonb, null, null, null, null,
