@@ -184,12 +184,12 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
   };
 
   const etiquetaFichar =
-    cargando && abrirAlEstarListo ? 'Conectando…' : 'Tocá para fichar';
-  const ayudaFichar = puedeFichar
-    ? 'Tocá Fichar para abrir la cámara.'
-    : cargando
+    cargando && abrirAlEstarListo ? 'Conectando…' : 'Fichar';
+  const ayudaFichar = !puedeFichar
+    ? cargando
       ? 'Estamos reconectando. Si no abre, tocá de nuevo.'
-      : 'No hay conexión. Tocá para reintentar. Si sigue, avisá a tu responsable.';
+      : 'No hay conexión. Tocá para reintentar. Si sigue, avisá a tu responsable.'
+    : null;
 
   return (
     <div className="app-scope bg-app fixed inset-0 z-50 flex min-h-screen flex-col">
@@ -209,9 +209,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
             <p className="truncate text-sm font-bold text-ink">
               {empresa?.nombre ?? 'Fichaje en planta'}
             </p>
-            <p className="truncate text-xs text-ink-soft">
-              Solo se ficha. Nadie ve el resto de la app.
-            </p>
+            <p className="truncate text-xs text-ink-soft">Fichaje</p>
           </div>
         </div>
         <span
@@ -266,9 +264,11 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
               <span className="text-2xl font-extrabold text-ink">
                 {etiquetaFichar}
               </span>
-              <span className="max-w-72 text-base font-semibold leading-relaxed text-ink-soft">
-                {ayudaFichar}
-              </span>
+              {ayudaFichar && (
+                <span className="max-w-72 text-base font-semibold leading-relaxed text-ink-soft">
+                  {ayudaFichar}
+                </span>
+              )}
             </button>
           </>
         ) : (
