@@ -353,10 +353,10 @@ select pg_temp.como('7e111111-1111-1111-1111-1111111111a1');
 do $$
 declare r text; v_f fichajes;
 begin
-  -- La pausa de 2 min del kiosco devolvería la marca reciente. Esto
+  -- La pausa de 3 min del kiosco devolvería la marca reciente. Esto
   -- simula que esa persona ya se fue y volvió a fichar de verdad.
   update fichajes
-     set ts = ts - interval '3 minutes'
+     set ts = ts - interval '4 minutes'
    where empleado_id = '7e111111-1111-1111-1111-1111111111e1';
 
   -- Descriptor nuevo → entra, y alterna sobre la marca anterior.

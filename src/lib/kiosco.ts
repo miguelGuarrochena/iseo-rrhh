@@ -178,3 +178,27 @@ export const desactivarKiosco = async (pin: string): Promise<boolean> => {
 export const salirKioscoForzado = (): void => {
   desbloquearPantalla();
 };
+
+/**
+ * En planta, la misma cara no genera otra marca hasta que pase esto.
+ * Tiene que coincidir con el `interval` de `fichar_con_rostro`.
+ */
+export const PAUSA_ENTRE_MARCAS_KIOSCO_MIN = 3;
+
+const marcasKioscoVistas = new Set<string>();
+
+/**
+ * El 1:N, si la misma persona vuelve al toque, **devuelve la marca que
+ * ya está**. Sin esto, la tablet vuelve a gritar "Ingreso" y parece
+ * que fichó dos veces. `true` = ya la mostramos, no es una marca nueva.
+ */
+export const marcaKioscoYaVista = (id: string): boolean => {
+  if (marcasKioscoVistas.has(id)) return true;
+  marcasKioscoVistas.add(id);
+  return false;
+};
+
+/** Sólo para tests. */
+export const olvidarMarcasKioscoVistas = (): void => {
+  marcasKioscoVistas.clear();
+};

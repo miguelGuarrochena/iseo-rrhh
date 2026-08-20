@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Modal } from '@mantine/core';
-import { IconLogin2, IconLogout2 } from '@tabler/icons-react';
+import { IconClock, IconLogin2, IconLogout2 } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { CapturaFacial } from './CapturaFacial';
 import { AvisoBateria } from './AvisoBateria';
@@ -10,6 +10,10 @@ import { obtenerUbicacion } from '@/lib/facial/ubicacion';
 import { useBateria } from '@/lib/dispositivo/useBateria';
 import { ficharConRostro } from '@/lib/services/rrhh';
 import { interpretarError } from '@/lib/errores';
+import {
+  marcaKioscoYaVista,
+  PAUSA_ENTRE_MARCAS_KIOSCO_MIN,
+} from '@/lib/kiosco';
 import { Fichaje } from '@/types/rrhh';
 
 type Modo = 'verificar' | 'identificar';
@@ -38,6 +42,11 @@ interface Resultado {
   fueraDeZona?: boolean;
   /** Hora que registró el **servidor**, no la del dispositivo. */
   timestamp: string;
+  /**
+   * El servidor devolvió una marca que ya estaba: la misma cara, hace
+   * menos de la pausa. No es un ingreso ni un egreso nuevo.
+   */
+  repetida?: boolean;
 }
 
 /** Cuánto se muestra quién fichó en la tablet antes de la siguiente cara. */
@@ -118,14 +127,19 @@ export const FichajeFacialModal = ({
         geo,
       });
 
+      const repetida = modo === 'identificar' && marcaKioscoYaVista(fichaje.id);
+
       setResultado({
         tipo: fichaje.tipo,
         nombre: resolverNombre?.(fichaje.empleadoId),
         confianza: fichaje.confianza ?? 0,
         fueraDeZona: fichaje.fueraDeZona,
         timestamp: fichaje.timestamp,
+        repetida,
       });
-      onFichado?.(fichaje, fichaje.empleadoId);
+      if (!repetida) {
+        onFichado?.(fichaje, fichaje.empleadoId);
+      }
     } catch (err) {
       // El servidor distingue "no te reconocí" de "se cayó la conexión";
       // mostrar siempre "probá de nuevo" hacía que la persona insistiera
@@ -182,7 +196,7 @@ export const FichajeFacialModal = ({
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed text-ink-soft">
             {modo === 'identificar'
-              ? 'Poné la cara en el óvalo, de frente, y parpadeá una vez. Una foto no sirve.'
+              ? 'La cámara ya está prendida. Poné la cara en el óvalo, de frente, y parpadeá una vez. No hace falta tocar nada más. Una foto no sirve.'
               : 'Poné la cara en el óvalo, de frente, y parpadeá una vez. No hace falta apretar ningún botón.'}
           </p>
 
@@ -233,23 +247,46 @@ const ConfirmacionFichaje = ({
   onListo: () => void;
 }) => {
   const esIngreso = resultado.tipo === 'ingreso';
+  const repetida = Boolean(resultado.repetida);
   const hora = new Date(resultado.timestamp).toLocaleTimeString('es-AR', {
     hour: '2-digit',
     minute: '2-digit',
   });
 
+  const titulo = repetida
+    ? esIngreso
+      ? 'Ya ingresaste'
+      : 'Ya egresaste'
+    : esIngreso
+      ? 'Ingreso'
+      : 'Egreso';
+
+  const pista = repetida
+    ? esIngreso
+      ? `Esperá ${PAUSA_ENTRE_MARCAS_KIOSCO_MIN} minutos para el egreso. El que sigue toca Fichar.`
+      : `Esperá ${PAUSA_ENTRE_MARCAS_KIOSCO_MIN} minutos para volver a ingresar. El que sigue toca Fichar.`
+    : esIngreso
+      ? `El que sigue toca Fichar. Cuando te vayas, esperá ${PAUSA_ENTRE_MARCAS_KIOSCO_MIN} minutos y volvé a tocar Fichar.`
+      : 'Listo. El que sigue toca Fichar.';
+
   return (
     <div
       className={`flex flex-col items-center gap-5 rounded-2xl px-4 py-8 text-center ${
-        esIngreso ? 'bg-emerald-50' : 'bg-sky-50'
+        repetida ? 'bg-amber-50' : esIngreso ? 'bg-emerald-50' : 'bg-sky-50'
       }`}
     >
       <span
         className={`flex h-24 w-24 items-center justify-center rounded-full ${
-          esIngreso ? 'bg-emerald-600 text-white' : 'bg-sky-600 text-white'
+          repetida
+            ? 'bg-amber-500 text-white'
+            : esIngreso
+              ? 'bg-emerald-600 text-white'
+              : 'bg-sky-600 text-white'
         }`}
       >
-        {esIngreso ? (
+        {repetida ? (
+          <IconClock size={48} stroke={2} />
+        ) : esIngreso ? (
           <IconLogin2 size={48} stroke={2} />
         ) : (
           <IconLogout2 size={48} stroke={2} />
@@ -257,10 +294,14 @@ const ConfirmacionFichaje = ({
       </span>
       <p
         className={`text-4xl font-extrabold tracking-tight sm:text-5xl ${
-          esIngreso ? 'text-emerald-800' : 'text-sky-900'
+          repetida
+            ? 'text-amber-900'
+            : esIngreso
+              ? 'text-emerald-800'
+              : 'text-sky-900'
         }`}
       >
-        {esIngreso ? 'Ingreso' : 'Egreso'}
+        {titulo}
       </p>
       {resultado.nombre && (
         <p className="text-2xl font-bold leading-tight text-ink">
@@ -280,9 +321,7 @@ const ConfirmacionFichaje = ({
       )}
       {modo === 'identificar' && (
         <p className="max-w-sm text-sm font-medium leading-relaxed text-ink-soft">
-          {esIngreso
-            ? 'Cuando te vayas, volvé a mirar la cámara.'
-            : 'Listo. El que sigue puede acercarse.'}
+          {pista}
         </p>
       )}
       {modo === 'verificar' && (

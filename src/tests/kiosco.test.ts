@@ -11,6 +11,8 @@ import {
   puedeAdministrarTerminal,
   reanudarKiosco,
   salirKioscoForzado,
+  marcaKioscoYaVista,
+  olvidarMarcasKioscoVistas,
 } from '@/lib/kiosco';
 import { Empresa, Usuario } from '@/types/rrhh';
 
@@ -27,7 +29,10 @@ const usuario = (
 });
 
 describe('modo kiosco', () => {
-  beforeEach(() => window.localStorage.clear());
+  beforeEach(() => {
+    window.localStorage.clear();
+    olvidarMarcasKioscoVistas();
+  });
 
   it('valida el formato del PIN (4 a 6 números)', () => {
     expect(pinValido('1234')).toBe(true);
@@ -129,5 +134,11 @@ describe('modo kiosco', () => {
     expect(puedeAdministrarTerminal(usuario('superadmin', null), empresa)).toBe(
       true
     );
+  });
+
+  it('la misma marca del kiosco no se celebra dos veces', () => {
+    expect(marcaKioscoYaVista('f1')).toBe(false);
+    expect(marcaKioscoYaVista('f1')).toBe(true);
+    expect(marcaKioscoYaVista('f2')).toBe(false);
   });
 });
