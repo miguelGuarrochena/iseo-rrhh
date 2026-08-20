@@ -78,7 +78,13 @@ import {
 } from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
-import { armarJornadas, horasEntre, Jornada } from '@/lib/fichadas';
+import {
+  armarJornadas,
+  desdeEstadoIso,
+  horasEntre,
+  Jornada,
+  tipoDeMarcaSiguiente,
+} from '@/lib/fichadas';
 import { claveTurno, controlarJornada, indexarTurnos } from '@/lib/turnos';
 import { traerTodo as traerTodoBase } from './paginado';
 import { aISOLocal, diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
@@ -1862,6 +1868,14 @@ export const getFichajesEntre = async (
   return filas.map(aFichaje);
 };
 
+/**
+ * Marcas recientes del empleado, no sólo las de hoy calendario.
+ *
+ * El tipo que toca (ingreso/egreso) y el aviso de jornada incompleta
+ * dependen de la sesión, que puede haber empezado ayer (turno noche) o
+ * haber quedado abierta. Un corte a medianoche pintaba "fichar ingreso"
+ * con la persona todavía adentro.
+ */
 export const getFichajesDeEmpleadoHoy = async (
   empleadoId: string
 ): Promise<Fichaje[]> => {
@@ -1869,9 +1883,10 @@ export const getFichajesDeEmpleadoHoy = async (
     .from('fichajes')
     .select('*')
     .eq('empleado_id', empleadoId)
-    .gte('ts', inicioDeHoy())
+    .gte('ts', desdeEstadoIso())
     .is('anulado_en', null)
-    .order('ts');
+    .order('ts')
+    .order('id');
   return oFalla(data, error).map(aFichaje);
 };
 
@@ -1879,10 +1894,8 @@ export const ficharAhora = async (
   empleadoId: string,
   opciones: OpcionesFichaje = {}
 ): Promise<Fichaje> => {
-  const deHoy = await getFichajesDeEmpleadoHoy(empleadoId);
-  const ultimo = deHoy[deHoy.length - 1];
-  const tipo =
-    opciones.tipo ?? (ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso');
+  const recientes = await getFichajesDeEmpleadoHoy(empleadoId);
+  const tipo = opciones.tipo ?? tipoDeMarcaSiguiente(recientes);
   const { data, error } = await sb()
     .from('fichajes')
     .insert({

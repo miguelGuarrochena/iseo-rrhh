@@ -32,6 +32,68 @@ export const CORTE_JORNADA_MS = 6 * 60 * 60 * 1000;
  */
 export const MAX_JORNADA_MS = 16 * 60 * 60 * 1000;
 
+/** Marcas vigentes: las anuladas no existen para el cálculo. */
+const vigentes = (fichajes: Fichaje[]): Fichaje[] =>
+  fichajes
+    .filter((f) => !f.anuladoEn)
+    .sort(
+      (a, b) =>
+        a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id)
+    );
+
+/**
+ * Qué marca toca ahora: la misma regla que `tipo_de_marca_siguiente`
+ * en la base. El cliente la usa para pintar el botón; el servidor es
+ * quien inserta, y ignora un `p_tipo` que mande el empleado.
+ *
+ *   última es egreso, o no hay  → ingreso
+ *   última es ingreso < 16 h    → egreso
+ *   última es ingreso ≥ 16 h    → ingreso (la anterior queda incompleta)
+ */
+export const tipoDeMarcaSiguiente = (
+  fichajes: Fichaje[],
+  ahora: number = Date.now()
+): 'ingreso' | 'egreso' => {
+  const marcas = vigentes(fichajes);
+  const ultima = marcas[marcas.length - 1];
+  if (!ultima || ultima.tipo !== 'ingreso') return 'ingreso';
+  if (ahora - new Date(ultima.timestamp).getTime() < MAX_JORNADA_MS) {
+    return 'egreso';
+  }
+  return 'ingreso';
+};
+
+/**
+ * Minutos realmente fichados: suma de pares ingreso→egreso, más el
+ * tramo abierto si la persona está adentro ahora. El almuerzo (egreso
+ * y vuelta) no cuenta. Distinto de `Jornada.horas`, que es puerta a
+ * puerta (7 a 16) porque así liquida la planta.
+ */
+export const minutosFichados = (
+  fichajes: Fichaje[],
+  ahora: number = Date.now()
+): number => {
+  const marcas = vigentes(fichajes);
+  let total = 0;
+  let abierto: string | null = null;
+  marcas.forEach((m) => {
+    if (m.tipo === 'ingreso') {
+      abierto = m.timestamp;
+      return;
+    }
+    if (m.tipo === 'egreso' && abierto) {
+      total += minutosEntre(abierto, m.timestamp);
+      abierto = null;
+    }
+  });
+  if (abierto && ahora - new Date(abierto).getTime() < MAX_JORNADA_MS) {
+    total += Math.round(
+      Math.max(0, ahora - new Date(abierto).getTime()) / 60_000
+    );
+  }
+  return total;
+};
+
 /**
  * Una jornada: una sesión de trabajo, no un día de calendario.
  *
@@ -132,6 +194,65 @@ export const armarJornadas = (
   agruparMarcas(fichajes, ahora)
     .map((g) => g.jornada)
     .sort(ordenJornadas);
+
+export type EstadoJornadaVista =
+  | 'sin_iniciar'
+  | 'activa'
+  | 'pausada'
+  | 'incompleta';
+
+/**
+ * Cuánto hacia atrás se traen marcas para pintar el estado de jornada
+ * del empleado: cubre turno noche y una jornada incompleta del día
+ * anterior. El tipo lo decide el servidor con todo el historial.
+ */
+export const VENTANA_ESTADO_MS = 3 * 24 * 60 * 60 * 1000;
+
+export const desdeEstadoIso = (ahora: number = Date.now()): string =>
+  new Date(ahora - VENTANA_ESTADO_MS).toISOString();
+
+/**
+ * Cómo se le muestra la jornada a la persona. Se deriva de las marcas
+ * persistidas, no de un flag en el navegador.
+ *
+ * Una jornada cerrada hace menos de `CORTE_JORNADA_MS` es una pausa
+ * (almuerzo, salida corta). Pasado ese hueco, es otra sesión: "no
+ * iniciaste" aunque ayer haya cerrado bien.
+ */
+export const estadoJornadaVista = (
+  fichajes: Fichaje[],
+  ahora: number = Date.now()
+): {
+  estado: EstadoJornadaVista;
+  jornada?: Jornada;
+  siguiente: 'ingreso' | 'egreso';
+} => {
+  const jornadas = armarJornadas(fichajes, ahora);
+  const jornada = jornadas[jornadas.length - 1];
+  const siguiente = tipoDeMarcaSiguiente(fichajes, ahora);
+  if (!jornada) return { estado: 'sin_iniciar', siguiente };
+  if (jornada.enCurso) return { estado: 'activa', jornada, siguiente };
+  if (jornada.incompleta) return { estado: 'incompleta', jornada, siguiente };
+  if (jornada.cerrada) {
+    const marcas = vigentes(fichajes);
+    const ultima = marcas[marcas.length - 1];
+    const hueco = ultima
+      ? ahora - new Date(ultima.timestamp).getTime()
+      : CORTE_JORNADA_MS;
+    if (hueco < CORTE_JORNADA_MS) {
+      return { estado: 'pausada', jornada, siguiente };
+    }
+  }
+  return { estado: 'sin_iniciar', jornada, siguiente };
+};
+
+/** Minutos a "08h 09m", para el total trabajado en pantalla. */
+export const minutosAHorasMinutos = (minutos: number): string => {
+  const n = Math.max(0, Math.round(minutos));
+  const h = Math.floor(n / 60);
+  const m = n % 60;
+  return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m`;
+};
 
 /**
  * Igual que `armarJornadas`, pero devolviendo también qué marcas

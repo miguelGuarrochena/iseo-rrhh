@@ -259,9 +259,13 @@ const ConfirmacionFichaje = ({
     ? esIngreso
       ? 'Ya ingresaste'
       : 'Ya egresaste'
-    : esIngreso
-      ? 'Ingreso'
-      : 'Egreso';
+    : modo === 'verificar'
+      ? esIngreso
+        ? 'Entrada registrada'
+        : 'Salida registrada'
+      : esIngreso
+        ? 'Ingreso'
+        : 'Egreso';
 
   const pista = repetida
     ? esIngreso

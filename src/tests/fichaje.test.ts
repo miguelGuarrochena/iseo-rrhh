@@ -1,6 +1,12 @@
 import { distanciaMetros } from '@/lib/facial/ubicacion';
 import { demoHabilitado } from '@/lib/entorno';
-import { ficharAhora, getFichajesDeEmpleadoHoy } from '@/lib/services/rrhh';
+import { tipoDeMarcaSiguiente } from '@/lib/fichadas';
+import {
+  enrolarRostro,
+  ficharAhora,
+  ficharConRostro,
+  getFichajesDeEmpleadoHoy,
+} from '@/lib/services/rrhh';
 
 describe('distanciaMetros (Haversine)', () => {
   it('es 0 entre el mismo punto', () => {
@@ -63,6 +69,45 @@ describe('fichaje manual', () => {
       registradoPor: 'RRHH Test',
     });
     expect(marca.tipo).toBe('egreso');
+  });
+});
+
+describe('control horario: el tipo lo decide el estado', () => {
+  it('alterna entrada y salida en cuatro fichajes', async () => {
+    const uno = await ficharAhora('ple-8');
+    expect(uno.tipo).toBe('ingreso');
+    const dos = await ficharAhora('ple-8');
+    expect(dos.tipo).toBe('egreso');
+    const tres = await ficharAhora('ple-8');
+    expect(tres.tipo).toBe('ingreso');
+    const cuatro = await ficharAhora('ple-8');
+    expect(cuatro.tipo).toBe('egreso');
+  });
+
+  it('la cámara no puede mandar el tipo contrario al estado del servidor', async () => {
+    await enrolarRostro('ple-1', [0.4, 0.5, 0.6], {
+      aceptado: true,
+      texto: 'Autoriza el uso de su rostro para registrar asistencia.',
+    });
+    const previos = await getFichajesDeEmpleadoHoy('ple-1');
+    const esperado = tipoDeMarcaSiguiente(previos);
+    const contrario = esperado === 'ingreso' ? 'egreso' : 'ingreso';
+    const marca = await ficharConRostro([0.4, 0.5, 0.6], {
+      empleadoId: 'ple-1',
+      tipo: contrario,
+    });
+    expect(marca.tipo).toBe(esperado);
+  });
+
+  it('el kiosco no genera otra marca si la misma cara vuelve al toque', async () => {
+    await enrolarRostro('ple-2', [0.7, 0.8, 0.9], {
+      aceptado: true,
+      texto: 'Autoriza el uso de su rostro para registrar asistencia.',
+    });
+    const primero = await ficharConRostro([0.7, 0.8, 0.9]);
+    const repetido = await ficharConRostro([0.7, 0.8, 0.91]);
+    expect(repetido.id).toBe(primero.id);
+    expect(repetido.tipo).toBe(primero.tipo);
   });
 });
 

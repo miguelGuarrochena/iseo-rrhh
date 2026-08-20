@@ -302,6 +302,26 @@ begin
   assert v_fallo, 'un empleado no puede insertar fichajes de otro';
 end $$;
 
+-- El empleado tampoco puede insertar el suyo: eso fabricaría un egreso
+-- o una hora inventada. Ficha por fichar_con_rostro.
+set request.jwt.claims =
+  '{"sub":"77777777-7777-7777-7777-777777777777","role":"authenticated"}';
+do $$
+declare v_fallo boolean := false;
+begin
+  begin
+    set local role authenticated;
+    insert into fichajes (empresa_id, empleado_id, tipo, metodo, ts)
+    values ('11111111-1111-1111-1111-111111111111',
+            '22222222-2222-2222-2222-222222222222',
+            'egreso', 'celular', clock_timestamp());
+  exception when others then
+    v_fallo := true;
+  end;
+  reset role;
+  assert v_fallo, 'un empleado no puede insertar su propio fichaje a mano';
+end $$;
+
 delete from auditoria_acciones where empresa_id = '11111111-1111-1111-1111-111111111111';
 delete from fichajes where empresa_id = '11111111-1111-1111-1111-111111111111';
 delete from fichajes_descriptor_usado;
@@ -335,6 +355,7 @@ set request.jwt.claims =
 do $$
 declare
   v_f fichajes;
+  v_otra fichajes;
   v_t uuid := (select id from term_rpc);
   v_s text := (select secreto from term_rpc);
 begin
@@ -352,6 +373,14 @@ begin
     'la confianza la calcula el servidor a partir de la distancia real';
   assert v_f.metodo = 'facial_tablet',
     'el camino RPC no se convierte en manual aunque el JWT sea de otro rol';
+
+  -- Anti-rebote: otra captura de la misma cara, al toque, no es egreso.
+  select * into v_otra from fichar_con_rostro(
+    '[0.01,0.0101,0.01]'::jsonb, null, -34.6, -58.4, null, v_t, v_s);
+  assert v_otra.id = v_f.id,
+    'la misma cara a los pocos segundos devuelve la marca que ya está';
+  assert v_otra.tipo = 'ingreso',
+    'el anti-rebote no decide el tipo: sigue siendo el ingreso';
 
   -- Para alternar de verdad hay que simular que ya se fue de la tablet.
   update fichajes set ts = ts - interval '3 minutes' where id = v_f.id;

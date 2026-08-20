@@ -5,7 +5,11 @@ import {
   CORTE_JORNADA_MS,
   diasDelRango,
   encabezadoDia,
+  estadoJornadaVista,
   minutosAHhMm,
+  minutosAHorasMinutos,
+  minutosFichados,
+  tipoDeMarcaSiguiente,
 } from '@/lib/fichadas';
 import { Ausencia, Empleado, Feriado, Fichaje } from '@/types/rrhh';
 
@@ -434,5 +438,98 @@ describe('armarResumen', () => {
     const beto = r.filas.find((f) => f.empleado.id === 'e2')!;
     expect(andres.horasTotales).toBe(4);
     expect(beto.horasTotales).toBe(8);
+  });
+});
+
+describe('tipoDeMarcaSiguiente', () => {
+  const ahora = new Date('2026-08-20T18:30:00').getTime();
+
+  it('el primer fichaje es ingreso', () => {
+    expect(tipoDeMarcaSiguiente([], ahora)).toBe('ingreso');
+  });
+
+  it('el segundo cierra, el tercero abre, el cuarto cierra', () => {
+    const uno = [marca('e1', '2026-08-20T08:57:00', 'ingreso')];
+    expect(tipoDeMarcaSiguiente(uno, ahora)).toBe('egreso');
+
+    const dos = [...uno, marca('e1', '2026-08-20T13:02:00', 'egreso')];
+    expect(tipoDeMarcaSiguiente(dos, ahora)).toBe('ingreso');
+
+    const tres = [...dos, marca('e1', '2026-08-20T14:01:00', 'ingreso')];
+    expect(tipoDeMarcaSiguiente(tres, ahora)).toBe('egreso');
+
+    const cuatro = [...tres, marca('e1', '2026-08-20T18:05:00', 'egreso')];
+    expect(tipoDeMarcaSiguiente(cuatro, ahora)).toBe('ingreso');
+  });
+
+  it('una marca anulada no cuenta para decidir', () => {
+    const marcas = [
+      {
+        ...marca('e1', '2026-08-20T08:57:00', 'ingreso'),
+        anuladoEn: '2026-08-20T09:00:00',
+      },
+    ];
+    expect(tipoDeMarcaSiguiente(marcas, ahora)).toBe('ingreso');
+  });
+
+  it('un ingreso de hace más de 16 h abre jornada nueva y deja la anterior incompleta', () => {
+    const marcas = [marca('e1', '2026-08-19T08:57:00', 'ingreso')];
+    expect(tipoDeMarcaSiguiente(marcas, ahora)).toBe('ingreso');
+    const vista = estadoJornadaVista(marcas, ahora);
+    expect(vista.estado).toBe('incompleta');
+    expect(vista.siguiente).toBe('ingreso');
+  });
+
+  it('después del almuerzo la jornada está pausada, no terminada', () => {
+    const marcas = [
+      marca('e1', '2026-08-20T08:57:00', 'ingreso'),
+      marca('e1', '2026-08-20T13:02:00', 'egreso'),
+    ];
+    const despuesAlmuerzo = new Date('2026-08-20T13:50:00').getTime();
+    const vista = estadoJornadaVista(marcas, despuesAlmuerzo);
+    expect(vista.estado).toBe('pausada');
+    expect(vista.siguiente).toBe('ingreso');
+  });
+
+  it('una jornada cerrada hace más de 6 h es otra sesión', () => {
+    const marcas = [
+      marca('e1', '2026-08-19T08:57:00', 'ingreso'),
+      marca('e1', '2026-08-19T18:05:00', 'egreso'),
+    ];
+    const maniana = new Date('2026-08-20T09:00:00').getTime();
+    const vista = estadoJornadaVista(marcas, maniana);
+    expect(vista.estado).toBe('sin_iniciar');
+    expect(vista.siguiente).toBe('ingreso');
+  });
+
+  it('con la jornada en curso el botón es salida', () => {
+    const ahoraActiva = new Date('2026-08-20T10:00:00').getTime();
+    const marcas = [marca('e1', '2026-08-20T08:57:00', 'ingreso')];
+    const vista = estadoJornadaVista(marcas, ahoraActiva);
+    expect(vista.estado).toBe('activa');
+    expect(vista.siguiente).toBe('egreso');
+  });
+});
+
+describe('minutosFichados', () => {
+  it('suma los intervalos y no el almuerzo', () => {
+    const marcas = [
+      marca('e1', '2026-08-20T08:57:00', 'ingreso'),
+      marca('e1', '2026-08-20T13:02:00', 'egreso'),
+      marca('e1', '2026-08-20T14:01:00', 'ingreso'),
+      marca('e1', '2026-08-20T18:05:00', 'egreso'),
+    ];
+    // 4h 05m + 4h 04m = 8h 09m
+    expect(minutosFichados(marcas, DESPUES)).toBe(4 * 60 + 5 + 4 * 60 + 4);
+  });
+
+  it('una jornada activa suma hasta ahora, sin inventar un egreso', () => {
+    const ahora = new Date('2026-08-20T10:57:00').getTime();
+    const marcas = [marca('e1', '2026-08-20T08:57:00', 'ingreso')];
+    expect(minutosFichados(marcas, ahora)).toBe(120);
+  });
+
+  it('formatea el total como 08h 09m', () => {
+    expect(minutosAHorasMinutos(4 * 60 + 5 + 4 * 60 + 4)).toBe('08h 09m');
   });
 });

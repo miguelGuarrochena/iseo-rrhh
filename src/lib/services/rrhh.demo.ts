@@ -75,7 +75,9 @@ import {
   agruparMarcas,
   armarJornadas,
   diaLocal,
+  desdeEstadoIso,
   Jornada,
+  tipoDeMarcaSiguiente,
 } from '@/lib/fichadas';
 import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
 import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
@@ -1110,26 +1112,28 @@ export const getFichajesPagina = async (
 
 export const getFichajesDeEmpleadoHoy = async (
   empleadoId: string
-): Promise<Fichaje[]> =>
-  simular(
+): Promise<Fichaje[]> => {
+  const desde = desdeEstadoIso();
+  return simular(
     fichajesMock.filter(
-      (f) => f.empleadoId === empleadoId && f.timestamp.startsWith(hoyISO())
+      (f) => f.empleadoId === empleadoId && !f.anuladoEn && f.timestamp >= desde
     )
   );
+};
 
 /**
- * Ficha ingreso o egreso según el último movimiento del día.
+ * Ficha ingreso o egreso según el estado persistido, no según el día
+ * calendario. `opciones.tipo` sólo lo usa la carga manual de RRHH.
  */
 export const ficharAhora = async (
   empleadoId: string,
   opciones: OpcionesFichaje = {}
 ): Promise<Fichaje> => {
-  const deHoy = fichajesMock.filter(
-    (f) => f.empleadoId === empleadoId && f.timestamp.startsWith(hoyISO())
+  const recientes = fichajesMock.filter(
+    (f) => f.empleadoId === empleadoId && !f.anuladoEn
   );
-  const ultimo = deHoy[deHoy.length - 1];
   const tipo: Fichaje['tipo'] =
-    opciones.tipo ?? (ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso');
+    opciones.tipo ?? tipoDeMarcaSiguiente(recientes);
   const esManual = opciones.metodo === 'manual';
   const nuevo: Fichaje = {
     id: `fic-${Date.now()}`,
@@ -1163,11 +1167,18 @@ export const ficharConRostro = async (
     tipo?: TipoFichaje;
   } = {}
 ): Promise<Fichaje> => {
-  // El mock no compara descriptores: identifica por el id cuando viene, y
-  // si no, toma el primer empleado con rostro enrolado.
+  // El mock no compara 128 dimensiones: identifica por el id cuando
+  // viene, y si no, por la plantilla más parecida a la captura.
+  const cerca = (plantilla?: number[]) =>
+    Boolean(
+      plantilla &&
+        plantilla.length === descriptor.length &&
+        plantilla.every((x, i) => Math.abs(x - descriptor[i]) < 0.5)
+    );
   const empleado = opciones.empleadoId
     ? empleadosMock.find((e) => e.id === opciones.empleadoId)
-    : empleadosMock.find((e) => e.descriptorFacial?.length);
+    : (empleadosMock.find((e) => cerca(e.descriptorFacial)) ??
+      empleadosMock.find((e) => e.descriptorFacial?.length));
   if (!empleado) throw new Error('No reconocimos el rostro.');
 
   // F-07: el método sale del camino, igual que en la base. Sin
@@ -1178,10 +1189,29 @@ export const ficharConRostro = async (
       ? 'remoto'
       : 'celular';
 
+  // Anti-rebote del kiosco: la misma cara, hace un momento, no es otra
+  // marca. No decide ingreso/egreso; el tipo lo pone ficharAhora.
+  if (!opciones.empleadoId) {
+    const limite = Date.now() - 3 * 60_000;
+    const reciente = fichajesMock
+      .filter(
+        (f) =>
+          f.empleadoId === empleado.id &&
+          !f.anuladoEn &&
+          new Date(f.timestamp).getTime() > limite
+      )
+      .sort(
+        (a, b) =>
+          a.timestamp.localeCompare(b.timestamp) || a.id.localeCompare(b.id)
+      )
+      .at(-1);
+    if (reciente) return simular(reciente);
+  }
+
+  // `opciones.tipo` se ignora: el empleado no elige entrada o salida.
   return ficharAhora(empleado.id, {
     metodo,
     geo: opciones.geo,
-    tipo: opciones.tipo,
     confianza: 0.9,
   });
 };

@@ -15,7 +15,9 @@ import { Boton } from '@/components/app/ui/Boton';
 import { Paginacion } from '@/components/app/ui/Paginacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { FiltrosFichadasModal, FiltrosFichadas } from './FiltrosFichadasModal';
+import { AnularFichajeModal } from './AnularFichajeModal';
 import { avisoError, avisoExito } from '@/lib/avisos';
+import { useAuth } from '@/lib/auth/AuthProvider';
 import { useCarga } from '@/lib/useCarga';
 import {
   getAusenciasEntre,
@@ -28,7 +30,13 @@ import {
 import { armarResumen, diaLocal, horaLocal, Jornada } from '@/lib/fichadas';
 import { descargarResumenFichadas } from '@/lib/exportarFichadas';
 import { formatearFecha, hoyISO } from '@/lib/fechas';
-import { Ausencia, Empleado, Feriado, MetodoFichaje } from '@/types/rrhh';
+import {
+  Ausencia,
+  Empleado,
+  Feriado,
+  Fichaje,
+  MetodoFichaje,
+} from '@/types/rrhh';
 
 const POR_PAGINA = 15;
 
@@ -65,6 +73,9 @@ const rangoPorDefecto = (): { desde: string; hasta: string } => {
  * alguien discute un día— no se podía hacer desde la app.
  */
 export const HistorialFichadas = () => {
+  const { rolEfectivo } = useAuth();
+  const puedeAnular =
+    rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin';
   const [filtros, setFiltros] = useState<FiltrosFichadas>({
     ...rangoPorDefecto(),
     nombre: '',
@@ -72,6 +83,7 @@ export const HistorialFichadas = () => {
     soloIncompletos: false,
   });
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [anularDe, setAnularDe] = useState<Fichaje | null>(null);
   const [vista, setVista] = useState<'movimientos' | 'resumen'>('movimientos');
   const [exportando, setExportando] = useState(false);
   // 1-based, como espera el componente <Paginacion> compartido. La
@@ -402,6 +414,15 @@ export const HistorialFichadas = () => {
                             Fuera de zona
                           </span>
                         )}
+                        {puedeAnular && (
+                          <button
+                            type="button"
+                            className="font-semibold text-red-700"
+                            onClick={() => setAnularDe(f)}
+                          >
+                            Anular
+                          </button>
+                        )}
                       </p>
                     </li>
                   );
@@ -417,6 +438,7 @@ export const HistorialFichadas = () => {
                       <th className="px-2 py-2">Fichaje</th>
                       <th className="px-2 py-2">Método</th>
                       <th className="px-2 py-2">Sector</th>
+                      {puedeAnular && <th className="px-2 py-2"> </th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -464,6 +486,17 @@ export const HistorialFichadas = () => {
                           <td className="px-2 py-2.5 text-xs text-ink-soft">
                             {e?.sector ?? '—'}
                           </td>
+                          {puedeAnular && (
+                            <td className="px-2 py-2.5">
+                              <button
+                                type="button"
+                                className="text-xs font-semibold text-red-700"
+                                onClick={() => setAnularDe(f)}
+                              >
+                                Anular
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       );
                     })}
@@ -635,6 +668,25 @@ export const HistorialFichadas = () => {
           })
         }
       />
+      {puedeAnular && (
+        <AnularFichajeModal
+          abierto={Boolean(anularDe)}
+          fichaje={anularDe}
+          nombreEmpleado={
+            anularDe
+              ? (() => {
+                  const e = empleadoDe.get(anularDe.empleadoId);
+                  return e ? `${e.apellido} ${e.nombre}` : 'Colaborador';
+                })()
+              : ''
+          }
+          onCerrar={() => setAnularDe(null)}
+          onAnulado={() => {
+            cMovimientos.recargar();
+            cJornadas.recargar();
+          }}
+        />
+      )}
     </Panel>
   );
 };

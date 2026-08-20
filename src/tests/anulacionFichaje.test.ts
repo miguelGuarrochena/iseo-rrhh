@@ -15,13 +15,24 @@ import {
  * cómo se colaron antes bugs del módulo.
  */
 describe('método derivado del camino (F-07)', () => {
+  it('sin empleadoId es la terminal de planta', async () => {
+    await enrolarRostro('ple-4', [0.22, 0.22, 0.22], {
+      aceptado: true,
+      texto: 'Autoriza el uso de su rostro para registrar asistencia.',
+    });
+
+    const marca = await ficharConRostro([0.22, 0.22, 0.22]);
+
+    expect(marca.metodo).toBe('facial_tablet');
+  });
+
   it('con empleadoId es el dispositivo de la persona, no la terminal', async () => {
     await enrolarRostro('ple-5', [0.1, 0.2, 0.3], {
       aceptado: true,
       texto: 'Autoriza el uso de su rostro para registrar asistencia.',
     });
 
-    const marca = await ficharConRostro([0.1, 0.2, 0.3], {
+    const marca = await ficharConRostro([0.11, 0.2, 0.3], {
       empleadoId: 'ple-5',
     });
 
@@ -29,12 +40,6 @@ describe('método derivado del camino (F-07)', () => {
     // 'facial_tablet' para una fichada hecha desde un celular.
     expect(marca.metodo).not.toBe('facial_tablet');
     expect(['celular', 'remoto']).toContain(marca.metodo);
-  });
-
-  it('sin empleadoId es la terminal de planta', async () => {
-    const marca = await ficharConRostro([0.1, 0.2, 0.3]);
-
-    expect(marca.metodo).toBe('facial_tablet');
   });
 });
 

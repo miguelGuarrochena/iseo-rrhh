@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
@@ -20,6 +20,10 @@ interface FichajeManualModalProps {
   /** Nombre de quien carga el fichaje (para auditoría). */
   registradoPor: string;
   onFichado: (fichaje: Fichaje) => void;
+  /** Prefill al abrir desde una incidencia. */
+  empleadoIdInicial?: string;
+  tipoInicial?: 'ingreso' | 'egreso';
+  fechaInicial?: string;
 }
 
 const horaActual = () => {
@@ -40,13 +44,27 @@ export const FichajeManualModal = ({
   empleados,
   registradoPor,
   onFichado,
+  empleadoIdInicial,
+  tipoInicial,
+  fechaInicial,
 }: FichajeManualModalProps) => {
-  const [empleadoId, setEmpleadoId] = useState('');
-  const [tipo, setTipo] = useState<'ingreso' | 'egreso'>('ingreso');
-  const [fecha, setFecha] = useState(hoyISO());
+  const [empleadoId, setEmpleadoId] = useState(empleadoIdInicial ?? '');
+  const [tipo, setTipo] = useState<'ingreso' | 'egreso'>(
+    tipoInicial ?? 'ingreso'
+  );
+  const [fecha, setFecha] = useState(fechaInicial ?? hoyISO());
   const [hora, setHora] = useState(horaActual());
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    setEmpleadoId(empleadoIdInicial ?? '');
+    setTipo(tipoInicial ?? 'ingreso');
+    setFecha(fechaInicial ?? hoyISO());
+    setHora(horaActual());
+    setError(null);
+  }, [abierto, empleadoIdInicial, tipoInicial, fechaInicial]);
 
   const opcionesEmpleados = useMemo(
     () =>

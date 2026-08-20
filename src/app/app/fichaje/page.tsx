@@ -11,13 +11,14 @@ import {
   IconFingerprint,
   IconPencilPlus,
   IconUserOff,
+  IconAlertTriangle,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
-import { formatearHora, hoyISO } from '@/lib/fechas';
+import { formatearFecha, formatearHora, hoyISO } from '@/lib/fechas';
 import { descargarCSV } from '@/lib/csv';
 import { avisoExito } from '@/lib/avisos';
 import {
@@ -26,9 +27,18 @@ import {
   getEmpleados,
   getFichajesDeEmpleadoHoy,
   getFichajesDeHoy,
+  getJornadas,
   getResumenControl,
   getTerminales,
 } from '@/lib/services/rrhh';
+import {
+  agruparMarcas,
+  diaLocal,
+  estadoJornadaVista,
+  Jornada,
+  minutosAHorasMinutos,
+  minutosFichados,
+} from '@/lib/fichadas';
 import {
   Ausencia,
   Empleado,
@@ -62,19 +72,29 @@ const metodoLabel: Record<MetodoFichaje, string> = {
 
 const PanelFichajePropio = ({
   modo,
-  ultimo,
-  proximoTipo,
+  empleado,
+  fichajes,
   tieneRostro,
   onFichar,
 }: {
   modo: ModoFichaje;
-  ultimo?: Fichaje;
-  proximoTipo: 'ingreso' | 'egreso';
+  empleado: Empleado;
+  fichajes: Fichaje[];
   tieneRostro: boolean;
   onFichar: () => void;
 }) => {
   const modoTexto =
     modo === 'celular' ? 'Celular + GPS' : 'Remoto con reconocimiento facial';
+  const nombre = `${empleado.nombre} ${empleado.apellido}`;
+  const vista = estadoJornadaVista(fichajes);
+  const grupos = agruparMarcas(fichajes);
+  const grupoActual = grupos[grupos.length - 1];
+  const marcasLista =
+    vista.estado === 'sin_iniciar'
+      ? fichajes.filter((f) => diaLocal(f.timestamp) === hoyISO())
+      : (grupoActual?.marcas ?? []);
+  const total = minutosAHorasMinutos(minutosFichados(marcasLista));
+  const activaAhora = vista.estado === 'activa';
 
   if (modo === 'planta') {
     return (
@@ -93,59 +113,126 @@ const PanelFichajePropio = ({
     );
   }
 
+  const etiquetaEstado =
+    vista.estado === 'activa'
+      ? 'Jornada activa'
+      : vista.estado === 'pausada'
+        ? 'Jornada pausada'
+        : vista.estado === 'incompleta'
+          ? 'Jornada incompleta'
+          : 'No has iniciado tu jornada.';
+
+  const colorEstado =
+    vista.estado === 'activa'
+      ? 'text-emerald-800'
+      : vista.estado === 'pausada'
+        ? 'text-amber-800'
+        : vista.estado === 'incompleta'
+          ? 'text-amber-800'
+          : 'text-ink-soft';
+
+  const punto =
+    vista.estado === 'activa'
+      ? 'bg-emerald-500'
+      : vista.estado === 'pausada' || vista.estado === 'incompleta'
+        ? 'bg-amber-500'
+        : 'bg-ink-soft/40';
+
   return (
-    <Panel className="flex flex-col items-center gap-4 py-10 text-center">
-      <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-brand-700">
-        <IconFingerprint size={32} stroke={1.6} />
-      </span>
-      {ultimo ? (
-        <p className="text-sm text-ink-soft">
-          Último movimiento:{' '}
-          <strong className="text-ink">
-            {ultimo.tipo === 'ingreso' ? 'Ingreso' : 'Egreso'} a las{' '}
-            {formatearHora(ultimo.timestamp)}
-          </strong>
+    <Panel className="flex flex-col gap-5 py-8">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <span className="flex h-16 w-16 items-center justify-center rounded-full bg-brand-100 text-brand-700">
+          <IconFingerprint size={32} stroke={1.6} />
+        </span>
+        <p className="text-lg font-bold tracking-tight text-ink">{nombre}</p>
+        <p
+          className={`flex items-center gap-2 text-sm font-semibold ${colorEstado}`}
+        >
+          <span className={`h-2.5 w-2.5 rounded-full ${punto}`} />
+          {etiquetaEstado}
         </p>
-      ) : (
-        <p className="text-sm text-ink-soft">Todavía no fichaste hoy.</p>
-      )}
+        {vista.estado === 'activa' && vista.jornada?.entrada && (
+          <p className="text-sm text-ink-soft">
+            Entrada: {formatearHora(vista.jornada.entrada)}
+          </p>
+        )}
+        {vista.estado === 'pausada' && vista.jornada?.salida && (
+          <p className="text-sm text-ink-soft">
+            Última salida: {formatearHora(vista.jornada.salida)}
+          </p>
+        )}
+        {vista.estado === 'incompleta' && (
+          <p className="max-w-sm text-sm text-ink-soft">
+            Entrada:{' '}
+            {vista.jornada?.entrada
+              ? formatearHora(vista.jornada.entrada)
+              : 'No registrada'}
+            . Salida: no registrada. RRHH tiene que revisarla; el próximo
+            fichaje abre una jornada nueva.
+          </p>
+        )}
+      </div>
+
       {tieneRostro ? (
-        <>
-          <div className="grid w-full max-w-md grid-cols-2 gap-3 text-left">
-            <div className="rounded-2xl bg-paper px-4 py-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-ink-soft">
-                Próximo fichaje
-              </p>
-              <p className="mt-1 text-sm font-bold text-ink">
-                {proximoTipo === 'ingreso' ? 'Ingreso' : 'Egreso'}
-              </p>
-            </div>
-            <div className="rounded-2xl bg-paper px-4 py-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-ink-soft">
-                Método
-              </p>
-              <p className="mt-1 text-sm font-bold text-ink">{modoTexto}</p>
-            </div>
-          </div>
+        <div className="flex flex-col items-center gap-3">
           <Boton
             variante="negro"
             onClick={onFichar}
             className="px-8 py-3.5 text-base"
           >
             <IconFaceId size={18} />
-            {proximoTipo === 'ingreso' ? 'Fichar ingreso' : 'Fichar egreso'}
+            {vista.siguiente === 'ingreso' ? 'Fichar entrada' : 'Fichar salida'}
           </Boton>
-          <p className="max-w-sm text-xs text-ink-soft">
+          <p className="max-w-sm text-center text-xs text-ink-soft">
             {modo === 'celular'
-              ? 'Confirmás tu identidad con la cara y validamos que estés en tu zona de trabajo.'
-              : 'Confirmás tu identidad con la cara. Podés fichar desde cualquier lugar.'}
+              ? 'Confirmás tu identidad con la cara y validamos que estés en tu zona de trabajo. El sistema decide si es entrada o salida.'
+              : 'Confirmás tu identidad con la cara. El sistema decide si es entrada o salida.'}
           </p>
-        </>
+        </div>
       ) : (
-        <p className="max-w-sm text-sm text-ink-soft">
+        <p className="text-center text-sm text-ink-soft">
           Para fichar necesitás tener tu rostro registrado. Pedíselo a RRHH
           desde tu ficha.
         </p>
+      )}
+
+      {(marcasLista.length > 0 || activaAhora) && (
+        <div className="rounded-2xl bg-paper px-4 py-4">
+          <p className="text-xs font-bold uppercase tracking-widest text-ink-soft">
+            Hoy — {formatearFecha(hoyISO())}
+          </p>
+          <ul className="mt-3 flex flex-col gap-2">
+            {marcasLista.map((m) => (
+              <li
+                key={m.id}
+                className="flex items-center justify-between text-sm"
+              >
+                <span className="font-semibold tabular-nums text-ink">
+                  {formatearHora(m.timestamp)}
+                </span>
+                <span
+                  className={`font-semibold ${
+                    m.tipo === 'ingreso' ? 'text-emerald-800' : 'text-red-700'
+                  }`}
+                >
+                  {m.tipo === 'ingreso' ? 'Entrada' : 'Salida'}
+                </span>
+              </li>
+            ))}
+            {activaAhora && (
+              <li className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-ink">Ahora</span>
+                <span className="font-semibold text-emerald-800">
+                  Jornada activa
+                </span>
+              </li>
+            )}
+          </ul>
+          <p className="mt-3 border-t border-line pt-3 text-sm text-ink">
+            Total trabajado: <strong className="tabular-nums">{total}</strong>
+          </p>
+          <p className="mt-1 text-xs text-ink-soft">{modoTexto}</p>
+        </div>
       )}
     </Panel>
   );
@@ -158,6 +245,11 @@ const FichajePage = () => {
   const [facialAbierto, setFacialAbierto] = useState(false);
   const [kioscoAbierto, setKioscoAbierto] = useState(false);
   const [manualAbierto, setManualAbierto] = useState(false);
+  const [manualPrefill, setManualPrefill] = useState<{
+    empleadoId?: string;
+    tipo?: 'ingreso' | 'egreso';
+    fecha?: string;
+  }>({});
   const [esTerminal, setEsTerminal] = useState(false);
   const [tabletConPin, setTabletConPin] = useState(false);
 
@@ -202,13 +294,39 @@ const FichajePage = () => {
   });
   const ausenciasHoy = cAusencias.datos;
 
+  const desdeIncidencias = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 14);
+    const mes = String(d.getMonth() + 1).padStart(2, '0');
+    const dia = String(d.getDate()).padStart(2, '0');
+    return `${d.getFullYear()}-${mes}-${dia}`;
+  })();
+  const cIncompletas = useCarga(
+    () => getJornadas(desdeIncidencias, hoyISO(), { soloAbiertas: true }),
+    [vistaEquipo, desdeIncidencias],
+    {
+      activo: vistaEquipo,
+      contexto: 'fichaje/incompletas',
+      inicial: [] as Jornada[],
+    }
+  );
+  const jornadasIncompletas = cIncompletas.datos;
+
   const cargar = useCallback(() => {
     cMisFichajes.recargar();
     cMiEmpleado.recargar();
     cFichajesHoy.recargar();
     cEmpleados.recargar();
     cAusencias.recargar();
-  }, [cMisFichajes, cMiEmpleado, cFichajesHoy, cEmpleados, cAusencias]);
+    cIncompletas.recargar();
+  }, [
+    cMisFichajes,
+    cMiEmpleado,
+    cFichajesHoy,
+    cEmpleados,
+    cAusencias,
+    cIncompletas,
+  ]);
 
   // Si ESTE dispositivo tiene credencial de terminal activa. Es sólo
   // para decidir qué mostrar: la autorización de verdad la hace el RPC
@@ -228,14 +346,12 @@ const FichajePage = () => {
       .catch(() => setEsTerminal(false));
   }, [esEmpleado]);
 
-  const ultimo = misFichajes[misFichajes.length - 1];
-  const proximoTipo = ultimo?.tipo === 'ingreso' ? 'egreso' : 'ingreso';
   const tieneRostro = tieneRostroEnrolado(miEmpleado);
   const modoEmp: ModoFichaje = miEmpleado?.modoFichaje ?? 'celular';
 
   const trasFichar = (marca: Fichaje) => {
     avisoExito(
-      marca.tipo === 'ingreso' ? 'Ingreso registrado' : 'Egreso registrado',
+      marca.tipo === 'ingreso' ? 'Entrada registrada' : 'Salida registrada',
       `A las ${formatearHora(marca.timestamp)}.`
     );
     cargar();
@@ -327,7 +443,13 @@ const FichajePage = () => {
                 Cambiar PIN
               </Boton>
             )}
-            <Boton variante="secundario" onClick={() => setManualAbierto(true)}>
+            <Boton
+              variante="secundario"
+              onClick={() => {
+                setManualPrefill({});
+                setManualAbierto(true);
+              }}
+            >
               <IconPencilPlus size={18} />
               Cargar a mano
             </Boton>
@@ -367,11 +489,11 @@ const FichajePage = () => {
         </p>
       )}
 
-      {usuario.empleadoId && (
+      {miEmpleado && (
         <PanelFichajePropio
           modo={modoEmp}
-          ultimo={ultimo}
-          proximoTipo={proximoTipo}
+          empleado={miEmpleado}
+          fichajes={misFichajes}
           tieneRostro={tieneRostro}
           onFichar={() => setFacialAbierto(true)}
         />
@@ -399,9 +521,15 @@ const FichajePage = () => {
       {!esEmpleado && (
         <FichajeManualModal
           abierto={manualAbierto}
-          onCerrar={() => setManualAbierto(false)}
+          onCerrar={() => {
+            setManualAbierto(false);
+            setManualPrefill({});
+          }}
           empleados={empleados}
           registradoPor={usuario.nombreCompleto ?? 'RRHH'}
+          empleadoIdInicial={manualPrefill.empleadoId}
+          tipoInicial={manualPrefill.tipo}
+          fechaInicial={manualPrefill.fecha}
           onFichado={() => {
             avisoExito('Fichaje manual cargado');
             cargar();
@@ -411,6 +539,57 @@ const FichajePage = () => {
 
       {!esEmpleado && (
         <>
+          {jornadasIncompletas.length > 0 && (
+            <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+              <p className="flex items-center gap-2 text-sm font-bold text-amber-900">
+                <IconAlertTriangle size={18} className="shrink-0" />
+                Incidencias: {jornadasIncompletas.length} jornada
+                {jornadasIncompletas.length === 1 ? '' : 's'} incompleta
+                {jornadasIncompletas.length === 1 ? '' : 's'}
+              </p>
+              <p className="text-xs text-amber-800">
+                Entrada sin salida, o jornada de un día anterior que quedó
+                abierta. No se inventa una hora de salida. Anulá la marca
+                equivocada o cargá a mano la que faltó.
+              </p>
+              <ul className="flex flex-col gap-2">
+                {jornadasIncompletas.slice(0, 6).map((j) => (
+                  <li
+                    key={`${j.empleadoId}-${j.fecha}-${j.entrada ?? ''}`}
+                    className="flex flex-col gap-2 rounded-xl bg-white/70 px-3 py-2.5 text-sm sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="font-semibold text-ink">
+                        {nombreEmpleado(j.empleadoId)}
+                      </p>
+                      <p className="text-xs text-ink-soft">
+                        {formatearFecha(j.fecha)}
+                        {j.entrada
+                          ? ` · Entrada ${formatearHora(j.entrada)}`
+                          : ' · Entrada no registrada'}
+                        {' · '}
+                        Salida: no registrada
+                      </p>
+                    </div>
+                    <Boton
+                      tamano="sm"
+                      variante="secundario"
+                      onClick={() => {
+                        setManualPrefill({
+                          empleadoId: j.empleadoId,
+                          tipo: j.entrada ? 'egreso' : 'ingreso',
+                          fecha: j.fecha,
+                        });
+                        setManualAbierto(true);
+                      }}
+                    >
+                      Corregir jornada
+                    </Boton>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <StatCard
               etiqueta="Presentes"

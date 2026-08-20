@@ -166,15 +166,34 @@ begin
   perform fichar_con_rostro(
     '[0.011,0.01,0.01]'::jsonb, 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1');
 
-  -- Y ahora, en la MISMA transacción, un INSERT directo.
+  -- El empleado no puede INSERT directo (ni siquiera en la misma
+  -- transacción): ficha por el RPC.
+  begin
+    insert into fichajes (empresa_id, empleado_id, tipo, metodo)
+    values ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
+            'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1', 'egreso', 'facial_tablet');
+  exception when others then ok := true;
+  end;
+  assert ok, 'tras fichar, el empleado sigue sin poder insertar a mano';
+
+  -- Un gestor sí, y el permiso del RPC ya está apagado: el INSERT es
+  -- carga manual aunque vaya en la misma transacción.
+  perform set_config(
+    'request.jwt.claims',
+    json_build_object(
+      'sub', 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7c1',
+      'role', 'authenticated'
+    )::text,
+    true
+  );
   insert into fichajes (empresa_id, empleado_id, tipo, metodo)
   values ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
           'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1', 'egreso', 'facial_tablet')
   returning metodo into v_m;
   assert v_m = 'manual',
-    'tras una fichada, el INSERT directo sigue siendo manual; quedó ' || v_m;
+    'tras una fichada, el INSERT directo del gestor es manual; quedó ' || v_m;
 
-  -- Y el guard de confianza también volvió a estar armado.
+  ok := false;
   begin
     insert into fichajes (empresa_id, empleado_id, tipo, metodo, confianza)
     values ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
