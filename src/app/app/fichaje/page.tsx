@@ -39,6 +39,7 @@ import {
 import { FichajeFacialModal } from '@/components/app/facial/FichajeFacialModal';
 import { FichajeManualModal } from '@/components/app/facial/FichajeManualModal';
 import { getTerminalLocal } from '@/lib/terminal';
+import { pinConfigurado, reanudarKiosco } from '@/lib/kiosco';
 import { ActivarKioscoModal } from '@/components/app/fichaje/ActivarKioscoModal';
 import { HistorialFichadas } from '@/components/app/fichaje/HistorialFichadas';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
@@ -151,13 +152,18 @@ const PanelFichajePropio = ({
 };
 
 const FichajePage = () => {
-  const { usuario, rolEfectivo } = useAuth();
+  const { usuario, rolEfectivo, empresaVista } = useAuth();
   const esEmpleado = rolEfectivo === 'empleado';
 
   const [facialAbierto, setFacialAbierto] = useState(false);
   const [kioscoAbierto, setKioscoAbierto] = useState(false);
   const [manualAbierto, setManualAbierto] = useState(false);
   const [esTerminal, setEsTerminal] = useState(false);
+  const [tabletConPin, setTabletConPin] = useState(false);
+
+  useEffect(() => {
+    setTabletConPin(pinConfigurado());
+  }, []);
 
   const miId = usuario?.empleadoId;
   const vistaEquipo = Boolean(usuario) && !esEmpleado;
@@ -298,9 +304,27 @@ const FichajePage = () => {
         {!esEmpleado && (
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             {esTerminal && (
-              <Boton variante="negro" onClick={() => setKioscoAbierto(true)}>
+              <Boton
+                variante="negro"
+                onClick={() => {
+                  if (pinConfigurado()) {
+                    reanudarKiosco(empresaVista);
+                    window.location.reload();
+                    return;
+                  }
+                  setKioscoAbierto(true);
+                }}
+              >
                 <IconFaceId size={18} />
                 Modo planta
+              </Boton>
+            )}
+            {esTerminal && tabletConPin && (
+              <Boton
+                variante="secundario"
+                onClick={() => setKioscoAbierto(true)}
+              >
+                Cambiar PIN
               </Boton>
             )}
             <Boton variante="secundario" onClick={() => setManualAbierto(true)}>
@@ -326,7 +350,7 @@ const FichajePage = () => {
           </p>
           <ol className="ml-6 list-decimal text-xs leading-relaxed">
             <li>Autorizala en Configuración, Terminales de fichaje.</li>
-            <li>Volvé acá y tocá Modo planta. Elegí un PIN y anotalo.</li>
+            <li>Volvé acá y tocá Modo planta. El PIN se elige una sola vez.</li>
             <li>
               Si la tablet falla, usá &quot;Cargar a mano&quot; como respaldo.
             </li>
@@ -337,8 +361,9 @@ const FichajePage = () => {
       {!esEmpleado && esTerminal && (
         <p className="flex items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
           <IconDeviceTablet size={16} className="shrink-0" />
-          Esta tablet ya está autorizada. Tocá Modo planta para dejarla
-          fichando.
+          {tabletConPin
+            ? 'Esta tablet ya tiene PIN. Tocá Modo planta para dejarla fichando.'
+            : 'Esta tablet ya está autorizada. Tocá Modo planta, elegí un PIN una vez y queda fichando.'}
         </p>
       )}
 
@@ -367,6 +392,7 @@ const FichajePage = () => {
         <ActivarKioscoModal
           abierto={kioscoAbierto}
           onCerrar={() => setKioscoAbierto(false)}
+          cambiando={tabletConPin}
         />
       )}
 

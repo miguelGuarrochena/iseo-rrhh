@@ -1,7 +1,6 @@
 'use client';
 
 import { FormEvent, useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { IconFaceId, IconLock, IconWifiOff } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
 import { Boton } from '@/components/app/ui/Boton';
@@ -30,12 +29,12 @@ type Pestania = 'fichar' | 'opciones';
 
 /**
  * Tablet compartida: los colaboradores solo fichan. El menú de la app no
- * va acá —ahí están sueldos y legajos—. Para salir hay que saber el PIN
- * (y aun así se cierra la sesión) o entrar con un usuario de RRHH.
+ * va acá —ahí están sueldos y legajos—. El PIN (o un usuario de RRHH)
+ * abre la app en esta tablet; la sesión sigue y el PIN no se vuelve a
+ * pedir. Para dejarla fichando otra vez, Modo planta.
  */
 export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
   const { usuario, empresaVista, entrarAEmpresa, login, logout } = useAuth();
-  const router = useRouter();
   const [pestania, setPestania] = useState<Pestania>('fichar');
   const [camaraAbierta, setCamaraAbierta] = useState(false);
   const [pin, setPin] = useState('');
@@ -144,8 +143,7 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
   const intentarPin = async () => {
     setPinError(null);
     if (await desactivarKiosco(pin)) {
-      logout();
-      router.replace('/login');
+      onSalir();
       return;
     }
     setPin('');
@@ -275,8 +273,8 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
             <div className="w-full">
               <p className="text-lg font-bold text-ink">Solo para RRHH</p>
               <p className="mt-1 text-sm leading-relaxed text-ink-soft">
-                Acá se desbloquea la tablet. El equipo ficha desde la otra
-                pestaña, Fichar.
+                El PIN abre la app en esta tablet. No te saca ni pide otro PIN.
+                Cuando termines, en Fichaje tocá Modo planta.
               </p>
             </div>
 

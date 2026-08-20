@@ -11,14 +11,20 @@ import { activarKiosco, pinValido } from '@/lib/kiosco';
 interface Props {
   abierto: boolean;
   onCerrar: () => void;
+  /** Ya hay PIN en esta tablet: el modal lo cambia, no lo crea. */
+  cambiando?: boolean;
 }
 
 /**
  * Activa el Modo planta: bloquea esta tablet como terminal de fichaje.
- * Se define un PIN para poder salir; mientras esté bloqueada no se
- * puede navegar ni ver nada de la sesión que la activó.
+ * El PIN se crea una vez. Sirve para abrir RRHH en este dispositivo;
+ * no cierra la sesión ni hay que inventar otro cada vez.
  */
-export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
+export const ActivarKioscoModal = ({
+  abierto,
+  onCerrar,
+  cambiando = false,
+}: Props) => {
   const { empresaVista } = useAuth();
   const [pin, setPin] = useState('');
   const [pin2, setPin2] = useState('');
@@ -44,7 +50,11 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
     <Modal
       opened={abierto}
       onClose={onCerrar}
-      title="Dejar esta tablet para fichar"
+      title={
+        cambiando
+          ? 'Cambiar el PIN de esta tablet'
+          : 'Dejar esta tablet para fichar'
+      }
       radius="lg"
       centered
       styles={{ title: { fontWeight: 800 } }}
@@ -52,6 +62,7 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
       <div className="flex flex-col gap-3.5">
         <p className="text-sm leading-relaxed text-ink-soft">
           Queda una sola pantalla: Fichar. Quien pase no ve sueldos ni legajos.
+          Este PIN se crea una sola vez en esta tablet.
         </p>
         <ul className="flex flex-col gap-2 rounded-xl bg-paper px-4 py-3 text-sm text-ink-soft">
           <li>
@@ -63,12 +74,12 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
             cara, sin usuario.
           </li>
           <li>
-            <strong className="text-ink">3.</strong> Para desbloquear: ese PIN o
-            tu usuario de RRHH.
+            <strong className="text-ink">3.</strong> Ese PIN abre RRHH en esta
+            tablet. Después, Modo planta la vuelve a dejar fichando.
           </li>
         </ul>
         <Campo
-          etiqueta="PIN para desbloquear"
+          etiqueta="PIN de esta tablet"
           type="password"
           inputMode="numeric"
           value={pin}
@@ -87,11 +98,15 @@ export const ActivarKioscoModal = ({ abierto, onCerrar }: Props) => {
         />
         <p className="text-xs leading-relaxed text-ink-soft">
           Si se olvida el PIN, RRHH entra con el mismo email y contraseña de
-          siempre.
+          siempre. Después se puede cambiar desde Fichaje.
         </p>
         <Boton onClick={() => void activar()} disabled={activando}>
           <IconLock size={16} />
-          {activando ? 'Dejando lista la tablet…' : 'Activar fichaje en planta'}
+          {activando
+            ? 'Dejando lista la tablet…'
+            : cambiando
+              ? 'Guardar PIN y dejar fichando'
+              : 'Activar fichaje en planta'}
         </Boton>
       </div>
     </Modal>

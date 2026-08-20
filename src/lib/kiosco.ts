@@ -3,9 +3,10 @@
  *
  * La tablet compartida queda en una sola cosa: fichar con la cara. No
  * lleva el menú de la app —ahí están sueldos, recibos y legajos— porque
- * cualquiera que pase podría entrar. Para administrar la tablet hay que
- * saber el PIN o entrar con un usuario de RRHH. El PIN solo no abre la
- * app: cierra la terminal y pide login de nuevo.
+ * cualquiera que pase podría entrar. El PIN se crea una vez en este
+ * dispositivo. Con ese PIN (o con un usuario de RRHH) se abre la app
+ * otra vez, sin cerrar la sesión ni pedir un PIN nuevo. Cuando RRHH
+ * termina, vuelve a Modo planta: la tablet sigue siendo de fichaje.
  *
  * El estado vive en localStorage, así sobrevive recargas. La sesión del
  * mismo usuario en otros dispositivos no se ve afectada.
@@ -50,17 +51,19 @@ const hashPin = async (pin: string): Promise<string> => {
 
 const enNavegador = (): boolean => typeof window !== 'undefined';
 
-const limpiarKiosco = (): void => {
+/** Sale de la pantalla de kiosco. El PIN queda: no hay que crearlo de nuevo. */
+const desbloquearPantalla = (): void => {
   if (!enNavegador()) return;
   window.localStorage.removeItem(CLAVE_ACTIVO);
-  window.localStorage.removeItem(CLAVE_PIN);
-  window.localStorage.removeItem(CLAVE_PIN_LARGO);
-  window.localStorage.removeItem(CLAVE_EMPRESA);
   window.localStorage.removeItem(CLAVE_INTENTOS);
 };
 
 export const kioscoActivo = (): boolean =>
   enNavegador() && window.localStorage.getItem(CLAVE_ACTIVO) === '1';
+
+/** Esta tablet ya tiene PIN: Modo planta no tiene que pedirlo otra vez. */
+export const pinConfigurado = (): boolean =>
+  enNavegador() && Boolean(window.localStorage.getItem(CLAVE_PIN));
 
 /** Empresa con la que se bloqueó esta tablet, si sigue el kiosco activo. */
 export const empresaDelKiosco = (): Empresa | null => {
@@ -86,7 +89,16 @@ export const pinLargoKiosco = (): number | null => {
   return Number.isInteger(n) && n >= 4 && n <= 6 ? n : null;
 };
 
-/** Bloquea este dispositivo en modo kiosco con el PIN dado. */
+const guardarEmpresa = (empresa?: Empresa | null): void => {
+  if (!enNavegador()) return;
+  if (empresa) {
+    window.localStorage.setItem(CLAVE_EMPRESA, JSON.stringify(empresa));
+  } else {
+    window.localStorage.removeItem(CLAVE_EMPRESA);
+  }
+};
+
+/** Bloquea este dispositivo en modo kiosco con el PIN dado (alta o cambio). */
 export const activarKiosco = async (
   pin: string,
   empresa?: Empresa | null
@@ -96,11 +108,19 @@ export const activarKiosco = async (
   window.localStorage.setItem(CLAVE_PIN_LARGO, String(pin.length));
   window.localStorage.setItem(CLAVE_ACTIVO, '1');
   window.localStorage.removeItem(CLAVE_INTENTOS);
-  if (empresa) {
-    window.localStorage.setItem(CLAVE_EMPRESA, JSON.stringify(empresa));
-  } else {
-    window.localStorage.removeItem(CLAVE_EMPRESA);
-  }
+  guardarEmpresa(empresa);
+};
+
+/**
+ * Vuelve a la pantalla de fichaje con el PIN que ya está en la tablet.
+ * Si no hay PIN, no hace nada: hay que crearlo una vez con `activarKiosco`.
+ */
+export const reanudarKiosco = (empresa?: Empresa | null): boolean => {
+  if (!enNavegador() || !pinConfigurado()) return false;
+  window.localStorage.setItem(CLAVE_ACTIVO, '1');
+  window.localStorage.removeItem(CLAVE_INTENTOS);
+  if (empresa) guardarEmpresa(empresa);
+  return true;
 };
 
 export const intentosPinKiosco = (): number => {
@@ -134,7 +154,10 @@ export const puedeAdministrarTerminal = (
   return usuario.empresaId === empresa.id;
 };
 
-/** Desbloquea si el PIN coincide. Devuelve true si salió del kiosco. */
+/**
+ * Abre la app si el PIN coincide. El PIN sigue en la tablet: al volver
+ * a Modo planta no hay que crearlo de nuevo. No cierra la sesión.
+ */
 export const desactivarKiosco = async (pin: string): Promise<boolean> => {
   if (!enNavegador()) return false;
   if (pinBloqueado()) return false;
@@ -143,15 +166,15 @@ export const desactivarKiosco = async (pin: string): Promise<boolean> => {
     registrarPinFallido();
     return false;
   }
-  limpiarKiosco();
+  desbloquearPantalla();
   return true;
 };
 
 /**
  * Sale del kiosco sin PIN: sólo después de que RRHH entró con su
- * usuario. Así no hace falta borrar datos del navegador si se olvidó
- * el PIN.
+ * usuario. El PIN de la tablet no se borra: si se olvidó, se puede
+ * cambiar después desde Fichaje.
  */
 export const salirKioscoForzado = (): void => {
-  limpiarKiosco();
+  desbloquearPantalla();
 };

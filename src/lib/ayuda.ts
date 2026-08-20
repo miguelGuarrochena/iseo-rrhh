@@ -46,7 +46,7 @@ export const FAQ: FaqCategoria[] = [
       {
         pregunta: '¿Qué es el "Modo planta"?',
         respuesta:
-          'Es la tablet compartida en el lugar de trabajo. Cada persona se pone frente a la cámara: si no tenía una jornada abierta, es un ingreso; si ya había ingresado, es la salida, a la hora que sea —también si se va antes—. La tablet muestra el nombre unos segundos y queda lista para el que sigue. No se puede entrar al resto de la app desde ahí: para desbloquearla hace falta el PIN de RRHH o el usuario de quien administra la empresa.',
+          'Es la tablet compartida en el lugar de trabajo. Cada persona se pone frente a la cámara: si no tenía una jornada abierta, es un ingreso; si ya había ingresado, es la salida, a la hora que sea —también si se va antes—. La tablet muestra el nombre unos segundos y queda lista para el que sigue. El PIN se crea una sola vez en esa tablet: abre RRHH sin sacarte de la app. Cuando termines, en Fichaje tocá Modo planta y vuelve a quedar fichando.',
         roles: GESTION,
       },
       {

@@ -5,9 +5,11 @@ import {
   kioscoActivo,
   MAX_INTENTOS_PIN,
   pinBloqueado,
+  pinConfigurado,
   pinLargoKiosco,
   pinValido,
   puedeAdministrarTerminal,
+  reanudarKiosco,
   salirKioscoForzado,
 } from '@/lib/kiosco';
 import { Empresa, Usuario } from '@/types/rrhh';
@@ -47,11 +49,26 @@ describe('modo kiosco', () => {
     expect(kioscoActivo()).toBe(false);
   });
 
+  it('el PIN se crea una vez: al desbloquear queda listo para volver a bloquear', async () => {
+    await activarKiosco('4321');
+    expect(pinConfigurado()).toBe(true);
+
+    expect(await desactivarKiosco('4321')).toBe(true);
+    expect(kioscoActivo()).toBe(false);
+    expect(pinConfigurado()).toBe(true);
+
+    expect(reanudarKiosco()).toBe(true);
+    expect(kioscoActivo()).toBe(true);
+    expect(pinLargoKiosco()).toBe(4);
+  });
+
   it('guarda el largo del PIN para mostrar esa cantidad de puntos', async () => {
     await activarKiosco('4321');
     expect(pinLargoKiosco()).toBe(4);
     await desactivarKiosco('4321');
     expect(pinLargoKiosco()).toBeNull();
+    expect(reanudarKiosco()).toBe(true);
+    expect(pinLargoKiosco()).toBe(4);
   });
 
   it('no guarda el PIN en claro', async () => {
@@ -61,7 +78,7 @@ describe('modo kiosco', () => {
     expect(guardado).not.toContain('9876');
   });
 
-  it('guarda la empresa junto al kiosco y la limpia al salir', async () => {
+  it('guarda la empresa junto al kiosco y no la pide de nuevo al volver', async () => {
     const empresa = { id: 'e1', nombre: 'Acme' } as Empresa;
     await activarKiosco('4321', empresa);
     expect(empresaDelKiosco()?.id).toBe('e1');
@@ -69,6 +86,8 @@ describe('modo kiosco', () => {
 
     await desactivarKiosco('4321');
     expect(empresaDelKiosco()).toBeNull();
+    expect(reanudarKiosco()).toBe(true);
+    expect(empresaDelKiosco()?.id).toBe('e1');
   });
 
   it('sin kiosco activo no devuelve empresa aunque haya quedado basura', async () => {
@@ -92,6 +111,12 @@ describe('modo kiosco', () => {
     salirKioscoForzado();
     expect(kioscoActivo()).toBe(false);
     expect(pinBloqueado()).toBe(false);
+    expect(pinConfigurado()).toBe(true);
+  });
+
+  it('sin PIN no se puede reanudar el kiosco', () => {
+    expect(reanudarKiosco()).toBe(false);
+    expect(kioscoActivo()).toBe(false);
   });
 
   it('un colaborador no administra la tablet; RRHH de esa empresa sí', () => {
