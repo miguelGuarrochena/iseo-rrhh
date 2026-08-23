@@ -1,0 +1,3211 @@
+{
+  "version": "1",
+  "createdAt": "2026-08-23T10:33:28.802Z",
+  "commit": "ea4e169a02ff155ecfff7968a19663d44a901451",
+  "branch": "main",
+  "metrics": {
+    "overall": 96,
+    "architecture": 100,
+    "maintainability": 88,
+    "complexity": 97,
+    "dependencies": 96,
+    "typeSafety": 97
+  },
+  "stats": {
+    "files": 238,
+    "linesOfCode": 44991,
+    "functions": 3283,
+    "cycles": 0,
+    "layerViolations": 0,
+    "layerSkips": 0,
+    "crossFeatureImports": 0,
+    "largeFiles": 7,
+    "largeFunctions": 15,
+    "deeplyNested": 2,
+    "complexFunctions": 52,
+    "duplicateBlocks": 7,
+    "anyUsages": 5,
+    "suppressions": 0,
+    "unsafeAssertions": 9,
+    "jsFilesInTsProject": 12,
+    "unresolvedImports": 0,
+    "maxImportDepth": 10
+  },
+  "findings": [
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "08d6cab4189c",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "scripts/auditar-cuentas.mjs",
+      "line": 73,
+      "title": "main() is 156 lines",
+      "message": "main() in scripts/auditar-cuentas.mjs runs for 156 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 156
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "cb20e9a5b93c",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "scripts/auditar-cuentas.mjs",
+      "line": 73,
+      "title": "main() has a complexity of 37",
+      "message": "main() contains 37 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 37
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "04a3d2439265",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "scripts/probar-jornadas.mjs",
+      "line": 92,
+      "title": "correr() is 263 lines",
+      "message": "correr() in scripts/probar-jornadas.mjs runs for 263 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 263
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "18f3167fd5c1",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/avisos/route.ts",
+      "line": 71,
+      "title": "POST() is 116 lines",
+      "message": "POST() in src/app/api/avisos/route.ts runs for 116 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 116
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "92f3d016c50a",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/avisos/route.ts",
+      "line": 71,
+      "title": "POST() has a complexity of 20",
+      "message": "POST() contains 20 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 20
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "1617a85e580e",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/cron/facturacion/route.ts",
+      "line": 25,
+      "title": "procesar() is 147 lines",
+      "message": "procesar() in src/app/api/cron/facturacion/route.ts runs for 147 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 147
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "7f3e09c225c5",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/cron/facturacion/route.ts",
+      "line": 25,
+      "title": "procesar() has a complexity of 24",
+      "message": "procesar() contains 24 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 24
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "71070117e658",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/cron/resumen-semanal/route.ts",
+      "line": 66,
+      "title": "procesar() is 131 lines",
+      "message": "procesar() in src/app/api/cron/resumen-semanal/route.ts runs for 131 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 131
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "e5cc860738b6",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/cron/resumen-semanal/route.ts",
+      "line": 66,
+      "title": "procesar() has a complexity of 22",
+      "message": "procesar() contains 22 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 22
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "a765a8733c2a",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/cuentas/route.ts",
+      "line": 124,
+      "title": "GET() has a complexity of 16",
+      "message": "GET() contains 16 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 16
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "289e615262b6",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/cuentas/route.ts",
+      "line": 229,
+      "title": "reenviar() is 127 lines",
+      "message": "reenviar() in src/app/api/cuentas/route.ts runs for 127 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 127
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "88bb992839a4",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/cuentas/route.ts",
+      "line": 495,
+      "title": "POST() has a complexity of 18",
+      "message": "POST() contains 18 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 18
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "3d39a73a0064",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/equipo-iseo/route.ts",
+      "line": 20,
+      "title": "POST() is 149 lines",
+      "message": "POST() in src/app/api/equipo-iseo/route.ts runs for 149 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 149
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "8ebd12723211",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/equipo-iseo/route.ts",
+      "line": 20,
+      "title": "POST() has a complexity of 19",
+      "message": "POST() contains 19 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 19
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "67392066bc05",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/invitaciones/route.ts",
+      "line": 28,
+      "title": "POST() is 187 lines",
+      "message": "POST() in src/app/api/invitaciones/route.ts runs for 187 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 187
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "f30518937452",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/api/invitaciones/route.ts",
+      "line": 28,
+      "title": "POST() has a complexity of 28",
+      "message": "POST() contains 28 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 28
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "b6e0f016d3bd",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/ausencias/page.tsx",
+      "line": 66,
+      "title": "AusenciasPage() has a complexity of 29",
+      "message": "AusenciasPage() contains 29 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 29
+    },
+    {
+      "id": "complexity/large-file",
+      "fingerprint": "14609463a223",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/colaboradores/[id]/page.tsx",
+      "title": "src/app/app/colaboradores/[id]/page.tsx is 916 lines",
+      "message": "This file is over the 800-line budget configured for the project. Large files are the usual place where unrelated responsibilities pile up.",
+      "detail": [
+        "37 functions, 817 lines of code"
+      ],
+      "suggestion": "Split the file along its clearest seam — usually one exported concept per file.",
+      "baseline": 800,
+      "current": 916
+    },
+    {
+      "id": "complexity/large-component",
+      "fingerprint": "df0cfc534c67",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/colaboradores/[id]/page.tsx",
+      "line": 102,
+      "title": "<FichaColaboradorPage> is 805 lines",
+      "message": "The FichaColaboradorPage component is 805 lines, past the 800-line budget. Components this size usually mix data fetching, state and presentation.",
+      "suggestion": "Extract the sub-sections into their own components, and move data logic into hooks.",
+      "baseline": 800,
+      "current": 805
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "13915edd3281",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/colaboradores/[id]/page.tsx",
+      "line": 102,
+      "title": "FichaColaboradorPage() has a complexity of 42",
+      "message": "FichaColaboradorPage() contains 42 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 42
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "d00830c38c22",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/colaboradores/page.tsx",
+      "line": 45,
+      "title": "ColaboradoresPage() has a complexity of 19",
+      "message": "ColaboradoresPage() contains 19 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 19
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "247b65957ad1",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/comunicaciones/page.tsx",
+      "line": 64,
+      "title": "ComunicacionesPage() has a complexity of 19",
+      "message": "ComunicacionesPage() contains 19 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 19
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "66584ffc6f59",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/configuracion/page.tsx",
+      "line": 45,
+      "title": "ConfiguracionPage() has a complexity of 20",
+      "message": "ConfiguracionPage() contains 20 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 20
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "7b50999bde80",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/configuracion/page.tsx",
+      "line": 142,
+      "title": "guardar() has a complexity of 16",
+      "message": "guardar() contains 16 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 16
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "79b74bab1917",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/convenio/page.tsx",
+      "line": 241,
+      "title": "ConvenioPage() has a complexity of 30",
+      "message": "ConvenioPage() contains 30 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 30
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "09aee6eaedea",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/diagnostico-facial/page.tsx",
+      "line": 112,
+      "title": "DiagnosticoFacialPage() has a complexity of 70",
+      "message": "DiagnosticoFacialPage() contains 70 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 70
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "6ada43162f32",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/diagnostico-facial/page.tsx",
+      "line": 255,
+      "title": "informe() has a complexity of 52",
+      "message": "informe() contains 52 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 52
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "345dde24cf9e",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/documentos-firma/page.tsx",
+      "line": 48,
+      "title": "DocumentosFirmaPage() has a complexity of 17",
+      "message": "DocumentosFirmaPage() contains 17 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 17
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "568e917ed9d0",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/empresas/[id]/page.tsx",
+      "line": 68,
+      "title": "EmpresaDetallePage() has a complexity of 21",
+      "message": "EmpresaDetallePage() contains 21 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 21
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "1f33e53155d5",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/fichaje/page.tsx",
+      "line": 73,
+      "title": "PanelFichajePropio() has a complexity of 26",
+      "message": "PanelFichajePropio() contains 26 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 26
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "f322c6539679",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/fichaje/page.tsx",
+      "line": 241,
+      "title": "FichajePage() has a complexity of 31",
+      "message": "FichajePage() contains 31 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 31
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "f0031d655805",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/finanzas/page.tsx",
+      "line": 74,
+      "title": "FinanzasPage() has a complexity of 21",
+      "message": "FinanzasPage() contains 21 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 21
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "cfaeaaed8c4f",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/organigrama/page.tsx",
+      "line": 34,
+      "title": "OrganigramaPage() has a complexity of 18",
+      "message": "OrganigramaPage() contains 18 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 18
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "b21939f417c5",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/page.tsx",
+      "line": 68,
+      "title": "DashboardPage() has a complexity of 37",
+      "message": "DashboardPage() contains 37 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 37
+    },
+    {
+      "id": "complexity/large-file",
+      "fingerprint": "cf5e489e3f02",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/recibos/page.tsx",
+      "title": "src/app/app/recibos/page.tsx is 908 lines",
+      "message": "This file is over the 800-line budget configured for the project. Large files are the usual place where unrelated responsibilities pile up.",
+      "detail": [
+        "69 functions, 821 lines of code"
+      ],
+      "suggestion": "Split the file along its clearest seam — usually one exported concept per file.",
+      "baseline": 800,
+      "current": 908
+    },
+    {
+      "id": "complexity/large-component",
+      "fingerprint": "d17a656aea0e",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/recibos/page.tsx",
+      "line": 67,
+      "title": "<RecibosPage> is 829 lines",
+      "message": "The RecibosPage component is 829 lines, past the 800-line budget. Components this size usually mix data fetching, state and presentation.",
+      "suggestion": "Extract the sub-sections into their own components, and move data logic into hooks.",
+      "baseline": 800,
+      "current": 829
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "c3497e181148",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/recibos/page.tsx",
+      "line": 67,
+      "title": "RecibosPage() has a complexity of 32",
+      "message": "RecibosPage() contains 32 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 32
+    },
+    {
+      "id": "complexity/large-file",
+      "fingerprint": "a9d0acd95133",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/remuneraciones/page.tsx",
+      "title": "src/app/app/remuneraciones/page.tsx is 904 lines",
+      "message": "This file is over the 800-line budget configured for the project. Large files are the usual place where unrelated responsibilities pile up.",
+      "detail": [
+        "65 functions, 844 lines of code"
+      ],
+      "suggestion": "Split the file along its clearest seam — usually one exported concept per file.",
+      "baseline": 800,
+      "current": 904
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "e537a93737ca",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/reportes/page.tsx",
+      "line": 41,
+      "title": "ReportesPage() has a complexity of 29",
+      "message": "ReportesPage() contains 29 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 29
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "55f9f2060146",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/app/app/turnos/page.tsx",
+      "line": 57,
+      "title": "FilaDia() has a complexity of 28",
+      "message": "FilaDia() contains 28 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 28
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "45e32266e767",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/ausencias/NuevaAusenciaModal.tsx",
+      "line": 50,
+      "title": "NuevaAusenciaModal() has a complexity of 32",
+      "message": "NuevaAusenciaModal() contains 32 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 32
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "f9bd74ced0e5",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/colaboradores/FormEmpleado.tsx",
+      "line": 96,
+      "title": "desdeEmpleado() has a complexity of 20",
+      "message": "desdeEmpleado() contains 20 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 20
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "397424dbe10c",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/colaboradores/FormEmpleado.tsx",
+      "line": 134,
+      "title": "FormEmpleado() has a complexity of 36",
+      "message": "FormEmpleado() contains 36 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 36
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "47a46216ba7d",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/colaboradores/FormEmpleado.tsx",
+      "line": 256,
+      "title": "onSubmit() has a complexity of 30",
+      "message": "onSubmit() contains 30 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 30
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "d2da342190eb",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/empresas/EditarEmpresaModal.tsx",
+      "line": 36,
+      "title": "EditarEmpresaModal() has a complexity of 24",
+      "message": "EditarEmpresaModal() contains 24 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 24
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "0ccc6c4b7250",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/facial/CapturaFacial.tsx",
+      "line": 56,
+      "title": "CapturaFacial() has a complexity of 24",
+      "message": "CapturaFacial() contains 24 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 24
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "cf19902eb60f",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/facial/FichajeFacialModal.tsx",
+      "line": 245,
+      "title": "ConfirmacionFichaje() has a complexity of 21",
+      "message": "ConfirmacionFichaje() contains 21 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 21
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "ebf6ae710b34",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/facial/GuiaEncuadre.tsx",
+      "line": 125,
+      "title": "GuiaEncuadre() has a complexity of 25",
+      "message": "GuiaEncuadre() contains 25 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 25
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "643aee793a0f",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/facial/PanelDiagnostico.tsx",
+      "line": 41,
+      "title": "PanelDiagnostico() has a complexity of 18",
+      "message": "PanelDiagnostico() contains 18 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 18
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "8843a93c7891",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/fichaje/HistorialFichadas.tsx",
+      "line": 75,
+      "title": "HistorialFichadas() has a complexity of 28",
+      "message": "HistorialFichadas() contains 28 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 28
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "e1630d9e20b8",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/fichaje/ModoKiosco.tsx",
+      "line": 37,
+      "title": "ModoKiosco() has a complexity of 32",
+      "message": "ModoKiosco() contains 32 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 32
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "954f468e1596",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/finanzas/TarjetaCuota.tsx",
+      "line": 98,
+      "title": "TarjetaCuota() has a complexity of 23",
+      "message": "TarjetaCuota() contains 23 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 23
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "8368085084b8",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/recibos/CargaMasivaModal.tsx",
+      "line": 77,
+      "title": "CargaMasivaModal() has a complexity of 25",
+      "message": "CargaMasivaModal() contains 25 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 25
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "7614a089ceeb",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/recibos/CargaMasivaModal.tsx",
+      "line": 337,
+      "title": "subirTodo() has a complexity of 17",
+      "message": "subirTodo() contains 17 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 17
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "2eb18de0301a",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/recibos/CargaMasivaModal.tsx",
+      "line": 533,
+      "title": "filas.map(...)() is 135 lines",
+      "message": "filas.map(...)() in src/components/app/recibos/CargaMasivaModal.tsx runs for 135 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 135
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "0ca42b12122c",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/recibos/CargaMasivaModal.tsx",
+      "line": 533,
+      "title": "filas.map(...)() has a complexity of 23",
+      "message": "filas.map(...)() contains 23 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 23
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "234cb2a164e9",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/components/app/remuneraciones/RemuneracionModal.tsx",
+      "line": 102,
+      "title": "RemuneracionModal() has a complexity of 34",
+      "message": "RemuneracionModal() contains 34 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 34
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "b09144d17bcc",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/auth/store.ts",
+      "line": 127,
+      "title": "create(...)() is 177 lines",
+      "message": "create(...)() in src/lib/auth/store.ts runs for 177 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 177
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "b5ffdd8c1188",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/exportarFichadas.ts",
+      "line": 58,
+      "title": "descargarResumenFichadas() is 138 lines",
+      "message": "descargarResumenFichadas() in src/lib/exportarFichadas.ts runs for 138 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 138
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "ca018336dc16",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/facial/camara.ts",
+      "line": 81,
+      "title": "abrirCamara() has a complexity of 17",
+      "message": "abrirCamara() contains 17 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 17
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "dc1403f115a2",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/facial/diagnostico.ts",
+      "line": 230,
+      "title": "sondearDispositivo() is 131 lines",
+      "message": "sondearDispositivo() in src/lib/facial/diagnostico.ts runs for 131 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 131
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "0a1ad501e459",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/facial/diagnostico.ts",
+      "line": 230,
+      "title": "sondearDispositivo() has a complexity of 32",
+      "message": "sondearDispositivo() contains 32 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 32
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "4b9ffe3d700e",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/facial/diagnostico.ts",
+      "line": 436,
+      "title": "clasificarDispositivo() has a complexity of 17",
+      "message": "clasificarDispositivo() contains 17 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 17
+    },
+    {
+      "id": "complexity/large-file",
+      "fingerprint": "7f3c33ba9b2a",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/facial/motor.ts",
+      "title": "src/lib/facial/motor.ts is 959 lines",
+      "message": "This file is over the 800-line budget configured for the project. Large files are the usual place where unrelated responsibilities pile up.",
+      "detail": [
+        "33 functions, 622 lines of code"
+      ],
+      "suggestion": "Split the file along its clearest seam — usually one exported concept per file.",
+      "baseline": 800,
+      "current": 959
+    },
+    {
+      "id": "complexity/large-function",
+      "fingerprint": "3fbc4f530f20",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/facial/motor.ts",
+      "line": 519,
+      "title": "procesarCuadro() is 200 lines",
+      "message": "procesarCuadro() in src/lib/facial/motor.ts runs for 200 lines, past the 100-line limit. Long functions are hard to test and tend to hide more than one job.",
+      "suggestion": "Pull the distinct steps out into named helpers.",
+      "baseline": 100,
+      "current": 200
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "c1ecb248a173",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/facial/motor.ts",
+      "line": 519,
+      "title": "procesarCuadro() has a complexity of 30",
+      "message": "procesarCuadro() contains 30 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 30
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "433b33d667c7",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/recibosPdf.ts",
+      "line": 169,
+      "title": "duenoDePagina() has a complexity of 16",
+      "message": "duenoDePagina() contains 16 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 16
+    },
+    {
+      "id": "complexity/large-file",
+      "fingerprint": "93b1a98a5cd8",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/services/rrhh.demo.ts",
+      "title": "src/lib/services/rrhh.demo.ts is 2,443 lines",
+      "message": "This file is over the 800-line budget configured for the project. Large files are the usual place where unrelated responsibilities pile up.",
+      "detail": [
+        "374 functions, 2,037 lines of code"
+      ],
+      "suggestion": "Split the file along its clearest seam — usually one exported concept per file.",
+      "baseline": 800,
+      "current": 2443
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "e630df6652dc",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/services/rrhh.demo.ts",
+      "line": 326,
+      "title": "crearEmpleado() has a complexity of 17",
+      "message": "crearEmpleado() contains 17 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 17
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "2de2eca025b7",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/services/supabase/mapeos.ts",
+      "line": 70,
+      "title": "aEmpleado() has a complexity of 23",
+      "message": "aEmpleado() contains 23 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 23
+    },
+    {
+      "id": "complexity/large-file",
+      "fingerprint": "b25544dda41b",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/services/supabase/real.ts",
+      "title": "src/lib/services/supabase/real.ts is 4,286 lines",
+      "message": "This file is over the 800-line budget configured for the project. Large files are the usual place where unrelated responsibilities pile up.",
+      "detail": [
+        "275 functions, 3,369 lines of code"
+      ],
+      "suggestion": "Split the file along its clearest seam — usually one exported concept per file.",
+      "baseline": 800,
+      "current": 4286
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "d7a078cc67fd",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/services/supabase/real.ts",
+      "line": 636,
+      "title": "crearEmpleado() has a complexity of 25",
+      "message": "crearEmpleado() contains 25 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 25
+    },
+    {
+      "id": "complexity/high-complexity",
+      "fingerprint": "43835f017d9d",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/lib/services/supabase/real.ts",
+      "line": 1026,
+      "title": "vincularUsuarioAEmpleado() has a complexity of 16",
+      "message": "vincularUsuarioAEmpleado() contains 16 independent branches (limit 15). Every branch is another path a change can break and another case tests must cover.",
+      "suggestion": "Flatten early returns, or move each branch group into its own function.",
+      "baseline": 15,
+      "current": 16
+    },
+    {
+      "id": "complexity/large-file",
+      "fingerprint": "8d813d80d6d6",
+      "severity": "warning",
+      "category": "complexity",
+      "file": "src/types/rrhh.ts",
+      "title": "src/types/rrhh.ts is 991 lines",
+      "message": "This file is over the 800-line budget configured for the project. Large files are the usual place where unrelated responsibilities pile up.",
+      "detail": [
+        "0 functions, 611 lines of code"
+      ],
+      "suggestion": "Split the file along its clearest seam — usually one exported concept per file.",
+      "baseline": 800,
+      "current": 991
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "e5523d75c729",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/agenda/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/agenda/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "48c26ff53784",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/ausencias/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/ausencias/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "f466e032bf11",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/colaboradores/[id]/page.tsx",
+      "title": "Import chain 10 modules deep",
+      "message": "Loading src/app/app/colaboradores/[id]/page.tsx pulls in a chain 10 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 10
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "fe3dc5c7a416",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/comunicaciones/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/comunicaciones/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "b14b173b02af",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/convenio/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/convenio/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "6beba0b2d269",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/documentos-firma/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/documentos-firma/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "5cd2f9f7d34d",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/fichaje/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/fichaje/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "ff70c42b1e2b",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/layout.tsx",
+      "title": "Import chain 10 modules deep",
+      "message": "Loading src/app/app/layout.tsx pulls in a chain 10 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 10
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "cc2b038c4e43",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/organigrama/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/organigrama/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "893ed4703046",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/recibos/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/recibos/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "a4ba554d5390",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/remuneraciones/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/remuneraciones/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "2cb49d68b56f",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/reportes/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/reportes/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "architecture/deep-import-chain",
+      "fingerprint": "a02935748c6e",
+      "severity": "info",
+      "category": "architecture",
+      "file": "src/app/app/turnos/page.tsx",
+      "title": "Import chain 9 modules deep",
+      "message": "Loading src/app/app/turnos/page.tsx pulls in a chain 9 modules long (the configured limit is 8). Long chains make it hard to see what a module really needs and slow down cold starts.",
+      "suggestion": "Consider flattening the middle of the chain or splitting the entry point.",
+      "baseline": 8,
+      "current": 9
+    },
+    {
+      "id": "complexity/deep-nesting",
+      "fingerprint": "4e18ef68389d",
+      "severity": "info",
+      "category": "complexity",
+      "file": "scripts/auditar-cuentas.mjs",
+      "line": 73,
+      "title": "main() nests 5 levels deep",
+      "message": "Control flow in main() reaches 5 levels (limit 4).",
+      "suggestion": "Return early on the failure cases so the happy path stays at the top level.",
+      "baseline": 4,
+      "current": 5
+    },
+    {
+      "id": "complexity/deep-nesting",
+      "fingerprint": "6ad6a05de16a",
+      "severity": "info",
+      "category": "complexity",
+      "file": "src/components/app/ui/Selector.tsx",
+      "line": 151,
+      "title": "alTeclear() nests 6 levels deep",
+      "message": "Control flow in alTeclear() reaches 6 levels (limit 4).",
+      "suggestion": "Return early on the failure cases so the happy path stays at the top level.",
+      "baseline": 4,
+      "current": 6
+    },
+    {
+      "id": "complexity/too-many-params",
+      "fingerprint": "c4cc72e30ee1",
+      "severity": "info",
+      "category": "complexity",
+      "file": "src/lib/fichadas.ts",
+      "line": 467,
+      "title": "armarResumen() takes 6 parameters",
+      "message": "armarResumen() has 6 parameters (limit 5), which is easy to call wrongly.",
+      "suggestion": "Group related parameters into a single options object.",
+      "baseline": 5,
+      "current": 6
+    },
+    {
+      "id": "complexity/too-many-params",
+      "fingerprint": "1d8a1639c818",
+      "severity": "info",
+      "category": "complexity",
+      "file": "src/lib/services/supabase/real.ts",
+      "line": 1330,
+      "title": "notificarUsuarios() takes 6 parameters",
+      "message": "notificarUsuarios() has 6 parameters (limit 5), which is easy to call wrongly.",
+      "suggestion": "Group related parameters into a single options object.",
+      "baseline": 5,
+      "current": 6
+    },
+    {
+      "id": "dependencies/unused-dependency",
+      "fingerprint": "d27c3e4e0abd",
+      "severity": "info",
+      "category": "dependencies",
+      "file": "package.json",
+      "title": "2 dependencies with no imports found",
+      "message": "Little Owl found no import of @mantine/form, d3 anywhere in the analysed source. They may still be loaded through configuration or at runtime, so treat this as a prompt to check, not proof.",
+      "detail": [
+        "@mantine/form",
+        "d3"
+      ],
+      "suggestion": "Remove the ones that really are unused; they slow installs and widen the attack surface.",
+      "current": [
+        "@mantine/form",
+        "d3"
+      ]
+    },
+    {
+      "id": "maintainability/duplicate-block",
+      "fingerprint": "571ae4492118",
+      "severity": "info",
+      "category": "maintainability",
+      "file": "scripts/comparar-jornadas-sql-ts.mjs",
+      "line": 39,
+      "title": "19 identical lines repeated 2 times",
+      "message": "The same 19-line block appears in 2 places. Duplicated logic drifts apart: a fix applied in one copy silently leaves the others behind.",
+      "detail": [
+        "scripts/comparar-jornadas-sql-ts.mjs:39",
+        "scripts/probar-jornadas.mjs:56"
+      ],
+      "suggestion": "Extract the block into a shared function and call it from each site.",
+      "current": 2
+    },
+    {
+      "id": "maintainability/duplicate-block",
+      "fingerprint": "689ea5b66c24",
+      "severity": "info",
+      "category": "maintainability",
+      "file": "src/app/app/ausencias/page.tsx",
+      "line": 468,
+      "title": "8 identical lines repeated 2 times",
+      "message": "The same 8-line block appears in 2 places. Duplicated logic drifts apart: a fix applied in one copy silently leaves the others behind.",
+      "detail": [
+        "src/app/app/ausencias/page.tsx:468",
+        "src/app/app/ausencias/page.tsx:536"
+      ],
+      "suggestion": "Extract the block into a shared function and call it from each site.",
+      "current": 2
+    },
+    {
+      "id": "maintainability/duplicate-block",
+      "fingerprint": "8abd135d97fb",
+      "severity": "info",
+      "category": "maintainability",
+      "file": "src/app/app/comunicaciones/page.tsx",
+      "line": 459,
+      "title": "10 identical lines repeated 2 times",
+      "message": "The same 10-line block appears in 2 places. Duplicated logic drifts apart: a fix applied in one copy silently leaves the others behind.",
+      "detail": [
+        "src/app/app/comunicaciones/page.tsx:459",
+        "src/components/app/ausencias/NuevaAusenciaModal.tsx:259"
+      ],
+      "suggestion": "Extract the block into a shared function and call it from each site.",
+      "current": 2
+    },
+    {
+      "id": "maintainability/duplicate-block",
+      "fingerprint": "e2f09c7f9825",
+      "severity": "info",
+      "category": "maintainability",
+      "file": "src/app/app/configuracion/page.tsx",
+      "line": 574,
+      "title": "8 identical lines repeated 2 times",
+      "message": "The same 8-line block appears in 2 places. Duplicated logic drifts apart: a fix applied in one copy silently leaves the others behind.",
+      "detail": [
+        "src/app/app/configuracion/page.tsx:574",
+        "src/components/app/configuracion/ConfigPlataformaForm.tsx:151"
+      ],
+      "suggestion": "Extract the block into a shared function and call it from each site.",
+      "current": 2
+    },
+    {
+      "id": "maintainability/duplicate-block",
+      "fingerprint": "0df84b2d3802",
+      "severity": "info",
+      "category": "maintainability",
+      "file": "src/lib/services/rrhh.demo.ts",
+      "line": 9,
+      "title": "9 identical lines repeated 2 times",
+      "message": "The same 9-line block appears in 2 places. Duplicated logic drifts apart: a fix applied in one copy silently leaves the others behind.",
+      "detail": [
+        "src/lib/services/rrhh.demo.ts:9",
+        "src/lib/services/supabase/real.ts:10"
+      ],
+      "suggestion": "Extract the block into a shared function and call it from each site.",
+      "current": 2
+    },
+    {
+      "id": "maintainability/duplicate-block",
+      "fingerprint": "06f83d95b4b2",
+      "severity": "info",
+      "category": "maintainability",
+      "file": "src/lib/services/rrhh.demo.ts",
+      "line": 27,
+      "title": "9 identical lines repeated 2 times",
+      "message": "The same 9-line block appears in 2 places. Duplicated logic drifts apart: a fix applied in one copy silently leaves the others behind.",
+      "detail": [
+        "src/lib/services/rrhh.demo.ts:27",
+        "src/lib/services/supabase/real.ts:30"
+      ],
+      "suggestion": "Extract the block into a shared function and call it from each site.",
+      "current": 2
+    },
+    {
+      "id": "maintainability/duplicate-block",
+      "fingerprint": "d379b8c9a4bb",
+      "severity": "info",
+      "category": "maintainability",
+      "file": "src/lib/services/rrhh.demo.ts",
+      "line": 651,
+      "title": "9 identical lines repeated 2 times",
+      "message": "The same 9-line block appears in 2 places. Duplicated logic drifts apart: a fix applied in one copy silently leaves the others behind.",
+      "detail": [
+        "src/lib/services/rrhh.demo.ts:651",
+        "src/lib/services/supabase/real.ts:427"
+      ],
+      "suggestion": "Extract the block into a shared function and call it from each site.",
+      "current": 2
+    },
+    {
+      "id": "type-safety/js-in-ts-project",
+      "fingerprint": "17a687bb5821",
+      "severity": "info",
+      "category": "type-safety",
+      "file": "public/sw.js",
+      "title": "7 JavaScript files in a TypeScript project",
+      "message": "This project is set up for TypeScript, but 7 source files are plain JavaScript. Those files are not type checked, and neither is the code that calls into them.",
+      "detail": [
+        "public/sw.js",
+        "scripts/auditar-cuentas.mjs",
+        "scripts/comparar-jornadas-sql-ts.mjs",
+        "scripts/copiar-modelos-faciales.mjs",
+        "scripts/copiar-worker-pdf.mjs",
+        "scripts/probar-jornadas.mjs",
+        "scripts/verificar-esquema-remoto.mjs"
+      ],
+      "suggestion": "Convert them to TypeScript, or add them to the ignore list if they are intentional.",
+      "current": 7
+    },
+    {
+      "id": "type-safety/unsafe-assertion",
+      "fingerprint": "c1aeb987a187",
+      "severity": "info",
+      "category": "type-safety",
+      "file": "src/lib/facial/diagnostico.ts",
+      "line": 244,
+      "title": "3 unchecked type assertions",
+      "message": "src/lib/facial/diagnostico.ts asserts through `any`/`unknown` 3 times. These assertions are never verified at runtime, so a wrong assumption surfaces as a crash later.",
+      "detail": [
+        "lines: 244, 256, 322"
+      ],
+      "suggestion": "Narrow with a type guard, or validate the value at the boundary where it enters.",
+      "current": 3
+    },
+    {
+      "id": "type-safety/unsafe-assertion",
+      "fingerprint": "61a3295a3d87",
+      "severity": "info",
+      "category": "type-safety",
+      "file": "src/lib/facial/embedding.nucleo.ts",
+      "line": 133,
+      "title": "3 unchecked type assertions",
+      "message": "src/lib/facial/embedding.nucleo.ts asserts through `any`/`unknown` 3 times. These assertions are never verified at runtime, so a wrong assumption surfaces as a crash later.",
+      "detail": [
+        "lines: 133, 173, 234"
+      ],
+      "suggestion": "Narrow with a type guard, or validate the value at the boundary where it enters.",
+      "current": 3
+    },
+    {
+      "id": "type-safety/unsafe-assertion",
+      "fingerprint": "903193f9cd7e",
+      "severity": "info",
+      "category": "type-safety",
+      "file": "src/lib/facial/motor.ts",
+      "line": 287,
+      "title": "1 unchecked type assertion",
+      "message": "src/lib/facial/motor.ts asserts through `any`/`unknown` 1 time. These assertions are never verified at runtime, so a wrong assumption surfaces as a crash later.",
+      "detail": [
+        "lines: 287"
+      ],
+      "suggestion": "Narrow with a type guard, or validate the value at the boundary where it enters.",
+      "current": 1
+    },
+    {
+      "id": "type-safety/unsafe-assertion",
+      "fingerprint": "a2731f07f71f",
+      "severity": "info",
+      "category": "type-safety",
+      "file": "src/lib/planillas.ts",
+      "line": 50,
+      "title": "1 unchecked type assertion",
+      "message": "src/lib/planillas.ts asserts through `any`/`unknown` 1 time. These assertions are never verified at runtime, so a wrong assumption surfaces as a crash later.",
+      "detail": [
+        "lines: 50"
+      ],
+      "suggestion": "Narrow with a type guard, or validate the value at the boundary where it enters.",
+      "current": 1
+    },
+    {
+      "id": "type-safety/unsafe-assertion",
+      "fingerprint": "53ebb70c0db0",
+      "severity": "info",
+      "category": "type-safety",
+      "file": "src/lib/services/supabase/real.ts",
+      "line": 3945,
+      "title": "1 unchecked type assertion",
+      "message": "src/lib/services/supabase/real.ts asserts through `any`/`unknown` 1 time. These assertions are never verified at runtime, so a wrong assumption surfaces as a crash later.",
+      "detail": [
+        "lines: 3945"
+      ],
+      "suggestion": "Narrow with a type guard, or validate the value at the boundary where it enters.",
+      "current": 1
+    }
+  ],
+  "fileMetrics": {
+    "e2e/barrido-desborde.spec.ts": {
+      "lines": 88,
+      "sloc": 69,
+      "functions": 6,
+      "maxComplexity": 5
+    },
+    "e2e/capturas-responsive.spec.ts": {
+      "lines": 132,
+      "sloc": 107,
+      "functions": 9,
+      "maxComplexity": 1
+    },
+    "e2e/cuentas-a-medias.spec.ts": {
+      "lines": 38,
+      "sloc": 21,
+      "functions": 1,
+      "maxComplexity": 1
+    },
+    "e2e/flujos-rrhh.spec.ts": {
+      "lines": 164,
+      "sloc": 136,
+      "functions": 17,
+      "maxComplexity": 2
+    },
+    "e2e/happy-paths.spec.ts": {
+      "lines": 58,
+      "sloc": 43,
+      "functions": 6,
+      "maxComplexity": 1
+    },
+    "jest.config.js": {
+      "lines": 41,
+      "sloc": 25,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "jest.setup.js": {
+      "lines": 51,
+      "sloc": 27,
+      "functions": 13,
+      "maxComplexity": 1
+    },
+    "next.config.js": {
+      "lines": 92,
+      "sloc": 63,
+      "functions": 2,
+      "maxComplexity": 2
+    },
+    "playwright.config.ts": {
+      "lines": 43,
+      "sloc": 23,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "postcss.config.js": {
+      "lines": 17,
+      "sloc": 16,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "public/sw.js": {
+      "lines": 15,
+      "sloc": 6,
+      "functions": 2,
+      "maxComplexity": 1
+    },
+    "scripts/auditar-cuentas.mjs": {
+      "lines": 234,
+      "sloc": 193,
+      "functions": 18,
+      "maxComplexity": 37
+    },
+    "scripts/comparar-jornadas-sql-ts.mjs": {
+      "lines": 239,
+      "sloc": 194,
+      "functions": 5,
+      "maxComplexity": 7
+    },
+    "scripts/copiar-modelos-faciales.mjs": {
+      "lines": 263,
+      "sloc": 140,
+      "functions": 10,
+      "maxComplexity": 9
+    },
+    "scripts/copiar-worker-pdf.mjs": {
+      "lines": 61,
+      "sloc": 34,
+      "functions": 1,
+      "maxComplexity": 2
+    },
+    "scripts/probar-jornadas.mjs": {
+      "lines": 360,
+      "sloc": 273,
+      "functions": 30,
+      "maxComplexity": 3
+    },
+    "scripts/verificar-esquema-remoto.mjs": {
+      "lines": 64,
+      "sloc": 42,
+      "functions": 2,
+      "maxComplexity": 8
+    },
+    "src/app/api/avisos/route.ts": {
+      "lines": 187,
+      "sloc": 136,
+      "functions": 5,
+      "maxComplexity": 20
+    },
+    "src/app/api/ayuda/route.ts": {
+      "lines": 82,
+      "sloc": 65,
+      "functions": 1,
+      "maxComplexity": 11
+    },
+    "src/app/api/convenio/route.ts": {
+      "lines": 80,
+      "sloc": 64,
+      "functions": 1,
+      "maxComplexity": 10
+    },
+    "src/app/api/cron/facturacion/route.ts": {
+      "lines": 225,
+      "sloc": 181,
+      "functions": 10,
+      "maxComplexity": 24
+    },
+    "src/app/api/cron/resumen-semanal/route.ts": {
+      "lines": 197,
+      "sloc": 143,
+      "functions": 10,
+      "maxComplexity": 22
+    },
+    "src/app/api/cuentas/route.ts": {
+      "lines": 595,
+      "sloc": 492,
+      "functions": 16,
+      "maxComplexity": 18
+    },
+    "src/app/api/equipo-iseo/route.ts": {
+      "lines": 169,
+      "sloc": 119,
+      "functions": 1,
+      "maxComplexity": 19
+    },
+    "src/app/api/invitaciones/route.ts": {
+      "lines": 233,
+      "sloc": 190,
+      "functions": 2,
+      "maxComplexity": 28
+    },
+    "src/app/app/agenda/page.tsx": {
+      "lines": 390,
+      "sloc": 331,
+      "functions": 23,
+      "maxComplexity": 15
+    },
+    "src/app/app/ausencias/page.tsx": {
+      "lines": 608,
+      "sloc": 557,
+      "functions": 38,
+      "maxComplexity": 29
+    },
+    "src/app/app/ayuda/page.tsx": {
+      "lines": 183,
+      "sloc": 171,
+      "functions": 9,
+      "maxComplexity": 7
+    },
+    "src/app/app/colaboradores/[id]/editar/page.tsx": {
+      "lines": 104,
+      "sloc": 92,
+      "functions": 7,
+      "maxComplexity": 10
+    },
+    "src/app/app/colaboradores/[id]/page.tsx": {
+      "lines": 916,
+      "sloc": 817,
+      "functions": 37,
+      "maxComplexity": 42
+    },
+    "src/app/app/colaboradores/nuevo/page.tsx": {
+      "lines": 81,
+      "sloc": 71,
+      "functions": 4,
+      "maxComplexity": 4
+    },
+    "src/app/app/colaboradores/page.tsx": {
+      "lines": 373,
+      "sloc": 341,
+      "functions": 26,
+      "maxComplexity": 19
+    },
+    "src/app/app/comunicaciones/page.tsx": {
+      "lines": 532,
+      "sloc": 462,
+      "functions": 37,
+      "maxComplexity": 19
+    },
+    "src/app/app/configuracion/page.tsx": {
+      "lines": 598,
+      "sloc": 554,
+      "functions": 28,
+      "maxComplexity": 20
+    },
+    "src/app/app/convenio/page.tsx": {
+      "lines": 462,
+      "sloc": 424,
+      "functions": 34,
+      "maxComplexity": 30
+    },
+    "src/app/app/diagnostico-facial/page.tsx": {
+      "lines": 738,
+      "sloc": 650,
+      "functions": 40,
+      "maxComplexity": 70
+    },
+    "src/app/app/documentos-firma/page.tsx": {
+      "lines": 487,
+      "sloc": 447,
+      "functions": 36,
+      "maxComplexity": 17
+    },
+    "src/app/app/empresas/[id]/modulos/page.tsx": {
+      "lines": 293,
+      "sloc": 260,
+      "functions": 24,
+      "maxComplexity": 8
+    },
+    "src/app/app/empresas/[id]/page.tsx": {
+      "lines": 306,
+      "sloc": 277,
+      "functions": 21,
+      "maxComplexity": 21
+    },
+    "src/app/app/empresas/page.tsx": {
+      "lines": 240,
+      "sloc": 223,
+      "functions": 17,
+      "maxComplexity": 10
+    },
+    "src/app/app/error.tsx": {
+      "lines": 60,
+      "sloc": 47,
+      "functions": 4,
+      "maxComplexity": 1
+    },
+    "src/app/app/fichaje/page.tsx": {
+      "lines": 734,
+      "sloc": 679,
+      "functions": 45,
+      "maxComplexity": 31
+    },
+    "src/app/app/finanzas/page.tsx": {
+      "lines": 407,
+      "sloc": 378,
+      "functions": 34,
+      "maxComplexity": 21
+    },
+    "src/app/app/layout.tsx": {
+      "lines": 69,
+      "sloc": 46,
+      "functions": 5,
+      "maxComplexity": 3
+    },
+    "src/app/app/mi-cuenta/page.tsx": {
+      "lines": 210,
+      "sloc": 179,
+      "functions": 7,
+      "maxComplexity": 8
+    },
+    "src/app/app/mi-legajo/page.tsx": {
+      "lines": 244,
+      "sloc": 217,
+      "functions": 11,
+      "maxComplexity": 8
+    },
+    "src/app/app/organigrama/page.tsx": {
+      "lines": 287,
+      "sloc": 251,
+      "functions": 22,
+      "maxComplexity": 18
+    },
+    "src/app/app/page.tsx": {
+      "lines": 554,
+      "sloc": 507,
+      "functions": 36,
+      "maxComplexity": 37
+    },
+    "src/app/app/permisos/page.tsx": {
+      "lines": 577,
+      "sloc": 512,
+      "functions": 38,
+      "maxComplexity": 10
+    },
+    "src/app/app/plataforma/page.tsx": {
+      "lines": 69,
+      "sloc": 47,
+      "functions": 1,
+      "maxComplexity": 3
+    },
+    "src/app/app/recibos/page.tsx": {
+      "lines": 908,
+      "sloc": 821,
+      "functions": 69,
+      "maxComplexity": 32
+    },
+    "src/app/app/remuneraciones/page.tsx": {
+      "lines": 904,
+      "sloc": 844,
+      "functions": 65,
+      "maxComplexity": 15
+    },
+    "src/app/app/reportes/page.tsx": {
+      "lines": 410,
+      "sloc": 367,
+      "functions": 23,
+      "maxComplexity": 29
+    },
+    "src/app/app/turnos/page.tsx": {
+      "lines": 575,
+      "sloc": 518,
+      "functions": 48,
+      "maxComplexity": 28
+    },
+    "src/app/crear-contrasena/page.tsx": {
+      "lines": 156,
+      "sloc": 137,
+      "functions": 8,
+      "maxComplexity": 8
+    },
+    "src/app/demo/page.tsx": {
+      "lines": 147,
+      "sloc": 126,
+      "functions": 4,
+      "maxComplexity": 3
+    },
+    "src/app/global-error.tsx": {
+      "lines": 66,
+      "sloc": 57,
+      "functions": 3,
+      "maxComplexity": 1
+    },
+    "src/app/layout.tsx": {
+      "lines": 152,
+      "sloc": 139,
+      "functions": 1,
+      "maxComplexity": 1
+    },
+    "src/app/login/page.tsx": {
+      "lines": 191,
+      "sloc": 172,
+      "functions": 6,
+      "maxComplexity": 5
+    },
+    "src/app/page.tsx": {
+      "lines": 31,
+      "sloc": 28,
+      "functions": 1,
+      "maxComplexity": 1
+    },
+    "src/app/recuperar-contrasena/page.tsx": {
+      "lines": 110,
+      "sloc": 98,
+      "functions": 3,
+      "maxComplexity": 4
+    },
+    "src/app/robots.ts": {
+      "lines": 11,
+      "sloc": 7,
+      "functions": 1,
+      "maxComplexity": 1
+    },
+    "src/app/sitemap.ts": {
+      "lines": 15,
+      "sloc": 11,
+      "functions": 1,
+      "maxComplexity": 1
+    },
+    "src/components/AboutSection.tsx": {
+      "lines": 102,
+      "sloc": 96,
+      "functions": 2,
+      "maxComplexity": 1
+    },
+    "src/components/CapturarErrores.tsx": {
+      "lines": 53,
+      "sloc": 37,
+      "functions": 5,
+      "maxComplexity": 4
+    },
+    "src/components/ContactSection.tsx": {
+      "lines": 122,
+      "sloc": 110,
+      "functions": 3,
+      "maxComplexity": 4
+    },
+    "src/components/FaqSection.tsx": {
+      "lines": 88,
+      "sloc": 82,
+      "functions": 2,
+      "maxComplexity": 1
+    },
+    "src/components/FeaturesSection.tsx": {
+      "lines": 143,
+      "sloc": 135,
+      "functions": 3,
+      "maxComplexity": 2
+    },
+    "src/components/Footer.tsx": {
+      "lines": 72,
+      "sloc": 64,
+      "functions": 4,
+      "maxComplexity": 1
+    },
+    "src/components/HashScrollReset.tsx": {
+      "lines": 18,
+      "sloc": 10,
+      "functions": 4,
+      "maxComplexity": 2
+    },
+    "src/components/Header.tsx": {
+      "lines": 171,
+      "sloc": 158,
+      "functions": 12,
+      "maxComplexity": 4
+    },
+    "src/components/HeroSection.tsx": {
+      "lines": 235,
+      "sloc": 211,
+      "functions": 6,
+      "maxComplexity": 1
+    },
+    "src/components/HowWeDoItSection.tsx": {
+      "lines": 114,
+      "sloc": 107,
+      "functions": 3,
+      "maxComplexity": 1
+    },
+    "src/components/Logo.tsx": {
+      "lines": 83,
+      "sloc": 67,
+      "functions": 1,
+      "maxComplexity": 4
+    },
+    "src/components/MotionProvider.tsx": {
+      "lines": 17,
+      "sloc": 6,
+      "functions": 1,
+      "maxComplexity": 1
+    },
+    "src/components/PasosSection.tsx": {
+      "lines": 204,
+      "sloc": 194,
+      "functions": 3,
+      "maxComplexity": 1
+    },
+    "src/components/ProductoSection.tsx": {
+      "lines": 314,
+      "sloc": 301,
+      "functions": 7,
+      "maxComplexity": 3
+    },
+    "src/components/RegistrarSW.tsx": {
+      "lines": 20,
+      "sloc": 11,
+      "functions": 3,
+      "maxComplexity": 2
+    },
+    "src/components/app/AppHeader.tsx": {
+      "lines": 269,
+      "sloc": 230,
+      "functions": 18,
+      "maxComplexity": 13
+    },
+    "src/components/app/BottomNav.tsx": {
+      "lines": 168,
+      "sloc": 143,
+      "functions": 9,
+      "maxComplexity": 11
+    },
+    "src/components/app/BuscadorGlobal.tsx": {
+      "lines": 188,
+      "sloc": 168,
+      "functions": 23,
+      "maxComplexity": 7
+    },
+    "src/components/app/EnConstruccion.tsx": {
+      "lines": 15,
+      "sloc": 10,
+      "functions": 1,
+      "maxComplexity": 1
+    },
+    "src/components/app/EstadoBadge.tsx": {
+      "lines": 22,
+      "sloc": 18,
+      "functions": 1,
+      "maxComplexity": 1
+    },
+    "src/components/app/EstadoCarga.tsx": {
+      "lines": 123,
+      "sloc": 93,
+      "functions": 5,
+      "maxComplexity": 8
+    },
+    "src/components/app/Faltas.tsx": {
+      "lines": 329,
+      "sloc": 260,
+      "functions": 18,
+      "maxComplexity": 12
+    },
+    "src/components/app/InstalarAppModal.tsx": {
+      "lines": 226,
+      "sloc": 196,
+      "functions": 12,
+      "maxComplexity": 9
+    },
+    "src/components/app/Panel.tsx": {
+      "lines": 62,
+      "sloc": 45,
+      "functions": 1,
+      "maxComplexity": 7
+    },
+    "src/components/app/RedDeSeguridad.tsx": {
+      "lines": 52,
+      "sloc": 22,
+      "functions": 5,
+      "maxComplexity": 2
+    },
+    "src/components/app/RequireAuth.tsx": {
+      "lines": 29,
+      "sloc": 20,
+      "functions": 2,
+      "maxComplexity": 3
+    },
+    "src/components/app/RequireEmpresa.tsx": {
+      "lines": 50,
+      "sloc": 31,
+      "functions": 1,
+      "maxComplexity": 4
+    },
+    "src/components/app/RequireModulo.tsx": {
+      "lines": 62,
+      "sloc": 45,
+      "functions": 2,
+      "maxComplexity": 4
+    },
+    "src/components/app/Sidebar.tsx": {
+      "lines": 129,
+      "sloc": 111,
+      "functions": 6,
+      "maxComplexity": 8
+    },
+    "src/components/app/agenda/MiniCalendario.tsx": {
+      "lines": 154,
+      "sloc": 132,
+      "functions": 10,
+      "maxComplexity": 7
+    },
+    "src/components/app/ausencias/CalendarioAusencias.tsx": {
+      "lines": 268,
+      "sloc": 244,
+      "functions": 25,
+      "maxComplexity": 10
+    },
+    "src/components/app/ausencias/NuevaAusenciaModal.tsx": {
+      "lines": 454,
+      "sloc": 409,
+      "functions": 26,
+      "maxComplexity": 32
+    },
+    "src/components/app/colaboradores/FormEmpleado.tsx": {
+      "lines": 771,
+      "sloc": 719,
+      "functions": 64,
+      "maxComplexity": 36
+    },
+    "src/components/app/colaboradores/ImportarEmpleadosModal.tsx": {
+      "lines": 504,
+      "sloc": 460,
+      "functions": 28,
+      "maxComplexity": 15
+    },
+    "src/components/app/colaboradores/NotasInternas.tsx": {
+      "lines": 158,
+      "sloc": 140,
+      "functions": 11,
+      "maxComplexity": 6
+    },
+    "src/components/app/colaboradores/VacacionesPendientes.tsx": {
+      "lines": 183,
+      "sloc": 162,
+      "functions": 11,
+      "maxComplexity": 10
+    },
+    "src/components/app/comunicaciones/ChatColaborador.tsx": {
+      "lines": 311,
+      "sloc": 268,
+      "functions": 19,
+      "maxComplexity": 12
+    },
+    "src/components/app/comunicaciones/HiloMensajes.tsx": {
+      "lines": 92,
+      "sloc": 67,
+      "functions": 3,
+      "maxComplexity": 4
+    },
+    "src/components/app/comunicaciones/Redactor.tsx": {
+      "lines": 76,
+      "sloc": 58,
+      "functions": 5,
+      "maxComplexity": 5
+    },
+    "src/components/app/configuracion/ConfigPlataformaForm.tsx": {
+      "lines": 165,
+      "sloc": 148,
+      "functions": 10,
+      "maxComplexity": 6
+    },
+    "src/components/app/configuracion/CuposLicenciaPanel.tsx": {
+      "lines": 104,
+      "sloc": 90,
+      "functions": 11,
+      "maxComplexity": 4
+    },
+    "src/components/app/configuracion/ErroresPanel.tsx": {
+      "lines": 90,
+      "sloc": 75,
+      "functions": 5,
+      "maxComplexity": 6
+    },
+    "src/components/app/configuracion/FeriadosPanel.tsx": {
+      "lines": 222,
+      "sloc": 202,
+      "functions": 15,
+      "maxComplexity": 6
+    },
+    "src/components/app/configuracion/Terminales.tsx": {
+      "lines": 178,
+      "sloc": 159,
+      "functions": 12,
+      "maxComplexity": 7
+    },
+    "src/components/app/dashboard/ListaCard.tsx": {
+      "lines": 164,
+      "sloc": 142,
+      "functions": 4,
+      "maxComplexity": 8
+    },
+    "src/components/app/dashboard/StatCard.tsx": {
+      "lines": 72,
+      "sloc": 53,
+      "functions": 1,
+      "maxComplexity": 5
+    },
+    "src/components/app/empresas/EditarEmpresaModal.tsx": {
+      "lines": 247,
+      "sloc": 233,
+      "functions": 11,
+      "maxComplexity": 24
+    },
+    "src/components/app/empresas/NuevaEmpresaModal.tsx": {
+      "lines": 220,
+      "sloc": 201,
+      "functions": 15,
+      "maxComplexity": 9
+    },
+    "src/components/app/facial/AvisoBateria.tsx": {
+      "lines": 40,
+      "sloc": 31,
+      "functions": 1,
+      "maxComplexity": 4
+    },
+    "src/components/app/facial/CapturaFacial.tsx": {
+      "lines": 265,
+      "sloc": 215,
+      "functions": 12,
+      "maxComplexity": 24
+    },
+    "src/components/app/facial/EnrolamientoFacial.tsx": {
+      "lines": 284,
+      "sloc": 229,
+      "functions": 9,
+      "maxComplexity": 5
+    },
+    "src/components/app/facial/FichajeFacialModal.tsx": {
+      "lines": 341,
+      "sloc": 252,
+      "functions": 10,
+      "maxComplexity": 21
+    },
+    "src/components/app/facial/FichajeManualModal.tsx": {
+      "lines": 197,
+      "sloc": 177,
+      "functions": 10,
+      "maxComplexity": 11
+    },
+    "src/components/app/facial/GuiaEncuadre.tsx": {
+      "lines": 269,
+      "sloc": 250,
+      "functions": 9,
+      "maxComplexity": 25
+    },
+    "src/components/app/facial/PanelDiagnostico.tsx": {
+      "lines": 161,
+      "sloc": 137,
+      "functions": 4,
+      "maxComplexity": 18
+    },
+    "src/components/app/fichaje/ActivarKioscoModal.tsx": {
+      "lines": 115,
+      "sloc": 103,
+      "functions": 5,
+      "maxComplexity": 5
+    },
+    "src/components/app/fichaje/AnularFichajeModal.tsx": {
+      "lines": 113,
+      "sloc": 102,
+      "functions": 5,
+      "maxComplexity": 6
+    },
+    "src/components/app/fichaje/FiltrosFichadasModal.tsx": {
+      "lines": 161,
+      "sloc": 135,
+      "functions": 12,
+      "maxComplexity": 4
+    },
+    "src/components/app/fichaje/HistorialFichadas.tsx": {
+      "lines": 693,
+      "sloc": 625,
+      "functions": 44,
+      "maxComplexity": 28
+    },
+    "src/components/app/fichaje/ModoKiosco.tsx": {
+      "lines": 400,
+      "sloc": 356,
+      "functions": 25,
+      "maxComplexity": 32
+    },
+    "src/components/app/fichaje/PinPad.tsx": {
+      "lines": 102,
+      "sloc": 90,
+      "functions": 8,
+      "maxComplexity": 5
+    },
+    "src/components/app/finanzas/AbonoModal.tsx": {
+      "lines": 97,
+      "sloc": 89,
+      "functions": 5,
+      "maxComplexity": 7
+    },
+    "src/components/app/finanzas/BarrasIngresoGasto.tsx": {
+      "lines": 67,
+      "sloc": 59,
+      "functions": 5,
+      "maxComplexity": 2
+    },
+    "src/components/app/finanzas/BarrasMensuales.tsx": {
+      "lines": 52,
+      "sloc": 45,
+      "functions": 4,
+      "maxComplexity": 3
+    },
+    "src/components/app/finanzas/MovimientoModal.tsx": {
+      "lines": 167,
+      "sloc": 158,
+      "functions": 9,
+      "maxComplexity": 11
+    },
+    "src/components/app/finanzas/TarjetaCuota.tsx": {
+      "lines": 219,
+      "sloc": 197,
+      "functions": 5,
+      "maxComplexity": 23
+    },
+    "src/components/app/navItems.ts": {
+      "lines": 410,
+      "sloc": 337,
+      "functions": 10,
+      "maxComplexity": 10
+    },
+    "src/components/app/organigrama/OrganigramaChart.tsx": {
+      "lines": 118,
+      "sloc": 102,
+      "functions": 14,
+      "maxComplexity": 5
+    },
+    "src/components/app/permisos/GestionCuentaModal.tsx": {
+      "lines": 270,
+      "sloc": 235,
+      "functions": 9,
+      "maxComplexity": 12
+    },
+    "src/components/app/plataforma/EquipoIseo.tsx": {
+      "lines": 228,
+      "sloc": 207,
+      "functions": 9,
+      "maxComplexity": 9
+    },
+    "src/components/app/recibos/CargaMasivaModal.tsx": {
+      "lines": 713,
+      "sloc": 603,
+      "functions": 63,
+      "maxComplexity": 25
+    },
+    "src/components/app/remuneraciones/Adelantos.tsx": {
+      "lines": 389,
+      "sloc": 361,
+      "functions": 24,
+      "maxComplexity": 8
+    },
+    "src/components/app/remuneraciones/DescuentosFijos.tsx": {
+      "lines": 218,
+      "sloc": 198,
+      "functions": 13,
+      "maxComplexity": 14
+    },
+    "src/components/app/remuneraciones/GenerarAguinaldoModal.tsx": {
+      "lines": 284,
+      "sloc": 254,
+      "functions": 32,
+      "maxComplexity": 6
+    },
+    "src/components/app/remuneraciones/MonotributoPanel.tsx": {
+      "lines": 247,
+      "sloc": 230,
+      "functions": 13,
+      "maxComplexity": 11
+    },
+    "src/components/app/remuneraciones/RemuneracionModal.tsx": {
+      "lines": 576,
+      "sloc": 520,
+      "functions": 31,
+      "maxComplexity": 34
+    },
+    "src/components/app/remuneraciones/RemuneracionesEmpleado.tsx": {
+      "lines": 224,
+      "sloc": 210,
+      "functions": 13,
+      "maxComplexity": 15
+    },
+    "src/components/app/ui/Boton.tsx": {
+      "lines": 78,
+      "sloc": 44,
+      "functions": 1,
+      "maxComplexity": 2
+    },
+    "src/components/app/ui/BotonIcono.tsx": {
+      "lines": 58,
+      "sloc": 39,
+      "functions": 1,
+      "maxComplexity": 3
+    },
+    "src/components/app/ui/Breadcrumbs.tsx": {
+      "lines": 58,
+      "sloc": 41,
+      "functions": 3,
+      "maxComplexity": 3
+    },
+    "src/components/app/ui/Campo.tsx": {
+      "lines": 91,
+      "sloc": 72,
+      "functions": 4,
+      "maxComplexity": 5
+    },
+    "src/components/app/ui/CampoArchivo.tsx": {
+      "lines": 153,
+      "sloc": 134,
+      "functions": 10,
+      "maxComplexity": 11
+    },
+    "src/components/app/ui/CampoFecha.tsx": {
+      "lines": 325,
+      "sloc": 274,
+      "functions": 27,
+      "maxComplexity": 12
+    },
+    "src/components/app/ui/CampoHora.tsx": {
+      "lines": 172,
+      "sloc": 137,
+      "functions": 14,
+      "maxComplexity": 13
+    },
+    "src/components/app/ui/CampoMes.tsx": {
+      "lines": 199,
+      "sloc": 176,
+      "functions": 16,
+      "maxComplexity": 14
+    },
+    "src/components/app/ui/CampoPassword.tsx": {
+      "lines": 79,
+      "sloc": 62,
+      "functions": 3,
+      "maxComplexity": 14
+    },
+    "src/components/app/ui/Graficos.tsx": {
+      "lines": 167,
+      "sloc": 147,
+      "functions": 8,
+      "maxComplexity": 5
+    },
+    "src/components/app/ui/Paginacion.tsx": {
+      "lines": 79,
+      "sloc": 58,
+      "functions": 8,
+      "maxComplexity": 2
+    },
+    "src/components/app/ui/Selector.tsx": {
+      "lines": 255,
+      "sloc": 198,
+      "functions": 22,
+      "maxComplexity": 12
+    },
+    "src/components/app/ui/Switch.tsx": {
+      "lines": 64,
+      "sloc": 41,
+      "functions": 1,
+      "maxComplexity": 3
+    },
+    "src/components/app/ui/useConfirmacion.tsx": {
+      "lines": 91,
+      "sloc": 60,
+      "functions": 7,
+      "maxComplexity": 6
+    },
+    "src/components/index.ts": {
+      "lines": 11,
+      "sloc": 10,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/components/login/DemoUserPicker.tsx": {
+      "lines": 47,
+      "sloc": 38,
+      "functions": 3,
+      "maxComplexity": 1
+    },
+    "src/components/mockups/DashboardMockup.tsx": {
+      "lines": 258,
+      "sloc": 239,
+      "functions": 10,
+      "maxComplexity": 2
+    },
+    "src/components/mockups/MockupHero.tsx": {
+      "lines": 226,
+      "sloc": 208,
+      "functions": 5,
+      "maxComplexity": 4
+    },
+    "src/components/mockups/PanelPlataforma.tsx": {
+      "lines": 591,
+      "sloc": 563,
+      "functions": 27,
+      "maxComplexity": 5
+    },
+    "src/components/mockups/useContador.ts": {
+      "lines": 58,
+      "sloc": 42,
+      "functions": 7,
+      "maxComplexity": 4
+    },
+    "src/lib/api/autenticar.ts": {
+      "lines": 39,
+      "sloc": 31,
+      "functions": 1,
+      "maxComplexity": 7
+    },
+    "src/lib/api/fetchProtegido.ts": {
+      "lines": 21,
+      "sloc": 14,
+      "functions": 1,
+      "maxComplexity": 3
+    },
+    "src/lib/api/invitacionConfianza.ts": {
+      "lines": 210,
+      "sloc": 162,
+      "functions": 5,
+      "maxComplexity": 11
+    },
+    "src/lib/api/limiteDeUso.ts": {
+      "lines": 28,
+      "sloc": 16,
+      "functions": 2,
+      "maxComplexity": 3
+    },
+    "src/lib/api/perfilInvitado.ts": {
+      "lines": 52,
+      "sloc": 26,
+      "functions": 1,
+      "maxComplexity": 3
+    },
+    "src/lib/api/registro.ts": {
+      "lines": 63,
+      "sloc": 29,
+      "functions": 4,
+      "maxComplexity": 3
+    },
+    "src/lib/api/registroInvitacion.ts": {
+      "lines": 130,
+      "sloc": 114,
+      "functions": 7,
+      "maxComplexity": 5
+    },
+    "src/lib/archivosUi.ts": {
+      "lines": 90,
+      "sloc": 52,
+      "functions": 4,
+      "maxComplexity": 6
+    },
+    "src/lib/asignarRecibos.ts": {
+      "lines": 133,
+      "sloc": 81,
+      "functions": 12,
+      "maxComplexity": 4
+    },
+    "src/lib/auth/AuthProvider.tsx": {
+      "lines": 54,
+      "sloc": 41,
+      "functions": 12,
+      "maxComplexity": 1
+    },
+    "src/lib/auth/store.ts": {
+      "lines": 326,
+      "sloc": 243,
+      "functions": 25,
+      "maxComplexity": 11
+    },
+    "src/lib/auth/useModulos.ts": {
+      "lines": 62,
+      "sloc": 38,
+      "functions": 12,
+      "maxComplexity": 5
+    },
+    "src/lib/avisos.ts": {
+      "lines": 30,
+      "sloc": 22,
+      "functions": 2,
+      "maxComplexity": 2
+    },
+    "src/lib/ayuda.ts": {
+      "lines": 227,
+      "sloc": 213,
+      "functions": 8,
+      "maxComplexity": 1
+    },
+    "src/lib/checklistAlta.ts": {
+      "lines": 87,
+      "sloc": 52,
+      "functions": 8,
+      "maxComplexity": 3
+    },
+    "src/lib/convenio.ts": {
+      "lines": 74,
+      "sloc": 57,
+      "functions": 12,
+      "maxComplexity": 2
+    },
+    "src/lib/csv.ts": {
+      "lines": 16,
+      "sloc": 11,
+      "functions": 3,
+      "maxComplexity": 1
+    },
+    "src/lib/dispositivo/bateria.ts": {
+      "lines": 60,
+      "sloc": 40,
+      "functions": 3,
+      "maxComplexity": 4
+    },
+    "src/lib/dispositivo/useBateria.ts": {
+      "lines": 72,
+      "sloc": 55,
+      "functions": 5,
+      "maxComplexity": 3
+    },
+    "src/lib/email/resend.ts": {
+      "lines": 45,
+      "sloc": 37,
+      "functions": 1,
+      "maxComplexity": 6
+    },
+    "src/lib/entorno.ts": {
+      "lines": 27,
+      "sloc": 8,
+      "functions": 2,
+      "maxComplexity": 3
+    },
+    "src/lib/errores.ts": {
+      "lines": 152,
+      "sloc": 113,
+      "functions": 4,
+      "maxComplexity": 7
+    },
+    "src/lib/erroresApp.ts": {
+      "lines": 44,
+      "sloc": 28,
+      "functions": 3,
+      "maxComplexity": 9
+    },
+    "src/lib/erroresDb.ts": {
+      "lines": 102,
+      "sloc": 63,
+      "functions": 4,
+      "maxComplexity": 11
+    },
+    "src/lib/etiquetas.ts": {
+      "lines": 98,
+      "sloc": 85,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/lib/exportarFichadas.ts": {
+      "lines": 208,
+      "sloc": 148,
+      "functions": 13,
+      "maxComplexity": 5
+    },
+    "src/lib/facial/alineamiento.ts": {
+      "lines": 136,
+      "sloc": 70,
+      "functions": 4,
+      "maxComplexity": 5
+    },
+    "src/lib/facial/banco.ts": {
+      "lines": 321,
+      "sloc": 177,
+      "functions": 20,
+      "maxComplexity": 7
+    },
+    "src/lib/facial/calidad.ts": {
+      "lines": 486,
+      "sloc": 292,
+      "functions": 11,
+      "maxComplexity": 9
+    },
+    "src/lib/facial/camara.ts": {
+      "lines": 131,
+      "sloc": 77,
+      "functions": 3,
+      "maxComplexity": 17
+    },
+    "src/lib/facial/diagnostico.ts": {
+      "lines": 540,
+      "sloc": 360,
+      "functions": 9,
+      "maxComplexity": 32
+    },
+    "src/lib/facial/embedding.nucleo.ts": {
+      "lines": 270,
+      "sloc": 137,
+      "functions": 11,
+      "maxComplexity": 8
+    },
+    "src/lib/facial/embedding.ts": {
+      "lines": 282,
+      "sloc": 189,
+      "functions": 17,
+      "maxComplexity": 13
+    },
+    "src/lib/facial/embedding.worker.ts": {
+      "lines": 86,
+      "sloc": 55,
+      "functions": 2,
+      "maxComplexity": 5
+    },
+    "src/lib/facial/enrolado.ts": {
+      "lines": 66,
+      "sloc": 21,
+      "functions": 3,
+      "maxComplexity": 2
+    },
+    "src/lib/facial/geometria.ts": {
+      "lines": 308,
+      "sloc": 152,
+      "functions": 8,
+      "maxComplexity": 5
+    },
+    "src/lib/facial/liveness.ts": {
+      "lines": 305,
+      "sloc": 126,
+      "functions": 7,
+      "maxComplexity": 9
+    },
+    "src/lib/facial/motor.ts": {
+      "lines": 959,
+      "sloc": 622,
+      "functions": 33,
+      "maxComplexity": 30
+    },
+    "src/lib/facial/percepcion.ts": {
+      "lines": 238,
+      "sloc": 129,
+      "functions": 7,
+      "maxComplexity": 6
+    },
+    "src/lib/facial/plantilla.ts": {
+      "lines": 206,
+      "sloc": 59,
+      "functions": 7,
+      "maxComplexity": 5
+    },
+    "src/lib/facial/ubicacion.ts": {
+      "lines": 35,
+      "sloc": 27,
+      "functions": 6,
+      "maxComplexity": 3
+    },
+    "src/lib/fechas.ts": {
+      "lines": 122,
+      "sloc": 80,
+      "functions": 11,
+      "maxComplexity": 6
+    },
+    "src/lib/feriados.ts": {
+      "lines": 164,
+      "sloc": 118,
+      "functions": 16,
+      "maxComplexity": 5
+    },
+    "src/lib/fichadas.ts": {
+      "lines": 566,
+      "sloc": 349,
+      "functions": 48,
+      "maxComplexity": 7
+    },
+    "src/lib/formato.ts": {
+      "lines": 12,
+      "sloc": 8,
+      "functions": 2,
+      "maxComplexity": 2
+    },
+    "src/lib/ia/gemini.ts": {
+      "lines": 59,
+      "sloc": 30,
+      "functions": 4,
+      "maxComplexity": 4
+    },
+    "src/lib/kiosco.ts": {
+      "lines": 205,
+      "sloc": 122,
+      "functions": 20,
+      "maxComplexity": 6
+    },
+    "src/lib/lanzamiento.ts": {
+      "lines": 9,
+      "sloc": 2,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/lib/liquidacionFinal.ts": {
+      "lines": 189,
+      "sloc": 123,
+      "functions": 5,
+      "maxComplexity": 7
+    },
+    "src/lib/mocks/empleados.ts": {
+      "lines": 178,
+      "sloc": 173,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/lib/mocks/empresa.ts": {
+      "lines": 69,
+      "sloc": 59,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/lib/mocks/finanzas.ts": {
+      "lines": 84,
+      "sloc": 76,
+      "functions": 2,
+      "maxComplexity": 1
+    },
+    "src/lib/mocks/jornadas.ts": {
+      "lines": 130,
+      "sloc": 120,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/lib/mocks/operaciones.ts": {
+      "lines": 345,
+      "sloc": 332,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/lib/mocks/usuarios.ts": {
+      "lines": 37,
+      "sloc": 35,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/lib/organigrama.ts": {
+      "lines": 40,
+      "sloc": 27,
+      "functions": 5,
+      "maxComplexity": 5
+    },
+    "src/lib/pdfArchivos.ts": {
+      "lines": 171,
+      "sloc": 113,
+      "functions": 6,
+      "maxComplexity": 5
+    },
+    "src/lib/pendientes.ts": {
+      "lines": 82,
+      "sloc": 50,
+      "functions": 8,
+      "maxComplexity": 3
+    },
+    "src/lib/planillas.ts": {
+      "lines": 183,
+      "sloc": 143,
+      "functions": 16,
+      "maxComplexity": 11
+    },
+    "src/lib/recibosPdf.ts": {
+      "lines": 427,
+      "sloc": 241,
+      "functions": 33,
+      "maxComplexity": 16
+    },
+    "src/lib/remuneraciones.ts": {
+      "lines": 310,
+      "sloc": 209,
+      "functions": 21,
+      "maxComplexity": 7
+    },
+    "src/lib/requisitos.ts": {
+      "lines": 361,
+      "sloc": 255,
+      "functions": 32,
+      "maxComplexity": 4
+    },
+    "src/lib/seguridad/ausenciasEstados.ts": {
+      "lines": 16,
+      "sloc": 8,
+      "functions": 2,
+      "maxComplexity": 2
+    },
+    "src/lib/seguridad/cuposLicencia.ts": {
+      "lines": 61,
+      "sloc": 43,
+      "functions": 7,
+      "maxComplexity": 3
+    },
+    "src/lib/seguridad/estadosSolicitud.ts": {
+      "lines": 73,
+      "sloc": 54,
+      "functions": 6,
+      "maxComplexity": 8
+    },
+    "src/lib/seguridad/firmaRecibo.ts": {
+      "lines": 36,
+      "sloc": 24,
+      "functions": 2,
+      "maxComplexity": 3
+    },
+    "src/lib/services/rrhh.demo.ts": {
+      "lines": 2443,
+      "sloc": 2037,
+      "functions": 374,
+      "maxComplexity": 17
+    },
+    "src/lib/services/rrhh.ts": {
+      "lines": 547,
+      "sloc": 481,
+      "functions": 3,
+      "maxComplexity": 3
+    },
+    "src/lib/services/supabase/archivos.ts": {
+      "lines": 200,
+      "sloc": 139,
+      "functions": 14,
+      "maxComplexity": 7
+    },
+    "src/lib/services/supabase/mapeos.ts": {
+      "lines": 271,
+      "sloc": 241,
+      "functions": 17,
+      "maxComplexity": 23
+    },
+    "src/lib/services/supabase/paginado.ts": {
+      "lines": 67,
+      "sloc": 26,
+      "functions": 1,
+      "maxComplexity": 6
+    },
+    "src/lib/services/supabase/real.ts": {
+      "lines": 4286,
+      "sloc": 3369,
+      "functions": 275,
+      "maxComplexity": 25
+    },
+    "src/lib/supabase/admin.ts": {
+      "lines": 21,
+      "sloc": 14,
+      "functions": 1,
+      "maxComplexity": 3
+    },
+    "src/lib/supabase/cliente.ts": {
+      "lines": 28,
+      "sloc": 19,
+      "functions": 2,
+      "maxComplexity": 4
+    },
+    "src/lib/terminal.ts": {
+      "lines": 77,
+      "sloc": 34,
+      "functions": 4,
+      "maxComplexity": 7
+    },
+    "src/lib/turnos.ts": {
+      "lines": 236,
+      "sloc": 161,
+      "functions": 23,
+      "maxComplexity": 11
+    },
+    "src/lib/useCarga.ts": {
+      "lines": 154,
+      "sloc": 84,
+      "functions": 9,
+      "maxComplexity": 3
+    },
+    "src/lib/vacaciones.ts": {
+      "lines": 219,
+      "sloc": 121,
+      "functions": 11,
+      "maxComplexity": 6
+    },
+    "src/lib/validaciones.ts": {
+      "lines": 90,
+      "sloc": 54,
+      "functions": 11,
+      "maxComplexity": 6
+    },
+    "src/middleware.ts": {
+      "lines": 78,
+      "sloc": 44,
+      "functions": 5,
+      "maxComplexity": 12
+    },
+    "src/tests/ContactSection.test.tsx": {
+      "lines": 61,
+      "sloc": 50,
+      "functions": 9,
+      "maxComplexity": 1
+    },
+    "src/tests/FeaturesSection.test.tsx": {
+      "lines": 44,
+      "sloc": 33,
+      "functions": 5,
+      "maxComplexity": 1
+    },
+    "src/tests/Footer.test.tsx": {
+      "lines": 34,
+      "sloc": 29,
+      "functions": 5,
+      "maxComplexity": 1
+    },
+    "src/tests/Header.test.tsx": {
+      "lines": 80,
+      "sloc": 68,
+      "functions": 10,
+      "maxComplexity": 2
+    },
+    "src/tests/HeroSection.test.tsx": {
+      "lines": 84,
+      "sloc": 69,
+      "functions": 9,
+      "maxComplexity": 1
+    },
+    "src/tests/Logo.test.tsx": {
+      "lines": 29,
+      "sloc": 24,
+      "functions": 5,
+      "maxComplexity": 1
+    },
+    "src/tests/anulacionFichaje.test.ts": {
+      "lines": 95,
+      "sloc": 64,
+      "functions": 9,
+      "maxComplexity": 1
+    },
+    "src/tests/asignarRecibos.test.ts": {
+      "lines": 123,
+      "sloc": 105,
+      "functions": 14,
+      "maxComplexity": 1
+    },
+    "src/tests/ausencias.test.ts": {
+      "lines": 119,
+      "sloc": 106,
+      "functions": 21,
+      "maxComplexity": 1
+    },
+    "src/tests/ausenciasEstados.test.ts": {
+      "lines": 51,
+      "sloc": 45,
+      "functions": 7,
+      "maxComplexity": 1
+    },
+    "src/tests/bancoFacial.test.ts": {
+      "lines": 256,
+      "sloc": 179,
+      "functions": 46,
+      "maxComplexity": 2
+    },
+    "src/tests/bateria.test.ts": {
+      "lines": 52,
+      "sloc": 43,
+      "functions": 9,
+      "maxComplexity": 1
+    },
+    "src/tests/calidadFacial.test.ts": {
+      "lines": 355,
+      "sloc": 275,
+      "functions": 34,
+      "maxComplexity": 4
+    },
+    "src/tests/campoHora.test.ts": {
+      "lines": 38,
+      "sloc": 32,
+      "functions": 6,
+      "maxComplexity": 1
+    },
+    "src/tests/checklistAlta.test.ts": {
+      "lines": 108,
+      "sloc": 94,
+      "functions": 14,
+      "maxComplexity": 1
+    },
+    "src/tests/convenio.test.ts": {
+      "lines": 33,
+      "sloc": 25,
+      "functions": 6,
+      "maxComplexity": 1
+    },
+    "src/tests/cuposLicencia.test.ts": {
+      "lines": 203,
+      "sloc": 184,
+      "functions": 16,
+      "maxComplexity": 1
+    },
+    "src/tests/diagnosticoFacial.test.ts": {
+      "lines": 224,
+      "sloc": 176,
+      "functions": 24,
+      "maxComplexity": 1
+    },
+    "src/tests/diasAusencia.test.ts": {
+      "lines": 184,
+      "sloc": 151,
+      "functions": 22,
+      "maxComplexity": 2
+    },
+    "src/tests/enroladoFacial.test.ts": {
+      "lines": 181,
+      "sloc": 115,
+      "functions": 22,
+      "maxComplexity": 1
+    },
+    "src/tests/errores.test.ts": {
+      "lines": 106,
+      "sloc": 85,
+      "functions": 22,
+      "maxComplexity": 1
+    },
+    "src/tests/erroresDb.test.ts": {
+      "lines": 89,
+      "sloc": 73,
+      "functions": 16,
+      "maxComplexity": 1
+    },
+    "src/tests/estadosSolicitud.test.ts": {
+      "lines": 242,
+      "sloc": 216,
+      "functions": 19,
+      "maxComplexity": 1
+    },
+    "src/tests/falsoPositivoFacial.test.ts": {
+      "lines": 451,
+      "sloc": 268,
+      "functions": 40,
+      "maxComplexity": 2
+    },
+    "src/tests/fechaTipeada.test.ts": {
+      "lines": 83,
+      "sloc": 67,
+      "functions": 17,
+      "maxComplexity": 1
+    },
+    "src/tests/feriados.test.ts": {
+      "lines": 43,
+      "sloc": 34,
+      "functions": 10,
+      "maxComplexity": 1
+    },
+    "src/tests/fichadas.test.ts": {
+      "lines": 536,
+      "sloc": 471,
+      "functions": 49,
+      "maxComplexity": 1
+    },
+    "src/tests/fichaje.test.ts": {
+      "lines": 130,
+      "sloc": 114,
+      "functions": 20,
+      "maxComplexity": 2
+    },
+    "src/tests/finanzas.test.ts": {
+      "lines": 82,
+      "sloc": 74,
+      "functions": 12,
+      "maxComplexity": 1
+    },
+    "src/tests/firmaRecibo.test.ts": {
+      "lines": 70,
+      "sloc": 64,
+      "functions": 7,
+      "maxComplexity": 1
+    },
+    "src/tests/geometriaFacial.test.ts": {
+      "lines": 228,
+      "sloc": 160,
+      "functions": 21,
+      "maxComplexity": 2
+    },
+    "src/tests/invitacionConfianza.test.ts": {
+      "lines": 200,
+      "sloc": 171,
+      "functions": 16,
+      "maxComplexity": 2
+    },
+    "src/tests/kiosco.test.ts": {
+      "lines": 145,
+      "sloc": 124,
+      "functions": 14,
+      "maxComplexity": 2
+    },
+    "src/tests/liquidacionFinal.test.ts": {
+      "lines": 161,
+      "sloc": 134,
+      "functions": 28,
+      "maxComplexity": 2
+    },
+    "src/tests/liveness.test.ts": {
+      "lines": 242,
+      "sloc": 179,
+      "functions": 33,
+      "maxComplexity": 1
+    },
+    "src/tests/minimizacionBiometrica.test.ts": {
+      "lines": 173,
+      "sloc": 105,
+      "functions": 24,
+      "maxComplexity": 3
+    },
+    "src/tests/mocks/framerMotion.tsx": {
+      "lines": 110,
+      "sloc": 66,
+      "functions": 8,
+      "maxComplexity": 2
+    },
+    "src/tests/mocks/moduloVacio.js": {
+      "lines": 3,
+      "sloc": 1,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/tests/modulos.test.ts": {
+      "lines": 134,
+      "sloc": 104,
+      "functions": 37,
+      "maxComplexity": 2
+    },
+    "src/tests/organigrama.test.ts": {
+      "lines": 48,
+      "sloc": 42,
+      "functions": 6,
+      "maxComplexity": 1
+    },
+    "src/tests/paginado.test.ts": {
+      "lines": 84,
+      "sloc": 64,
+      "functions": 15,
+      "maxComplexity": 1
+    },
+    "src/tests/plantillaFacial.test.ts": {
+      "lines": 149,
+      "sloc": 102,
+      "functions": 21,
+      "maxComplexity": 1
+    },
+    "src/tests/recibosPdf.test.ts": {
+      "lines": 437,
+      "sloc": 356,
+      "functions": 57,
+      "maxComplexity": 2
+    },
+    "src/tests/regimenLaboral.test.ts": {
+      "lines": 100,
+      "sloc": 85,
+      "functions": 14,
+      "maxComplexity": 1
+    },
+    "src/tests/remuneraciones.test.ts": {
+      "lines": 84,
+      "sloc": 70,
+      "functions": 11,
+      "maxComplexity": 1
+    },
+    "src/tests/servicios.test.ts": {
+      "lines": 155,
+      "sloc": 123,
+      "functions": 24,
+      "maxComplexity": 1
+    },
+    "src/tests/terminal.test.ts": {
+      "lines": 87,
+      "sloc": 53,
+      "functions": 10,
+      "maxComplexity": 1
+    },
+    "src/tests/turnos.test.ts": {
+      "lines": 213,
+      "sloc": 172,
+      "functions": 28,
+      "maxComplexity": 3
+    },
+    "src/tests/useCarga.test.tsx": {
+      "lines": 142,
+      "sloc": 110,
+      "functions": 37,
+      "maxComplexity": 2
+    },
+    "src/tests/vacaciones.test.ts": {
+      "lines": 286,
+      "sloc": 240,
+      "functions": 34,
+      "maxComplexity": 1
+    },
+    "src/tests/validaciones.test.ts": {
+      "lines": 58,
+      "sloc": 44,
+      "functions": 9,
+      "maxComplexity": 1
+    },
+    "src/theme/theme.ts": {
+      "lines": 128,
+      "sloc": 109,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "src/types/rrhh.ts": {
+      "lines": 991,
+      "sloc": 611,
+      "functions": 0,
+      "maxComplexity": 0
+    },
+    "tailwind.config.js": {
+      "lines": 63,
+      "sloc": 57,
+      "functions": 0,
+      "maxComplexity": 0
+    }
+  }
+}

@@ -20,7 +20,7 @@ import {
   validarRequerido,
 } from '@/lib/validaciones';
 import { getEquipoIseo } from '@/lib/services/rrhh';
-import { supabase } from '@/lib/supabase/cliente';
+import { fetchProtegido } from '@/lib/api/fetchProtegido';
 import { Usuario } from '@/types/rrhh';
 
 /**
@@ -66,16 +66,8 @@ export const EquipoIseo = () => {
 
     setEnviando(true);
     try {
-      const { data } = await supabase().auth.getSession();
-      const token = data.session?.access_token;
-      if (!token) throw new Error('Sesión vencida: volvé a ingresar.');
-
-      const res = await fetch('/api/equipo-iseo', {
+      const res = await fetchProtegido('/api/equipo-iseo', {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           nombreCompleto: nombre.trim(),
           email: email.trim(),
