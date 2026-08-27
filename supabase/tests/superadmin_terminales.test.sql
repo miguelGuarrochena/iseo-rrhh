@@ -173,10 +173,16 @@ begin
   end;
   assert ok, 'el superadmin tiene que indicar la empresa';
 
-  -- Con empresa, funciona (aunque no haya nada que retirar).
+  -- Con empresa, funciona aunque no haya nada que retirar.
+  --
+  -- Se pide una versión que ninguna plantilla usa, y no la 1, porque la
+  -- 1 sí existe: es la del rostro enrolado en el fixture, que el caso 9
+  -- necesita para el 1:N del superadmin. Pedir la 1 acá retiraba esa
+  -- plantilla —devolviendo 1, no 0— y dejaba el caso 9 sin nadie a
+  -- quien reconocer.
   assert retirar_plantillas_faciales(
-    1::smallint, 2::smallint, '5a000000-0000-0000-0000-00000000000a') = 0,
-    'sin plantillas V1 tiene que retirar 0, no fallar';
+    3::smallint, 2::smallint, '5a000000-0000-0000-0000-00000000000a') = 0,
+    'una versión sin plantillas tiene que retirar 0, no fallar';
 
   -- Y sigue sin poder retirar la versión vigente.
   ok := false;

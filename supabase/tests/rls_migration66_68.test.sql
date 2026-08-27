@@ -183,20 +183,25 @@ begin
   assert ok, 'dias_habiles other tenant denied';
 end $$;
 
--- Employee historical fichaje ts forced to now
-insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
-values (
-  'b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a1',
-  'b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a2',
-  'ingreso', '2020-01-01 10:00:00+00', 'celular'
-);
+-- El empleado no puede fabricarse una marca con fecha inventada.
+--
+-- Antes el trigger le dejaba insertar y le pisaba el `ts` con la hora
+-- real; este caso comprobaba eso. Desde la migración 86 directamente no
+-- puede insertar: ficha por `fichar_con_rostro`. La garantía es más
+-- fuerte, así que el caso la comprueba de esa forma.
 do $$
-declare t timestamptz;
+declare ok boolean := false;
 begin
-  select ts into t from fichajes
-  where empleado_id='b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a2'
-  order by ts desc limit 1;
-  assert t > now() - interval '2 minutes', 'employee ts forced to now';
+  begin
+    insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+    values (
+      'b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a1',
+      'b6b6b6b6-b6b6-b6b6-b6b6-b6b6b6b6b6a2',
+      'ingreso', '2020-01-01 10:00:00+00', 'celular'
+    );
+  exception when others then ok := true;
+  end;
+  assert ok, 'employee cannot insert a fichaje with a made-up ts';
 end $$;
 
 -- BUG-012: year split helper

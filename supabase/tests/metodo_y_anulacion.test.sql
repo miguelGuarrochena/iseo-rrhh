@@ -524,30 +524,49 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
--- Y desde el rol real `authenticated`: ni UPDATE ni DELETE existen.
--- El resto del archivo corre como postgres, que saltea los GRANT.
+-- Y desde el rol real `authenticated`: ni UPDATE ni DELETE llegan a
+-- ninguna fila. El resto del archivo corre como postgres, que saltea
+-- los GRANT.
+--
+-- La garantía es que no se modifica NADA, y no que salte una excepción.
+-- `fichajes` no tiene policy de UPDATE ni de DELETE, así que RLS no le
+-- ofrece ninguna fila a la sentencia: afecta cero y termina sin error.
+-- Antes esto se afirmaba esperando una excepción, y pasaba de casualidad
+-- —en la base local `authenticated` no tenía ni el privilegio, así que
+-- fallaba por permisos y no por la policy—. Contra la base de verdad,
+-- que sí tiene el privilegio, ese assert no describía lo que pasa.
 -- ---------------------------------------------------------------------
 select pg_temp.como('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7c1');
 do $$
-declare v_bloqueado boolean;
+declare
+  v_filas int;
+  v_antes int;
+  v_despues int;
 begin
+  select count(*) into v_antes from fichajes
+   where empresa_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1';
+
   execute 'set local role authenticated';
 
-  v_bloqueado := false;
-  begin
-    update fichajes set anulado_en = now()
-     where empresa_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1';
-  exception when others then v_bloqueado := true; end;
-  assert v_bloqueado, 'authenticated no puede hacer UPDATE sobre fichajes';
+  update fichajes set anulado_en = now()
+   where empresa_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1';
+  get diagnostics v_filas = row_count;
+  assert v_filas = 0,
+    'authenticated no puede anular a mano: el UPDATE tocó ' || v_filas || ' filas';
 
-  v_bloqueado := false;
-  begin
-    delete from fichajes
-     where empresa_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1';
-  exception when others then v_bloqueado := true; end;
-  assert v_bloqueado, 'authenticated no puede borrar fichajes';
+  delete from fichajes
+   where empresa_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1';
+  get diagnostics v_filas = row_count;
+  assert v_filas = 0,
+    'authenticated no puede borrar fichajes: el DELETE tocó ' || v_filas || ' filas';
 
   execute 'reset role';
+
+  -- Y las marcas siguen todas ahí.
+  select count(*) into v_despues from fichajes
+   where empresa_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1';
+  assert v_antes = v_despues,
+    'ninguna marca se fue: había ' || v_antes || ' y quedaron ' || v_despues;
 end $$;
 
 rollback;

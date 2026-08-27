@@ -102,6 +102,15 @@ do $$
 declare v_id uuid; v_sec text; v_fichaje fichajes;
 begin
   select id, secreto into v_id, v_sec from cred;
+
+  -- Hay que correr el reloj más allá de la pausa del kiosco: esta
+  -- persona ya tiene la marca que insertó el caso 1, y sin esto el RPC
+  -- devolvía esa en vez de fichar. Los asserts pasaban igual —es la
+  -- misma persona y tampoco tiene foto— así que el caso no probaba
+  -- nada, y el caso 5 terminaba leyendo la fila equivocada.
+  perform set_config(
+    'app.reloj_fichaje', (clock_timestamp() + interval '4 minutes')::text, true);
+
   select * into v_fichaje from fichar_con_rostro(
     '[0,0,0]'::jsonb, null, null, null, null, v_id, v_sec, 2::smallint);
 
@@ -110,6 +119,8 @@ begin
   -- Control de cordura: que efectivamente haya fichado.
   assert v_fichaje.empleado_id = 'fa000000-0000-0000-0000-0000000000e1',
     'el RPC tenia que fichar a la persona enrolada';
+  assert v_fichaje.metodo = 'facial_tablet',
+    'y que sea una marca nueva del kiosco, no la que ya estaba';
 end $$;
 
 -- ---------------------------------------------------------------------

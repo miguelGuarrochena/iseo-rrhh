@@ -351,13 +351,20 @@ end $$;
 -- existían — el antirreplay del descriptor y la alternancia.
 select pg_temp.como('7e111111-1111-1111-1111-1111111111a1');
 do $$
-declare r text; v_f fichajes;
+declare
+  r text;
+  v_f fichajes;
+  -- Reloj simulado. La pausa de 3 min del kiosco devolvería la marca
+  -- reciente, así que hay que correr el tiempo para simular que esa
+  -- persona ya se fue y volvió a fichar de verdad.
+  --
+  -- Se adelanta el reloj en vez de envejecer la marca: `fichajes` no
+  -- admite UPDATE desde la 76 (se corrige anulando, no editando), así
+  -- que el UPDATE que había acá nunca funcionó. La costura sólo la
+  -- respeta psql; ver `reloj_fichaje()`.
+  v_reloj timestamptz := clock_timestamp() + interval '4 minutes';
 begin
-  -- La pausa de 3 min del kiosco devolvería la marca reciente. Esto
-  -- simula que esa persona ya se fue y volvió a fichar de verdad.
-  update fichajes
-     set ts = ts - interval '4 minutes'
-   where empleado_id = '7e111111-1111-1111-1111-1111111111e1';
+  perform set_config('app.reloj_fichaje', v_reloj::text, true);
 
   -- Descriptor nuevo → entra, y alterna sobre la marca anterior.
   select * into v_f from fichar_con_rostro(
@@ -368,6 +375,13 @@ begin
 
   -- Mismo descriptor otra vez → lo corta el antirreplay (FIC-002), no
   -- la terminal: la credencial es válida en las dos llamadas.
+  --
+  -- Hay que volver a correr el reloj: si no, la pausa del kiosco
+  -- devuelve la marca de recién y el antirreplay ni se evalúa, con lo
+  -- que este caso pasaría sin probar lo que dice que prueba.
+  v_reloj := v_reloj + interval '4 minutes';
+  perform set_config('app.reloj_fichaje', v_reloj::text, true);
+
   r := pg_temp.fichar('[0.006,0.005,0.005]'::jsonb,
         (select id from cred where etiqueta='A_ok'),
         (select secreto from cred where etiqueta='A_ok'));

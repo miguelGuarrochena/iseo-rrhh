@@ -361,7 +361,13 @@ declare
   v_otra fichajes;
   v_t uuid := (select id from term_rpc);
   v_s text := (select secreto from term_rpc);
+  -- Reloj simulado: en vez de envejecer la marca —que no se puede,
+  -- `fichajes` no admite UPDATE desde la 76— se adelanta el reloj del
+  -- fichaje. Sólo lo respeta una sesión de psql; ver `reloj_fichaje()`.
+  v_reloj timestamptz := clock_timestamp();
 begin
+  perform set_config('app.reloj_fichaje', v_reloj::text, true);
+
   select * into v_f from fichar_con_rostro(
     '[0.01,0.01,0.01]'::jsonb, null, -34.6, -58.4, null, v_t, v_s);
   assert v_f.tipo = 'ingreso', 'la primera marca del día es un ingreso';
@@ -385,15 +391,18 @@ begin
   assert v_otra.tipo = 'ingreso',
     'el anti-rebote no decide el tipo: sigue siendo el ingreso';
 
-  -- Para alternar de verdad hay que simular que ya se fue de la tablet.
-  update fichajes set ts = ts - interval '3 minutes' where id = v_f.id;
+  -- Para alternar de verdad hay que simular que ya se fue de la tablet:
+  -- cuatro minutos después, la pausa de tres ya no aplica.
+  v_reloj := v_reloj + interval '4 minutes';
+  perform set_config('app.reloj_fichaje', v_reloj::text, true);
 
   -- Descriptor distinto (no replay) → egreso.
   select * into v_f from fichar_con_rostro(
     '[0.01,0.01,0.011]'::jsonb, null, -34.6, -58.4, null, v_t, v_s);
   assert v_f.tipo = 'egreso', 'la segunda marca alterna a egreso';
 
-  update fichajes set ts = ts - interval '3 minutes' where id = v_f.id;
+  v_reloj := v_reloj + interval '4 minutes';
+  perform set_config('app.reloj_fichaje', v_reloj::text, true);
 
   -- Tercera marca, lejísimos: el kiosco sigue sin opinar sobre la zona.
   select * into v_f from fichar_con_rostro(
@@ -402,7 +411,8 @@ begin
   assert v_f.fuera_de_zona is null,
     'a 111 km de la planta el kiosco tampoco marca fuera de zona';
 
-  update fichajes set ts = ts - interval '3 minutes' where id = v_f.id;
+  v_reloj := v_reloj + interval '4 minutes';
+  perform set_config('app.reloj_fichaje', v_reloj::text, true);
 end $$;
 
 -- FIC-002 antirreplay: el mismo descriptor exacto se rechaza, con la
@@ -543,10 +553,10 @@ declare
     ('2026-08-11 06:00'::timestamp at time zone zona_empresa());
   v_j record;
 begin
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111',
           '99999999-9999-9999-9999-999999999999',
-          'ingreso', v_entrada, 'facial_tablet');
+          'ingreso', v_entrada, 'facial_tablet', 'Fixture del turno noche');
 
   -- El corazón del bug: a las 06:00 la marca de las 22:00 está del otro
   -- lado de la medianoche. La regla vieja no la veía y devolvía otro
@@ -556,10 +566,10 @@ begin
     'el egreso del turno noche NO puede registrarse como un ingreso nuevo';
 
   -- Con el tipo correcto, la jornada cierra: es lo que importa liquidar.
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111',
           '99999999-9999-9999-9999-999999999999',
-          'egreso', v_salida, 'facial_tablet');
+          'egreso', v_salida, 'facial_tablet', 'Fixture del turno noche');
 
   select * into v_j
     from jornadas_de_empresa(
@@ -586,16 +596,16 @@ begin
     'la primera marca de la vida de una persona es un ingreso';
 
   -- Ingreso hace 3 h (mismo turno, vuelta del almuerzo): alterna.
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111', v_emp,
-          'ingreso', v_ahora - interval '3 hours', 'facial_tablet');
+          'ingreso', v_ahora - interval '3 hours', 'facial_tablet', 'Fixture');
   assert tipo_de_marca_siguiente(v_emp, v_ahora) = 'egreso',
     'con un ingreso de hace 3 h, la marca siguiente es el egreso';
 
   -- Egreso reciente: la próxima vuelve a ser ingreso.
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111', v_emp,
-          'egreso', v_ahora - interval '10 minutes', 'facial_tablet');
+          'egreso', v_ahora - interval '10 minutes', 'facial_tablet', 'Fixture');
   assert tipo_de_marca_siguiente(v_emp, v_ahora) = 'ingreso',
     'después de un egreso siempre viene un ingreso';
 
@@ -606,9 +616,9 @@ begin
   -- ése: la primera versión de la corrección usó el corte y volvió a
   -- registrar la salida del turno noche como un ingreso.
   delete from fichajes where empleado_id = v_emp;
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111', v_emp,
-          'ingreso', v_ahora - interval '8 hours', 'facial_tablet');
+          'ingreso', v_ahora - interval '8 hours', 'facial_tablet', 'Fixture');
   assert tipo_de_marca_siguiente(v_emp, v_ahora) = 'egreso',
     'ocho horas después del ingreso sigue siendo la misma jornada';
 
@@ -617,9 +627,9 @@ begin
   -- sesión nueva. La anterior queda abierta, que es lo que hay que
   -- corregir a mano.
   delete from fichajes where empleado_id = v_emp;
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111', v_emp,
-          'ingreso', v_ahora - interval '30 hours', 'facial_tablet');
+          'ingreso', v_ahora - interval '30 hours', 'facial_tablet', 'Fixture');
   assert tipo_de_marca_siguiente(v_emp, v_ahora) = 'ingreso',
     'un ingreso viejo abre sesión nueva, no cierra la de hace 30 h';
 
@@ -627,17 +637,17 @@ begin
   -- decide `en_curso`: si la jornada figura en curso, esta marca la
   -- cierra; si ya no, abre otra.
   delete from fichajes where empleado_id = v_emp;
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111', v_emp,
-          'ingreso', v_ahora - max_jornada(), 'facial_tablet');
+          'ingreso', v_ahora - max_jornada(), 'facial_tablet', 'Fixture');
   assert tipo_de_marca_siguiente(v_emp, v_ahora) = 'ingreso',
     'exactamente en el máximo de jornada ya es otra sesión';
 
   delete from fichajes where empleado_id = v_emp;
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111', v_emp,
           'ingreso', v_ahora - max_jornada() + interval '1 minute',
-          'facial_tablet');
+          'facial_tablet', 'Fixture');
   assert tipo_de_marca_siguiente(v_emp, v_ahora) = 'egreso',
     'un minuto antes del máximo, la jornada sigue en curso';
 
@@ -648,10 +658,10 @@ end $$;
 do $$
 declare v_f fichajes;
 begin
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111',
           '99999999-9999-9999-9999-999999999999',
-          'ingreso', clock_timestamp() - interval '2 hours', 'facial_tablet');
+          'ingreso', clock_timestamp() - interval '2 hours', 'facial_tablet', 'Fixture');
 
   select * into v_f from fichar_con_rostro(
     '[0.5,0.5,0.501]'::jsonb, null, null, null, null,
@@ -793,9 +803,11 @@ set request.jwt.claims =
 do $$
 declare v_f fichajes;
 begin
-  update fichajes
-     set ts = ts - interval '3 minutes'
-   where empleado_id = '22222222-2222-2222-2222-222222222222';
+  -- Igual que arriba: en vez de envejecer las marcas previas de Ana
+  -- —que no se puede editarlas— se adelanta el reloj más allá de la
+  -- pausa del kiosco.
+  perform set_config(
+    'app.reloj_fichaje', (clock_timestamp() + interval '10 minutes')::text, true);
 
   select * into v_f from fichar_con_rostro(
     '[0.01,0.012,0.01]'::jsonb, null, -34.6, -58.4, null,
