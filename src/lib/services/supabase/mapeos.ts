@@ -156,6 +156,7 @@ export const aFichaje = (f: Fila): Fichaje => ({
   fueraDeZona: f.fuera_de_zona ?? undefined,
   registradoPor: f.registrado_por ?? undefined,
   registradoPorId: f.registrado_por_id ?? undefined,
+  motivo: f.motivo ?? undefined,
   anuladoEn: f.anulado_en ?? undefined,
   anuladoPor: f.anulado_por ?? undefined,
   anuladoMotivo: f.anulado_motivo ?? undefined,

@@ -30,6 +30,8 @@ import {
 } from '@/lib/services/rrhh';
 import { Ausencia, EmpresaResumen, ResumenControl } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
+import { moduloActivo } from '@/components/app/navItems';
+import { useModulos } from '@/lib/auth/useModulos';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
@@ -41,6 +43,18 @@ import { useCarga } from '@/lib/useCarga';
 const ReportesPage = () => {
   const { usuario, rolEfectivo, empresaVista } = useAuth();
   const [empresaSel, setEmpresaSel] = useState('');
+
+  /**
+   * Puntualidad, extras y presentismo salen del fichaje. Con el módulo
+   * apagado no hay marcas, así que los gráficos daban todo en cero y el
+   * presentismo mostraba a la dotación entera como ausente. Eso no es un
+   * dato malo: es un dato que no existe, y conviene no dibujarlo.
+   *
+   * El ausentismo y los recibos sí se siguen mostrando: salen de
+   * Ausencias y Recibos, no de acá.
+   */
+  const modulos = useModulos();
+  const conFichaje = moduloActivo('fichaje', modulos);
 
   const esGlobal = usuario?.rol === 'superadmin' && !empresaVista;
 
@@ -77,7 +91,7 @@ const ReportesPage = () => {
         getResumenControl(idEmpresa),
         getAusencias(idEmpresa),
         getEmpleados(idEmpresa),
-        getFichajesDeHoy(idEmpresa),
+        conFichaje ? getFichajesDeHoy(idEmpresa) : Promise.resolve([]),
       ]);
       return {
         resumen,
@@ -88,7 +102,7 @@ const ReportesPage = () => {
         ).size,
       };
     },
-    [esGlobal, empresaSel],
+    [esGlobal, empresaSel, conFichaje],
     {
       // Sin empresa elegida no hay nada que pedir todavía.
       activo: !esGlobal || Boolean(empresaSel),
@@ -241,30 +255,42 @@ const ReportesPage = () => {
           </Panel>
         ) : tieneDatos ? (
           <>
-            <div className="grid gap-4 lg:grid-cols-2">
+            {conFichaje ? (
+              <>
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <Panel>
+                    <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
+                      Minutos de llegada tarde — {nombreSel}
+                    </h2>
+                    <Barras datos={topTarde} sufijo=" min" />
+                  </Panel>
+                  <Panel>
+                    <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
+                      Horas extras — {nombreSel}
+                    </h2>
+                    <Barras datos={topExtras} sufijo=" hs" />
+                  </Panel>
+                </div>
+                <Panel>
+                  <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
+                    Presentismo de hoy — {nombreSel}
+                  </h2>
+                  <Dona
+                    datos={presentismo}
+                    centro={`${presentes}/${dotacion}`}
+                    centroDetalle="ficharon hoy"
+                  />
+                </Panel>
+              </>
+            ) : (
               <Panel>
-                <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
-                  Minutos de llegada tarde — {nombreSel}
-                </h2>
-                <Barras datos={topTarde} sufijo=" min" />
+                <p className="text-sm text-ink-soft">
+                  {nombreSel || 'Esta empresa'} no usa el módulo de Fichaje, así
+                  que no hay puntualidad, horas extras ni presentismo para
+                  mostrar.
+                </p>
               </Panel>
-              <Panel>
-                <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
-                  Horas extras — {nombreSel}
-                </h2>
-                <Barras datos={topExtras} sufijo=" hs" />
-              </Panel>
-            </div>
-            <Panel>
-              <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
-                Presentismo de hoy — {nombreSel}
-              </h2>
-              <Dona
-                datos={presentismo}
-                centro={`${presentes}/${dotacion}`}
-                centroDetalle="ficharon hoy"
-              />
-            </Panel>
+            )}
           </>
         ) : (
           <Panel>
@@ -304,20 +330,24 @@ const ReportesPage = () => {
           href="/ausencias"
           icono={IconUserExclamation}
         />
-        <StatCard
-          etiqueta="Llegadas tarde"
-          valor={resumen?.llegadasTardeTotal ?? '…'}
-          detalle="última semana"
-          href="/fichaje"
-          icono={IconClockExclamation}
-        />
-        <StatCard
-          etiqueta="Horas extras"
-          valor={resumen ? `${resumen.horasExtrasTotal} hs` : '…'}
-          detalle="última semana"
-          href="/fichaje"
-          icono={IconClockPlus}
-        />
+        {conFichaje && (
+          <>
+            <StatCard
+              etiqueta="Llegadas tarde"
+              valor={resumen?.llegadasTardeTotal ?? '…'}
+              detalle="última semana"
+              href="/fichaje"
+              icono={IconClockExclamation}
+            />
+            <StatCard
+              etiqueta="Horas extras"
+              valor={resumen ? `${resumen.horasExtrasTotal} hs` : '…'}
+              detalle="última semana"
+              href="/fichaje"
+              icono={IconClockPlus}
+            />
+          </>
+        )}
         {/* Los recibos son de RRHH: a un supervisor la base sólo le
             cuenta los propios, así que el número no diría lo que promete
             el rótulo. */}
@@ -332,20 +362,22 @@ const ReportesPage = () => {
         )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Panel>
-          <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
-            Minutos de llegada tarde por colaborador
-          </h2>
-          <Barras datos={topTarde} sufijo=" min" />
-        </Panel>
-        <Panel>
-          <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
-            Horas extras por colaborador
-          </h2>
-          <Barras datos={topExtras} sufijo=" hs" />
-        </Panel>
-      </div>
+      {conFichaje && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Panel>
+            <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
+              Minutos de llegada tarde por colaborador
+            </h2>
+            <Barras datos={topTarde} sufijo=" min" />
+          </Panel>
+          <Panel>
+            <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
+              Horas extras por colaborador
+            </h2>
+            <Barras datos={topExtras} sufijo=" hs" />
+          </Panel>
+        </div>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Panel>
@@ -358,40 +390,46 @@ const ReportesPage = () => {
             centroDetalle="solicitudes"
           />
         </Panel>
-        <Panel>
-          <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
-            Presentismo de hoy
-          </h2>
-          <Dona
-            datos={presentismo}
-            centro={`${presentes}/${dotacion}`}
-            centroDetalle="ficharon hoy"
-          />
-        </Panel>
+        {conFichaje && (
+          <Panel>
+            <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
+              Presentismo de hoy
+            </h2>
+            <Dona
+              datos={presentismo}
+              centro={`${presentes}/${dotacion}`}
+              centroDetalle="ficharon hoy"
+            />
+          </Panel>
+        )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-ink-soft">
-          Exportación de novedades para liquidación disponible desde Fichaje.
-        </p>
-        <Boton
-          variante="secundario"
-          tamano="sm"
-          onClick={() =>
-            descargarCSV(`reportes-${hoyISO()}.csv`, [
-              ['Colaborador', 'Minutos tarde', 'Horas extras'],
-              ...(resumen?.porEmpleado.map((e) => [
-                e.nombreCompleto,
-                String(e.minutosTarde),
-                String(e.horasExtras),
-              ]) ?? []),
-            ])
-          }
-        >
-          <IconDownload size={16} />
-          Exportar CSV
-        </Boton>
-      </div>
+      {/* El CSV son minutos tarde y horas extras: sin fichaje sería una
+          planilla de ceros con nombres. */}
+      {conFichaje && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-ink-soft">
+            Exportación de novedades para liquidación disponible desde Fichaje.
+          </p>
+          <Boton
+            variante="secundario"
+            tamano="sm"
+            onClick={() =>
+              descargarCSV(`reportes-${hoyISO()}.csv`, [
+                ['Colaborador', 'Minutos tarde', 'Horas extras'],
+                ...(resumen?.porEmpleado.map((e) => [
+                  e.nombreCompleto,
+                  String(e.minutosTarde),
+                  String(e.horasExtras),
+                ]) ?? []),
+              ])
+            }
+          >
+            <IconDownload size={16} />
+            Exportar CSV
+          </Boton>
+        </div>
+      )}
     </div>
   );
 };

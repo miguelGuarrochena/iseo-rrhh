@@ -18,17 +18,19 @@ import { CampoHora } from '@/components/app/ui/CampoHora';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
-  aprobarExtrasTurno,
+  aprobarExtrasDeJornada,
   asignarTurno,
   asignarTurnos,
   getAusenciasDeEmpleado,
   getEmpleados,
+  getEmpresa,
   getFichajesDeEmpleado,
   getTurnosDeEmpleado,
   quitarTurno,
 } from '@/lib/services/rrhh';
 import {
   controlarTurno,
+  ficho,
   formatearMinutos,
   resumirControlTurnos,
 } from '@/lib/turnos';
@@ -58,6 +60,7 @@ const FilaDia = ({
   fecha,
   etiqueta,
   turno,
+  turnoControl,
   fichajes,
   ausencias,
   puedeGestionar,
@@ -67,7 +70,14 @@ const FilaDia = ({
 }: {
   fecha: string;
   etiqueta: string;
+  /** El turno planificado, si alguien lo asignó. */
   turno?: Turno;
+  /**
+   * Contra qué horario se controla la fichada de ese día: el turno
+   * asignado o, si no hay, el horario general de la empresa. Lo arma la
+   * página para que el resumen de la semana use el mismo criterio.
+   */
+  turnoControl?: Turno;
   fichajes: Fichaje[];
   ausencias: Ausencia[];
   puedeGestionar: boolean;
@@ -89,8 +99,9 @@ const FilaDia = ({
   }, [turno]);
 
   const control = useMemo(
-    () => (turno ? controlarTurno(turno, fichajes, ausencias) : null),
-    [turno, fichajes, ausencias]
+    () =>
+      turnoControl ? controlarTurno(turnoControl, fichajes, ausencias) : null,
+    [turnoControl, fichajes, ausencias]
   );
 
   const quitar = async () => {
@@ -191,11 +202,13 @@ const FilaDia = ({
             Extra {formatearMinutos(control.extrasMin)}
           </span>
         )}
+        {/* Se puede aprobar aunque el día no tenga turno asignado: antes
+            el botón pedía `turno`, así que las extras de un día que
+            nadie planificó se detectaban y no se podían pagar nunca. */}
         {control &&
           control.extrasMin > 0 &&
-          turno &&
           puedeGestionar &&
-          (turno.extrasAprobadas ? (
+          (turno?.extrasAprobadas ? (
             <button
               type="button"
               onClick={() => void onAprobarExtras(false)}
@@ -209,6 +222,11 @@ const FilaDia = ({
               type="button"
               onClick={() => void onAprobarExtras(true)}
               className="cursor-pointer rounded-full border border-emerald-300 px-2.5 py-1 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-50"
+              title={
+                turno
+                  ? 'Marcar estas extras para liquidar'
+                  : `Marcar estas extras para liquidar. Como el día no tenía turno asignado, se le asigna el horario general (${turnoControl?.horaEntrada}–${turnoControl?.horaSalida}), que es contra el que ya se estaban midiendo.`
+              }
             >
               Aprobar extra
             </button>
@@ -287,6 +305,21 @@ const TurnosPage = () => {
     [cSemana.datos]
   );
 
+  /**
+   * Horario general de la empresa: es el que se aplica a los días sin
+   * turno asignado. Va aparte de `cSemana` porque no depende del
+   * empleado elegido y no tiene por qué volver a pedirse al cambiarlo.
+   */
+  const cEmpresa = useCarga(() => getEmpresa(), [], {
+    contexto: 'turnos/empresa',
+  });
+  const horarioGeneral = cEmpresa.datos?.config
+    ? {
+        horaEntrada: cEmpresa.datos.config.horaEntrada,
+        horaSalida: cEmpresa.datos.config.horaSalida,
+      }
+    : null;
+
   const cargar = cSemana.recargar;
 
   const dias = useMemo(
@@ -300,7 +333,34 @@ const TurnosPage = () => {
   );
 
   const turnoDe = (fecha: string) => turnos.find((t) => t.fecha === fecha);
-  const turnosSemana = dias.map(turnoDe).filter((t): t is Turno => Boolean(t));
+
+  /**
+   * Contra qué horario se controla cada día: el turno asignado o, si no
+   * hay, el horario general de la empresa — el mismo criterio que usa
+   * `controlDeJornadas` en el servidor para Reportes y la liquidación.
+   *
+   * Sólo se arma el turno "de control" si esa persona fichó ese día. Sin
+   * marcas no hay nada que controlar, y compararlo igual contra el
+   * horario general pondría "Ausente" en cada sábado y domingo.
+   */
+  const turnoDeControl = (fecha: string): Turno | undefined => {
+    const asignado = turnoDe(fecha);
+    if (asignado) return asignado;
+    if (!horarioGeneral || !empleadoId) return undefined;
+    if (!ficho(fichajes, empleadoId, fecha)) return undefined;
+    return {
+      id: '',
+      empleadoId,
+      fecha,
+      horaEntrada: horarioGeneral.horaEntrada,
+      horaSalida: horarioGeneral.horaSalida,
+      extrasAprobadas: false,
+    };
+  };
+
+  const turnosSemana = dias
+    .map(turnoDeControl)
+    .filter((t): t is Turno => Boolean(t));
   const resumen = resumirControlTurnos(turnosSemana, fichajes, ausencias);
 
   const moverSemana = (delta: number) => {
@@ -384,11 +444,17 @@ const TurnosPage = () => {
     cargar();
   };
 
-  const aprobarExtras = async (turnoId: string, aprobado: boolean) => {
-    await aprobarExtrasTurno(turnoId, aprobado);
+  const aprobarExtras = async (fecha: string, aprobado: boolean) => {
+    if (!empleadoId) return;
+    const sinTurno = !turnoDe(fecha);
+    await aprobarExtrasDeJornada(empleadoId, fecha, aprobado);
     avisoExito(
       aprobado ? 'Horas extra aprobadas' : 'Aprobación quitada',
-      aprobado ? 'Quedan marcadas para liquidar.' : undefined
+      aprobado
+        ? sinTurno
+          ? 'Quedan marcadas para liquidar. Ese día no tenía turno asignado: se le puso el horario general, que es contra el que ya se medían.'
+          : 'Quedan marcadas para liquidar.'
+        : undefined
     );
     cargar();
   };
@@ -540,14 +606,12 @@ const TurnosPage = () => {
                 fecha={fecha}
                 etiqueta={DIAS[i]}
                 turno={turnoDe(fecha)}
+                turnoControl={turnoDeControl(fecha)}
                 fichajes={fichajes}
                 ausencias={ausencias}
                 puedeGestionar={puedeGestionar}
                 onGuardar={(entrada, salida) => guardar(fecha, entrada, salida)}
-                onAprobarExtras={(aprobado) => {
-                  const t = turnoDe(fecha);
-                  return t ? aprobarExtras(t.id, aprobado) : Promise.resolve();
-                }}
+                onAprobarExtras={(aprobado) => aprobarExtras(fecha, aprobado)}
                 onQuitar={() => {
                   const t = turnoDe(fecha);
                   return t ? quitar(t.id) : Promise.resolve();

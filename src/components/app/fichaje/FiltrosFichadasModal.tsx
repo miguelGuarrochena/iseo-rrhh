@@ -19,6 +19,11 @@ interface Props {
   abierto: boolean;
   valores: FiltrosFichadas;
   sectores: string[];
+  /**
+   * Historial de una sola persona (el empleado mirando el suyo): buscar
+   * por colaborador o por sector no filtraría nada.
+   */
+  sinColaborador?: boolean;
   onCerrar: () => void;
   onAplicar: (valores: FiltrosFichadas) => void;
   onRestablecer: () => void;
@@ -37,6 +42,7 @@ export const FiltrosFichadasModal = ({
   abierto,
   valores,
   sectores,
+  sinColaborador = false,
   onCerrar,
   onAplicar,
   onRestablecer,
@@ -93,23 +99,27 @@ export const FiltrosFichadasModal = ({
           />
         </div>
 
-        <Campo
-          etiqueta="Colaborador"
-          value={borrador.nombre}
-          onChange={(e) => set('nombre', e.target.value)}
-          placeholder="Nombre, apellido, legajo o DNI"
-          ayuda="Busca por coincidencia parcial."
-        />
+        {!sinColaborador && (
+          <>
+            <Campo
+              etiqueta="Colaborador"
+              value={borrador.nombre}
+              onChange={(e) => set('nombre', e.target.value)}
+              placeholder="Nombre, apellido, legajo o DNI"
+              ayuda="Busca por coincidencia parcial."
+            />
 
-        <CampoSelect
-          etiqueta="Sector"
-          value={borrador.sector}
-          onChange={(v) => set('sector', v)}
-          opciones={[
-            { valor: '', etiqueta: 'Todos los sectores' },
-            ...sectores.map((s) => ({ valor: s, etiqueta: s })),
-          ]}
-        />
+            <CampoSelect
+              etiqueta="Sector"
+              value={borrador.sector}
+              onChange={(v) => set('sector', v)}
+              opciones={[
+                { valor: '', etiqueta: 'Todos los sectores' },
+                ...sectores.map((s) => ({ valor: s, etiqueta: s })),
+              ]}
+            />
+          </>
+        )}
 
         <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-paper p-4">
           <input

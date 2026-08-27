@@ -673,6 +673,11 @@ export interface Fichaje {
   /** Usuario autenticado que cargó a mano (lo impone la base). */
   registradoPorId?: string;
   /**
+   * Por qué se cargó a mano. Sólo lo tienen las marcas manuales: las
+   * que entran por `fichar_con_rostro` no necesitan explicación.
+   */
+  motivo?: string;
+  /**
    * Anulación (F-12). La fila nunca se borra: se marca. Una marca
    * anulada queda fuera de jornadas, resumen, Excel y liquidación, pero
    * sigue existiendo para la auditoría.
@@ -705,6 +710,11 @@ export interface OpcionesFichaje {
   timestamp?: string;
   /** Quién lo carga a mano (carga manual). */
   registradoPor?: string;
+  /**
+   * Por qué se carga a mano. Obligatorio en carga manual: lo exige el
+   * trigger `imponer_actor_fichaje`, no sólo el formulario.
+   */
+  motivo?: string;
 }
 
 /** Descriptor facial enrolado de un empleado (para identificación 1:N). */

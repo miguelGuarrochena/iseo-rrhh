@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enviarEmail } from '@/lib/email/resend';
+import { desdeIncidencias } from '@/lib/fichadas';
 
 /**
  * Resumen semanal a quien administra RRHH en cada empresa.
@@ -25,6 +26,8 @@ interface Pendientes {
   ausencias: number;
   recibosSinFirmar: number;
   comunicacionesAbiertas: number;
+  /** Jornadas con entrada y sin salida (o al revés) de las últimas dos semanas. */
+  jornadasSinCerrar: number;
   vencimientos: { titulo: string; fecha: string }[];
 }
 
@@ -32,6 +35,7 @@ const hayAlgo = (p: Pendientes): boolean =>
   p.ausencias > 0 ||
   p.recibosSinFirmar > 0 ||
   p.comunicacionesAbiertas > 0 ||
+  p.jornadasSinCerrar > 0 ||
   p.vencimientos.length > 0;
 
 const fila = (n: number, singular: string, plural: string): string =>
@@ -47,6 +51,7 @@ const armarEmail = (empresa: string, p: Pendientes): string => `
       ${fila(p.ausencias, 'ausencia sin resolver', 'ausencias sin resolver')}
       ${fila(p.recibosSinFirmar, 'recibo sin firmar por el colaborador', 'recibos sin firmar por los colaboradores')}
       ${fila(p.comunicacionesAbiertas, 'consulta sin responder', 'consultas sin responder')}
+      ${fila(p.jornadasSinCerrar, 'jornada sin cerrar (falta una marca)', 'jornadas sin cerrar (falta una marca)')}
     </ul>
     ${
       p.vencimientos.length > 0
@@ -88,6 +93,10 @@ const procesar = async (req: Request) => {
   enUnMes.setDate(enUnMes.getDate() + 30);
   const hoyISO = hoy.toISOString().slice(0, 10);
   const limiteISO = enUnMes.toISOString().slice(0, 10);
+  // Misma ventana que usan la pantalla de Fichaje y el aviso de Inicio:
+  // el mail no puede decir una cantidad distinta de la que se ve al
+  // entrar a corregirlas.
+  const desdeIncidenciasISO = desdeIncidencias(hoy);
 
   // Lunes de esta semana: la clave de dedup. Si el cron corre dos veces
   // (reintento, deploy, ejecución manual) el segundo no manda nada.
@@ -129,33 +138,49 @@ const procesar = async (req: Request) => {
       .filter(Boolean);
     if (destinos.length === 0) continue;
 
-    const [ausencias, recibos, comunicaciones, alertas] = await Promise.all([
-      admin
-        .from('ausencias')
-        .select('id', { count: 'exact', head: true })
-        .eq('empresa_id', empresa.id)
-        .eq('estado', 'pendiente'),
-      admin
-        .from('recibos')
-        .select('id', { count: 'exact', head: true })
-        .eq('empresa_id', empresa.id)
-        .eq('estado_firma', 'pendiente')
-        .not('firmado_empleador_en', 'is', null),
-      admin
-        .from('comunicaciones')
-        .select('id', { count: 'exact', head: true })
-        .eq('empresa_id', empresa.id)
-        .neq('estado', 'cerrada'),
-      admin
-        .from('documentos_legajo')
-        .select('nombre, fecha_vencimiento')
-        .eq('empresa_id', empresa.id)
-        .not('fecha_vencimiento', 'is', null)
-        .gte('fecha_vencimiento', hoyISO)
-        .lte('fecha_vencimiento', limiteISO)
-        .order('fecha_vencimiento')
-        .limit(5),
-    ]);
+    const [ausencias, recibos, comunicaciones, incompletas, alertas] =
+      await Promise.all([
+        admin
+          .from('ausencias')
+          .select('id', { count: 'exact', head: true })
+          .eq('empresa_id', empresa.id)
+          .eq('estado', 'pendiente'),
+        admin
+          .from('recibos')
+          .select('id', { count: 'exact', head: true })
+          .eq('empresa_id', empresa.id)
+          .eq('estado_firma', 'pendiente')
+          .not('firmado_empleador_en', 'is', null),
+        admin
+          .from('comunicaciones')
+          .select('id', { count: 'exact', head: true })
+          .eq('empresa_id', empresa.id)
+          .neq('estado', 'cerrada'),
+        // Jornadas sin cerrar: mismo RPC y mismos filtros que el
+        // historial. `head` + `count` para traer el número y no las filas.
+        admin
+          .rpc(
+            'jornadas_de_empresa',
+            {
+              p_empresa_id: empresa.id,
+              p_desde: desdeIncidenciasISO,
+              p_hasta: hoyISO,
+              p_empleado_ids: null,
+            },
+            { count: 'exact', head: true }
+          )
+          .eq('cerrada', false)
+          .eq('en_curso', false),
+        admin
+          .from('documentos_legajo')
+          .select('nombre, fecha_vencimiento')
+          .eq('empresa_id', empresa.id)
+          .not('fecha_vencimiento', 'is', null)
+          .gte('fecha_vencimiento', hoyISO)
+          .lte('fecha_vencimiento', limiteISO)
+          .order('fecha_vencimiento')
+          .limit(5),
+      ]);
 
     const pendientes: Pendientes = {
       ausencias: activo('ausencias') ? (ausencias.count ?? 0) : 0,
@@ -163,6 +188,7 @@ const procesar = async (req: Request) => {
       comunicacionesAbiertas: activo('comunicaciones')
         ? (comunicaciones.count ?? 0)
         : 0,
+      jornadasSinCerrar: activo('fichaje') ? (incompletas.count ?? 0) : 0,
       vencimientos: (alertas.data ?? []).map((d) => ({
         titulo: String(d.nombre),
         fecha: new Date(

@@ -30,6 +30,7 @@ import {
   getEmpresas,
   getEventosProximos,
   getFichajesDeHoy,
+  getJornadas,
   getMetricasGlobales,
   getMiMes,
   getRecibos,
@@ -49,6 +50,9 @@ import {
   Remuneracion,
   VacacionSector,
 } from '@/types/rrhh';
+import { desdeIncidencias, horaLocal, Jornada } from '@/lib/fichadas';
+import { useModulos } from '@/lib/auth/useModulos';
+import { moduloActivo } from '@/components/app/navItems';
 
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { useCarga } from '@/lib/useCarga';
@@ -83,6 +87,15 @@ const DashboardPage = () => {
   const esGestion = Boolean(rolEfectivo) && rolEfectivo !== 'empleado';
   const gestionEmpresa = esGestion && !esSuperadmin;
 
+  /**
+   * Con Fichaje apagado no hay marcas que contar, pero las tarjetas se
+   * pedían igual: mostraban "Presentes 0/12" y "Mis horas 0 hs" con link
+   * a una ruta bloqueada. Un cero es una afirmación —"nadie fichó"— y
+   * acá la verdad es otra: la empresa no usa fichaje. Se esconden.
+   */
+  const modulos = useModulos();
+  const conFichaje = moduloActivo('fichaje', modulos);
+
   const cMetricas = useCarga(() => getMetricasGlobales(), [], {
     activo: esSuperadmin,
     contexto: 'inicio/metricas',
@@ -110,8 +123,8 @@ const DashboardPage = () => {
   });
   const eventos = cEventos.datos;
 
-  const cMiMes = useCarga(() => getMiMes(miId!), [miId], {
-    activo: Boolean(miId),
+  const cMiMes = useCarga(() => getMiMes(miId!), [miId, conFichaje], {
+    activo: Boolean(miId) && conFichaje,
     contexto: 'inicio/mi-mes',
   });
   const miMes = cMiMes.datos ?? null;
@@ -168,11 +181,15 @@ const DashboardPage = () => {
   });
   const empleados = cEmpleados.datos;
 
-  const cFichajes = useCarga(() => getFichajesDeHoy(), [gestionEmpresa], {
-    activo: gestionEmpresa,
-    contexto: 'inicio/fichajes',
-    inicial: [] as Fichaje[],
-  });
+  const cFichajes = useCarga(
+    () => getFichajesDeHoy(),
+    [gestionEmpresa, conFichaje],
+    {
+      activo: gestionEmpresa && conFichaje,
+      contexto: 'inicio/fichajes',
+      inicial: [] as Fichaje[],
+    }
+  );
   const presentes = new Set(
     cFichajes.datos.filter((f) => f.tipo === 'ingreso').map((f) => f.empleadoId)
   ).size;
@@ -183,6 +200,26 @@ const DashboardPage = () => {
     inicial: [] as Alerta[],
   });
   const alertas = cAlertas.datos;
+
+  /**
+   * Jornadas que quedaron sin cerrar en las últimas dos semanas.
+   *
+   * Estaban sólo en la pantalla de Fichaje, así que quien no entra ahí
+   * —justamente el que liquida— se enteraba de la salida que faltaba
+   * recién al cerrar el mes, cuando ya no hay a quién preguntarle qué
+   * pasó ese día.
+   */
+  const desdeIncid = desdeIncidencias();
+  const cIncompletas = useCarga(
+    () => getJornadas(desdeIncid, hoyISO(), { soloAbiertas: true }),
+    [gestionEmpresa, conFichaje, desdeIncid],
+    {
+      activo: gestionEmpresa && conFichaje,
+      contexto: 'inicio/incompletas',
+      inicial: [] as Jornada[],
+    }
+  );
+  const incompletas = cIncompletas.datos;
 
   // Dos consultas para toda la empresa, no una por persona.
   const cCuentas = useCarga(() => getEmpleadosConCuenta(), [gestionEmpresa], {
@@ -368,31 +405,35 @@ const DashboardPage = () => {
             href="/ausencias"
             icono={IconInbox}
           />
-          <StatCard
-            etiqueta="Mis horas"
-            valor={miMes ? `${miMes.horasTrabajadas} hs` : '…'}
-            detalle="última semana"
-            href="/fichaje"
-            icono={IconClockCheck}
-          />
-          <StatCard
-            etiqueta="Mis extras"
-            valor={miMes ? `${miMes.horasExtras} hs` : '…'}
-            detalle="última semana"
-            href="/fichaje"
-            icono={IconClockPlus}
-          />
-          <StatCard
-            etiqueta="Llegadas tarde"
-            valor={miMes?.llegadasTarde ?? '…'}
-            detalle={
-              miMes && miMes.minutosTarde > 0
-                ? `${miMes.minutosTarde} min en total`
-                : 'estás impecable'
-            }
-            href="/fichaje"
-            icono={IconClockExclamation}
-          />
+          {conFichaje && (
+            <>
+              <StatCard
+                etiqueta="Mis horas"
+                valor={miMes ? `${miMes.horasTrabajadas} hs` : '…'}
+                detalle="última semana"
+                href="/fichaje"
+                icono={IconClockCheck}
+              />
+              <StatCard
+                etiqueta="Mis extras"
+                valor={miMes ? `${miMes.horasExtras} hs` : '…'}
+                detalle="última semana"
+                href="/fichaje"
+                icono={IconClockPlus}
+              />
+              <StatCard
+                etiqueta="Llegadas tarde"
+                valor={miMes?.llegadasTarde ?? '…'}
+                detalle={
+                  miMes && miMes.minutosTarde > 0
+                    ? `${miMes.minutosTarde} min en total`
+                    : 'estás impecable'
+                }
+                href="/fichaje"
+                icono={IconClockExclamation}
+              />
+            </>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
@@ -403,13 +444,15 @@ const DashboardPage = () => {
             href="/ausencias"
             icono={IconInbox}
           />
-          <StatCard
-            etiqueta="Presentes hoy"
-            valor={`${presentes}/${empleados.length || '—'}`}
-            detalle="ficharon ingreso"
-            href="/fichaje"
-            icono={IconClockCheck}
-          />
+          {conFichaje && (
+            <StatCard
+              etiqueta="Presentes hoy"
+              valor={`${presentes}/${empleados.length || '—'}`}
+              detalle="ficharon ingreso"
+              href="/fichaje"
+              icono={IconClockCheck}
+            />
+          )}
           <StatCard
             etiqueta="Vencimientos"
             valor={alertas.length}
@@ -521,6 +564,35 @@ const DashboardPage = () => {
               ))}
         </ListaCard>
       </div>
+
+      {/* Sólo aparece si hay algo que corregir: es un pendiente con
+          fecha de vencimiento real (la liquidación), no un indicador
+          que convenga tener siempre a la vista diciendo cero. */}
+      {!esEmpleado && incompletas.length > 0 && (
+        <ListaCard
+          titulo={`Jornadas sin cerrar · ${incompletas.length}`}
+          accion={{ etiqueta: 'Corregir en Fichaje', href: '/fichaje' }}
+        >
+          {incompletas.slice(0, 5).map((j) => (
+            <ListaItem
+              key={`${j.empleadoId}-${j.fecha}-${j.entrada ?? ''}`}
+              href="/fichaje"
+              icono={IconClockExclamation}
+              principal={nombreEmpleado(j.empleadoId)}
+              secundario={
+                j.entrada
+                  ? `Entrada ${horaLocal(j.entrada)}, sin salida`
+                  : 'Salida sin entrada'
+              }
+              extremo={
+                <span className="shrink-0 text-xs font-semibold text-peach">
+                  {formatearFecha(j.fecha)}
+                </span>
+              }
+            />
+          ))}
+        </ListaCard>
+      )}
 
       {!esEmpleado && alertas.length > 0 && (
         <ListaCard

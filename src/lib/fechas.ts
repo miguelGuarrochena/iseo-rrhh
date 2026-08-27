@@ -76,8 +76,81 @@ export const aISOLocal = (d: Date): string => {
   return `${d.getFullYear()}-${mes}-${dia}`;
 };
 
-/** Fecha de hoy en horario local (YYYY-MM-DD). */
-export const hoyISO = (): string => aISOLocal(new Date());
+/**
+ * Zona horaria en la que la empresa cuenta los días.
+ *
+ * Es el espejo de `zona_empresa()` en la base (migración 46), que es la
+ * que usa `jornadas_de_empresa` para fechar cada jornada. Las dos tienen
+ * que decir lo mismo: si divergen, el tablero muestra un día y el
+ * historial otro para la misma marca.
+ *
+ * Existe porque "hoy" no puede salir del reloj del dispositivo. Un
+ * gerente mirando el presentismo desde una computadora en otro huso, o
+ * una tablet de planta con la hora mal puesta, veían un día distinto del
+ * que la base considera el mismo día, y no había forma de darse cuenta:
+ * el tablero simplemente mostraba a la gente equivocada.
+ */
+export const ZONA_EMPRESA = 'America/Argentina/Buenos_Aires';
+
+/** Año, mes, día y hora de un instante, leídos en la zona de la empresa. */
+const enZonaEmpresa = (d: Date) => {
+  const partes = Object.fromEntries(
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: ZONA_EMPRESA,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      // Sin esto, la medianoche sale como "24" en algunos motores y la
+      // cuenta del desfasaje se va por un día entero.
+      hourCycle: 'h23',
+    })
+      .formatToParts(d)
+      .filter((p) => p.type !== 'literal')
+      .map((p) => [p.type, Number(p.value)])
+  ) as Record<'year' | 'month' | 'day' | 'hour' | 'minute' | 'second', number>;
+  return partes;
+};
+
+/**
+ * Cuántos milisegundos adelanta la zona de la empresa sobre UTC en ese
+ * instante. Se calcula y no se escribe a mano para que un eventual
+ * cambio de huso (o de país) no quede en un número mágico.
+ */
+const desfasajeEmpresa = (d: Date): number => {
+  const p = enZonaEmpresa(d);
+  const comoSiFueraUTC = Date.UTC(
+    p.year,
+    p.month - 1,
+    p.day,
+    p.hour,
+    p.minute,
+    p.second
+  );
+  // El segundo se compara al ras: los milisegundos no importan y
+  // arrastrarlos metería ruido en la resta.
+  return comoSiFueraUTC - Math.floor(d.getTime() / 1000) * 1000;
+};
+
+/** Fecha de hoy en la zona de la empresa (YYYY-MM-DD). */
+export const hoyISO = (ahora: Date = new Date()): string => {
+  const p = enZonaEmpresa(ahora);
+  return `${p.year}-${String(p.month).padStart(2, '0')}-${String(p.day).padStart(2, '0')}`;
+};
+
+/**
+ * Instante en el que empezó el día de hoy para la empresa, en ISO.
+ *
+ * Es el corte de "fichajes de hoy". Con la medianoche del dispositivo,
+ * una consulta hecha desde otro huso traía las marcas de otro día.
+ */
+export const inicioDelDiaEmpresa = (ahora: Date = new Date()): string => {
+  const p = enZonaEmpresa(ahora);
+  const medianocheComoUTC = Date.UTC(p.year, p.month - 1, p.day);
+  return new Date(medianocheComoUTC - desfasajeEmpresa(ahora)).toISOString();
+};
 
 const MESES = [
   'Enero',

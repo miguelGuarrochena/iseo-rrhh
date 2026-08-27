@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
-import { CampoSelect } from '@/components/app/ui/Campo';
+import { Campo, CampoSelect } from '@/components/app/ui/Campo';
 import { CampoHora } from '@/components/app/ui/CampoHora';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
@@ -54,6 +54,7 @@ export const FichajeManualModal = ({
   );
   const [fecha, setFecha] = useState(fechaInicial ?? hoyISO());
   const [hora, setHora] = useState(horaActual());
+  const [motivo, setMotivo] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,6 +64,7 @@ export const FichajeManualModal = ({
     setTipo(tipoInicial ?? 'ingreso');
     setFecha(fechaInicial ?? hoyISO());
     setHora(horaActual());
+    setMotivo('');
     setError(null);
   }, [abierto, empleadoIdInicial, tipoInicial, fechaInicial]);
 
@@ -79,6 +81,7 @@ export const FichajeManualModal = ({
     setTipo('ingreso');
     setFecha(hoyISO());
     setHora(horaActual());
+    setMotivo('');
     setError(null);
     onCerrar();
   };
@@ -105,6 +108,12 @@ export const FichajeManualModal = ({
       setError('No se puede cargar un fichaje futuro.');
       return;
     }
+    // También lo exige la base: acá se pide antes para no hacer ir y
+    // volver al servidor por un campo vacío.
+    if (!motivo.trim()) {
+      setError('Contá por qué la cargás a mano.');
+      return;
+    }
     setError(null);
     setGuardando(true);
     try {
@@ -113,6 +122,7 @@ export const FichajeManualModal = ({
         tipo,
         timestamp: cuando.toISOString(),
         registradoPor,
+        motivo: motivo.trim(),
       });
       const esHoy = fecha === hoyISO();
       avisoExito(
@@ -146,7 +156,7 @@ export const FichajeManualModal = ({
         <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <IconAlertTriangle size={18} className="mt-0.5 shrink-0" />
           Usá esta carga solo como respaldo (falla de la tablet, sin internet en
-          planta, etc.). Queda registrado que lo cargaste vos.
+          planta, etc.). Queda registrado que la cargaste vos y por qué.
         </p>
 
         <CampoSelect
@@ -171,6 +181,14 @@ export const FichajeManualModal = ({
           />
           <CampoHora etiqueta="Hora" value={hora} onChange={setHora} />
         </div>
+
+        <Campo
+          etiqueta="Motivo *"
+          value={motivo}
+          onChange={(e) => setMotivo(e.target.value)}
+          placeholder="Se cayó la tablet, fichó tarde, etc."
+          ayuda="Queda guardado con la marca. Es lo que permite entender después por qué esa hora la escribió alguien en vez de salir del reloj."
+        />
 
         {error && (
           <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">

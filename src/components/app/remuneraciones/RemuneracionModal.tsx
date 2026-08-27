@@ -29,6 +29,8 @@ import {
   tieneAportesDeLey,
   valorHorasExtras,
 } from '@/lib/remuneraciones';
+import { useModulos } from '@/lib/auth/useModulos';
+import { moduloActivo } from '@/components/app/navItems';
 import { formatearPesos } from '@/lib/formato';
 import { formatearPeriodo, hoyISO } from '@/lib/fechas';
 import {
@@ -116,6 +118,7 @@ export const RemuneracionModal = ({
   const [convenio, setConvenio] = useState('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const modulos = useModulos();
   const [extras, setExtras] = useState<HorasExtrasPeriodo>({
     detectadas: 0,
     aprobadas: 0,
@@ -205,10 +208,21 @@ export const RemuneracionModal = ({
   /**
    * Sólo se ofrece sumar al bruto lo que el supervisor aprobó en Turnos.
    * Las detectadas sin aprobar se muestran, pero no se pagan solas.
+   *
+   * Salvo que la empresa no use Turnos: ahí no existe la pantalla donde
+   * se aprueba, `aprobadas` sería cero para siempre y la sugerencia
+   * quedaba clavada en cero — había que calcular las extras aparte y
+   * cargarlas a mano, que es justo lo que este bloque vino a evitar. Sin
+   * Turnos no hay nada que aprobar, así que se toman las detectadas.
+   *
+   * Mientras la config todavía no llegó, `moduloActivo` responde que sí:
+   * el default seguro es el conservador, no sugerir de más.
    */
+  const conTurnos = moduloActivo('turnos', modulos);
+  const extrasASumar = conTurnos ? extras.aprobadas : extras.detectadas;
   const sugeridoExtras = valorHorasExtras(
     num(bruto),
-    extras.aprobadas,
+    extrasASumar,
     horasMensuales
   );
 
@@ -392,23 +406,18 @@ export const RemuneracionModal = ({
                   {extras.detectadas} horas extras
                 </strong>{' '}
                 registradas en {formatearPeriodo(periodo)} según su fichaje.
-                {extras.aprobadas > 0 ? (
+                {!conTurnos ? (
+                  <>
+                    {' '}
+                    La empresa no usa Turnos, así que no hay aprobación por día:
+                    se toman las detectadas.
+                  </>
+                ) : extras.aprobadas > 0 ? (
                   <>
                     {' '}
                     Están aprobadas{' '}
                     <strong className="font-bold">{extras.aprobadas} hs</strong>
                     .
-                    {sugeridoExtras > 0 && (
-                      <>
-                        {' '}
-                        Al 50%, con una base de {horasMensuales} hs mensuales,
-                        son{' '}
-                        <strong className="font-bold">
-                          {formatearPesos(sugeridoExtras)}
-                        </strong>
-                        .
-                      </>
-                    )}
                   </>
                 ) : (
                   <>
@@ -417,7 +426,18 @@ export const RemuneracionModal = ({
                       Todavía no hay ninguna aprobada
                     </strong>
                     , así que no se pueden sumar al bruto desde acá. Se aprueban
-                    en Turnos, en el día que corresponda.
+                    en Turnos, en el día que corresponda — también en los días
+                    que no tengan un turno asignado.
+                  </>
+                )}
+                {sugeridoExtras > 0 && (
+                  <>
+                    {' '}
+                    Al 50%, con una base de {horasMensuales} hs mensuales, son{' '}
+                    <strong className="font-bold">
+                      {formatearPesos(sugeridoExtras)}
+                    </strong>
+                    .
                   </>
                 )}
               </p>

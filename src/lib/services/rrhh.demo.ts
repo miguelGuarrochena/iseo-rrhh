@@ -1135,6 +1135,15 @@ export const ficharAhora = async (
   const tipo: Fichaje['tipo'] =
     opciones.tipo ?? tipoDeMarcaSiguiente(recientes);
   const esManual = opciones.metodo === 'manual';
+  // El motivo lo exige el trigger `imponer_actor_fichaje` en producción.
+  // Si acá no se exigiera, la demo dejaría pasar un formulario que
+  // después falla contra la base de verdad.
+  const motivo = (opciones.motivo ?? '').trim();
+  if (esManual && !motivo) {
+    throw new Error(
+      'Decí por qué cargás esta marca a mano: sin motivo no se puede auditar después.'
+    );
+  }
   const nuevo: Fichaje = {
     id: `fic-${Date.now()}`,
     empleadoId,
@@ -1149,6 +1158,7 @@ export const ficharAhora = async (
       : (opciones.geo ?? { lat: -34.7203, lng: -58.2542 }),
     fueraDeZona: opciones.fueraDeZona,
     registradoPor: opciones.registradoPor,
+    motivo: esManual ? motivo : undefined,
   };
   fichajesMock.push(nuevo);
   return simular(nuevo);
@@ -1370,14 +1380,33 @@ export const asignarTurnos = async (lista: NuevoTurno[]): Promise<void> => {
   return simular(undefined);
 };
 
-export const aprobarExtrasTurno = async (
-  turnoId: string,
+/**
+ * Aprueba las extras de un día. Si ese día no tenía turno planificado
+ * se crea uno con el horario general, igual que en producción: ver el
+ * porqué en `aprobarExtrasDeJornada` de `supabase/real.ts`.
+ */
+export const aprobarExtrasDeJornada = async (
+  empleadoId: string,
+  fecha: string,
   aprobado: boolean
 ): Promise<Turno> => {
-  const turno = turnosMock.find((t) => t.id === turnoId);
-  if (!turno) throw new Error('Turno no encontrado.');
-  turno.extrasAprobadas = aprobado;
-  return simular(turno);
+  const existente = turnosMock.find(
+    (t) => t.empleadoId === empleadoId && t.fecha === fecha
+  );
+  if (existente) {
+    existente.extrasAprobadas = aprobado;
+    return simular(existente);
+  }
+  const nuevo: Turno = {
+    id: `tur-${Date.now()}`,
+    empleadoId,
+    fecha,
+    horaEntrada: empresaMock.config.horaEntrada,
+    horaSalida: empresaMock.config.horaSalida,
+    extrasAprobadas: aprobado,
+  };
+  turnosMock.push(nuevo);
+  return simular(nuevo);
 };
 
 export const quitarTurno = async (id: string): Promise<void> => {

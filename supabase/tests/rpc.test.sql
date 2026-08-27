@@ -121,9 +121,10 @@ do $$
 declare v_fallo boolean := false;
 begin
   begin
-    insert into fichajes (empresa_id, empleado_id, tipo, metodo, confianza)
+    insert into fichajes (empresa_id, empleado_id, tipo, metodo, confianza, motivo)
     values ('11111111-1111-1111-1111-111111111111',
-            '22222222-2222-2222-2222-222222222222', 'ingreso', 'celular', 1);
+            '22222222-2222-2222-2222-222222222222', 'ingreso', 'celular', 1,
+            'Con motivo: el rechazo tiene que ser por la confianza');
   exception when others then v_fallo := true;
   end;
   assert v_fallo,
@@ -134,9 +135,10 @@ do $$
 declare v_fallo boolean := false;
 begin
   begin
-    insert into fichajes (empresa_id, empleado_id, tipo, metodo, fuera_de_zona)
+    insert into fichajes (empresa_id, empleado_id, tipo, metodo, fuera_de_zona, motivo)
     values ('11111111-1111-1111-1111-111111111111',
-            '22222222-2222-2222-2222-222222222222', 'ingreso', 'celular', false);
+            '22222222-2222-2222-2222-222222222222', 'ingreso', 'celular', false,
+            'Con motivo: el rechazo tiene que ser por la geocerca');
   exception when others then v_fallo := true;
   end;
   assert v_fallo, 'nadie puede afirmar la geocerca por insert directo';
@@ -144,9 +146,9 @@ end $$;
 
 -- El fichaje manual legítimo no lleva ninguno de los dos y debe pasar.
 -- Sin JWT: auth.uid() es null y el trigger de actor no interviene.
-insert into fichajes (empresa_id, empleado_id, tipo, metodo)
+insert into fichajes (empresa_id, empleado_id, tipo, metodo, motivo)
 values ('11111111-1111-1111-1111-111111111111',
-        '22222222-2222-2222-2222-222222222222', 'ingreso', 'manual');
+        '22222222-2222-2222-2222-222222222222', 'ingreso', 'manual', 'Fixture');
 delete from fichajes where empresa_id = '11111111-1111-1111-1111-111111111111';
 
 -- ---------------------------------------------------------------------
@@ -221,10 +223,10 @@ set request.jwt.claims =
 do $$
 declare v_f fichajes; v_aud auditoria_acciones;
 begin
-  insert into fichajes (empresa_id, empleado_id, tipo, metodo, registrado_por)
+  insert into fichajes (empresa_id, empleado_id, tipo, metodo, registrado_por, motivo)
   values ('11111111-1111-1111-1111-111111111111',
           '55555555-5555-5555-5555-555555555555',
-          'ingreso', 'celular', 'FRAUDE')
+          'ingreso', 'celular', 'FRAUDE', 'Me olvidé de fichar')
   returning * into v_f;
   assert v_f.metodo = 'manual',
     'un INSERT directo es carga manual aunque sea para uno mismo';
@@ -245,11 +247,12 @@ do $$
 declare v_f fichajes; v_aud auditoria_acciones;
 begin
   insert into fichajes (
-    empresa_id, empleado_id, tipo, metodo, ts, registrado_por
+    empresa_id, empleado_id, tipo, metodo, ts, registrado_por, motivo
   ) values (
     '11111111-1111-1111-1111-111111111111',
     '22222222-2222-2222-2222-222222222222',
-    'ingreso', 'celular', '2026-08-03T11:00:00Z', 'CEO Falso'
+    'ingreso', 'celular', '2026-08-03T11:00:00Z', 'CEO Falso',
+    'Sin internet en planta'
   ) returning * into v_f;
 
   assert v_f.metodo = 'manual', 'carga de terceros no puede pasar por celular';
@@ -273,10 +276,10 @@ set request.jwt.claims =
 do $$
 declare v_f fichajes;
 begin
-  insert into fichajes (empresa_id, empleado_id, tipo, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, metodo, motivo)
   values ('11111111-1111-1111-1111-111111111111',
           '55555555-5555-5555-5555-555555555555',
-          'egreso', 'remoto')
+          'egreso', 'remoto', 'Se fue sin fichar')
   returning * into v_f;
   assert v_f.metodo = 'manual';
   assert v_f.registrado_por_id = '33333333-3333-3333-3333-333333333333';

@@ -33,6 +33,7 @@ import {
 } from '@/lib/services/rrhh';
 import {
   agruparMarcas,
+  desdeIncidencias,
   diaLocal,
   estadoJornadaVista,
   Jornada,
@@ -294,16 +295,10 @@ const FichajePage = () => {
   });
   const ausenciasHoy = cAusencias.datos;
 
-  const desdeIncidencias = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 14);
-    const mes = String(d.getMonth() + 1).padStart(2, '0');
-    const dia = String(d.getDate()).padStart(2, '0');
-    return `${d.getFullYear()}-${mes}-${dia}`;
-  })();
+  const desde = desdeIncidencias();
   const cIncompletas = useCarga(
-    () => getJornadas(desdeIncidencias, hoyISO(), { soloAbiertas: true }),
-    [vistaEquipo, desdeIncidencias],
+    () => getJornadas(desde, hoyISO(), { soloAbiertas: true }),
+    [vistaEquipo, desde],
     {
       activo: vistaEquipo,
       contexto: 'fichaje/incompletas',
@@ -509,6 +504,11 @@ const FichajePage = () => {
           onFichado={(marca) => trasFichar(marca)}
         />
       )}
+
+      {/* El empleado ve su propio historial. Antes sólo veía las marcas
+          de hoy: para saber a qué hora había entrado el martes pasado
+          —que es de lo que se discute— tenía que preguntarle a RRHH. */}
+      {esEmpleado && miId && <HistorialFichadas soloEmpleadoId={miId} />}
 
       {!esEmpleado && (
         <ActivarKioscoModal

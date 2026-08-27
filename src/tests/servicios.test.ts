@@ -1,12 +1,15 @@
 import {
+  aprobarExtrasDeJornada,
   completarAlta,
   darDeBajaEmpleado,
   enrolarRostro,
   getAusenciasPendientes,
   getDescriptoresFaciales,
   getEmpleados,
+  getEmpresa,
   getSaldoVacaciones,
   getEstadoDeCuentas,
+  getTurnosDeEmpleado,
   invitarUsuario,
   loginConEmail,
   quitarAcceso,
@@ -150,5 +153,50 @@ describe('servicios (mocks)', () => {
 
     const descriptores = await getDescriptoresFaciales();
     expect(descriptores.some((d) => d.empleadoId === 'ple-4')).toBe(false);
+  });
+
+  /**
+   * Las extras sólo se dan por aprobadas si el día tiene un turno, así
+   * que un día que nadie planificó las detectaba y no se podían pagar
+   * nunca: la liquidación ofrecía cero para siempre. Aprobarlas ahora
+   * materializa el turno que faltaba.
+   */
+  it('aprobar extras de un día sin turno crea el turno con el horario general', async () => {
+    const fecha = '2026-07-15';
+    const antes = await getTurnosDeEmpleado('ple-3');
+    expect(antes.some((t) => t.fecha === fecha)).toBe(false);
+
+    const turno = await aprobarExtrasDeJornada('ple-3', fecha, true);
+    const empresa = await getEmpresa();
+
+    expect(turno.extrasAprobadas).toBe(true);
+    // Mismo horario contra el que ya se venían midiendo esas extras: el
+    // turno creado no puede mover la cuenta del día, sólo autorizarla.
+    expect(turno.horaEntrada).toBe(empresa.config.horaEntrada);
+    expect(turno.horaSalida).toBe(empresa.config.horaSalida);
+  });
+
+  it('desaprobar no borra el turno, lo desmarca', async () => {
+    const fecha = '2026-07-16';
+    await aprobarExtrasDeJornada('ple-3', fecha, true);
+    const quitado = await aprobarExtrasDeJornada('ple-3', fecha, false);
+
+    expect(quitado.extrasAprobadas).toBe(false);
+    const turnos = await getTurnosDeEmpleado('ple-3');
+    expect(turnos.filter((t) => t.fecha === fecha)).toHaveLength(1);
+  });
+
+  it('sobre un día que ya tiene turno respeta el horario planificado', async () => {
+    const [turnoExistente] = await getTurnosDeEmpleado('ple-3');
+    const marcado = await aprobarExtrasDeJornada(
+      'ple-3',
+      turnoExistente.fecha,
+      true
+    );
+
+    expect(marcado.id).toBe(turnoExistente.id);
+    expect(marcado.horaEntrada).toBe(turnoExistente.horaEntrada);
+    expect(marcado.horaSalida).toBe(turnoExistente.horaSalida);
+    expect(marcado.extrasAprobadas).toBe(true);
   });
 });

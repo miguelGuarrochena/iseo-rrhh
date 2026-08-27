@@ -68,6 +68,26 @@ const fechaLocalDe = (ts: string): string => {
 };
 
 /**
+ * ¿Ese empleado tiene alguna marca ese día?
+ *
+ * Sirve para saber si hay algo que controlar cuando el día no tiene
+ * turno asignado: sin fichaje no se puede decir nada (y compararlo
+ * contra el horario general marcaría "ausente" cada sábado).
+ *
+ * Usa la misma fecha local que `controlarTurno`, y no una comparación
+ * propia, justamente para que las dos respuestas no puedan diferir en
+ * el borde de la medianoche.
+ */
+export const ficho = (
+  fichajes: Fichaje[],
+  empleadoId: string,
+  fecha: string
+): boolean =>
+  fichajes.some(
+    (f) => f.empleadoId === empleadoId && fechaLocalDe(f.timestamp) === fecha
+  );
+
+/**
  * Controla un turno contra los fichajes del día de ese empleado.
  * `fichajes` puede ser de cualquier día; se filtra por la fecha del turno
  * en hora local (no por el prefijo UTC del string ISO).

@@ -87,7 +87,13 @@ import {
 } from '@/lib/fichadas';
 import { claveTurno, controlarJornada, indexarTurnos } from '@/lib/turnos';
 import { traerTodo as traerTodoBase } from './paginado';
-import { aISOLocal, diasAusencia, diasEntre, hoyISO } from '@/lib/fechas';
+import {
+  aISOLocal,
+  diasAusencia,
+  diasEntre,
+  hoyISO,
+  inicioDelDiaEmpresa,
+} from '@/lib/fechas';
 import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
 import { supabase } from '@/lib/supabase/cliente';
 import { getTerminalLocal } from '@/lib/terminal';
@@ -1695,12 +1701,6 @@ export const guardarVacacionesPendientes = async (
 
 // ---------- Fichajes ----------
 
-const inicioDeHoy = (): string => {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString();
-};
-
 export const getFichajesDeHoy = async (
   empresaIdOverride?: string
 ): Promise<Fichaje[]> => {
@@ -1708,7 +1708,7 @@ export const getFichajesDeHoy = async (
     .from('fichajes')
     .select('*')
     .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
-    .gte('ts', inicioDeHoy())
+    .gte('ts', inicioDelDiaEmpresa())
     // F-12: las marcas anuladas siguen en la tabla para la auditoría,
     // pero no cuentan como presentismo.
     .is('anulado_en', null)
@@ -1908,6 +1908,9 @@ export const ficharAhora = async (
       geo: opciones.geo ?? null,
       fuera_de_zona: opciones.fueraDeZona ?? null,
       registrado_por: opciones.registradoPor ?? null,
+      // El trigger lo exige y lo normaliza; se manda tal cual se
+      // escribió y el servidor decide si alcanza.
+      motivo: opciones.motivo ?? null,
       // `foto_url` no se escribe. La columna existe en el esquema desde
       // julio de 2026 y nunca la usó nadie: ningún caller pasaba una
       // foto, ninguna pantalla la leía, y `fichar_con_rostro` tampoco la
@@ -2219,16 +2222,70 @@ export const asignarTurnos = async (lista: NuevoTurno[]): Promise<void> => {
   if (error) throw new Error(error.message);
 };
 
-export const aprobarExtrasTurno = async (
-  turnoId: string,
+/**
+ * Aprueba (o desaprueba) las horas extras de un día, haya o no un turno
+ * planificado.
+ *
+ * `controlDeJornadas` sólo da por aprobadas las extras de un turno
+ * asignado, así que un día sin turno las detectaba y no las podía pagar
+ * **nunca**: la liquidación ofrecía cero para siempre. Pasaba con
+ * cualquier día que nadie planificó y con toda empresa que usa Fichaje y
+ * Remuneraciones pero no Turnos, que es una combinación válida.
+ *
+ * La aprobación se materializa creando el turno que faltaba con el
+ * horario general de la empresa. No es un rodeo: es exactamente el
+ * horario contra el que esas extras ya se venían midiendo (`turno ??
+ * horarioGeneral` en `controlDeJornadas`), así que crearlo no mueve ni
+ * las horas extras ni las llegadas tarde de ese día — sólo convierte
+ * "detectadas" en "aprobadas". Y deja una sola definición de extras
+ * aprobadas en la base, en vez de una segunda tabla que después haya que
+ * cruzar en cada cuenta.
+ *
+ * Se busca por (empleado, fecha) y no por id de turno porque el llamador
+ * puede no tener ninguno: es la clave única de la tabla.
+ */
+export const aprobarExtrasDeJornada = async (
+  empleadoId: string,
+  fecha: string,
   aprobado: boolean
 ): Promise<Turno> => {
+  const marcar = () =>
+    sb()
+      .from('turnos')
+      .update({ extras_aprobadas: aprobado })
+      .eq('empleado_id', empleadoId)
+      .eq('fecha', fecha)
+      .select();
+
+  const existente = await marcar();
+  if (existente.error) fallar(existente.error.message);
+  if (existente.data && existente.data.length > 0) {
+    return aTurno(existente.data[0]);
+  }
+
+  const empresa = await getEmpresa();
   const { data, error } = await sb()
     .from('turnos')
-    .update({ extras_aprobadas: aprobado })
-    .eq('id', turnoId)
+    .insert({
+      empresa_id: empresaId(),
+      empleado_id: empleadoId,
+      fecha,
+      hora_entrada: empresa.config.horaEntrada,
+      hora_salida: empresa.config.horaSalida,
+      extras_aprobadas: aprobado,
+    })
     .select()
     .single();
+
+  // Otro gestor asignó el turno entre el UPDATE y el INSERT: la fila ya
+  // existe (unique empleado_id, fecha) y sólo falta marcarla. Se
+  // reintenta el UPDATE una vez y no se recursiona: si tampoco aparece,
+  // el error de verdad es otro y conviene que se vea.
+  if (error?.code === '23505') {
+    const reintento = await marcar();
+    if (reintento.error) fallar(reintento.error.message);
+    if (reintento.data?.[0]) return aTurno(reintento.data[0]);
+  }
   return aTurno(oFalla(data, error));
 };
 

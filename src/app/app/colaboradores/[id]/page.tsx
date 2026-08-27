@@ -70,6 +70,8 @@ import {
 } from '@/lib/vacaciones';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { useModulos } from '@/lib/auth/useModulos';
+import { moduloActivo } from '@/components/app/navItems';
 import { formatearPesos } from '@/lib/formato';
 import {
   categoriaDeChecklist,
@@ -127,8 +129,15 @@ const FichaColaboradorPage = () => {
   const unidadEmpresa =
     UNIDAD_VACACIONES_LABELS[unidadVacacionesDe(cEmpresa.datos?.config)];
 
-  const cControl = useCarga(() => getMiMes(id), [id], {
-    activo: Boolean(id),
+  /**
+   * Llegadas tarde y extras salen del fichaje: si la empresa no lo usa,
+   * mostrar cero es afirmar que llegó puntual todos los días. Se
+   * esconden en vez de inventar el dato.
+   */
+  const modulos = useModulos();
+  const conFichaje = moduloActivo('fichaje', modulos);
+  const cControl = useCarga(() => getMiMes(id), [id, conFichaje], {
+    activo: Boolean(id) && conFichaje,
     contexto: 'ficha/control',
   });
   const control = cControl.datos ?? null;
@@ -477,24 +486,28 @@ const FichaColaboradorPage = () => {
           href={`/ausencias?empleado=${empleado.id}`}
           icono={IconBeach}
         />
-        <StatCard
-          etiqueta="Llegadas tarde"
-          valor={control?.llegadasTarde ?? '…'}
-          detalle={
-            control && control.minutosTarde > 0
-              ? `${control.minutosTarde} min (semana)`
-              : 'última semana'
-          }
-          href="/reportes"
-          icono={IconClockExclamation}
-        />
-        <StatCard
-          etiqueta="Horas extras"
-          valor={control ? `${control.horasExtras} hs` : '…'}
-          detalle="última semana"
-          href="/reportes"
-          icono={IconClockPlus}
-        />
+        {conFichaje && (
+          <>
+            <StatCard
+              etiqueta="Llegadas tarde"
+              valor={control?.llegadasTarde ?? '…'}
+              detalle={
+                control && control.minutosTarde > 0
+                  ? `${control.minutosTarde} min (semana)`
+                  : 'última semana'
+              }
+              href="/reportes"
+              icono={IconClockExclamation}
+            />
+            <StatCard
+              etiqueta="Horas extras"
+              valor={control ? `${control.horasExtras} hs` : '…'}
+              detalle="última semana"
+              href="/reportes"
+              icono={IconClockPlus}
+            />
+          </>
+        )}
         <StatCard
           etiqueta="Ausencias"
           valor={ausencias.length}

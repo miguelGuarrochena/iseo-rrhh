@@ -21,13 +21,20 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { useCarga } from '@/lib/useCarga';
 import {
   getAusenciasEntre,
+  getEmpleado,
   getEmpleados,
   getEmpresa,
   getFeriados,
   getFichajesPagina,
   getJornadas,
 } from '@/lib/services/rrhh';
-import { armarResumen, diaLocal, horaLocal, Jornada } from '@/lib/fichadas';
+import {
+  armarResumen,
+  diaLocal,
+  horaLocal,
+  Jornada,
+  ordenPorApellido,
+} from '@/lib/fichadas';
 import { descargarResumenFichadas } from '@/lib/exportarFichadas';
 import { formatearFecha, hoyISO } from '@/lib/fechas';
 import {
@@ -71,11 +78,24 @@ const rangoPorDefecto = (): { desde: string; hasta: string } => {
  * Hasta ahora la pantalla de Fichaje solo mostraba el día de hoy, así
  * que revisar una semana pasada —lo que se hace al liquidar, o cuando
  * alguien discute un día— no se podía hacer desde la app.
+ *
+ * Con `soloEmpleadoId` es el historial de una sola persona, que es como
+ * lo ve el propio empleado: sin filtro por colaborador ni sector (sobran
+ * con una sola fila) y sin poder anular. No alcanza con esconder cosas
+ * en el cliente —eso no protegería nada—: la policy `fichajes_select`
+ * ya deja que un empleado lea únicamente sus marcas, y los RPC de
+ * jornadas son `security invoker`, así que la base devuelve sólo lo
+ * suyo aunque se pida de más.
  */
-export const HistorialFichadas = () => {
+export const HistorialFichadas = ({
+  soloEmpleadoId,
+}: {
+  soloEmpleadoId?: string;
+} = {}) => {
   const { rolEfectivo } = useAuth();
+  const propio = Boolean(soloEmpleadoId);
   const puedeAnular =
-    rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin';
+    !propio && (rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin');
   const [filtros, setFiltros] = useState<FiltrosFichadas>({
     ...rangoPorDefecto(),
     nombre: '',
@@ -90,17 +110,46 @@ export const HistorialFichadas = () => {
   // conversión a offset la hace el llamado al servicio.
   const [pagina, setPagina] = useState(1);
 
-  // Jornadas ya agrupadas por la base: una fila por empleado y día en
-  // vez de todas las marcas del período.
-  const cJornadas = useCarga(
-    () => getJornadas(filtros.desde, filtros.hasta),
-    [filtros.desde, filtros.hasta],
-    { contexto: 'fichaje/historial', inicial: [] as Jornada[] }
+  /**
+   * Quiénes tienen alguna jornada sin cerrar en el rango.
+   *
+   * Sólo hace falta con el filtro "solo sin cerrar" puesto, y es una
+   * consulta chica por naturaleza: las incidencias son la excepción, no
+   * la regla. Va aparte del resumen porque decide QUÉ empleados entran
+   * en la lista, y eso hay que saberlo antes de paginar — si se filtrara
+   * sobre la página ya traída, un empleado con una jornada abierta que
+   * cayera en la página 4 no aparecería nunca. Es el mismo error que ya
+   * se había corregido en Movimientos.
+   */
+  const cConAbiertas = useCarga(
+    () =>
+      getJornadas(filtros.desde, filtros.hasta, {
+        soloAbiertas: true,
+        empleadoIds: soloEmpleadoId ? [soloEmpleadoId] : undefined,
+      }),
+    [filtros.desde, filtros.hasta, soloEmpleadoId],
+    {
+      activo: filtros.soloIncompletos,
+      contexto: 'fichaje/historial-abiertas',
+      inicial: [] as Jornada[],
+    }
   );
-  const cEmpleados = useCarga(() => getEmpleados(), [], {
-    contexto: 'fichaje/historial-empleados',
-    inicial: [] as Empleado[],
-  });
+  // En el historial propio no se pide la dotación: con el legajo de uno
+  // alcanza, y así la pantalla del empleado no depende de poder leer la
+  // lista de sus compañeros.
+  const cEmpleados = useCarga(
+    async () =>
+      soloEmpleadoId
+        ? [await getEmpleado(soloEmpleadoId)].filter(
+            (e): e is Empleado => e !== null
+          )
+        : getEmpleados(),
+    [soloEmpleadoId],
+    {
+      contexto: 'fichaje/historial-empleados',
+      inicial: [] as Empleado[],
+    }
+  );
   // Sólo las que tocan el rango: el histórico completo de una empresa
   // con años de uso son miles de filas para pintar unas pocas celdas.
   const cAusencias = useCarga(
@@ -142,11 +191,6 @@ export const HistorialFichadas = () => {
     });
   }, [empleados, filtros.nombre, filtros.sector]);
 
-  const idsVisibles = useMemo(
-    () => new Set(empleadosFiltrados.map((e) => e.id)),
-    [empleadosFiltrados]
-  );
-
   /**
    * Ids a pedirle al servidor. `undefined` = sin filtro (no mandar el
    * `in`, que con cientos de empleados haría una URL enorme); un array
@@ -154,10 +198,63 @@ export const HistorialFichadas = () => {
    */
   const idsFiltrados = useMemo(
     () =>
-      empleadosFiltrados.length === empleados.length
-        ? undefined
-        : empleadosFiltrados.map((e) => e.id),
-    [empleadosFiltrados, empleados.length]
+      soloEmpleadoId
+        ? [soloEmpleadoId]
+        : empleadosFiltrados.length === empleados.length
+          ? undefined
+          : empleadosFiltrados.map((e) => e.id),
+    [soloEmpleadoId, empleadosFiltrados, empleados.length]
+  );
+
+  /**
+   * Los empleados que entran en el resumen, ya con el filtro de "solo
+   * sin cerrar" aplicado. Es la lista que se pagina.
+   */
+  const empleadosResumen = useMemo(() => {
+    const conAbiertas = new Set(cConAbiertas.datos.map((j) => j.empleadoId));
+    return (
+      empleadosFiltrados
+        .filter((e) => !filtros.soloIncompletos || conAbiertas.has(e.id))
+        // Ordenado ANTES de paginar, y con el mismo comparador que usa
+        // `armarResumen` para las filas: si no, la página 2 no serían "los
+        // siguientes alfabéticamente" sino un recorte arbitrario que
+        // después se ordena de nuevo dentro de la página.
+        .sort(ordenPorApellido)
+    );
+  }, [empleadosFiltrados, filtros.soloIncompletos, cConAbiertas.datos]);
+
+  const totalPaginasResumen = Math.max(
+    1,
+    Math.ceil(empleadosResumen.length / POR_PAGINA)
+  );
+
+  /**
+   * Los empleados de la página que se está mirando. De ellos —y sólo de
+   * ellos— se piden las jornadas.
+   *
+   * Antes se traía el rango completo: con trescientas personas y un mes
+   * son varios miles de filas bajadas al navegador para pintar quince.
+   * El Excel sí las necesita todas, pero se las pide al exportar.
+   */
+  const empleadosPagina = useMemo(
+    () =>
+      empleadosResumen.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA),
+    [empleadosResumen, pagina]
+  );
+
+  const idsPagina = useMemo(
+    () => empleadosPagina.map((e) => e.id),
+    [empleadosPagina]
+  );
+
+  const cJornadas = useCarga(
+    () => getJornadas(filtros.desde, filtros.hasta, { empleadoIds: idsPagina }),
+    [filtros.desde, filtros.hasta, idsPagina],
+    {
+      activo: vista === 'resumen',
+      contexto: 'fichaje/historial',
+      inicial: [] as Jornada[],
+    }
   );
 
   const resumen = useMemo(
@@ -165,47 +262,38 @@ export const HistorialFichadas = () => {
       armarResumen(
         filtros.desde,
         filtros.hasta,
-        empleadosFiltrados,
-        cJornadas.datos.filter((j) => idsVisibles.has(j.empleadoId)),
+        empleadosPagina,
+        cJornadas.datos,
         cAusencias.datos,
         cFeriados.datos
       ),
     [
       filtros.desde,
       filtros.hasta,
-      empleadosFiltrados,
+      empleadosPagina,
       cJornadas.datos,
-      idsVisibles,
       cAusencias.datos,
       cFeriados.datos,
     ]
   );
 
-  /**
-   * Filas del resumen con sus contadores.
-   *
-   * Acá el filtro "solo sin cerrar" SÍ se puede aplicar en memoria sin
-   * perder nada: `cJornadas` trae el rango completo (paginado hasta
-   * agotar), no una página. El problema estaba en Movimientos, que sí
-   * está paginado y por eso ahora filtra en SQL.
-   */
-  const filasResumen = useMemo(() => {
-    const conContadores = resumen.filas.map((fila) => ({
-      fila,
-      sinCerrar: fila.dias.filter(
-        (d) => d.incompleta && (d.entrada || d.salida)
-      ).length,
-      enCurso: fila.dias.filter((d) => d.enCurso).length,
-    }));
-    return filtros.soloIncompletos
-      ? conContadores.filter((f) => f.sinCerrar > 0)
-      : conContadores;
-  }, [resumen.filas, filtros.soloIncompletos]);
+  /** Filas visibles con sus contadores. */
+  const filasResumen = useMemo(
+    () =>
+      resumen.filas.map((fila) => ({
+        fila,
+        sinCerrar: fila.dias.filter(
+          (d) => d.incompleta && (d.entrada || d.salida)
+        ).length,
+        enCurso: fila.dias.filter((d) => d.enCurso).length,
+      })),
+    [resumen.filas]
+  );
 
   // Al cambiar cualquier filtro se vuelve a la primera página: quedarse
   // en la página 7 de un resultado que ahora tiene 2 muestra un vacío
   // que parece un error.
-  const clavePagina = `${filtros.desde}|${filtros.hasta}|${filtros.nombre}|${filtros.sector}|${filtros.soloIncompletos}`;
+  const clavePagina = `${vista}|${filtros.desde}|${filtros.hasta}|${filtros.nombre}|${filtros.sector}|${filtros.soloIncompletos}`;
   const [claveAnterior, setClaveAnterior] = useState(clavePagina);
   if (claveAnterior !== clavePagina) {
     setClaveAnterior(clavePagina);
@@ -257,16 +345,38 @@ export const HistorialFichadas = () => {
     return lista;
   }, [filtros]);
 
+  /**
+   * El Excel del contador lleva el período entero, no la página.
+   *
+   * La pantalla muestra de a quince y por eso sólo pide las jornadas de
+   * esos quince. El Excel no puede heredar ese recorte: una planilla a
+   * la que le faltan doscientas personas se ve igual de bien que una
+   * completa, y el error aparece recién cuando alguien reclama su
+   * sueldo. Así que se piden acá, al exportar, para todos los empleados
+   * que pasan el filtro.
+   */
   const exportar = async () => {
-    if (resumen.filas.length === 0) {
+    if (empleadosResumen.length === 0) {
       avisoError('No hay nada para exportar', 'Ampliá el rango o los filtros.');
       return;
     }
     setExportando(true);
     try {
-      const empresa = await getEmpresa();
+      const [empresa, jornadasTodas] = await Promise.all([
+        getEmpresa(),
+        getJornadas(filtros.desde, filtros.hasta, {
+          empleadoIds: empleadosResumen.map((e) => e.id),
+        }),
+      ]);
       const nombre = await descargarResumenFichadas({
-        resumen,
+        resumen: armarResumen(
+          filtros.desde,
+          filtros.hasta,
+          empleadosResumen,
+          jornadasTodas,
+          cAusencias.datos,
+          cFeriados.datos
+        ),
         empresa: empresa.razonSocial || empresa.nombre,
         filtros: descripcionFiltros,
       });
@@ -280,22 +390,29 @@ export const HistorialFichadas = () => {
     setExportando(false);
   };
 
+  // Cada vista espera lo suyo: la de resumen ya no depende de una
+  // consulta del rango entero, y la de movimientos nunca dependió del
+  // resumen.
   const cargando =
-    cJornadas.fase === 'cargando' ||
-    (vista === 'movimientos' && cMovimientos.fase === 'cargando');
+    vista === 'movimientos'
+      ? cMovimientos.fase === 'cargando'
+      : cJornadas.fase === 'cargando' ||
+        (filtros.soloIncompletos && cConAbiertas.fase === 'cargando');
 
   return (
     <Panel className="flex flex-col gap-4">
       <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
           <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
-            Historial de fichadas
+            {propio ? 'Mis fichadas' : 'Historial de fichadas'}
           </h2>
           <p className="mt-0.5 text-sm text-ink-soft">
             {formatearFecha(filtros.desde)} a {formatearFecha(filtros.hasta)} ·{' '}
             {vista === 'movimientos'
               ? `${totalMovimientos} ${totalMovimientos === 1 ? 'movimiento' : 'movimientos'}`
-              : `${filasResumen.length} ${filasResumen.length === 1 ? 'colaborador' : 'colaboradores'}`}
+              : propio
+                ? `${filasResumen[0]?.fila.diasTrabajados ?? 0} días trabajados`
+                : `${empleadosResumen.length} ${empleadosResumen.length === 1 ? 'colaborador' : 'colaboradores'}`}
             {descripcionFiltros.length > 0 && ' · con filtros'}
           </p>
         </div>
@@ -357,6 +474,12 @@ export const HistorialFichadas = () => {
           onReintentar={cJornadas.recargar}
         />
       )}
+      {cConAbiertas.fase === 'error' && cConAbiertas.error && (
+        <BloqueError
+          error={cConAbiertas.error}
+          onReintentar={cConAbiertas.recargar}
+        />
+      )}
       {cMovimientos.fase === 'error' && cMovimientos.error && (
         <BloqueError
           error={cMovimientos.error}
@@ -385,9 +508,11 @@ export const HistorialFichadas = () => {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="truncate font-semibold text-ink">
-                            {e ? `${e.apellido} ${e.nombre}` : '—'}
-                          </p>
+                          {!propio && (
+                            <p className="truncate font-semibold text-ink">
+                              {e ? `${e.apellido} ${e.nombre}` : '—'}
+                            </p>
+                          )}
                           <p className="text-xs text-ink-soft">
                             {formatearFecha(diaLocal(f.timestamp))} ·{' '}
                             {horaLocal(f.timestamp)}
@@ -407,6 +532,7 @@ export const HistorialFichadas = () => {
                         <span className="inline-flex items-center gap-1">
                           <Icono size={14} className="shrink-0" />
                           {metodoLabel[f.metodo]}
+                          {f.motivo && `: ${f.motivo}`}
                         </span>
                         {e?.sector && <span>· {e.sector}</span>}
                         {f.fueraDeZona && (
@@ -434,10 +560,10 @@ export const HistorialFichadas = () => {
                     <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wide text-ink-soft">
                       <th className="px-2 py-2">Fecha</th>
                       <th className="px-2 py-2">Hora</th>
-                      <th className="px-2 py-2">Colaborador</th>
+                      {!propio && <th className="px-2 py-2">Colaborador</th>}
                       <th className="px-2 py-2">Fichaje</th>
                       <th className="px-2 py-2">Método</th>
-                      <th className="px-2 py-2">Sector</th>
+                      {!propio && <th className="px-2 py-2">Sector</th>}
                       {puedeAnular && <th className="px-2 py-2"> </th>}
                     </tr>
                   </thead>
@@ -456,9 +582,11 @@ export const HistorialFichadas = () => {
                           <td className="whitespace-nowrap px-2 py-2.5 font-semibold text-ink">
                             {horaLocal(f.timestamp)}
                           </td>
-                          <td className="px-2 py-2.5 text-ink">
-                            {e ? `${e.apellido} ${e.nombre}` : '—'}
-                          </td>
+                          {!propio && (
+                            <td className="px-2 py-2.5 text-ink">
+                              {e ? `${e.apellido} ${e.nombre}` : '—'}
+                            </td>
+                          )}
                           <td className="px-2 py-2.5">
                             <span
                               className={`rounded-full px-2 py-0.5 text-xs font-bold ${
@@ -482,10 +610,20 @@ export const HistorialFichadas = () => {
                                 {metodoLabel[f.metodo]}
                               </span>
                             </span>
+                            {/* El motivo es la mitad que importa de una
+                                carga manual: sin él sólo se sabe que
+                                alguien escribió una hora. */}
+                            {f.motivo && (
+                              <span className="mt-0.5 block text-[0.7rem] leading-snug text-ink-soft/80">
+                                {f.motivo}
+                              </span>
+                            )}
                           </td>
-                          <td className="px-2 py-2.5 text-xs text-ink-soft">
-                            {e?.sector ?? '—'}
-                          </td>
+                          {!propio && (
+                            <td className="px-2 py-2.5 text-xs text-ink-soft">
+                              {e?.sector ?? '—'}
+                            </td>
+                          )}
                           {puedeAnular && (
                             <td className="px-2 py-2.5">
                               <button
@@ -515,7 +653,7 @@ export const HistorialFichadas = () => {
 
       {!cargando && vista === 'resumen' && (
         <>
-          {filasResumen.length === 0 ? (
+          {empleadosResumen.length === 0 ? (
             <p className="py-6 text-sm text-ink-soft">
               {filtros.soloIncompletos
                 ? 'Nadie tiene jornadas sin cerrar en ese período. Está todo listo para liquidar.'
@@ -643,9 +781,15 @@ export const HistorialFichadas = () => {
               </div>
             </div>
           )}
+          <Paginacion
+            pagina={pagina}
+            totalPaginas={totalPaginasResumen}
+            onCambiar={setPagina}
+          />
           <p className="text-xs text-ink-soft">
             El detalle día por día —entrada, salida y horas de cada jornada— va
-            en el Excel, que es donde entra a lo ancho.
+            en el Excel, que es donde entra a lo ancho. El Excel lleva el
+            período completo, no sólo esta página.
           </p>
         </>
       )}
@@ -654,6 +798,7 @@ export const HistorialFichadas = () => {
         abierto={modalAbierto}
         valores={filtros}
         sectores={sectores}
+        sinColaborador={propio}
         onCerrar={() => setModalAbierto(false)}
         onAplicar={(v) => {
           setFiltros(v);

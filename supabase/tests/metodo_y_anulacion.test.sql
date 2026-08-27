@@ -119,16 +119,21 @@ end $$;
 -- fabricarse una marca con cara de fichaje en la terminal. Antes el
 -- trigger salía temprano en el camino self-service y conservaba lo que
 -- mandara el cliente.
+--
+-- Desde la migración 86 ya no se le reescribe el método: directamente
+-- no puede insertar. El assert de antes (que quedaba en `manual`)
+-- describía el comportamiento anterior a esa migración.
 select pg_temp.como('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7c3');
 do $$
-declare v_m metodo_fichaje;
+declare ok boolean := false;
 begin
-  insert into fichajes (empresa_id, empleado_id, tipo, metodo)
-  values ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
-          'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1', 'egreso', 'facial_tablet')
-  returning metodo into v_m;
-  assert v_m = 'manual',
-    'un INSERT directo no puede declararse facial_tablet, quedó ' || v_m;
+  begin
+    insert into fichajes (empresa_id, empleado_id, tipo, metodo)
+    values ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
+            'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1', 'egreso', 'facial_tablet');
+  exception when others then ok := true;
+  end;
+  assert ok, 'el empleado no puede insertar directo: ficha por el RPC';
 end $$;
 
 -- Carga manual legítima de un gestor para un tercero → `manual`, con
@@ -137,10 +142,10 @@ select pg_temp.como('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7c2');
 do $$
 declare v_f fichajes;
 begin
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
           'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e3', 'ingreso',
-          '2026-08-03T11:00:00Z'::timestamptz, 'celular')
+          '2026-08-03T11:00:00Z'::timestamptz, 'celular', 'Sin internet en planta')
   returning * into v_f;
   assert v_f.metodo = 'manual', 'la carga de terceros es manual';
   assert v_f.registrado_por_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7c2',
@@ -186,18 +191,20 @@ begin
     )::text,
     true
   );
-  insert into fichajes (empresa_id, empleado_id, tipo, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, metodo, motivo)
   values ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
-          'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1', 'egreso', 'facial_tablet')
+          'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1', 'egreso', 'facial_tablet',
+          'Falló la tablet')
   returning metodo into v_m;
   assert v_m = 'manual',
     'tras una fichada, el INSERT directo del gestor es manual; quedó ' || v_m;
 
   ok := false;
   begin
-    insert into fichajes (empresa_id, empleado_id, tipo, metodo, confianza)
+    insert into fichajes (empresa_id, empleado_id, tipo, metodo, confianza, motivo)
     values ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
-            'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1', 'ingreso', 'celular', 1);
+            'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1', 'ingreso', 'celular', 1,
+            'Con motivo, para que el rechazo sea por la confianza');
   exception when others then ok := true;
   end;
   assert ok, 'tras una fichada, nadie puede afirmar confianza a mano';
@@ -220,9 +227,15 @@ end $$;
 -- ============================================================
 
 -- Una marca de referencia, del kiosco, para anular.
+--
+-- Se le despeja el camino a e3 borrando sus marcas previas, para que la
+-- pausa de tres minutos del kiosco no rechace la que viene. Antes acá
+-- había un UPDATE que les corría el `ts`, pero los fichajes no se
+-- editan desde la migración 76 (`proteger_update_fichaje`): ese UPDATE
+-- no llegó a funcionar nunca. El borrado corre como `postgres`, no como
+-- la app —más abajo se verifica que `authenticated` no puede borrar—.
 select pg_temp.como('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7c1');
-update fichajes
-   set ts = ts - interval '3 minutes'
+delete from fichajes
  where empleado_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e3';
 create temp table victima as
 select * from fichar_con_rostro(
@@ -394,14 +407,14 @@ end $$;
 -- ---------------------------------------------------------------------
 delete from fichajes where empresa_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1';
 
-insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo) values
+insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo) values
  ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1','a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1',
-  'ingreso', ('2026-08-05 08:00'::timestamp at time zone zona_empresa()), 'manual'),
+  'ingreso', ('2026-08-05 08:00'::timestamp at time zone zona_empresa()), 'manual', 'Fixture'),
  ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1','a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1',
-  'egreso', ('2026-08-05 17:00'::timestamp at time zone zona_empresa()), 'manual'),
+  'egreso', ('2026-08-05 17:00'::timestamp at time zone zona_empresa()), 'manual', 'Fixture'),
  -- Duplicado accidental: dos egresos seguidos.
  ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1','a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1',
-  'egreso', ('2026-08-05 17:01'::timestamp at time zone zona_empresa()), 'manual');
+  'egreso', ('2026-08-05 17:01'::timestamp at time zone zona_empresa()), 'manual', 'Fixture');
 
 do $$
 declare v_j record; v_n int;
@@ -479,10 +492,10 @@ delete from fichajes where empresa_id = 'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1';
 do $$
 declare v_id uuid;
 begin
-  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo)
+  insert into fichajes (empresa_id, empleado_id, tipo, ts, metodo, motivo)
   values ('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7a1',
           'a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1',
-          'ingreso', clock_timestamp() - interval '1 hour', 'manual')
+          'ingreso', clock_timestamp() - interval '1 hour', 'manual', 'Fixture')
   returning id into v_id;
 
   assert tipo_de_marca_siguiente('a7a7a7a7-a7a7-a7a7-a7a7-a7a7a7a7a7e1')

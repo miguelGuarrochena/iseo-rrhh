@@ -5,7 +5,10 @@ import Link from 'next/link';
 import { IconArrowLeft, IconMailForward } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
 import { Boton } from '@/components/app/ui/Boton';
-import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
+import {
+  authDisponible,
+  enviarLinkDeRecuperacion,
+} from '@/lib/auth/contrasena';
 import { validarEmail, validarRequerido } from '@/lib/validaciones';
 
 const RecuperarContrasenaPage = () => {
@@ -22,14 +25,12 @@ const RecuperarContrasenaPage = () => {
       return;
     }
     setError(null);
-    if (!supabaseConfigurado()) {
+    if (!authDisponible()) {
       setError('La recuperación va a estar disponible con el lanzamiento.');
       return;
     }
     setEnviando(true);
-    await supabase().auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: `${window.location.origin}/crear-contrasena`,
-    });
+    await enviarLinkDeRecuperacion(email);
     setEnviando(false);
     // Siempre mostramos éxito: no revelamos si el email existe o no.
     setEnviado(true);

@@ -212,6 +212,28 @@ export const desdeEstadoIso = (ahora: number = Date.now()): string =>
   new Date(ahora - VENTANA_ESTADO_MS).toISOString();
 
 /**
+ * Cuántos días hacia atrás se buscan jornadas sin cerrar.
+ *
+ * Dos semanas: alcanza para que una salida sin fichar aparezca varias
+ * veces antes de que se liquide el mes, y no tanto como para arrastrar
+ * para siempre incidencias viejas que ya nadie va a corregir.
+ *
+ * Lo miran la pantalla de Fichaje y el aviso de Inicio, así que el
+ * número vive acá: si cada una eligiera el suyo, el tablero diría una
+ * cantidad y la lista mostraría otra.
+ */
+export const DIAS_INCIDENCIAS = 14;
+
+/** Primer día de la ventana de incidencias, en YYYY-MM-DD local. */
+export const desdeIncidencias = (ahora: Date = new Date()): string => {
+  const d = new Date(ahora);
+  d.setDate(d.getDate() - DIAS_INCIDENCIAS);
+  const mes = String(d.getMonth() + 1).padStart(2, '0');
+  const dia = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mes}-${dia}`;
+};
+
+/**
  * Cómo se le muestra la jornada a la persona. Se deriva de las marcas
  * persistidas, no de un flag en el navegador.
  *
@@ -464,6 +486,18 @@ const ETIQUETA_AUSENCIA: Record<string, string> = {
  * no justifica nada y ponerla en la planilla que va a liquidación daría
  * por resuelto algo que nadie resolvió.
  */
+/**
+ * Orden en el que se listan las personas en el resumen: apellido y
+ * nombre, con el criterio del castellano (la ñ después de la n).
+ *
+ * Se exporta porque la pantalla pagina la lista ANTES de armar el
+ * resumen —para pedirle a la base sólo las jornadas de la página— y las
+ * dos cosas tienen que ordenar igual. Si no, la página 2 no es "los
+ * siguientes quince alfabéticamente" sino quince cualesquiera.
+ */
+export const ordenPorApellido = (a: Empleado, b: Empleado): number =>
+  `${a.apellido} ${a.nombre}`.localeCompare(`${b.apellido} ${b.nombre}`, 'es');
+
 export const armarResumen = (
   desde: string,
   hasta: string,
@@ -550,12 +584,7 @@ export const armarResumen = (
         diasTrabajados: celdas.reduce((acc, c) => acc + c.diaTrabajado, 0),
       };
     })
-    .sort((a, b) =>
-      `${a.empleado.apellido} ${a.empleado.nombre}`.localeCompare(
-        `${b.empleado.apellido} ${b.empleado.nombre}`,
-        'es'
-      )
-    );
+    .sort((a, b) => ordenPorApellido(a.empleado, b.empleado));
 
   return { desde, hasta, dias, filas };
 };

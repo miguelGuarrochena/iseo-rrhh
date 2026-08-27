@@ -45,14 +45,20 @@ describe('método derivado del camino (F-07)', () => {
 
 describe('anulación de fichajes (F-12)', () => {
   it('exige motivo', async () => {
-    const marca = await ficharAhora('ple-6', { metodo: 'manual' });
+    const marca = await ficharAhora('ple-6', {
+      metodo: 'manual',
+      motivo: 'Prueba',
+    });
 
     await expect(anularFichaje(marca.id, '')).rejects.toThrow(/por qué/i);
     await expect(anularFichaje(marca.id, '   ')).rejects.toThrow(/por qué/i);
   });
 
   it('un motivo en blanco no anula nada a medias', async () => {
-    const marca = await ficharAhora('ple-6', { metodo: 'manual' });
+    const marca = await ficharAhora('ple-6', {
+      metodo: 'manual',
+      motivo: 'Prueba',
+    });
 
     await expect(anularFichaje(marca.id, '  ')).rejects.toThrow();
 
@@ -61,7 +67,10 @@ describe('anulación de fichajes (F-12)', () => {
   });
 
   it('deja constancia de cuándo y por qué, no borra la marca', async () => {
-    const marca = await ficharAhora('ple-7', { metodo: 'manual' });
+    const marca = await ficharAhora('ple-7', {
+      metodo: 'manual',
+      motivo: 'Prueba',
+    });
 
     const anulada = await anularFichaje(
       marca.id,
@@ -78,7 +87,10 @@ describe('anulación de fichajes (F-12)', () => {
   });
 
   it('no se puede anular dos veces', async () => {
-    const marca = await ficharAhora('ple-7', { metodo: 'manual' });
+    const marca = await ficharAhora('ple-7', {
+      metodo: 'manual',
+      motivo: 'Prueba',
+    });
     await anularFichaje(marca.id, 'Duplicado');
 
     await expect(anularFichaje(marca.id, 'otra vez')).rejects.toThrow(

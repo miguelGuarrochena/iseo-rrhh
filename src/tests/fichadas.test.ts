@@ -3,6 +3,8 @@ import {
   armarJornadas,
   armarResumen,
   CORTE_JORNADA_MS,
+  desdeIncidencias,
+  DIAS_INCIDENCIAS,
   diasDelRango,
   encabezadoDia,
   estadoJornadaVista,
@@ -531,5 +533,38 @@ describe('minutosFichados', () => {
 
   it('formatea el total como 08h 09m', () => {
     expect(minutosAHorasMinutos(4 * 60 + 5 + 4 * 60 + 4)).toBe('08h 09m');
+  });
+});
+
+/**
+ * La ventana de incidencias la miran tres lugares (Fichaje, el aviso de
+ * Inicio y el resumen semanal por mail). Si alguno calculara la fecha
+ * por su cuenta, el mail diría una cantidad y la pantalla otra.
+ */
+describe('desdeIncidencias', () => {
+  it('retrocede DIAS_INCIDENCIAS días', () => {
+    expect(desdeIncidencias(new Date(2026, 7, 27))).toBe('2026-08-13');
+    expect(DIAS_INCIDENCIAS).toBe(14);
+  });
+
+  it('cruza el cambio de mes', () => {
+    expect(desdeIncidencias(new Date(2026, 2, 5))).toBe('2026-02-19');
+  });
+
+  it('cruza el cambio de año', () => {
+    expect(desdeIncidencias(new Date(2026, 0, 8))).toBe('2025-12-25');
+  });
+
+  // Se calcula en hora local: con `toISOString()` sobre una fecha
+  // argentina de madrugada, el día se iba para atrás.
+  it('no se corre un día por el huso', () => {
+    expect(desdeIncidencias(new Date(2026, 7, 27, 0, 30))).toBe('2026-08-13');
+    expect(desdeIncidencias(new Date(2026, 7, 27, 23, 30))).toBe('2026-08-13');
+  });
+
+  it('no modifica la fecha que recibe', () => {
+    const ahora = new Date(2026, 7, 27);
+    desdeIncidencias(ahora);
+    expect(ahora.getDate()).toBe(27);
   });
 });

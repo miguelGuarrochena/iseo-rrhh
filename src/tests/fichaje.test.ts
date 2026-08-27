@@ -52,10 +52,12 @@ describe('fichaje manual', () => {
       tipo: 'ingreso',
       timestamp: cuando.toISOString(),
       registradoPor: 'RRHH Test',
+      motivo: 'Se cayó la tablet',
     });
     expect(marca.tipo).toBe('ingreso');
     expect(marca.metodo).toBe('manual');
     expect(marca.registradoPor).toBe('RRHH Test');
+    expect(marca.motivo).toBe('Se cayó la tablet');
     expect(marca.timestamp).toBe(cuando.toISOString());
 
     const deHoy = await getFichajesDeEmpleadoHoy('ple-5');
@@ -67,8 +69,38 @@ describe('fichaje manual', () => {
       metodo: 'manual',
       tipo: 'egreso',
       registradoPor: 'RRHH Test',
+      motivo: 'Se olvidó de fichar la salida',
     });
     expect(marca.tipo).toBe('egreso');
+  });
+
+  /**
+   * Anular exige motivo desde F-12; crear a mano no exigía nada. La
+   * asimetría iba para el lado equivocado: borrar una marca real dejaba
+   * rastro de la razón e inventar una que nunca existió, no.
+   *
+   * En producción lo hace cumplir el trigger `imponer_actor_fichaje`,
+   * no el formulario: un campo obligatorio en la pantalla lo saltea
+   * cualquiera que hable PostgREST directo.
+   */
+  it('no se puede cargar a mano sin motivo', async () => {
+    await expect(
+      ficharAhora('ple-7', { metodo: 'manual', tipo: 'ingreso' })
+    ).rejects.toThrow(/motivo/i);
+  });
+
+  it('un motivo en blanco no cuenta como motivo', async () => {
+    await expect(
+      ficharAhora('ple-7', { metodo: 'manual', tipo: 'ingreso', motivo: '   ' })
+    ).rejects.toThrow(/motivo/i);
+  });
+
+  // El fichaje del empleado entra por `fichar_con_rostro`: ahí no hay
+  // nada que explicar, la marca la puso el reloj.
+  it('el fichaje normal no pide motivo', async () => {
+    const marca = await ficharAhora('ple-6');
+    expect(marca.metodo).toBe('celular');
+    expect(marca.motivo).toBeUndefined();
   });
 });
 

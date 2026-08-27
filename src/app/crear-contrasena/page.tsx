@@ -7,7 +7,11 @@ import { IconLockCheck } from '@tabler/icons-react';
 import { Logo } from '@/components/Logo';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoPassword } from '@/components/app/ui/CampoPassword';
-import { supabase, supabaseConfigurado } from '@/lib/supabase/cliente';
+import {
+  authDisponible,
+  definirContrasena,
+  esperarSesionDelLink,
+} from '@/lib/auth/contrasena';
 
 /**
  * Acá cae el link del email (invitación o recuperación): la sesión
@@ -23,29 +27,16 @@ const CrearContrasenaPage = () => {
   const [enviando, setEnviando] = useState(false);
 
   useEffect(() => {
-    if (!supabaseConfigurado()) {
+    if (!authDisponible()) {
       setListo(true);
       return;
     }
-    // supabase-js procesa el token del hash de la URL automáticamente;
-    // esperamos a que la sesión esté disponible.
-    let intentos = 0;
-    const esperar = window.setInterval(() => {
-      void supabase()
-        .auth.getSession()
-        .then(({ data }) => {
-          intentos += 1;
-          if (data.session) {
-            setLinkValido(true);
-            setListo(true);
-            window.clearInterval(esperar);
-          } else if (intentos > 6) {
-            setListo(true);
-            window.clearInterval(esperar);
-          }
-        });
-    }, 500);
-    return () => window.clearInterval(esperar);
+    const { sesion, cancelar } = esperarSesionDelLink();
+    void sesion.then((valida) => {
+      setLinkValido(valida);
+      setListo(true);
+    });
+    return cancelar;
   }, []);
 
   const guardar = async (e: FormEvent) => {
@@ -60,12 +51,10 @@ const CrearContrasenaPage = () => {
     }
     setError(null);
     setEnviando(true);
-    const { error: errorSupabase } = await supabase().auth.updateUser({
-      password,
-    });
+    const fallo = await definirContrasena(password);
     setEnviando(false);
-    if (errorSupabase) {
-      setError(errorSupabase.message);
+    if (fallo) {
+      setError(fallo);
       return;
     }
     router.push('/');

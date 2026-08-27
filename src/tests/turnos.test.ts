@@ -3,6 +3,7 @@ import {
   claveTurno,
   controlarJornada,
   controlarTurno,
+  ficho,
   indexarTurnos,
   resumirControlTurnos,
 } from '@/lib/turnos';
@@ -208,5 +209,47 @@ describe('indexarTurnos', () => {
     expect(indice.get(claveTurno('e1', '2026-07-06'))).toBe(t);
     expect(indice.get(claveTurno('e1', '2026-07-07'))).toBeUndefined();
     expect(indice.get(claveTurno('e2', '2026-07-06'))).toBeUndefined();
+  });
+});
+
+/**
+ * `ficho` decide si un día sin turno asignado se controla igual contra
+ * el horario general. Si dijera que sí donde no hubo marcas, cada
+ * sábado aparecería como ausencia; si dijera que no donde sí las hubo,
+ * las extras de ese día volverían a no poder aprobarse.
+ */
+describe('ficho', () => {
+  it('es falso si esa persona no tiene marcas ese día', () => {
+    expect(
+      ficho(
+        [fichaje('2026-07-06T11:00:00+00:00', 'ingreso')],
+        'e1',
+        '2026-07-07'
+      )
+    ).toBe(false);
+  });
+
+  it('es verdadero con una sola marca, aunque la jornada no haya cerrado', () => {
+    expect(
+      ficho(
+        [fichaje('2026-07-06T11:00:00+00:00', 'ingreso')],
+        'e1',
+        '2026-07-06'
+      )
+    ).toBe(true);
+  });
+
+  it('no confunde a dos personas', () => {
+    const marcas = [fichaje('2026-07-06T11:00:00+00:00', 'ingreso', 'e2')];
+    expect(ficho(marcas, 'e1', '2026-07-06')).toBe(false);
+    expect(ficho(marcas, 'e2', '2026-07-06')).toBe(true);
+  });
+
+  // 21:30 ART es 00:30Z del día siguiente: con el prefijo del string UTC
+  // el egreso caería en otro día y el día quedaría sin controlar.
+  it('usa la fecha local, no el prefijo UTC', () => {
+    const marcas = [fichaje('2026-07-07T00:30:00+00:00', 'egreso')];
+    expect(ficho(marcas, 'e1', '2026-07-06')).toBe(true);
+    expect(ficho(marcas, 'e1', '2026-07-07')).toBe(false);
   });
 });

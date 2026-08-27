@@ -262,9 +262,9 @@ export const getTurnosDeEmpleado = elegir(
 );
 export const asignarTurno = elegir(real.asignarTurno, demo.asignarTurno);
 export const asignarTurnos = elegir(real.asignarTurnos, demo.asignarTurnos);
-export const aprobarExtrasTurno = elegir(
-  real.aprobarExtrasTurno,
-  demo.aprobarExtrasTurno
+export const aprobarExtrasDeJornada = elegir(
+  real.aprobarExtrasDeJornada,
+  demo.aprobarExtrasDeJornada
 );
 export const quitarTurno = elegir(real.quitarTurno, demo.quitarTurno);
 export const getFichajesDeEmpleado = elegir(
