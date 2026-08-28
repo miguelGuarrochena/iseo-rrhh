@@ -153,7 +153,12 @@ const correr = async () => {
   );
 
   const { rows: emp } = await cliente.query(
-    `insert into empresas (nombre) values ('Comparación') returning id`
+    // `cuit`, `contacto_nombre` y `contacto_email` son NOT NULL: con sólo
+    // el nombre este insert fallaba y el script no llegaba a comparar nada.
+    `insert into empresas (nombre, cuit, contacto_nombre, contacto_email)
+     values ('Comparación', '30-cmp-' || floor(random() * 100000)::text,
+             'Comparación', 'cmp@t.test')
+     returning id`
   );
   const empresaId = emp[0].id;
 
@@ -162,7 +167,14 @@ const correr = async () => {
 
   for (const caso of CASOS) {
     const { rows: e } = await cliente.query(
-      `insert into empleados (empresa_id) values ($1) returning id`,
+      // Igual que con `empresas`: nombre, apellido, dni, fecha_ingreso,
+      // puesto y sector son NOT NULL. El insert pelado no entraba.
+      `insert into empleados
+         (empresa_id, nombre, apellido, dni, fecha_ingreso, puesto, sector)
+       values ($1, 'Caso', 'Comparación',
+               'cmp-' || floor(random() * 1000000)::text,
+               '2020-01-01', 'Op', 'Prod')
+       returning id`,
       [empresaId]
     );
     const empleadoId = e[0].id;

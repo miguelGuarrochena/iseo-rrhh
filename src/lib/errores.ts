@@ -118,6 +118,50 @@ export const interpretarError = (err: unknown): ErrorInterpretado => {
     };
   }
 
+  /**
+   * Geocerca (A06). Van antes del bloque genérico de permisos porque el
+   * RPC las levanta con `insufficient_privilege`, y "no tenés permiso"
+   * no le dice a nadie qué hacer parado frente al teléfono.
+   *
+   * `reintentable: false` es la parte importante: `FichajeFacialModal`
+   * reinicia la cámara cuando el error es reintentable, y acá volver a
+   * poner la cara no arregla nada — hay que dar el permiso de ubicación
+   * o moverse. Con `true` quedaba el bucle eterno de "parpadeá" que ya
+   * se había corregido para "Sin empresa activa".
+   */
+  if (incluye(m, 'no podemos verificar tu ubicación')) {
+    return {
+      tipo: 'permisos',
+      titulo: 'Necesitamos tu ubicación',
+      detalle:
+        'Activá el permiso de ubicación en el navegador y volvé a intentar. Tu empresa pide verificar que fichás desde tu zona de trabajo.',
+      reintentable: false,
+      crudo,
+    };
+  }
+
+  if (incluye(m, 'fuera de tu zona de trabajo')) {
+    return {
+      tipo: 'permisos',
+      titulo: 'Estás fuera de tu zona',
+      detalle:
+        'Acercate al lugar donde te toca fichar y probá de nuevo. Si creés que la zona está mal cargada, avisale a RRHH.',
+      reintentable: false,
+      crudo,
+    };
+  }
+
+  if (incluye(m, 'fichaje con fecha futura')) {
+    return {
+      tipo: 'datos',
+      titulo: 'Esa fecha todavía no llegó',
+      detalle:
+        'No se puede registrar un fichaje con fecha futura. Revisá el día y la hora.',
+      reintentable: false,
+      crudo,
+    };
+  }
+
   if (incluye(m, 'row-level security policy', 'permission denied')) {
     return {
       tipo: 'permisos',

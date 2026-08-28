@@ -59,7 +59,11 @@ import { useCarga } from '@/lib/useCarga';
 import { faltasDeEmpleado } from '@/lib/requisitos';
 import { BloqueFaltasDeVarios } from '@/components/app/Faltas';
 
-const ANIO_ACTUAL = new Date().getFullYear();
+// Año de negocio: el 31 de diciembre a las 21:00 de Buenos Aires el
+// reloj del dispositivo puede decir ya el año siguiente, y el saldo de
+// vacaciones se pediría del año equivocado. Es la misma clase de error
+// que A05 en el mes de Reportes.
+const ANIO_ACTUAL = Number(hoyISO().slice(0, 4));
 
 const formatearFecha = (iso: string): string =>
   new Date(`${iso}T00:00:00`).toLocaleDateString('es-AR', {

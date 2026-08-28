@@ -45,8 +45,11 @@ describe('regla de fuera de zona', () => {
 
 describe('fichaje manual', () => {
   it('respeta el tipo, el horario y quién lo cargó', async () => {
-    const cuando = new Date();
-    cuando.setHours(9, 30, 0, 0);
+    // Dos horas atrás y no "hoy a las 09:30": lo segundo cae en el futuro
+    // si el test corre a la mañana temprano, y desde A04 una marca futura
+    // se rechaza. Lo que este caso quiere probar es que se respeta el
+    // timestamp que se pasa, no una hora puntual del día.
+    const cuando = new Date(Date.now() - 2 * 60 * 60 * 1000);
     const marca = await ficharAhora('ple-5', {
       metodo: 'manual',
       tipo: 'ingreso',

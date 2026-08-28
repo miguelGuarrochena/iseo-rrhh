@@ -34,6 +34,7 @@ import {
   formatearMinutos,
   resumirControlTurnos,
 } from '@/lib/turnos';
+import { finDeMesEmpresa, hoyISO, sumarDiasEmpresa } from '@/lib/fechas';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { Ausencia, Empleado, Fichaje, Turno } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
@@ -43,17 +44,18 @@ import { useCarga } from '@/lib/useCarga';
 
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
-const pad = (n: number) => String(n).padStart(2, '0');
-const iso = (d: Date) =>
-  `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-
-/** Lunes de la semana que contiene a `d`. */
-const lunesDe = (d: Date): Date => {
-  const r = new Date(d);
-  const offset = (r.getDay() + 6) % 7;
-  r.setDate(r.getDate() - offset);
-  r.setHours(0, 0, 0, 0);
-  return r;
+/**
+ * Lunes de la semana que contiene a esa fecha de negocio.
+ *
+ * Trabaja sobre "YYYY-MM-DD" y no sobre `Date`: la semana que se mira es
+ * de dias de negocio, y anclarla al reloj del dispositivo hacia que desde
+ * otro huso la pantalla abriera en otra semana que la que la base
+ * considera actual.
+ */
+const lunesDe = (fecha: string): string => {
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  const d = new Date(Date.UTC(anio, mes - 1, dia));
+  return sumarDiasEmpresa(fecha, -((d.getUTCDay() + 6) % 7));
 };
 
 const FilaDia = ({
@@ -249,7 +251,7 @@ const FilaDia = ({
 const TurnosPage = () => {
   const { usuario, rolEfectivo } = useAuth();
   const [empleadoId, setEmpleadoId] = useState('');
-  const [semana, setSemana] = useState(() => lunesDe(new Date()));
+  const [semana, setSemana] = useState(() => lunesDe(hoyISO()));
   const [baseEntrada, setBaseEntrada] = useState('08:00');
   const [baseSalida, setBaseSalida] = useState('17:00');
   const [aplicando, setAplicando] = useState(false);
@@ -286,12 +288,19 @@ const TurnosPage = () => {
     async () => {
       const [turnos, fichajes, ausencias] = await Promise.all([
         getTurnosDeEmpleado(empleadoId),
-        getFichajesDeEmpleado(empleadoId),
+        // Solo la semana que se esta mirando, con un dia de margen a cada
+        // lado: la jornada que arranca el domingo a la noche pertenece al
+        // domingo, y sin el margen llegaria sin su ingreso. Antes esto
+        // bajaba el historial completo de la persona para pintar 7 dias.
+        getFichajesDeEmpleado(empleadoId, {
+          desde: sumarDiasEmpresa(semana, -1),
+          hasta: sumarDiasEmpresa(semana, 7),
+        }),
         getAusenciasDeEmpleado(empleadoId),
       ]);
       return { turnos, fichajes, ausencias };
     },
-    [empleadoId],
+    [empleadoId, semana],
     { activo: Boolean(empleadoId), contexto: 'turnos' }
   );
 
@@ -323,12 +332,7 @@ const TurnosPage = () => {
   const cargar = cSemana.recargar;
 
   const dias = useMemo(
-    () =>
-      Array.from({ length: 7 }).map((_, i) => {
-        const d = new Date(semana);
-        d.setDate(d.getDate() + i);
-        return iso(d);
-      }),
+    () => Array.from({ length: 7 }).map((_, i) => sumarDiasEmpresa(semana, i)),
     [semana]
   );
 
@@ -363,11 +367,8 @@ const TurnosPage = () => {
     .filter((t): t is Turno => Boolean(t));
   const resumen = resumirControlTurnos(turnosSemana, fichajes, ausencias);
 
-  const moverSemana = (delta: number) => {
-    const d = new Date(semana);
-    d.setDate(d.getDate() + delta * 7);
-    setSemana(d);
-  };
+  const moverSemana = (delta: number) =>
+    setSemana(sumarDiasEmpresa(semana, delta * 7));
 
   const licenciaEn = (fecha: string) =>
     ausencias.find(
@@ -462,12 +463,13 @@ const TurnosPage = () => {
   const aplicarSemana = () => aplicar(dias, 'la semana');
 
   const aplicarMes = () => {
-    const ancla = new Date(`${dias[0]}T00:00:00`);
-    const anio = ancla.getFullYear();
-    const mes = ancla.getMonth();
-    const total = new Date(anio, mes + 1, 0).getDate();
-    const fechas = Array.from({ length: total }, (_, i) =>
-      iso(new Date(anio, mes, i + 1))
+    // Sobre strings de fecha de negocio: `new Date('...T00:00:00')` movia
+    // el mes segun el huso del dispositivo.
+    const periodo = dias[0].slice(0, 7);
+    const total = Number(finDeMesEmpresa(periodo).slice(8));
+    const fechas = Array.from(
+      { length: total },
+      (_, i) => `${periodo}-${String(i + 1).padStart(2, '0')}`
     );
     aplicar(fechas, 'todo el mes');
   };

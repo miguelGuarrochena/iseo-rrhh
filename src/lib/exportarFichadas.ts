@@ -177,7 +177,34 @@ export const descargarResumenFichadas = async ({
   } else {
     hojaFiltros.addRow(['No se aplicaron filtros en esta exportación.']);
   }
+
+  /**
+   * A09: qué mide exactamente "Total Hs.".
+   *
+   * Los nombres de las columnas no se tocan —este formato es el que el
+   * cliente ya usa y se compara entre meses—, pero el número no puede
+   * viajar sin decir qué mide: en la app el colaborador ve su tiempo
+   * efectivo (sin el corte del almuerzo) y acá van las horas puerta a
+   * puerta. Son dos cuentas legítimas y distintas, y la primera vez que
+   * alguien las compara suele ser discutiendo un sueldo.
+   */
+  hojaFiltros.addRow([]);
+  const filaTituloHoras = hojaFiltros.addRow(['Cómo se calculan las horas']);
+  hojaFiltros.addRow([
+    '"Total Hs." y "Horas totales" son horas puerta a puerta: de la primera entrada a la última salida del día.',
+  ]);
+  hojaFiltros.addRow([
+    'El corte del almuerzo queda incluido. Es el criterio con el que se liquida.',
+  ]);
+  hojaFiltros.addRow([
+    'En la app, el colaborador ve su "tiempo efectivo", que suma sólo los tramos fichados y por eso puede ser menor.',
+  ]);
+  hojaFiltros.addRow([
+    'Las marcas anuladas no se cuentan en ninguna de las dos.',
+  ]);
+
   hojaFiltros.getRow(1).font = { bold: true };
+  filaTituloHoras.font = { bold: true };
 
   const nombre = `Fichajes_${resumen.desde}_a_${resumen.hasta}.xlsx`;
   const buffer = await libro.xlsx.writeBuffer();

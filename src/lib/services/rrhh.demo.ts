@@ -64,7 +64,14 @@ import {
   escalaDe,
 } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
-import { diasAusencia, hoyISO } from '@/lib/fechas';
+import { diaEmpresa, diasAusencia, hoyISO, mesEmpresa } from '@/lib/fechas';
+import { distanciaMetros } from '@/lib/facial/ubicacion';
+
+/**
+ * Margen de reloj que tolera la base antes de considerar futura una
+ * marca. Espejo de `margen_reloj_fichaje()` (migracion 89).
+ */
+const MARGEN_RELOJ_MS = 5 * 60 * 1000;
 import { VERSION_PLANTILLA } from '@/lib/facial/plantilla';
 import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
 import {
@@ -1144,11 +1151,18 @@ export const ficharAhora = async (
       'Decí por qué cargás esta marca a mano: sin motivo no se puede auditar después.'
     );
   }
+  // A04: en produccion lo impide `trg_rechazar_fichaje_futuro`, con el
+  // mismo margen de 5 minutos para relojes desajustados. Si la demo lo
+  // dejara pasar, ensenaria un comportamiento que la base no tiene.
+  const cuando = opciones.timestamp ?? new Date().toISOString();
+  if (new Date(cuando).getTime() > Date.now() + MARGEN_RELOJ_MS) {
+    throw new Error('No se puede registrar un fichaje con fecha futura.');
+  }
   const nuevo: Fichaje = {
     id: `fic-${Date.now()}`,
     empleadoId,
     tipo,
-    timestamp: opciones.timestamp ?? new Date().toISOString(),
+    timestamp: cuando,
     metodo: opciones.metodo ?? 'celular',
     // Sin `fotoUrl`: el modo demo recorre el mismo camino que la app
     // conectada, y ahí el fichaje no guarda ninguna fotografía.
@@ -1198,6 +1212,30 @@ export const ficharConRostro = async (
     : empleado.modoFichaje === 'remoto'
       ? 'remoto'
       : 'celular';
+
+  // A06: con geocerca configurada, fichar exige coordenadas y estar
+  // dentro. Es la misma tabla de decision que aplica `fichar_con_rostro`:
+  //   sin geocerca -> permitir; adentro -> permitir;
+  //   afuera -> rechazar; sin ubicacion -> rechazar.
+  // Solo 1:1 con modo celular: en el kiosco la geocerca mide a la tablet
+  // y bajo techo el GPS no engancha.
+  if (
+    opciones.empleadoId &&
+    empleado.modoFichaje === 'celular' &&
+    empleado.geocerca
+  ) {
+    if (!opciones.geo) {
+      throw new Error(
+        'No podemos verificar tu ubicación. Activá el permiso de ubicación para fichar.'
+      );
+    }
+    const radio = empleado.geocerca.radioM ?? 150;
+    if (distanciaMetros(empleado.geocerca, opciones.geo) > radio) {
+      throw new Error(
+        'Estás fuera de tu zona de trabajo. Acercate al lugar donde te toca fichar.'
+      );
+    }
+  }
 
   // Anti-rebote del kiosco: la misma cara, hace un momento, no es otra
   // marca. No decide ingreso/egreso; el tipo lo pone ficharAhora.
@@ -1417,9 +1455,21 @@ export const quitarTurno = async (id: string): Promise<void> => {
 
 /** Todos los fichajes de un empleado (para el control de turnos). */
 export const getFichajesDeEmpleado = async (
-  empleadoId: string
+  empleadoId: string,
+  opciones: { desde?: string; hasta?: string } = {}
 ): Promise<Fichaje[]> =>
-  simular(fichajesMock.filter((f) => f.empleadoId === empleadoId));
+  simular(
+    fichajesMock.filter(
+      (f) =>
+        f.empleadoId === empleadoId &&
+        // F-12: una marca anulada no ocurrio a efectos de ningun calculo.
+        // La real tampoco la devuelve; si la demo lo hiciera, ensenaria un
+        // comportamiento que produccion no tiene.
+        !f.anuladoEn &&
+        (!opciones.desde || diaEmpresa(f.timestamp) >= opciones.desde) &&
+        (!opciones.hasta || diaEmpresa(f.timestamp) <= opciones.hasta)
+    )
+  );
 
 // ---------- Convenio colectivo ----------
 
@@ -1576,7 +1626,9 @@ export const getResumenControl = async (
     .sort((a, b) => b.minutosTarde - a.minutosTarde);
 
   // Ausentismo del mes en curso: días aprobados / días-persona hábiles (aprox 22)
-  const mesActual = new Date().toISOString().slice(0, 7);
+  // Mes de negocio, no el de UTC: ver `mesEmpresa` y el comentario en la
+  // implementacion real.
+  const mesActual = mesEmpresa();
   const diasAusencia = ausenciasMock
     .filter(
       (a) =>

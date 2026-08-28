@@ -79,10 +79,10 @@ import {
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import {
-  armarJornadas,
   desdeEstadoIso,
   horasEntre,
   Jornada,
+  jornadasDelPeriodo,
   tipoDeMarcaSiguiente,
 } from '@/lib/fichadas';
 import { claveTurno, controlarJornada, indexarTurnos } from '@/lib/turnos';
@@ -91,8 +91,12 @@ import {
   aISOLocal,
   diasAusencia,
   diasEntre,
+  finDeMesEmpresa,
   hoyISO,
   inicioDelDiaEmpresa,
+  instanteEnZonaEmpresa,
+  mesEmpresa,
+  sumarDiasEmpresa,
 } from '@/lib/fechas';
 import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
 import { supabase } from '@/lib/supabase/cliente';
@@ -1716,11 +1720,19 @@ export const getFichajesDeHoy = async (
   return oFalla(data, error).map(aFichaje);
 };
 
-/** Extremos del rango en ISO, tomando el día completo de `hasta`. */
+/**
+ * Extremos del rango en ISO, tomando el día completo de `hasta`, con la
+ * medianoche de la EMPRESA y no la del dispositivo.
+ *
+ * Con `new Date('YYYY-MM-DDT00:00:00')` el corte salía del huso del
+ * navegador: desde una máquina en UTC el rango empezaba tres horas antes
+ * y arrastraba marcas del día anterior.
+ */
 const rangoISO = (desde: string, hasta: string) => ({
-  // Con un `lte` a medianoche se perdían todas las marcas del último día.
-  inicio: new Date(`${desde}T00:00:00`).toISOString(),
-  fin: new Date(`${hasta}T23:59:59.999`).toISOString(),
+  inicio: instanteEnZonaEmpresa(desde).toISOString(),
+  // Fin exclusivo: la medianoche del día siguiente. Con un `lte` a
+  // `23:59:59.999` se perdía cualquier marca de ese último milisegundo.
+  fin: instanteEnZonaEmpresa(sumarDiasEmpresa(hasta, 1)).toISOString(),
 });
 
 export interface OpcionesJornadas {
@@ -1858,7 +1870,8 @@ export const getFichajesEntre = async (
         .select('*')
         .eq('empresa_id', empresaId())
         .gte('ts', inicio)
-        .lte('ts', fin)
+        // `lt` y no `lte`: `fin` es la medianoche del día siguiente.
+        .lt('ts', fin)
         .is('anulado_en', null)
         .order('ts')
         .order('id')
@@ -2295,21 +2308,36 @@ export const quitarTurno = async (id: string): Promise<void> => {
 };
 
 export const getFichajesDeEmpleado = async (
-  empleadoId: string
+  empleadoId: string,
+  opciones: { desde?: string; hasta?: string } = {}
 ): Promise<Fichaje[]> => {
-  // Sin rango: son todas las marcas de la persona desde que entró. A
-  // dos por día son ~500 al año, así que a los dos años ya se cortaba.
-  const filas = await traerTodo(
-    (d, h) =>
-      sb()
-        .from('fichajes')
-        .select('*')
-        .eq('empleado_id', empleadoId)
-        .order('ts')
-        .order('id')
-        .range(d, h),
-    'fichajes del colaborador'
-  );
+  // F-12: las anuladas siguen en la tabla para la auditoría, pero no
+  // ocurrieron a efectos de ningún cálculo. Era el único lector que se
+  // olvidaba de filtrarlas, y de acá comía la pantalla de Turnos: una
+  // marca anulada seguía generando llegada tarde y presencia.
+  //
+  // El rango es opcional y acotable: sin él son todas las marcas de la
+  // persona desde que entró, que a dos por día son ~500 al año.
+  const filas = await traerTodo((d, h) => {
+    let q = sb()
+      .from('fichajes')
+      .select('*')
+      .eq('empleado_id', empleadoId)
+      .is('anulado_en', null);
+    // El día de margen a cada lado es el mismo que toma
+    // `jornadas_de_empresa`: una jornada que cruza el borde del rango no
+    // puede quedar partida en dos mitades incompletas.
+    if (opciones.desde) {
+      q = q.gte('ts', instanteEnZonaEmpresa(opciones.desde).toISOString());
+    }
+    if (opciones.hasta) {
+      q = q.lt(
+        'ts',
+        instanteEnZonaEmpresa(sumarDiasEmpresa(opciones.hasta, 1)).toISOString()
+      );
+    }
+    return q.order('ts').order('id').range(d, h);
+  }, 'fichajes del colaborador');
   return filas.map(aFichaje);
 };
 
@@ -2479,6 +2507,30 @@ interface JornadaControl {
  * cientos de minutos de llegada tarde por día, y las horas extras que se
  * sugerían al liquidar no eran las suyas.
  */
+/**
+ * Marcas de una persona en un período, con un día de margen a cada lado.
+ *
+ * El margen es la parte que importa. `jornadas_de_empresa` en la base lee
+ * `[desde - 1 día, hasta + 1 día]` justamente para no cortar por la mitad
+ * las jornadas del borde, y después descarta las que arrancan afuera. Los
+ * cálculos en memoria no lo hacían: pedían las marcas recortadas al
+ * período y recién ahí las agrupaban.
+ *
+ * El resultado era que una jornada 31/01 22:00 → 01/02 07:30 se partía en
+ * dos mitades huérfanas —una en cada mes, las dos con cero horas y las dos
+ * marcadas incompletas— y sus horas extras desaparecían del número que se
+ * ofrece sumar al bruto en la liquidación.
+ */
+const marcasDelPeriodoConMargen = (
+  empleadoId: string,
+  desde: string,
+  hasta: string
+): Promise<Fichaje[]> =>
+  getFichajesDeEmpleado(empleadoId, {
+    desde: sumarDiasEmpresa(desde, -1),
+    hasta: sumarDiasEmpresa(hasta, 1),
+  });
+
 const controlDeJornadas = (
   jornadas: Jornada[],
   config: Empresa['config'],
@@ -2512,10 +2564,10 @@ const controlDeJornadas = (
 
 /** Rango [hoy-7, hoy] en YYYY-MM-DD, que es la ventana del control. */
 const ultimaSemana = (): { desde: string; hasta: string } => {
-  const hasta = new Date();
-  const desde = new Date();
-  desde.setDate(desde.getDate() - 7);
-  return { desde: aISOLocal(desde), hasta: aISOLocal(hasta) };
+  // `hoyISO()` y no `aISOLocal(new Date())`: la ventana del control es de
+  // días de negocio, y el reloj del dispositivo no decide cuál es hoy.
+  const hasta = hoyISO();
+  return { desde: sumarDiasEmpresa(hasta, -7), hasta };
 };
 
 export const getResumenControl = async (
@@ -2525,11 +2577,13 @@ export const getResumenControl = async (
   // El ausentismo se mide sobre el mes en curso, así que sólo hacen
   // falta las ausencias de ese mes: traer el histórico completo era
   // bajarse años de datos para sumar una columna.
-  const mesActual = new Date().toISOString().slice(0, 7);
+  // `mesEmpresa()` y no `toISOString().slice(0, 7)`, que es UTC: el 31 de
+  // agosto a las 21:30 de Buenos Aires ya devolvia "2026-09", asi que el
+  // ausentismo se calculaba sobre un mes que todavia no habia empezado y
+  // el indicador caia a cero en las ultimas horas de cada mes.
+  const mesActual = mesEmpresa();
   const inicioMes = `${mesActual}-01`;
-  const finMes = aISOLocal(
-    new Date(Number(mesActual.slice(0, 4)), Number(mesActual.slice(5, 7)), 0)
-  );
+  const finMes = finDeMesEmpresa(mesActual);
 
   const [empresa, empleados, jornadas, turnos, ausencias, recibosPend] =
     await Promise.all([
@@ -2601,22 +2655,17 @@ export const getResumenControl = async (
 };
 
 export const getMiMes = async (empleadoId: string): Promise<MiMes> => {
-  const desde = new Date();
-  desde.setDate(desde.getDate() - 7);
-  desde.setHours(0, 0, 0, 0);
-  const [{ data, error }, empresa, turnos] = await Promise.all([
-    sb()
-      .from('fichajes')
-      .select('*')
-      .eq('empleado_id', empleadoId)
-      .gte('ts', desde.toISOString())
-      .is('anulado_en', null)
-      .order('ts'),
+  const hasta = hoyISO();
+  const desde = sumarDiasEmpresa(hasta, -7);
+  const [marcas, empresa, turnos] = await Promise.all([
+    // Con margen: la jornada que arrancó el día anterior al rango no
+    // puede quedar sin su ingreso. Ver `jornadasDelPeriodo`.
+    marcasDelPeriodoConMargen(empleadoId, desde, hasta),
     getEmpresa(),
-    getTurnosEntre(aISOLocal(desde), hoyISO(), { empleadoId }),
+    getTurnosEntre(desde, hasta, { empleadoId }),
   ]);
   const jornadas = controlDeJornadas(
-    armarJornadas(oFalla(data, error).map(aFichaje)),
+    jornadasDelPeriodo(marcas, desde, hasta),
     empresa.config,
     turnos
   );
@@ -2648,24 +2697,18 @@ export const getHorasExtrasDelPeriodo = async (
 ): Promise<HorasExtrasPeriodo> => {
   const [anio, mes] = periodo.split('-').map(Number);
   if (!anio || !mes) return { detectadas: 0, aprobadas: 0 };
-  const desde = new Date(anio, mes - 1, 1);
-  const hasta = new Date(anio, mes, 1);
-  // El último día del mes: `hasta` es el 1º del siguiente.
-  const ultimoDia = new Date(anio, mes, 0);
-  const [{ data, error }, empresa, turnos] = await Promise.all([
-    sb()
-      .from('fichajes')
-      .select('*')
-      .eq('empleado_id', empleadoId)
-      .gte('ts', desde.toISOString())
-      .lt('ts', hasta.toISOString())
-      .is('anulado_en', null)
-      .order('ts'),
+  const desde = `${periodo}-01`;
+  const hasta = finDeMesEmpresa(periodo);
+  const [marcas, empresa, turnos] = await Promise.all([
+    // Con el día de margen a cada lado: la jornada que entra el 31 a las
+    // 22:00 y sale el 1º a las 07:30 es UNA jornada del mes que empezó, y
+    // sus extras se pagan enteras en ese mes.
+    marcasDelPeriodoConMargen(empleadoId, desde, hasta),
     getEmpresa(),
-    getTurnosEntre(aISOLocal(desde), aISOLocal(ultimoDia), { empleadoId }),
+    getTurnosEntre(desde, hasta, { empleadoId }),
   ]);
   const jornadas = controlDeJornadas(
-    armarJornadas(oFalla(data, error).map(aFichaje)),
+    jornadasDelPeriodo(marcas, desde, hasta),
     empresa.config,
     turnos
   );

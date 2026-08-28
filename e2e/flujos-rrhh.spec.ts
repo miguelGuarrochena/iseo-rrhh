@@ -146,8 +146,13 @@ test.describe('Descuentos fijos', () => {
   }) => {
     await entrarComo(page, /Admin RRHH/);
     await page.goto('/remuneraciones');
+    // La pantalla pinta dos botones por persona: el de la lista de
+    // tarjetas (mobile) y el de la tabla (desktop), y esconde uno de los
+    // dos por breakpoint. `.first()` agarraba siempre el de mobile, que
+    // en el proyecto chromium está oculto y nunca se deja clickear.
     await page
       .getByLabel(/Editar remuneración de/)
+      .filter({ visible: true })
       .first()
       .click();
     const bloque = page.getByTestId('descuentos-fijos');

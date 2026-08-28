@@ -21,6 +21,11 @@ export default defineConfig({
   // 30 s que trae Playwright de fábrica se agotan esperando a que compile
   // y el test falla por algo que no tiene que ver con la app.
   timeout: 60_000,
+  // Por la misma razón, las aserciones tampoco pueden quedarse con los
+  // 5 s de fábrica: `entrarComo` espera la URL del tablero justo después
+  // del login, y esa primera navegación es la que dispara la
+  // compilación. El test fallaba por el compilador, no por la app.
+  expect: { timeout: 15_000 },
   reporter: 'html',
   use: {
     // app.localhost resuelve a loopback en Chromium y activa el modo

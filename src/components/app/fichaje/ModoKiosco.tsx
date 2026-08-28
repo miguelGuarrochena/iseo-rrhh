@@ -24,7 +24,7 @@ import { Empleado } from '@/types/rrhh';
 import { useCarga } from '@/lib/useCarga';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { useBateria } from '@/lib/dispositivo/useBateria';
-import { formatearHoraDe } from '@/lib/fechas';
+import { formatearHoraDe, ZONA_EMPRESA } from '@/lib/fechas';
 
 type Pestania = 'fichar' | 'opciones';
 
@@ -226,10 +226,15 @@ export const ModoKiosco = ({ onSalir }: { onSalir: () => void }) => {
                 {hora}
               </p>
               <p className="mt-2 text-sm capitalize text-ink-soft">
+                {/* Misma zona que el reloj de arriba: si la hora sale de
+                    la empresa y la fecha del dispositivo, una tablet con
+                    el huso mal puesto muestra las dos cosas en desacuerdo
+                    justo al lado. */}
                 {new Date().toLocaleDateString('es-AR', {
                   weekday: 'long',
                   day: 'numeric',
                   month: 'long',
+                  timeZone: ZONA_EMPRESA,
                 })}
               </p>
               <p className="mt-3 text-lg font-bold leading-snug text-ink sm:text-xl">

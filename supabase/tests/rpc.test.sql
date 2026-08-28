@@ -476,11 +476,62 @@ begin
     '22222222-2222-2222-2222-222222222222', -34.6, -58.4, null);
   assert v_f.fuera_de_zona = false,
     'en el centro de su geocerca, el fichaje por celular está dentro';
+end $$;
 
-  select * into v_f from fichar_con_rostro(
-    '[0.014,0.01,0.01]'::jsonb,
-    '22222222-2222-2222-2222-222222222222', -33.6, -58.4, null);
-  assert v_f.fuera_de_zona = true, 'a 111 km tiene que dar fuera de zona';
+-- ---------------------------------------------------------------------
+-- A06: con geocerca configurada, la zona RECHAZA. Antes se anotaba
+-- `fuera_de_zona = true` y la marca entraba igual, con lo cual el control
+-- existía en la planilla pero no impedía nada.
+--
+-- Los dos rechazos son distintos a propósito: "activá la ubicación" y
+-- "estás fuera de tu zona" le piden cosas diferentes a quien está parado
+-- frente al teléfono.
+-- ---------------------------------------------------------------------
+do $$
+declare
+  v_fallo boolean := false;
+  v_mensaje text;
+  v_antes bigint;
+  v_despues bigint;
+begin
+  select count(*) into v_antes from fichajes
+   where empleado_id = '22222222-2222-2222-2222-222222222222';
+
+  -- Fuera de la zona: a 111 km.
+  begin
+    perform fichar_con_rostro(
+      '[0.014,0.01,0.01]'::jsonb,
+      '22222222-2222-2222-2222-222222222222', -33.6, -58.4, null);
+  exception when others then
+    v_fallo := true;
+    v_mensaje := sqlerrm;
+  end;
+  assert v_fallo, 'a 111 km de su zona no se puede fichar';
+  assert v_mensaje like '%fuera de tu zona%',
+    'el mensaje tiene que decirle que se acerque, no "no tenes permiso"';
+
+  -- Sin coordenadas: el agujero que cerró A06. `obtenerUbicacion()` es
+  -- best-effort y devuelve undefined si se deniega el permiso, así que
+  -- el control de zona era opcional para el controlado.
+  v_fallo := false;
+  begin
+    perform fichar_con_rostro(
+      '[0.017,0.01,0.01]'::jsonb,
+      '22222222-2222-2222-2222-222222222222', null, null, null);
+  exception when others then
+    v_fallo := true;
+    v_mensaje := sqlerrm;
+  end;
+  assert v_fallo,
+    'con geocerca configurada y sin coordenadas no se puede fichar';
+  assert v_mensaje like '%verificar tu ubicación%',
+    'el mensaje tiene que pedir el permiso de ubicación';
+
+  -- Y ninguno de los dos dejó una marca a medias.
+  select count(*) into v_despues from fichajes
+   where empleado_id = '22222222-2222-2222-2222-222222222222';
+  assert v_despues = v_antes,
+    'un fichaje rechazado por zona no puede haber insertado nada';
 end $$;
 
 -- El modo remoto está exento por definición: ficha desde donde sea.

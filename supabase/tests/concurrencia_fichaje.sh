@@ -45,22 +45,29 @@ delete from auth.users where id in ('${USER_A}', '${USER_B}');
 insert into empresas (id, nombre, cuit, contacto_nombre, contacto_email, config)
 values (
   '${EMPRESA}', 'Race Fichaje SA', '30-rf-1', 'R', 'rf@r.com',
-  -- Sin `config.geocerca`: esa clave no la escribe ninguna pantalla y el
+  -- Sin config.geocerca: esa clave no la escribe ninguna pantalla y el
   -- RPC ya no la mira (FIC-012). La zona vive en empleados.geocerca.
+  -- (Sin comillas invertidas: este heredoc no esta entrecomillado y la
+  -- shell las ejecutaria como sustitucion de comandos.)
   '{"horaEntrada":"08:00","horaSalida":"17:00","toleranciaLlegadaTardeMin":10,
     "diasAvisoVencimiento":30,"metodosFichaje":["celular"]}'::jsonb
 );
 insert into empleados (
   id, empresa_id, nombre, apellido, dni, fecha_ingreso, puesto, sector,
-  modo_fichaje, geocerca, descriptor_facial, consentimiento_biometrico
+  -- `descriptor_version` no es opcional: la migracion 77 agrego el CHECK
+  -- `empleados_descriptor_version_coherente` (un descriptor sin version es
+  -- un descriptor que despues nadie sabe con que comparar) y este script
+  -- quedo sin actualizar, asi que fallaba en el primer insert.
+  modo_fichaje, geocerca, descriptor_facial, descriptor_version,
+  consentimiento_biometrico
 ) values
   ('${EMP_A}', '${EMPRESA}', 'Race', 'A', '801', '2020-01-01', 'Op', 'Prod',
    'celular', '{"lat":-34.6,"lng":-58.4,"radioM":100}'::jsonb,
-   '[0,0,0]'::jsonb,
+   '[0,0,0]'::jsonb, 1,
    '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb),
   ('${EMP_B}', '${EMPRESA}', 'Race', 'B', '802', '2020-01-01', 'Op', 'Prod',
    'celular', '{"lat":-34.6,"lng":-58.4,"radioM":100}'::jsonb,
-   '[0.05,0.05,0.05]'::jsonb,
+   '[0.05,0.05,0.05]'::jsonb, 1,
    '{"aceptado":true,"fecha":"2026-08-07","otorgadoPor":"u1"}'::jsonb);
 insert into auth.users (id, instance_id, email, aud, role) values
   ('${USER_A}', '00000000-0000-0000-0000-000000000000', 'racea@t.test', 'authenticated', 'authenticated'),

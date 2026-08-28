@@ -70,13 +70,22 @@ describe('controlarTurno', () => {
     expect(c.antesMin).toBe(30);
   });
 
-  it('cuenta horas extras (se quedó después y entró antes)', () => {
+  it('cuenta como extra la salida tardía, no la entrada anticipada', () => {
     const c = controlarTurno(turno('2026-07-06', '08:00', '17:00'), [
-      fichaje('2026-07-06T10:45:00+00:00', 'ingreso'),
-      fichaje('2026-07-06T21:00:00+00:00', 'egreso'),
+      fichaje('2026-07-06T10:45:00+00:00', 'ingreso'), // 07:45 ART
+      fichaje('2026-07-06T21:00:00+00:00', 'egreso'), // 18:00 ART
     ]);
-    // 15 min antes + 60 min después
-    expect(c.extrasMin).toBe(75);
+    /**
+     * Antes esta pantalla sumaba también los 15 minutos de entrada
+     * anticipada y daba 75. Era su propia cuenta: `controlarJornada` —la
+     * que alimenta Reportes, "Mi mes" y las extras que se ofrecen sumar
+     * al bruto— sólo cuenta la salida tardía, porque llegar antes suele
+     * ser el colectivo y no trabajo pedido.
+     *
+     * O sea que el mismo día mostraba 75 minutos en Turnos y 60 en la
+     * liquidación. Ahora las dos usan la misma regla y da 60.
+     */
+    expect(c.extrasMin).toBe(60);
     expect(c.tardeMin).toBe(0);
   });
 

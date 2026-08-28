@@ -230,7 +230,17 @@ const PanelFichajePropio = ({
             )}
           </ul>
           <p className="mt-3 border-t border-line pt-3 text-sm text-ink">
-            Total trabajado: <strong className="tabular-nums">{total}</strong>
+            Tiempo efectivo: <strong className="tabular-nums">{total}</strong>
+          </p>
+          {/* A09: este numero y el de la planilla son dos conceptos
+              distintos y antes los dos se llamaban "horas". Aca se suman
+              los tramos entre entrada y salida, asi que el corte del
+              almuerzo no cuenta; la planilla que va a liquidacion mide
+              puerta a puerta. Sin decirlo, la primera vez que alguien
+              compara los dos numeros es discutiendo sus horas. */}
+          <p className="mt-1 text-xs text-ink-soft">
+            Suma tus tramos fichados; el corte del almuerzo no cuenta. En la
+            planilla de RRHH las horas se miden de la entrada a la salida.
           </p>
           <p className="mt-1 text-xs text-ink-soft">{modoTexto}</p>
         </div>

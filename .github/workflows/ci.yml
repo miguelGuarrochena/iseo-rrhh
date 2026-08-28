@@ -76,10 +76,20 @@ jobs:
         with:
           version: latest
 
+      # Node hace falta para el paso de paridad SQL ↔ TS del final, que
+      # compila `fichadas.ts` y lo compara contra `jornadas_de_empresa`.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
       - name: Levantar Postgres local
         run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,pooler
 
-      # Aplica las 53 migraciones desde cero. Acá se cae cualquier error
+      # Aplica todas las migraciones desde cero. Acá se cae cualquier error
       # de sintaxis o de orden entre migraciones.
       - name: Aplicar migraciones desde cero
         run: supabase db reset
@@ -113,10 +123,56 @@ jobs:
             psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
             < supabase/tests/metodo_y_anulacion.test.sql
 
+      # A04 / A06 / A07 + tenant y permisos: que no se pueda fichar en el
+      # futuro, que la geocerca RECHACE (incluida la falta de
+      # coordenadas), que `p_tipo` no sirva para fichar por uno mismo, y
+      # que nada de eso se pueda esquivar hablándole a PostgREST directo.
+      - name: Tiempo, zona y tipo (A04 / A06 / A07)
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/fichaje_reglas.test.sql
+
+      # Los cuatro que existían y no corría nadie. Cubren reglas activas
+      # del módulo —motivo obligatorio, foto descartada, versión de
+      # plantilla, terminales del superadmin— y un test que nadie ejecuta
+      # envejece sin avisar: los dos scripts de más abajo estaban rotos
+      # justamente por eso.
+      - name: Motivo obligatorio en carga manual
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/motivo_carga_manual.test.sql
+
+      - name: El fichaje no guarda fotografías
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/fichaje_sin_fotografia.test.sql
+
+      - name: Versión de plantilla facial
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/version_plantilla_facial.test.sql
+
+      - name: Terminales del superadmin
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/superadmin_terminales.test.sql
+
       # Race de fichaje (FIC-004): dos RPC concurrentes del mismo
       # empleado deben alternar ingreso/egreso, nunca duplicar el tipo.
       - name: Concurrencia de fichaje
         run: bash supabase/tests/concurrencia_fichaje.sh
+
+      # "Qué marcas forman una jornada" está escrito dos veces: en
+      # `jornadas_de_empresa` (SQL, producción) y en `armarJornadas` (TS,
+      # demo y cálculos en memoria). Nada garantiza que digan lo mismo
+      # salvo correr las dos sobre los mismos casos y comparar.
+      - name: Paridad de jornadas SQL ↔ TypeScript
+        run: bash scripts/comparar-jornadas.sh
 
   # Informativo: no frena el merge, pero deja el estado a la vista en
   # cada PR en vez de que alguien se acuerde de correrlo cada tanto.

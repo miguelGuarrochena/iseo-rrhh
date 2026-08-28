@@ -9,6 +9,12 @@
  * por cada día del rango, ausencia / entrada / salida / total de horas /
  * si contó como día trabajado.
  */
+import {
+  diaEmpresa,
+  hoyISO,
+  horaEmpresa,
+  sumarDiasEmpresa,
+} from '@/lib/fechas';
 import { Ausencia, Empleado, Feriado, Fichaje } from '@/types/rrhh';
 
 /**
@@ -32,6 +38,22 @@ export const CORTE_JORNADA_MS = 6 * 60 * 60 * 1000;
  */
 export const MAX_JORNADA_MS = 16 * 60 * 60 * 1000;
 
+/**
+ * Cuánto se le tolera a un reloj desajustado antes de considerar que una
+ * marca viene del futuro. Espejo de `margen_reloj_fichaje()` en la base.
+ *
+ * Desde A04 la base impide crear marcas futuras, así que en datos nuevos
+ * esto no se activa nunca. Está por las que puedan haber quedado de
+ * antes: una marca del año que viene se ordena última y congelaba la
+ * alternancia ingreso/egreso, además de pintar una "jornada activa" que
+ * todavía no empezó.
+ */
+export const MARGEN_RELOJ_MS = 5 * 60 * 1000;
+
+/** Una marca que todavía no ocurrió no puede describir el presente. */
+const esFutura = (f: Fichaje, ahora: number): boolean =>
+  new Date(f.timestamp).getTime() > ahora + MARGEN_RELOJ_MS;
+
 /** Marcas vigentes: las anuladas no existen para el cálculo. */
 const vigentes = (fichajes: Fichaje[]): Fichaje[] =>
   fichajes
@@ -54,7 +76,10 @@ export const tipoDeMarcaSiguiente = (
   fichajes: Fichaje[],
   ahora: number = Date.now()
 ): 'ingreso' | 'egreso' => {
-  const marcas = vigentes(fichajes);
+  // Sólo lo que ya pasó decide qué toca ahora: una marca fechada el año
+  // que viene se ordenaba última y dejaba el botón clavado en "egreso"
+  // hasta que llegara esa fecha.
+  const marcas = vigentes(fichajes).filter((f) => !esFutura(f, ahora));
   const ultima = marcas[marcas.length - 1];
   if (!ultima || ultima.tipo !== 'ingreso') return 'ingreso';
   if (ahora - new Date(ultima.timestamp).getTime() < MAX_JORNADA_MS) {
@@ -152,19 +177,20 @@ export const minutosEntre = (entrada?: string, salida?: string): number => {
   return Math.round(Math.max(0, ms) / 60_000);
 };
 
-/** Fecha local YYYY-MM-DD de un timestamp ISO. */
-export const diaLocal = (iso: string): string => {
-  const d = new Date(iso);
-  const mes = String(d.getMonth() + 1).padStart(2, '0');
-  const dia = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mes}-${dia}`;
-};
+/**
+ * Día de negocio (YYYY-MM-DD) al que pertenece una marca.
+ *
+ * Delega en `diaEmpresa`, que lee el instante en la zona de la empresa.
+ * Antes esto usaba `getFullYear()/getMonth()/getDate()`, o sea el huso
+ * del dispositivo: una marca de las 21:30 de Buenos Aires se agrupaba en
+ * el día siguiente desde cualquier máquina en UTC, mientras la base
+ * —que sí usa `zona_empresa()`— la seguía contando en el día correcto.
+ * Las dos capas daban días distintos para la misma fila.
+ */
+export const diaLocal = (iso: string): string => diaEmpresa(iso);
 
-/** "HH:MM" local de un timestamp ISO. */
-export const horaLocal = (iso: string): string => {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
+/** "HH:MM" de un timestamp ISO, en la zona de la empresa. */
+export const horaLocal = (iso: string): string => horaEmpresa(iso);
 
 /**
  * Agrupa marcas sueltas en jornadas, en memoria.
@@ -195,6 +221,35 @@ export const armarJornadas = (
     .map((g) => g.jornada)
     .sort(ordenJornadas);
 
+/**
+ * Jornadas de un período a partir de marcas que traen margen a los lados.
+ *
+ * Es el espejo en memoria de lo que hace `jornadas_de_empresa` en la
+ * base: agrupa con el margen puesto y después se queda con las que
+ * EMPIEZAN dentro del período, porque una jornada pertenece al período en
+ * el que empezó (`where coalesce(entrada, primera) >= lo and < hi`).
+ *
+ * Vive acá y no en el servicio que la usa porque es la regla de recorte,
+ * no un detalle de una consulta. Los cálculos en memoria la salteaban:
+ * pedían las marcas ya recortadas al período y recién ahí agrupaban, así
+ * que una jornada 31/01 22:00 → 01/02 07:30 quedaba partida en dos
+ * mitades huérfanas —una en cada mes, las dos con cero horas y las dos
+ * marcadas incompletas— y sus horas extras desaparecían del número que se
+ * ofrece sumar al bruto en la liquidación.
+ *
+ * Quien llama tiene que haber pedido las marcas con al menos un día de
+ * margen a cada lado; sin eso no hay nada que recortar.
+ */
+export const jornadasDelPeriodo = (
+  marcas: Fichaje[],
+  desde: string,
+  hasta: string,
+  ahora: number = Date.now()
+): Jornada[] =>
+  armarJornadas(marcas, ahora).filter(
+    (j) => j.fecha >= desde && j.fecha <= hasta
+  );
+
 export type EstadoJornadaVista =
   | 'sin_iniciar'
   | 'activa'
@@ -224,14 +279,9 @@ export const desdeEstadoIso = (ahora: number = Date.now()): string =>
  */
 export const DIAS_INCIDENCIAS = 14;
 
-/** Primer día de la ventana de incidencias, en YYYY-MM-DD local. */
-export const desdeIncidencias = (ahora: Date = new Date()): string => {
-  const d = new Date(ahora);
-  d.setDate(d.getDate() - DIAS_INCIDENCIAS);
-  const mes = String(d.getMonth() + 1).padStart(2, '0');
-  const dia = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mes}-${dia}`;
-};
+/** Primer día de la ventana de incidencias, en la zona de la empresa. */
+export const desdeIncidencias = (ahora: Date = new Date()): string =>
+  sumarDiasEmpresa(hoyISO(ahora), -DIAS_INCIDENCIAS);
 
 /**
  * Cómo se le muestra la jornada a la persona. Se deriva de las marcas
@@ -289,7 +339,20 @@ export const agruparMarcas = (
   ahora: number = Date.now()
 ): { jornada: Jornada; marcas: Fichaje[] }[] => {
   const porEmpleado = new Map<string, Fichaje[]>();
-  fichajes.forEach((f) => {
+  /**
+   * El descarte de anuladas va acá y no en cada llamador, por la misma
+   * razón por la que en la base va dentro de `marcas_numeradas`: éste es
+   * el único lugar donde las marcas se convierten en jornadas, así que
+   * filtrar acá cubre de una sola vez a `armarJornadas`,
+   * `estadoJornadaVista`, `controlarTurno` y todo lo que venga después.
+   *
+   * Antes cada consulta se acordaba de poner `anulado_en is null` en el
+   * `select` —y una no se acordaba (`getFichajesDeEmpleado`), con lo que
+   * la pantalla de Turnos seguía contando llegadas tarde de marcas que
+   * RRHH ya había anulado. Con el filtro acá, olvidarse deja de ser
+   * posible.
+   */
+  vigentes(fichajes).forEach((f) => {
     const previas = porEmpleado.get(f.empleadoId);
     if (previas) previas.push(f);
     else porEmpleado.set(f.empleadoId, [f]);
@@ -350,10 +413,18 @@ const aJornada = (
   const cerrada =
     Boolean(entrada) && marcas[marcas.length - 1].tipo === 'egreso';
   // Abierta pero reciente: la persona está adentro ahora mismo.
+  //
+  // La cota inferior además de la superior: sin ella, una jornada que
+  // empieza en el futuro daba una diferencia negativa —menor que el
+  // máximo— y se mostraba como "Jornada activa" antes de empezar.
+  const desdeEntrada = entrada
+    ? ahora - new Date(entrada.timestamp).getTime()
+    : Number.NaN;
   const enCurso =
     Boolean(entrada) &&
     !cerrada &&
-    ahora - new Date(entrada!.timestamp).getTime() < MAX_JORNADA_MS;
+    desdeEntrada >= -MARGEN_RELOJ_MS &&
+    desdeEntrada < MAX_JORNADA_MS;
   return {
     empleadoId,
     // La jornada se fecha por su ingreso; si no hay (egreso huérfano),
@@ -375,18 +446,28 @@ export const ordenJornadas = (a: Jornada, b: Jornada): number =>
   a.fecha.localeCompare(b.fecha) ||
   (a.entrada ?? '').localeCompare(b.entrada ?? '');
 
-/** Todos los días del rango, inclusive, como YYYY-MM-DD. */
+/**
+ * Todos los días del rango, inclusive, como YYYY-MM-DD.
+ *
+ * La cuenta va en UTC: son días de calendario, y anclarlos al huso del
+ * dispositivo hacía que en una zona con horario de verano el día del
+ * salto se duplicara o se salteara en la planilla.
+ */
 export const diasDelRango = (desde: string, hasta: string): string[] => {
   const dias: string[] = [];
-  const d = new Date(`${desde}T00:00:00`);
-  const fin = new Date(`${hasta}T00:00:00`);
+  const aUTC = (f: string) => {
+    const [anio, mes, dia] = f.split('-').map(Number);
+    return Date.UTC(anio, (mes || 1) - 1, dia || 1);
+  };
+  const d = new Date(aUTC(desde));
+  const fin = aUTC(hasta);
   // Cota de seguridad: un rango mal tipeado (año 2206) no debe colgar la
   // pantalla armando cien mil columnas.
-  while (d <= fin && dias.length < 400) {
-    const mes = String(d.getMonth() + 1).padStart(2, '0');
-    const dia = String(d.getDate()).padStart(2, '0');
-    dias.push(`${d.getFullYear()}-${mes}-${dia}`);
-    d.setDate(d.getDate() + 1);
+  while (d.getTime() <= fin && dias.length < 400) {
+    const mes = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(d.getUTCDate()).padStart(2, '0');
+    dias.push(`${d.getUTCFullYear()}-${mes}-${dia}`);
+    d.setUTCDate(d.getUTCDate() + 1);
   }
   return dias;
 };
@@ -417,8 +498,11 @@ const NOMBRE_MES = [
 
 /** "27-JUL LUNES", como en el Excel que el cliente ya usa. */
 export const encabezadoDia = (fechaISO: string): string => {
-  const d = new Date(`${fechaISO}T00:00:00`);
-  return `${d.getDate()}-${NOMBRE_MES[d.getMonth()]} ${NOMBRE_DIA[d.getDay()]}`;
+  const [anio, mes, dia] = fechaISO.split('-').map(Number);
+  // UTC por lo mismo que `diasDelRango`: el nombre del día de una fecha
+  // de calendario no puede cambiar según dónde esté la computadora.
+  const d = new Date(Date.UTC(anio, (mes || 1) - 1, dia || 1));
+  return `${d.getUTCDate()}-${NOMBRE_MES[d.getUTCMonth()]} ${NOMBRE_DIA[d.getUTCDay()]}`;
 };
 
 /** Lo que pasó con una persona un día puntual. */

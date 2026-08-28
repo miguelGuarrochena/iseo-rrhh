@@ -10,7 +10,12 @@ import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { ficharAhora } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
-import { formatearHora, hoyISO } from '@/lib/fechas';
+import {
+  formatearHora,
+  horaEmpresa,
+  hoyISO,
+  instanteEnZonaEmpresa,
+} from '@/lib/fechas';
 import { Empleado, Fichaje } from '@/types/rrhh';
 
 interface FichajeManualModalProps {
@@ -26,12 +31,8 @@ interface FichajeManualModalProps {
   fechaInicial?: string;
 }
 
-const horaActual = () => {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(
-    d.getMinutes()
-  ).padStart(2, '0')}`;
-};
+/** Hora actual de la empresa, no la del reloj del dispositivo. */
+const horaActual = () => horaEmpresa(new Date().toISOString());
 
 /**
  * Carga manual de fichaje: respaldo para cuando falla la tablet, no hay
@@ -99,12 +100,18 @@ export const FichajeManualModal = ({
       setError('La hora es obligatoria.');
       return;
     }
-    const cuando = new Date(`${fecha}T${hora}:00`);
+    // El instante se arma en la zona de la empresa: lo que RRHH escribe
+    // es una hora de pared argentina. Con `new Date('...T...')` el string
+    // se interpretaba en el huso del dispositivo y desde otra zona la
+    // marca nacia corrida.
+    const cuando = instanteEnZonaEmpresa(fecha, hora);
     if (Number.isNaN(cuando.getTime())) {
       setError('La fecha u hora no son válidas.');
       return;
     }
-    if (cuando > new Date()) {
+    // La base tambien lo rechaza (trg_rechazar_fichaje_futuro): esto es
+    // para no hacer ir y volver al servidor, no la garantia.
+    if (cuando.getTime() > Date.now()) {
       setError('No se puede cargar un fichaje futuro.');
       return;
     }

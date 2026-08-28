@@ -36,7 +36,7 @@ import {
   ordenPorApellido,
 } from '@/lib/fichadas';
 import { descargarResumenFichadas } from '@/lib/exportarFichadas';
-import { formatearFecha, hoyISO } from '@/lib/fechas';
+import { formatearFecha, hoyISO, sumarDiasEmpresa } from '@/lib/fechas';
 import {
   Ausencia,
   Empleado,
@@ -61,14 +61,16 @@ const iconoMetodo = (m: MetodoFichaje) =>
       ? IconPencilPlus
       : IconDeviceMobile;
 
-/** Últimos 7 días, que es lo que se mira el 90% de las veces. */
+/**
+ * Últimos 7 días, que es lo que se mira el 90% de las veces.
+ *
+ * Los dos extremos salen de la zona de la empresa. El `desde` se armaba
+ * con el reloj del dispositivo mientras el `hasta` ya usaba `hoyISO()`:
+ * desde otro huso el rango podía abarcar seis días o ocho.
+ */
 const rangoPorDefecto = (): { desde: string; hasta: string } => {
   const hasta = hoyISO();
-  const d = new Date();
-  d.setDate(d.getDate() - 6);
-  const mes = String(d.getMonth() + 1).padStart(2, '0');
-  const dia = String(d.getDate()).padStart(2, '0');
-  return { desde: `${d.getFullYear()}-${mes}-${dia}`, hasta };
+  return { desde: sumarDiasEmpresa(hasta, -6), hasta };
 };
 
 /**
@@ -680,7 +682,10 @@ export const HistorialFichadas = ({
                         </dd>
                       </div>
                       <div>
-                        <dt className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                        <dt
+                          className="text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft"
+                          title="Puerta a puerta: de la primera entrada a la última salida del día."
+                        >
                           Horas
                         </dt>
                         <dd className="font-semibold text-ink">
@@ -725,7 +730,17 @@ export const HistorialFichadas = ({
                     <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wide text-ink-soft">
                       <th className="px-2 py-2">Colaborador</th>
                       <th className="px-2 py-2 text-right">Días trabajados</th>
-                      <th className="px-2 py-2 text-right">Horas totales</th>
+                      {/* A09: "horas" significa dos cosas distintas en la
+                          app. Aca y en el Excel son puerta a puerta (es el
+                          criterio con el que se liquida); en el panel del
+                          colaborador es tiempo efectivo, sin el corte del
+                          almuerzo. El `title` lo deja dicho donde se lee. */}
+                      <th
+                        className="px-2 py-2 text-right"
+                        title="Puerta a puerta: de la primera entrada a la última salida del día, con el corte del almuerzo incluido. Es el criterio con el que se liquida."
+                      >
+                        Horas totales
+                      </th>
                       <th className="px-2 py-2 text-right">
                         Jornadas sin cerrar
                       </th>
