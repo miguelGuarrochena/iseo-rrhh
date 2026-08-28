@@ -73,8 +73,7 @@ import { mensajeDeErrorDb } from '@/lib/erroresDb';
 import { registrarErrorApp } from '@/lib/erroresApp';
 import {
   diasVacacionesDeRangoEnAnio,
-  diasVacacionesPorAntiguedad,
-  escalaDe,
+  diasVacacionesCorresponden,
 } from '@/lib/vacaciones';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
@@ -1590,13 +1589,17 @@ export const getSaldoVacaciones = async (
     getVacacionesPendientes(empleadoId, anio),
     getEmpresa(),
   ]);
-  // La escala sale de la empresa: en días corridos es la de la LCT, y en
-  // hábiles la que la empresa haya acordado (mínimo, el equivalente legal).
-  const corresponden = diasVacacionesPorAntiguedad(
-    empleado.fechaIngreso,
+  // El régimen lo decide la config de la empresa: días corridos (LCT
+  // arts. 150-153) o la modalidad propia de días hábiles. Las ausencias
+  // se pasan porque el art. 152 manda computar como trabajados los días
+  // de licencia que no le son imputables al trabajador.
+  const corresponden = diasVacacionesCorresponden({
+    config: empresa.config,
+    fechaIngreso: empleado.fechaIngreso,
     anio,
-    escalaDe(empresa.config)
-  );
+    fechaBaja: empleado.fechaBaja,
+    ausencias,
+  });
   // Días que quedaron del año anterior y RRHH decidió acumular.
   const ajuste = arrastre?.dias ?? 0;
   const habiles = Boolean(empresa?.config?.vacacionesDiasHabiles);

@@ -336,19 +336,33 @@ export const proximoAniversario = (
   fechaCivil: string,
   desde: string
 ): string => {
-  const { mes, dia } = partesDeFecha(fechaCivil);
   const anioBase = Number(desde.slice(0, 4));
-  const enAnio = (anio: number): string => {
-    const ultimo = Number(
-      finDeMesEmpresa(`${anio}-${String(mes).padStart(2, '0')}`).slice(8)
-    );
-    const d = Math.min(dia, ultimo);
-    const propuesta = `${anio}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-    // 29/02 en un año no bisiesto: se corre al 1 de marzo, no al 28.
-    return dia > ultimo ? sumarDiasEmpresa(propuesta, 1) : propuesta;
-  };
-  const esteAnio = enAnio(anioBase);
-  return esteAnio >= desde ? esteAnio : enAnio(anioBase + 1);
+  const propio = Number(fechaCivil.slice(0, 4));
+  const esteAnio = aniversarioDe(fechaCivil, anioBase - propio);
+  return esteAnio >= desde
+    ? esteAnio
+    : aniversarioDe(fechaCivil, anioBase + 1 - propio);
+};
+
+/**
+ * La fecha en la que se cumplen `anios` años desde una fecha civil.
+ *
+ * Es la operación que necesitan la antigüedad y el cumpleaños, y por eso
+ * vive acá y no repetida en los dos: "¿cuándo cumple cinco años quien
+ * entró el 29 de febrero?" tiene que tener una sola respuesta.
+ *
+ * El 29 de febrero cae en el 1 de marzo los años no bisiestos, que es el
+ * criterio del art. 25 del Código Civil argentino para los plazos de mes
+ * a mes. La alternativa —el 28— adelantaría el aniversario un día, y en
+ * un cálculo de antigüedad eso puede correr a alguien de tramo.
+ */
+export const aniversarioDe = (fechaCivil: string, anios: number): string => {
+  const { anio, mes, dia } = partesDeFecha(fechaCivil);
+  const destino = anio + anios;
+  const mm = String(mes).padStart(2, '0');
+  const ultimo = Number(finDeMesEmpresa(`${destino}-${mm}`).slice(8));
+  const propuesta = `${destino}-${mm}-${String(Math.min(dia, ultimo)).padStart(2, '0')}`;
+  return dia > ultimo ? sumarDiasEmpresa(propuesta, 1) : propuesta;
 };
 
 /**

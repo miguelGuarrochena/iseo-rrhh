@@ -162,10 +162,28 @@ jobs:
             psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
             < supabase/tests/superadmin_terminales.test.sql
 
+      # Vacaciones legales (LCT 150-153) y no regresión de la modalidad de
+      # días hábiles. La base valida el saldo con un trigger, así que si
+      # su regla se separa de la del cliente, la pantalla ofrece días que
+      # después se rechazan.
+      - name: Vacaciones legales (LCT 150-153)
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/vacaciones_legales.test.sql
+
       # Race de fichaje (FIC-004): dos RPC concurrentes del mismo
       # empleado deben alternar ingreso/egreso, nunca duplicar el tipo.
       - name: Concurrencia de fichaje
         run: bash supabase/tests/concurrencia_fichaje.sh
+
+      # El cálculo legal de vacaciones también está escrito dos veces: en
+      # `vacaciones_legales_corridas` (SQL, la que usa el trigger de saldo)
+      # y en `calcularVacacionesLegalesCorridas` (TS, la que pinta la
+      # pantalla). D-01 fue una divergencia entre las dos que no encontró
+      # ningún test —la encontró una auditoría de datos de producción—.
+      - name: Paridad de vacaciones SQL ↔ TypeScript
+        run: bash scripts/comparar-vacaciones.sh
 
       # "Qué marcas forman una jornada" está escrito dos veces: en
       # `jornadas_de_empresa` (SQL, producción) y en `armarJornadas` (TS,

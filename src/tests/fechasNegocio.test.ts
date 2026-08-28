@@ -36,7 +36,7 @@ import {
   sumarMesesEmpresa,
 } from '@/lib/fechas';
 import { esFinDeSemana, fechaTrasladable } from '@/lib/feriados';
-import { diasVacacionesPorAntiguedad } from '@/lib/vacaciones';
+import { calcularVacacionesLegalesCorridas } from '@/lib/vacaciones';
 import { analizarSalario } from '@/lib/remuneraciones';
 import { Remuneracion } from '@/types/rrhh';
 
@@ -333,37 +333,44 @@ describe('edad y antigüedad', () => {
 // Consumidores: que la corrección llegue hasta la regla de negocio
 // ============================================================
 
-describe('vacaciones por antigüedad', () => {
+describe('vacaciones legales por antigüedad', () => {
+  const legales = (fechaIngreso: string, anio: number) =>
+    calcularVacacionesLegalesCorridas({
+      fechaIngreso,
+      fechaBaja: undefined,
+      anio,
+    });
+
   it('el tramo cambia en el aniversario, no un día antes', () => {
     // Entró el 1/1/2021: al 31/12/2025 tiene 4 años cumplidos (tramo
     // hasta5 = 14); al 31/12/2026 tiene 5 (tramo hasta10 = 21).
-    expect(diasVacacionesPorAntiguedad('2021-01-01', 2025)).toBe(14);
-    expect(diasVacacionesPorAntiguedad('2021-01-01', 2026)).toBe(21);
+    expect(legales('2021-01-01', 2025)).toBe(14);
+    expect(legales('2021-01-01', 2026)).toBe(21);
   });
 
-  it('menos de seis meses se prorratea uno cada veinte días', () => {
-    // Del 1/10/2026 al 31/12/2026 son 91 días → 4 días.
-    expect(diasVacacionesPorAntiguedad('2026-10-01', 2026)).toBe(4);
+  it('quien no llega al requisito del art. 151 va al proporcional', () => {
+    /**
+     * Del 1/10/2026 al 31/12/2026 hay 65 días hábiles → 3 días.
+     *
+     * Antes daba 4, porque contaba los 91 días CORRIDOS. El art. 153
+     * manda contar el trabajo efectivo "según la forma prevista en el
+     * artículo 151", o sea en días hábiles computables.
+     */
+    expect(legales('2026-10-01', 2026)).toBe(3);
   });
 
   it('justo seis meses ya entra en el tramo completo', () => {
     // Del 1/7/2026 al 31/12/2026: seis meses cumplidos.
-    expect(diasVacacionesPorAntiguedad('2026-07-01', 2026)).toBe(14);
+    expect(legales('2026-07-01', 2026)).toBe(14);
   });
 
   it('quien entra después del cierre no tiene días', () => {
-    expect(diasVacacionesPorAntiguedad('2027-01-05', 2026)).toBe(0);
+    expect(legales('2027-01-05', 2026)).toBe(0);
   });
 
   it('el resultado no depende del huso', () => {
-    igualEnTodosLosHusos(
-      () => diasVacacionesPorAntiguedad('2021-01-01', 2026),
-      21
-    );
-    igualEnTodosLosHusos(
-      () => diasVacacionesPorAntiguedad('2026-10-01', 2026),
-      4
-    );
+    igualEnTodosLosHusos(() => legales('2021-01-01', 2026), 21);
+    igualEnTodosLosHusos(() => legales('2026-10-01', 2026), 3);
   });
 });
 

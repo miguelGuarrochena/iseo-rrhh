@@ -60,8 +60,7 @@ import {
 } from '@/types/rrhh';
 import {
   diasVacacionesDeRangoEnAnio,
-  diasVacacionesPorAntiguedad,
-  escalaDe,
+  diasVacacionesCorresponden,
 } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
 import {
@@ -946,14 +945,17 @@ export const getSaldoVacaciones = async (
   const empleado = empleadosMock.find((e) => e.id === empleadoId);
   if (!empleado) return simular(null);
 
-  // Misma escala que en Supabase: la de la empresa activa del mock.
-  const corresponden = diasVacacionesPorAntiguedad(
-    empleado.fechaIngreso,
-    anio,
-    escalaDe(empresaMock.config)
-  );
   const habiles = Boolean(empresaMock.config?.vacacionesDiasHabiles);
   const delEmpleado = ausenciasMock.filter((a) => a.empleadoId === empleadoId);
+  // Mismo camino que en Supabase: el régimen sale de la config y, en el
+  // legal, las ausencias entran para el cómputo del art. 152.
+  const corresponden = diasVacacionesCorresponden({
+    config: empresaMock.config,
+    fechaIngreso: empleado.fechaIngreso,
+    anio,
+    fechaBaja: empleado.fechaBaja,
+    ausencias: delEmpleado,
+  });
   const enAnio = (estado: 'aprobada' | 'pendiente') =>
     delEmpleado.reduce((acc, a) => {
       if (a.tipo !== 'vacaciones' || a.estado !== estado) return acc;

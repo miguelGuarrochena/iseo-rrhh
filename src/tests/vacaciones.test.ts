@@ -1,7 +1,8 @@
 import {
   aDiasCorridos,
+  calcularVacacionesDiasHabiles,
+  calcularVacacionesLegalesCorridas,
   diasVacacionesGozadosEn,
-  diasVacacionesPorAntiguedad,
   ESCALA_LCT,
   erroresDeEscala,
   escalaDe,
@@ -9,30 +10,44 @@ import {
 } from '@/lib/vacaciones';
 import type { Ausencia } from '@/types/rrhh';
 
-describe('diasVacacionesPorAntiguedad (LCT art. 150)', () => {
+const legales = (fechaIngreso: string, anio: number) =>
+  calcularVacacionesLegalesCorridas({
+    fechaIngreso,
+    fechaBaja: undefined,
+    anio,
+  });
+
+describe('vacaciones legales (LCT art. 150)', () => {
   it('da 14 días con menos de 5 años de antigüedad', () => {
-    expect(diasVacacionesPorAntiguedad('2023-02-15', 2026)).toBe(14);
+    expect(legales('2023-02-15', 2026)).toBe(14);
   });
 
   it('da 21 días entre 5 y 10 años', () => {
-    expect(diasVacacionesPorAntiguedad('2019-06-01', 2026)).toBe(21);
+    expect(legales('2019-06-01', 2026)).toBe(21);
   });
 
   it('da 28 días entre 10 y 20 años', () => {
-    expect(diasVacacionesPorAntiguedad('2012-04-02', 2026)).toBe(28);
+    expect(legales('2012-04-02', 2026)).toBe(28);
   });
 
   it('da 35 días con más de 20 años', () => {
-    expect(diasVacacionesPorAntiguedad('2004-09-13', 2026)).toBe(35);
+    expect(legales('2004-09-13', 2026)).toBe(35);
   });
 
-  it('con menos de 6 meses da 1 día cada 20 trabajados', () => {
-    // Ingreso 01/09/2026 → ~121 días al 31/12 → 6 días
-    expect(diasVacacionesPorAntiguedad('2026-09-01', 2026)).toBe(6);
+  it('quien no llega al mínimo del art. 151 va al proporcional', () => {
+    /**
+     * Ingreso 01/09/2026. El art. 153 cuenta días hábiles computables, no
+     * días de calendario: del 1/9 al 31/12 son 87 hábiles → 4 días.
+     *
+     * Antes daba 6, porque dividía los 121 días CORRIDOS por 20. El
+     * artículo manda contarlos "según la forma prevista en el artículo
+     * 151", que son hábiles.
+     */
+    expect(legales('2026-09-01', 2026)).toBe(4);
   });
 
   it('da 0 si el ingreso es posterior al año consultado', () => {
-    expect(diasVacacionesPorAntiguedad('2027-01-10', 2026)).toBe(0);
+    expect(legales('2027-01-10', 2026)).toBe(0);
   });
 });
 
@@ -233,9 +248,14 @@ describe('escala configurable de vacaciones', () => {
   });
 
   it('la escala elegida es la que se usa para calcular los días', () => {
+    // Modalidad de días hábiles: la empresa acordó su propia escala.
     const generosa = { hasta5: 20, hasta10: 25, hasta20: 30, masDe20: 40 };
-    expect(diasVacacionesPorAntiguedad('2023-01-01', 2026, generosa)).toBe(20);
-    expect(diasVacacionesPorAntiguedad('2010-01-01', 2026, generosa)).toBe(30);
+    expect(calcularVacacionesDiasHabiles('2023-01-01', 2026, generosa)).toBe(
+      20
+    );
+    expect(calcularVacacionesDiasHabiles('2010-01-01', 2026, generosa)).toBe(
+      30
+    );
   });
 
   describe('piso legal', () => {

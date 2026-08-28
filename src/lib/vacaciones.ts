@@ -5,9 +5,12 @@
 
 import {
   aniosCumplidos,
+  aniversarioDe,
+  diaSemanaEmpresa,
   diasEntre,
   diasHabilesEntre,
   diferenciaEnDias,
+  sumarDiasEmpresa,
 } from '@/lib/fechas';
 import type { Ausencia, Empresa } from '@/types/rrhh';
 
@@ -151,43 +154,268 @@ export const erroresDeEscala = (
   return errores;
 };
 
+// ============================================================
+// RÉGIMEN LEGAL — LCT arts. 150 a 153, en DÍAS CORRIDOS
+//
+// Todo lo que sigue hasta el próximo bloque es el régimen legal y sólo
+// se usa cuando la empresa cuenta en días corridos. La modalidad de días
+// hábiles de ISEO RH es otra cosa y vive más abajo, sin tocar.
+//
+// Sobre una confusión que este archivo tenía incorporada: el art. 151
+// mide el REQUISITO en días hábiles, y el art. 150 mide la DURACIÓN en
+// días corridos. Que el requisito se cuente en hábiles no convierte a
+// las vacaciones legales en "vacaciones por días hábiles".
+// ============================================================
+
 /**
- * Días que le corresponden a una persona en un año.
+ * Ausencias que NO se computan como tiempo trabajado para el art. 151.
  *
- * Sin `escala` usa el mínimo legal en días corridos, que es el
- * comportamiento por defecto de toda empresa que no configuró nada.
+ * Hoy está vacía, y no por olvido.
+ *
+ * El art. 152 manda computar como trabajados los días de licencia legal o
+ * convencional, enfermedad inculpable, infortunio de trabajo "y otras
+ * causas no imputables al trabajador". O sea que lo que hay que enumerar
+ * son las EXCEPCIONES, no lo que cuenta. Y repasando los tipos que ISEO
+ * RH modela hoy —vacaciones, enfermedad, estudio, mudanza, fallecimiento,
+ * especial, casamiento, donación de sangre, exámenes, home office y las
+ * tres parciales de entrada/salida— todos son licencia legal o
+ * convencional, o directamente días trabajados. Ninguno le es imputable
+ * al trabajador.
+ *
+ * La excepción típica sería la licencia sin goce de sueldo, que se otorga
+ * a pedido de la persona. ISEO RH no la modela: no existe en
+ * `TipoAusencia` ni en el enum `tipo_ausencia` de la base. Si algún día
+ * se agrega, éste es el único lugar donde hay que nombrarla.
+ *
+ * Esta lista existe SÓLO para el cálculo legal de vacaciones. No cambia
+ * cómo ISEO RH trata las ausencias en ningún otro lado.
  */
-export const diasVacacionesPorAntiguedad = (
+export const AUSENCIAS_NO_COMPUTABLES_ART_152 = new Set<string>();
+
+/**
+ * Días hábiles a los efectos del art. 151.
+ *
+ * Son los días en que la persona debía prestar servicios: de lunes a
+ * viernes. **Los feriados cuentan**, porque en un feriado el trabajador
+ * normalmente debería trabajar y es la ley la que lo libera — no es un
+ * día que él no haya prestado servicios.
+ *
+ * Es deliberadamente distinta de `diasHabilesEntre`, que sí descuenta
+ * feriados: esa se usa para contar días de vacaciones en la modalidad de
+ * días hábiles, y ahí un feriado adentro del período efectivamente no se
+ * consume. Dos preguntas distintas, dos funciones distintas.
+ *
+ * `sinPrestacion` son los días en que esa persona en particular no
+ * trabajaba (un feriado que en su puesto no se trabaja, una jornada
+ * reducida). Sin él, todo lunes a viernes cuenta.
+ */
+export const diasHabilesArt151 = (
+  desde: string,
+  hasta: string,
+  sinPrestacion?: Set<string>
+): number => {
+  if (hasta < desde) return 0;
+  let n = 0;
+  let cur = desde;
+  // Cota de seguridad: un rango mal armado no puede colgar el cálculo.
+  for (let i = 0; cur <= hasta && i < 800; i += 1) {
+    const dia = diaSemanaEmpresa(cur);
+    if (dia !== 0 && dia !== 6 && !sinPrestacion?.has(cur)) n += 1;
+    cur = sumarDiasEmpresa(cur, 1);
+  }
+  return n;
+};
+
+/** Datos con los que se resuelve el derecho legal de un año. */
+export interface DatosVacacionesLegales {
+  /**
+   * El período de prestación de servicios, completo.
+   *
+   * Los dos extremos van juntos y `fechaBaja` NO es opcional: hay que
+   * escribir `undefined` a propósito. Es incómodo aposta.
+   *
+   * El bug D-01 fue exactamente esto: la baja era opcional, un caller la
+   * omitió, y durante un tiempo la base y la pantalla calcularon cupos
+   * distintos para el mismo legajo. Con la propiedad obligatoria, olvidarla
+   * no compila — quien no la tenga a mano escribe `undefined` y queda a la
+   * vista en el diff que se tomó esa decisión.
+   *
+   * Del lado de la base el mismo problema se resolvió al revés y por la
+   * misma razón: `vacaciones_legales_corridas` dejó de recibir campos
+   * sueltos del legajo y los lee ella misma.
+   */
+  fechaIngreso: string;
+  /** Baja, o `undefined` si sigue trabajando. */
+  fechaBaja: string | undefined;
+  /** Año calendario cuyo derecho se calcula. */
+  anio: number;
+  /**
+   * Ausencias de la persona. Sólo se miran para descontar las que el
+   * art. 152 NO manda computar; el resto cuenta como trabajado.
+   */
+  ausencias?: Pick<Ausencia, 'tipo' | 'estado' | 'fechaDesde' | 'fechaHasta'>[];
+  /** Días en los que esa persona no debía prestar servicios. */
+  sinPrestacion?: Set<string>;
+  /**
+   * Tipos de ausencia que no se computan como trabajados. Por defecto,
+   * los de `AUSENCIAS_NO_COMPUTABLES_ART_152` — hoy, ninguno.
+   */
+  noComputables?: Set<string>;
+}
+
+/**
+ * Días hábiles del año en los que la persona prestó servicios, computados
+ * según los arts. 151 y 152.
+ *
+ * Es el numerador del requisito del art. 151 y también la base del
+ * proporcional del art. 153, que manda contar "según la forma prevista en
+ * el artículo 151".
+ */
+export const diasTrabajadosArt151 = (datos: DatosVacacionesLegales): number => {
+  const inicioAnio = `${datos.anio}-01-01`;
+  const cierre = `${datos.anio}-12-31`;
+  const desde =
+    datos.fechaIngreso > inicioAnio ? datos.fechaIngreso : inicioAnio;
+  const hasta =
+    datos.fechaBaja && datos.fechaBaja < cierre ? datos.fechaBaja : cierre;
+  if (hasta < desde) return 0;
+
+  const habiles = diasHabilesArt151(desde, hasta, datos.sinPrestacion);
+
+  // Art. 152: sólo se descuentan las ausencias que le son imputables.
+  const excluidos = datos.noComputables ?? AUSENCIAS_NO_COMPUTABLES_ART_152;
+  const noComputables = (datos.ausencias ?? []).filter(
+    (a) => a.estado === 'aprobada' && excluidos.has(a.tipo)
+  );
+  const descontar = noComputables.reduce((acc, a) => {
+    const ini = a.fechaDesde > desde ? a.fechaDesde : desde;
+    const fin = a.fechaHasta < hasta ? a.fechaHasta : hasta;
+    return acc + diasHabilesArt151(ini, fin, datos.sinPrestacion);
+  }, 0);
+
+  return Math.max(0, habiles - descontar);
+};
+
+/**
+ * Art. 151: ¿prestó servicios la mitad, como mínimo, de los días hábiles
+ * del año?
+ *
+ * "Como mínimo" es literal: la mitad exacta alcanza. Se compara
+ * duplicando en vez de dividiendo para no arrastrar un decimal en el
+ * borde, que es justo donde se decide entre el período completo y el
+ * proporcional.
+ */
+export const cumpleRequisitoArt151 = (
+  datos: DatosVacacionesLegales
+): boolean => {
+  const delAnio = diasHabilesArt151(
+    `${datos.anio}-01-01`,
+    `${datos.anio}-12-31`,
+    datos.sinPrestacion
+  );
+  if (delAnio === 0) return false;
+  return diasTrabajadosArt151(datos) * 2 >= delAnio;
+};
+
+/**
+ * Art. 153: un día de descanso por cada veinte de trabajo efectivo.
+ *
+ * Sin regla de tres contra 14/21/28/35 y sin proporción sobre medio año:
+ * el artículo fija una razón fija de 1 a 20 y se trunca, porque no hay
+ * fracciones de día de descanso.
+ */
+export const diasProporcionalesArt153 = (diasTrabajoEfectivo: number): number =>
+  Math.max(0, Math.floor(diasTrabajoEfectivo / 20));
+
+/**
+ * Art. 150: el tramo que corresponde según la antigüedad al 31/12.
+ *
+ *   hasta 5 años (inclusive)   → 14 días corridos
+ *   más de 5 y hasta 10        → 21
+ *   más de 10 y hasta 20       → 28
+ *   más de 20                  → 35
+ *
+ * Los cortes son "más de N", no "N o más", y ahí estaba el error: quien
+ * cumple exactamente cinco años el 31/12 todavía está en el primer
+ * tramo. `aniosCumplidos` no alcanza para distinguirlo —da 5 tanto con
+ * cinco años justos como con cinco años y un día— así que se mira si el
+ * aniversario ya QUEDÓ ATRÁS al cierre.
+ */
+export const tramoLegalArt150 = (
+  fechaIngreso: string,
+  cierre: string
+): number => {
+  const superaAnios = (n: number) => aniversarioDe(fechaIngreso, n) < cierre;
+  if (!superaAnios(5)) return ESCALA_LCT.hasta5;
+  if (!superaAnios(10)) return ESCALA_LCT.hasta10;
+  if (!superaAnios(20)) return ESCALA_LCT.hasta20;
+  return ESCALA_LCT.masDe20;
+};
+
+/**
+ * Días de vacaciones que le corresponden por LEY a una persona en un año,
+ * en días corridos (LCT arts. 150 a 153).
+ *
+ * Qué cambió respecto de la implementación anterior
+ * -------------------------------------------------
+ * 1. El requisito del art. 151 se resolvía con `dias / 365,25 < 0,5`, o
+ *    sea "medio año de calendario". La ley no dice eso: dice la mitad de
+ *    los DÍAS HÁBILES del año. Para quien entra a mitad de año los dos
+ *    criterios no coinciden.
+ * 2. Los tramos del art. 150 usaban `< 5`, `< 10`, `< 20`, con lo que la
+ *    antigüedad exacta caía en el tramo de arriba. La ley dice "hasta"
+ *    cinco años, no "menos de".
+ * 3. El proporcional del art. 153 se calculaba sobre días de calendario.
+ *    El artículo manda contarlos "según la forma prevista en el artículo
+ *    151", que son días hábiles computables.
+ *
+ * No decide nada sobre cómo se GOZAN las vacaciones —fechas, acuerdo,
+ * fraccionamiento, acumulación— que es otro asunto y no se toca acá.
+ */
+export const calcularVacacionesLegalesCorridas = (
+  datos: DatosVacacionesLegales
+): number => {
+  const cierre = `${datos.anio}-12-31`;
+  if (datos.fechaIngreso > cierre) return 0;
+
+  if (cumpleRequisitoArt151(datos)) {
+    return tramoLegalArt150(datos.fechaIngreso, cierre);
+  }
+  return diasProporcionalesArt153(diasTrabajadosArt151(datos));
+};
+
+// ============================================================
+// MODALIDAD PROPIA — DÍAS HÁBILES
+//
+// Fuera del régimen legal: es un esquema más generoso que algunas
+// empresas acuerdan. Su cálculo NO se toca.
+// ============================================================
+
+/**
+ * Días que le corresponden a una persona en un año, en la modalidad de
+ * DÍAS HÁBILES de ISEO RH.
+ *
+ * Es la implementación que había, sin un solo cambio de fórmula ni de
+ * umbral. Antes esta misma función servía a las dos modalidades, y por
+ * eso arreglar el régimen legal habría movido también los números de
+ * ésta. Están separadas justamente para que eso no pase.
+ *
+ * El umbral de medio año por división (`/ 365,25 < 0,5`) y el
+ * proporcional sobre días de calendario se conservan tal cual: son la
+ * regla de esta modalidad, y cambiarla es una decisión del negocio, no
+ * un arreglo.
+ */
+export const calcularVacacionesDiasHabiles = (
   fechaIngreso: string,
   anio: number,
-  escala: EscalaVacaciones = ESCALA_LCT
+  escala: EscalaVacaciones
 ): number => {
   const cierre = `${anio}-12-31`;
   if (fechaIngreso > cierre) return 0;
 
-  // Aritmética de calendario, no de instantes.
-  //
-  // Antes esto restaba dos `Date` construidos como medianoche LOCAL y
-  // dividía por 365,25. Dos problemas: en un huso con horario de verano
-  // la resta se corre una hora y el `Math.floor` de los días puede caer
-  // un día entero, y 365,25 hace que el aniversario no coincida con el
-  // aniversario real —quien entró un 1 de marzo cumple cinco años el 1 de
-  // marzo, no un día antes ni después según los bisiestos que hubo.
   const diasTrabajados = diferenciaEnDias(fechaIngreso, cierre);
   const antiguedadAnios = aniosCumplidos(fechaIngreso, cierre);
 
-  // Menos de 6 meses: 1 día cada 20 trabajados (art. 151 LCT).
-  //
-  // Este corte se mide en días y no en meses de calendario, y se deja
-  // exactamente donde estaba: medio año son 182,625 días. Mover el umbral
-  // a "seis meses de calendario" cambiaría a quién le corresponde el
-  // tramo completo —quien entró el 1 de julio pasaría de 14 días a 9— y
-  // eso es una decisión del negocio, no un arreglo de fechas.
-  //
-  // Los tramos de años sí se cuentan por calendario (`aniosCumplidos`):
-  // ahí el umbral por división daba mal en el aniversario exacto. Quien
-  // entró un 31/12/2021 tiene cinco años el 31/12/2026, pero
-  // 1826 / 365,25 = 4,9993 lo dejaba un tramo abajo.
   if (diasTrabajados / 365.25 < 0.5) {
     return Math.floor(diasTrabajados / 20);
   }
@@ -196,6 +424,32 @@ export const diasVacacionesPorAntiguedad = (
   if (antiguedadAnios < 20) return escala.hasta20;
   return escala.masDe20;
 };
+
+/**
+ * Punto de entrada único: resuelve el derecho del año según la modalidad
+ * que tenga configurada la empresa.
+ *
+ * Existe para que ningún llamador tenga que acordarse de elegir el
+ * camino. Antes había una sola función para las dos modalidades y la
+ * diferencia se colaba por el parámetro `escala`, que no dice cuál es el
+ * régimen: una escala de 14/21/28/35 podía ser legal o una empresa de
+ * hábiles que acordó esos números.
+ */
+export const diasVacacionesCorresponden = (
+  datos: DatosVacacionesLegales & {
+    config?: Pick<
+      Empresa['config'],
+      'vacacionesDiasHabiles' | 'vacacionesEscala'
+    > | null;
+  }
+): number =>
+  unidadVacacionesDe(datos.config) === 'habiles'
+    ? calcularVacacionesDiasHabiles(
+        datos.fechaIngreso,
+        datos.anio,
+        escalaDe(datos.config)
+      )
+    : calcularVacacionesLegalesCorridas(datos);
 
 /**
  * Días de vacaciones ya gozados en un año concreto.

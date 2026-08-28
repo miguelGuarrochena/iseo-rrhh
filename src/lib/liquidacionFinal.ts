@@ -12,7 +12,8 @@
  */
 import {
   aDiasCorridos,
-  diasVacacionesPorAntiguedad,
+  calcularVacacionesDiasHabiles,
+  tramoLegalArt150,
   ESCALA_LCT,
   type EscalaVacaciones,
   type UnidadVacaciones,
@@ -36,16 +37,37 @@ export const diasVacacionesProporcionales = (
   fechaIngresoISO: string,
   fechaBajaISO: string,
   diasYaGozados: number,
-  escala: EscalaVacaciones = ESCALA_LCT
+  escala: EscalaVacaciones = ESCALA_LCT,
+  /**
+   * Régimen de la empresa. Decide con qué regla se calcula el derecho
+   * del año: la legal en días corridos, o la modalidad propia de días
+   * hábiles. Por defecto el legal, que es el de toda empresa que no
+   * configuró otra cosa.
+   */
+  unidad: UnidadVacaciones = 'corridos'
 ): number => {
   if (!fechaBajaISO || !fechaIngresoISO) return 0;
 
   const anio = partesDeFecha(fechaBajaISO).anio;
-  const correspondenPorAnio = diasVacacionesPorAntiguedad(
-    fechaIngresoISO,
-    anio,
-    escala
-  );
+  /**
+   * En el régimen legal la base es el TRAMO del art. 150, no el
+   * resultado de los arts. 151/153.
+   *
+   * Son dos reglas distintas y no se encadenan. El art. 151 decide si
+   * alguien que trabajó todo el año tiene derecho al período completo; el
+   * art. 156 —que es el que aplica al extinguirse el contrato— manda
+   * pagar "el período de descanso proporcional a la fracción del año
+   * trabajada", y esa fracción ya la aplica el `× diasEnElAnio / 365` de
+   * más abajo. Pasar antes por el art. 151 prorratearía dos veces: quien
+   * se va el 30 de junio con tres años de antigüedad cobraría 2,98 días
+   * en vez de los ~7 que le corresponden.
+   *
+   * En días hábiles se conserva exactamente la función de esa modalidad.
+   */
+  const correspondenPorAnio =
+    unidad === 'habiles'
+      ? calcularVacacionesDiasHabiles(fechaIngresoISO, anio, escala)
+      : tramoLegalArt150(fechaIngresoISO, `${anio}-12-31`);
   // Si entró este mismo año, el proporcional se cuenta desde su ingreso,
   // no desde el 1 de enero.
   const inicio =
@@ -131,7 +153,8 @@ export const armarLiquidacionFinal = (datos: {
     datos.fechaIngreso,
     datos.fechaBaja,
     datos.diasVacacionesGozados,
-    datos.escalaVacaciones ?? ESCALA_LCT
+    datos.escalaVacaciones ?? ESCALA_LCT,
+    unidad
   );
   /**
    * `valorDiaVacaciones` es bruto ÷ 25 por día **corrido** (art. 155).
