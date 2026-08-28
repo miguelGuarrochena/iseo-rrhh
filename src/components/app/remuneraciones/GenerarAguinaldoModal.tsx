@@ -15,6 +15,7 @@ import {
 } from '@/lib/remuneraciones';
 import { formatearPesos } from '@/lib/formato';
 import { Empleado, Remuneracion } from '@/types/rrhh';
+import { anioEmpresa, mesEmpresa } from '@/lib/fechas';
 
 interface GenerarAguinaldoModalProps {
   abierto: boolean;
@@ -34,11 +35,18 @@ interface FilaAguinaldo {
   error?: string;
 }
 
-const semestreActual = (): 1 | 2 => (new Date().getMonth() < 6 ? 1 : 2);
+/**
+ * Semestre de negocio. El 30 de junio a las 21:00 de Buenos Aires un
+ * dispositivo en otro huso ya está en julio y proponía el segundo
+ * semestre para un aguinaldo que todavía es del primero.
+ */
+const semestreActual = (): 1 | 2 =>
+  Number(mesEmpresa().slice(5, 7)) <= 6 ? 1 : 2;
 
 /** Último día (inclusive) del semestre, para calcular la mejor base contra sueldos ya cargados. */
-const finDeSemestre = (anio: number, sem: 1 | 2): Date =>
-  sem === 1 ? new Date(anio, 5, 30) : new Date(anio, 11, 31);
+/** Último día del semestre, como fecha civil. No es un instante. */
+const finDeSemestre = (anio: number, sem: 1 | 2): string =>
+  sem === 1 ? `${anio}-06-30` : `${anio}-12-31`;
 
 /**
  * Genera el aguinaldo (SAC) del semestre elegido. Cada empresa decide a
@@ -55,7 +63,7 @@ export const GenerarAguinaldoModal = ({
   onCerrar,
   onGenerado,
 }: GenerarAguinaldoModalProps) => {
-  const [anio, setAnio] = useState(new Date().getFullYear());
+  const [anio, setAnio] = useState(anioEmpresa());
   const [sem, setSem] = useState<1 | 2>(semestreActual());
   const [filas, setFilas] = useState<FilaAguinaldo[]>([]);
   const [generando, setGenerando] = useState(false);

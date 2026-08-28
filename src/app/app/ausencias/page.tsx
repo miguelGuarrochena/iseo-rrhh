@@ -28,7 +28,7 @@ import {
   paginar,
   totalPaginasDe,
 } from '@/components/app/ui/Paginacion';
-import { formatearFecha, hoyISO } from '@/lib/fechas';
+import { anioEmpresa, formatearFecha, hoyISO } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { abrirArchivo } from '@/lib/archivosUi';
 import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
@@ -57,7 +57,9 @@ import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
-const ANIO_ACTUAL = new Date().getFullYear();
+// Año de negocio, no el del dispositivo: es el año sobre el que se
+// cuentan saldos y cupos de licencia.
+const ANIO_ACTUAL = anioEmpresa();
 const POR_PAGINA = 5;
 
 const rangoDe = (a: Ausencia): string =>

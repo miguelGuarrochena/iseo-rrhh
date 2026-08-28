@@ -9,6 +9,7 @@ import {
   tipoAusenciaLabels,
 } from '@/lib/etiquetas';
 import { Ausencia, TipoAusencia } from '@/types/rrhh';
+import { formatearFechaCivil, hoyISO, partesDeFecha } from '@/lib/fechas';
 
 const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -47,9 +48,13 @@ export const CalendarioAusencias = ({
   nombreEmpleado,
   soloAprobadas = false,
 }: CalendarioAusenciasProps) => {
-  const hoy = new Date();
-  const [anio, setAnio] = useState(hoy.getFullYear());
-  const [mes, setMes] = useState(hoy.getMonth());
+  // Día y mes de NEGOCIO. Con el reloj del dispositivo, el calendario
+  // abría en el mes siguiente el último día del mes a la noche, y el
+  // recuadro de "hoy" se pintaba en el día equivocado.
+  const hoyStr = hoyISO();
+  const hoyPartes = partesDeFecha(hoyStr);
+  const [anio, setAnio] = useState(hoyPartes.anio);
+  const [mes, setMes] = useState(hoyPartes.mes - 1);
   const [diaSel, setDiaSel] = useState<string | null>(null);
 
   // Admin ve aprobadas y pendientes; empleados solo ven vacaciones aprobadas.
@@ -67,7 +72,6 @@ export const CalendarioAusencias = ({
   const primerDia = new Date(anio, mes, 1);
   const diasEnMes = new Date(anio, mes + 1, 0).getDate();
   const offset = (primerDia.getDay() + 6) % 7; // Lunes = 0
-  const hoyStr = iso(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
 
   // Tipos que aparecen este mes, para armar la leyenda de colores.
   const tiposDelMes = useMemo(() => {
@@ -208,7 +212,7 @@ export const CalendarioAusencias = ({
         title={
           diaSel
             ? capitalizar(
-                new Date(`${diaSel}T00:00:00`).toLocaleDateString('es-AR', {
+                formatearFechaCivil(diaSel, {
                   weekday: 'long',
                   day: 'numeric',
                   month: 'long',

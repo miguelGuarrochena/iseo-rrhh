@@ -15,6 +15,7 @@ import {
 import { DocumentoLegajo, EstadoCivil, NivelEstudios } from '@/types/rrhh';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { formatearFechaCivil } from '@/lib/fechas';
 
 const estadoCivilLabel: Record<EstadoCivil, string> = {
   soltero: 'Soltero/a',
@@ -33,7 +34,13 @@ const nivelEstudiosLabel: Record<NivelEstudios, string> = {
 };
 
 const formatearFecha = (iso?: string): string =>
-  iso ? new Date(`${iso}T00:00:00`).toLocaleDateString('es-AR') : '—';
+  iso
+    ? formatearFechaCivil(iso, {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+    : '—';
 
 const Dato = ({ etiqueta, valor }: { etiqueta: string; valor?: ReactNode }) => (
   <div>

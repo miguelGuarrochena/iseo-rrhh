@@ -1,10 +1,11 @@
 import { Feriado, NuevoFeriado } from '@/types/rrhh';
+import { anioEmpresa, diaSemanaEmpresa, sumarDiasEmpresa } from '@/lib/fechas';
 
 /**
  * Domingo de Pascua para un año dado (algoritmo de Meeus/Jones/Butcher).
  * De acá salen Carnaval y Viernes Santo, que se mueven todos los años.
  */
-export const domingoDePascua = (anio: number): Date => {
+export const domingoDePascua = (anio: number): string => {
   const a = anio % 19;
   const b = Math.floor(anio / 100);
   const c = anio % 100;
@@ -19,19 +20,15 @@ export const domingoDePascua = (anio: number): Date => {
   const m = Math.floor((a + 11 * h + 22 * l) / 451);
   const mes = Math.floor((h + l - 7 * m + 114) / 31);
   const dia = ((h + l - 7 * m + 114) % 31) + 1;
-  return new Date(anio, mes - 1, dia);
-};
-
-const iso = (d: Date): string => {
-  const mes = String(d.getMonth() + 1).padStart(2, '0');
-  const dia = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mes}-${dia}`;
-};
-
-const sumarDias = (d: Date, dias: number): Date => {
-  const copia = new Date(d);
-  copia.setDate(copia.getDate() + dias);
-  return copia;
+  // Fecha civil, no instante: un feriado es un día del calendario.
+  //
+  // Antes esto devolvía un `Date` local y `iso()`/`sumarDias()` locales lo
+  // paseaban con `setDate`. En Argentina daba bien porque no hay horario
+  // de verano, pero en un huso que sí lo tiene, sumar días sobre una
+  // medianoche local puede caer a las 23:00 del día anterior y correr el
+  // feriado un día. Un feriado no puede depender de dónde esté la
+  // computadora que lo calcula.
+  return `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 };
 
 /**
@@ -71,13 +68,13 @@ const TRASLADABLES: { mmdd: string; nombre: string }[] = [
 /** Aplica el traslado de Ley 27.399 a una fecha conmemorativa. */
 export const fechaTrasladable = (anio: number, mmdd: string): string => {
   const [mes, dia] = mmdd.split('-').map(Number);
-  const original = new Date(anio, mes - 1, dia);
-  const diaSemana = original.getDay(); // 0=dom … 6=sáb
-  if (diaSemana === 2) return iso(sumarDias(original, -1)); // mar → lun ant.
-  if (diaSemana === 3) return iso(sumarDias(original, -2)); // mié → lun ant.
-  if (diaSemana === 4) return iso(sumarDias(original, 4)); // jue → lun sig.
-  if (diaSemana === 5) return iso(sumarDias(original, 3)); // vie → lun sig.
-  return iso(original);
+  const original = `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+  const diaSemana = diaSemanaEmpresa(original); // 0=dom … 6=sáb
+  if (diaSemana === 2) return sumarDiasEmpresa(original, -1); // mar → lun ant.
+  if (diaSemana === 3) return sumarDiasEmpresa(original, -2); // mié → lun ant.
+  if (diaSemana === 4) return sumarDiasEmpresa(original, 4); // jue → lun sig.
+  if (diaSemana === 5) return sumarDiasEmpresa(original, 3); // vie → lun sig.
+  return original;
 };
 
 /**
@@ -86,7 +83,10 @@ export const fechaTrasladable = (anio: number, mmdd: string): string => {
  */
 export const aniosFeriadosAsegurar = (anio?: number): number[] => {
   if (anio) return [anio];
-  const actual = new Date().getFullYear();
+  // Año de negocio: el 31/12 a la noche, con el reloj del dispositivo, se
+  // aseguraban los feriados del año siguiente y del subsiguiente, y los
+  // del año en curso quedaban sin cargar.
+  const actual = anioEmpresa();
   return [actual, actual + 1];
 };
 
@@ -99,19 +99,19 @@ export const feriadosSugeridos = (anio: number): NuevoFeriado[] => {
   const pascua = domingoDePascua(anio);
   const movibles: NuevoFeriado[] = [
     {
-      fecha: iso(sumarDias(pascua, -48)),
+      fecha: sumarDiasEmpresa(pascua, -48),
       nombre: 'Carnaval',
       tipo: 'nacional',
       noLaborable: true,
     },
     {
-      fecha: iso(sumarDias(pascua, -47)),
+      fecha: sumarDiasEmpresa(pascua, -47),
       nombre: 'Carnaval',
       tipo: 'nacional',
       noLaborable: true,
     },
     {
-      fecha: iso(sumarDias(pascua, -2)),
+      fecha: sumarDiasEmpresa(pascua, -2),
       nombre: 'Viernes Santo',
       tipo: 'nacional',
       noLaborable: true,
@@ -143,7 +143,7 @@ export const fechasNoLaborables = (feriados: Feriado[]): Set<string> =>
 
 /** ¿Cae sábado o domingo? */
 export const esFinDeSemana = (fechaISO: string): boolean => {
-  const dia = new Date(`${fechaISO}T00:00:00`).getDay();
+  const dia = diaSemanaEmpresa(fechaISO);
   return dia === 0 || dia === 6;
 };
 

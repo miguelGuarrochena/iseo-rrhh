@@ -24,6 +24,7 @@ import { tipoReciboLabels } from '@/lib/etiquetas';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { Falta, faltasDeEmpleado } from '@/lib/requisitos';
 import { BloqueFaltasDeVarios, ChipsFaltas } from '@/components/app/Faltas';
+import { mesEmpresa } from '@/lib/fechas';
 
 interface Fila {
   /** Estable: la lista se reordena y el nombre se puede editar. */
@@ -81,7 +82,10 @@ export const CargaMasivaModal = ({
   onCerrar,
   onCargado,
 }: Props) => {
-  const [periodo, setPeriodo] = useState(new Date().toISOString().slice(0, 7));
+  // `mesEmpresa()` y no `toISOString().slice(0, 7)`, que es UTC: el último
+  // día del mes después de las 21:00 ART el formulario abría en el mes
+  // siguiente y la carga masiva iba al período equivocado.
+  const [periodo, setPeriodo] = useState(mesEmpresa());
   const [filas, setFilas] = useState<Fila[]>([]);
   const [tipo, setTipo] = useState<TipoRecibo>('mensual');
   const [publicar, setPublicar] = useState(true);

@@ -19,7 +19,7 @@ import { BarrasMensuales } from '@/components/app/finanzas/BarrasMensuales';
 import { TarjetaCuota } from '@/components/app/finanzas/TarjetaCuota';
 import { EditarEmpresaModal } from '@/components/app/empresas/EditarEmpresaModal';
 import { formatearPesos } from '@/lib/formato';
-import { hoyISO } from '@/lib/fechas';
+import { hoyISO, sumarMesesEmpresa } from '@/lib/fechas';
 import {
   cambiarEstadoEmpresa,
   getEmpresaPorId,
@@ -46,15 +46,18 @@ const MESES = [
   'dic',
 ];
 
-/** Últimos 6 períodos (YYYY-MM) terminando en el actual. */
-const ultimosPeriodos = (): string[] => {
-  const base = new Date(`${periodoActual}-01T00:00:00`);
-  return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(base);
-    d.setMonth(d.getMonth() - (5 - i));
-    return d.toISOString().slice(0, 7);
-  });
-};
+/**
+ * Últimos 6 períodos (YYYY-MM) terminando en el actual.
+ *
+ * Con `Date` esto mezclaba dos husos: se armaba la medianoche LOCAL del
+ * día 1 y se leía el resultado con `toISOString()`, que es UTC. Desde un
+ * huso al este de Greenwich la medianoche del 1 cae el último día del mes
+ * anterior en UTC, así que los seis períodos salían corridos un mes.
+ */
+const ultimosPeriodos = (): string[] =>
+  Array.from({ length: 6 }, (_, i) =>
+    sumarMesesEmpresa(periodoActual, -(5 - i))
+  );
 
 const Dato = ({ etiqueta, valor }: { etiqueta: string; valor?: string }) => (
   <div>

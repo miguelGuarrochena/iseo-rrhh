@@ -3,7 +3,12 @@
  * La antigüedad se computa al 31/12 del año en cuestión.
  */
 
-import { diasEntre, diasHabilesEntre } from '@/lib/fechas';
+import {
+  aniosCumplidos,
+  diasEntre,
+  diasHabilesEntre,
+  diferenciaEnDias,
+} from '@/lib/fechas';
 import type { Ausencia, Empresa } from '@/types/rrhh';
 
 /**
@@ -157,16 +162,33 @@ export const diasVacacionesPorAntiguedad = (
   anio: number,
   escala: EscalaVacaciones = ESCALA_LCT
 ): number => {
-  const ingreso = new Date(`${fechaIngreso}T00:00:00`);
-  const cierre = new Date(`${anio}-12-31T00:00:00`);
-  if (ingreso > cierre) return 0;
+  const cierre = `${anio}-12-31`;
+  if (fechaIngreso > cierre) return 0;
 
-  const antiguedadMs = cierre.getTime() - ingreso.getTime();
-  const antiguedadAnios = antiguedadMs / (365.25 * 24 * 60 * 60 * 1000);
+  // Aritmética de calendario, no de instantes.
+  //
+  // Antes esto restaba dos `Date` construidos como medianoche LOCAL y
+  // dividía por 365,25. Dos problemas: en un huso con horario de verano
+  // la resta se corre una hora y el `Math.floor` de los días puede caer
+  // un día entero, y 365,25 hace que el aniversario no coincida con el
+  // aniversario real —quien entró un 1 de marzo cumple cinco años el 1 de
+  // marzo, no un día antes ni después según los bisiestos que hubo.
+  const diasTrabajados = diferenciaEnDias(fechaIngreso, cierre);
+  const antiguedadAnios = aniosCumplidos(fechaIngreso, cierre);
 
-  // Menos de 6 meses: 1 día cada 20 trabajados (aprox. proporcional)
-  if (antiguedadAnios < 0.5) {
-    const diasTrabajados = Math.floor(antiguedadMs / (24 * 60 * 60 * 1000));
+  // Menos de 6 meses: 1 día cada 20 trabajados (art. 151 LCT).
+  //
+  // Este corte se mide en días y no en meses de calendario, y se deja
+  // exactamente donde estaba: medio año son 182,625 días. Mover el umbral
+  // a "seis meses de calendario" cambiaría a quién le corresponde el
+  // tramo completo —quien entró el 1 de julio pasaría de 14 días a 9— y
+  // eso es una decisión del negocio, no un arreglo de fechas.
+  //
+  // Los tramos de años sí se cuentan por calendario (`aniosCumplidos`):
+  // ahí el umbral por división daba mal en el aniversario exacto. Quien
+  // entró un 31/12/2021 tiene cinco años el 31/12/2026, pero
+  // 1826 / 365,25 = 4,9993 lo dejaba un tramo abajo.
+  if (diasTrabajados / 365.25 < 0.5) {
     return Math.floor(diasTrabajados / 20);
   }
   if (antiguedadAnios < 5) return escala.hasta5;

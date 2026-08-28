@@ -19,6 +19,7 @@ import {
   vincularUsuarioAEmpleado,
 } from '@/lib/services/rrhh';
 import { CuentaDeAcceso, Empleado, Usuario } from '@/types/rrhh';
+import { formatearFechaDeInstante } from '@/lib/fechas';
 
 interface Props {
   /** `null` = cerrado. */
@@ -33,8 +34,13 @@ interface Props {
   onCambio: () => void;
 }
 
-const fecha = (iso?: string) =>
-  iso ? new Date(iso).toLocaleDateString('es-AR') : '';
+/**
+ * `invitadaEn` y `ultimoAcceso` son INSTANTES, no días civiles: leerlos
+ * sin zona los mostraba con el reloj del dispositivo, así que un acceso
+ * de las 21:30 de Buenos Aires figuraba al día siguiente desde una
+ * máquina en UTC.
+ */
+const fecha = (iso?: string) => (iso ? formatearFechaDeInstante(iso) : '');
 
 /**
  * Todo lo que se puede hacer con una cuenta, en un solo lugar.

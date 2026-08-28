@@ -7,6 +7,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
 } from '@tabler/icons-react';
+import { hoyISO, partesDeFecha } from '@/lib/fechas';
 
 const MESES = [
   'Enero',
@@ -66,9 +67,10 @@ export const CampoMes = ({
   const [montado, setMontado] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
 
-  const hoy = new Date();
+  // Año de negocio, por lo mismo que `CampoFecha`.
+  const hoy = partesDeFecha(hoyISO());
   const base = value ? value.split('-').map(Number) : null;
-  const [anio, setAnio] = useState(base ? base[0] : hoy.getFullYear());
+  const [anio, setAnio] = useState(base ? base[0] : hoy.anio);
   const mesSel = base ? base[1] - 1 : null;
   const anioSel = base ? base[0] : null;
 

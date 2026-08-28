@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
-import { hoyISO } from '@/lib/fechas';
+import { hoyISO, partesDeFecha } from '@/lib/fechas';
 
 const MESES = [
   'Enero',
@@ -42,9 +42,11 @@ export const MiniCalendario = ({
   seleccionada,
   onSeleccionar,
 }: MiniCalendarioProps) => {
-  const hoy = new Date();
-  const [anio, setAnio] = useState(hoy.getFullYear());
-  const [mes, setMes] = useState(hoy.getMonth());
+  // El calendario abre en el mes de negocio: con el reloj del dispositivo,
+  // el último día del mes a la noche abría en el mes siguiente.
+  const hoy = partesDeFecha(hoyISO());
+  const [anio, setAnio] = useState(hoy.anio);
+  const [mes, setMes] = useState(hoy.mes - 1);
 
   const primerDia = new Date(anio, mes, 1);
   const diasEnMes = new Date(anio, mes + 1, 0).getDate();

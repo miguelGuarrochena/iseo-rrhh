@@ -64,7 +64,13 @@ import {
   escalaDe,
 } from '@/lib/vacaciones';
 import { calcularLiquidacion } from '@/lib/remuneraciones';
-import { diaEmpresa, diasAusencia, hoyISO, mesEmpresa } from '@/lib/fechas';
+import {
+  diaEmpresa,
+  diasAusencia,
+  hoyISO,
+  mesEmpresa,
+  sumarDiasEmpresa,
+} from '@/lib/fechas';
 import { distanciaMetros } from '@/lib/facial/ubicacion';
 
 /**
@@ -169,7 +175,8 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
       horaSalida: '17:00',
       diasAvisoVencimiento: 30,
     },
-    creadaEn: new Date().toISOString().slice(0, 10),
+    // Día de negocio: `toISOString().slice(0, 10)` es la fecha de UTC.
+    creadaEn: hoyISO(),
   };
   empresasMock.push(nueva);
   return simular(nueva);
@@ -1060,11 +1067,10 @@ export const getJornadas = async (
   const ids = opciones.empleadoIds ? new Set(opciones.empleadoIds) : null;
   // Se lee un día de más a cada lado, igual que la SQL, para no partir
   // las jornadas que cruzan el borde del rango.
-  const margen = (fecha: string, dias: number): string => {
-    const d = new Date(`${fecha}T00:00:00`);
-    d.setDate(d.getDate() + dias);
-    return diaLocal(d.toISOString());
-  };
+  // `sumarDiasEmpresa` y no `new Date(...); setDate(...)`: es aritmética
+  // de días de calendario, y pasarla por un `Date` local la ataba al huso
+  // del dispositivo.
+  const margen = sumarDiasEmpresa;
   const jornadas = armarJornadas(
     fichajesMock
       .filter((f) => enRango(f, margen(desde, -1), margen(hasta, 1)))

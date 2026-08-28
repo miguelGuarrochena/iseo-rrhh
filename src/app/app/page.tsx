@@ -16,7 +16,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { hoyISO } from '@/lib/fechas';
+import { formatearFechaCivil, hoyISO } from '@/lib/fechas';
 import { tipoAusenciaIconos } from '@/lib/etiquetas';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
@@ -66,7 +66,7 @@ import { BloqueFaltasDeVarios } from '@/components/app/Faltas';
 const ANIO_ACTUAL = Number(hoyISO().slice(0, 4));
 
 const formatearFecha = (iso: string): string =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('es-AR', {
+  formatearFechaCivil(iso, {
     day: 'numeric',
     month: 'short',
   });

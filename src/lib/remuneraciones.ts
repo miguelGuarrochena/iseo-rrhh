@@ -3,6 +3,7 @@
  * (SAC) y masa salarial. Las cargas patronales son una estimación.
  */
 import { RegimenLaboral, Remuneracion } from '@/types/rrhh';
+import { diasEntre, hoyISO } from '@/lib/fechas';
 
 /** Contribuciones patronales estimadas sobre el bruto (aprox.). */
 export const CARGAS_PATRONALES = 0.27;
@@ -111,13 +112,14 @@ export const valorHorasExtras = (
 const semestreDe = (mes: number): 1 | 2 => (mes <= 6 ? 1 : 2);
 
 /** Primer y último día (inclusive) del semestre `sem` de `anio`. */
+/** Bordes del semestre como fechas civiles. No son instantes. */
 const rangoSemestre = (
   anio: number,
   sem: 1 | 2
-): { desde: Date; hasta: Date } =>
+): { desde: string; hasta: string } =>
   sem === 1
-    ? { desde: new Date(anio, 0, 1), hasta: new Date(anio, 5, 30) }
-    : { desde: new Date(anio, 6, 1), hasta: new Date(anio, 11, 31) };
+    ? { desde: `${anio}-01-01`, hasta: `${anio}-06-30` }
+    : { desde: `${anio}-07-01`, hasta: `${anio}-12-31` };
 
 /**
  * Fracción del semestre trabajada (Art. 121 LCT: el SAC se calcula
@@ -130,15 +132,15 @@ const fraccionSemestreTrabajada = (
   sem: 1 | 2
 ): number => {
   if (!fechaIngresoISO) return 1;
+  // Comparación de fechas civiles como strings: "YYYY-MM-DD" ordena
+  // lexicográficamente igual que cronológicamente, y no hay ningún huso
+  // de por medio. Antes esto construía `Date` locales y restaba
+  // milisegundos.
   const { desde, hasta } = rangoSemestre(anio, sem);
-  const ingreso = new Date(`${fechaIngresoISO}T00:00:00`);
-  if (Number.isNaN(ingreso.getTime()) || ingreso <= desde) return 1;
-  if (ingreso > hasta) return 0;
-  const msPorDia = 1000 * 60 * 60 * 24;
-  const diasSemestre =
-    Math.round((hasta.getTime() - desde.getTime()) / msPorDia) + 1;
-  const diasTrabajados =
-    Math.round((hasta.getTime() - ingreso.getTime()) / msPorDia) + 1;
+  if (fechaIngresoISO <= desde) return 1;
+  if (fechaIngresoISO > hasta) return 0;
+  const diasSemestre = diasEntre(desde, hasta);
+  const diasTrabajados = diasEntre(fechaIngresoISO, hasta);
   return Math.max(0, Math.min(1, diasTrabajados / diasSemestre));
 };
 
@@ -165,7 +167,15 @@ export interface AnalisisSalarial {
 
 export const analizarSalario = (
   remuneraciones: Remuneracion[],
-  hoy: Date = new Date(),
+  /**
+   * Día de negocio sobre el que se mira el semestre, como "YYYY-MM-DD".
+   *
+   * Era un `Date` que por defecto salía del reloj del dispositivo, y el
+   * semestre se leía con `getMonth()`: el 30 de junio a las 21:00 de
+   * Buenos Aires una máquina en otro huso ya estaba en julio y el mejor
+   * bruto se buscaba en el semestre equivocado.
+   */
+  hoy: string = hoyISO(),
   /** Para prorratear el aguinaldo si ingresó a mitad de semestre. */
   fechaIngreso?: string
 ): AnalisisSalarial => {
@@ -185,8 +195,8 @@ export const analizarSalario = (
       ? ((ultima.montoBruto - anterior.montoBruto) / anterior.montoBruto) * 100
       : undefined;
 
-  const anio = hoy.getFullYear();
-  const sem = semestreDe(hoy.getMonth() + 1);
+  const anio = Number(hoy.slice(0, 4));
+  const sem = semestreDe(Number(hoy.slice(5, 7)));
   const mejorSemestreBruto = ordenadas
     .filter((r) => {
       const [a, m] = r.periodo.split('-').map(Number);

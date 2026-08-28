@@ -46,6 +46,7 @@ import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { EstadoCarga } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { formatearInstante } from '@/lib/fechas';
 
 const POR_PAGINA = 8;
 
@@ -464,7 +465,7 @@ const PermisosPage = () => {
               key={a.id}
               icono={IconShieldCheck}
               principal={`${a.actorNombre} ${accionLabels[a.accion] ?? a.accion} ${entidadLabels[a.entidad] ?? a.entidad}`}
-              secundario={new Date(a.creadaEn).toLocaleString('es-AR')}
+              secundario={formatearInstante(a.creadaEn)}
             />
           ))}
           <Paginacion

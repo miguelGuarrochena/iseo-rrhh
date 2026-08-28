@@ -22,7 +22,7 @@ import { BotonIcono } from '@/components/app/ui/BotonIcono';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoMes } from '@/components/app/ui/CampoMes';
-import { formatearFecha, formatearPeriodo } from '@/lib/fechas';
+import { formatearFecha, formatearPeriodo, mesEmpresa } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { abrirArchivo, descargarArchivo } from '@/lib/archivosUi';
 import {
@@ -96,9 +96,7 @@ const RecibosPage = () => {
   const [cargaAbierta, { open: abrirCarga, close: cerrarCarga }] =
     useDisclosure(false);
   const [cargaEmpleado, setCargaEmpleado] = useState('');
-  const [cargaPeriodo, setCargaPeriodo] = useState(
-    new Date().toISOString().slice(0, 7)
-  );
+  const [cargaPeriodo, setCargaPeriodo] = useState(mesEmpresa());
   const [cargaArchivo, setCargaArchivo] = useState<File | null>(null);
   const [cargaTipo, setCargaTipo] = useState<TipoRecibo>('mensual');
   const [cargaPublicar, setCargaPublicar] = useState(true);

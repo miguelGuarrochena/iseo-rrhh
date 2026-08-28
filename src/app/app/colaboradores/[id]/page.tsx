@@ -34,7 +34,7 @@ import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
-import { hoyISO } from '@/lib/fechas';
+import { anioEmpresa, formatearFechaCivil, hoyISO } from '@/lib/fechas';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { aOpciones } from '@/components/app/ui/Selector';
 import { categoriaDocumentoLabels } from '@/lib/etiquetas';
@@ -88,7 +88,10 @@ import { faltasDeEmpleado } from '@/lib/requisitos';
 import { BloqueFaltas } from '@/components/app/Faltas';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
-const ANIO_ACTUAL = new Date().getFullYear();
+// Año de negocio: ver `anioEmpresa`. El 31/12 a las 21:00 de Buenos
+// Aires el reloj del dispositivo ya dice el año siguiente, y el saldo de
+// vacaciones se pediría del año equivocado.
+const ANIO_ACTUAL = anioEmpresa();
 
 const Dato = ({ etiqueta, valor }: { etiqueta: string; valor?: string }) => (
   <div className="min-w-0">
@@ -246,7 +249,7 @@ const FichaColaboradorPage = () => {
     if (!empleado || !fechaBaja || cAusencias.fase !== 'ok') return null;
     const analisis = analizarSalario(
       remuneraciones,
-      new Date(`${fechaBaja}T00:00:00`),
+      fechaBaja,
       empleado.fechaIngreso
     );
     return armarLiquidacionFinal({
@@ -430,9 +433,7 @@ const FichaColaboradorPage = () => {
               </h1>
               <p className="mt-0.5 text-sm text-ink-soft">
                 {empleado.puesto} · {empleado.sector} · Ingreso{' '}
-                {new Date(
-                  `${empleado.fechaIngreso}T00:00:00`
-                ).toLocaleDateString('es-AR', {
+                {formatearFechaCivil(empleado.fechaIngreso, {
                   day: 'numeric',
                   month: 'short',
                   year: 'numeric',

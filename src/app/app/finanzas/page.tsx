@@ -27,7 +27,7 @@ import {
   TarjetaCuota,
 } from '@/components/app/finanzas/TarjetaCuota';
 import { formatearPesos } from '@/lib/formato';
-import { formatearPeriodo, hoyISO } from '@/lib/fechas';
+import { formatearPeriodo, hoyISO, sumarMesesEmpresa } from '@/lib/fechas';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   crearMovimiento,
@@ -62,14 +62,17 @@ const MESES = [
   'dic',
 ];
 
-/** Últimos 6 períodos (YYYY-MM) terminando en el actual. */
-const ultimosPeriodos = (): string[] => {
-  const [anio, mes] = periodoActual.split('-').map(Number);
-  return Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(anio, mes - 1 - (5 - i), 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
-};
+/**
+ * Últimos 6 períodos (YYYY-MM) terminando en el actual.
+ *
+ * Aritmética de meses sobre el período, sin `Date` de por medio: es la
+ * misma cuenta que hace la ficha de empresa, y tenerla dos veces era
+ * cómo una de las dos terminó corrida un mes.
+ */
+const ultimosPeriodos = (): string[] =>
+  Array.from({ length: 6 }, (_, i) =>
+    sumarMesesEmpresa(periodoActual, -(5 - i))
+  );
 
 const FinanzasPage = () => {
   const { usuario } = useAuth();

@@ -14,9 +14,10 @@ import {
 import { NotaInterna } from '@/types/rrhh';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
+import { formatearFechaCivil } from '@/lib/fechas';
 
 const formatearFechaLarga = (iso: string): string =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('es-AR', {
+  formatearFechaCivil(iso, {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

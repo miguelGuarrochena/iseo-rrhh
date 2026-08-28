@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enviarEmail } from '@/lib/email/resend';
 import { formatearPesos } from '@/lib/formato';
 import { logError, logInfo } from '@/lib/api/registro';
+import { hoyISO } from '@/lib/fechas';
 
 /**
  * Proceso diario de facturación (Vercel Cron).
@@ -29,9 +30,17 @@ const procesar = async (req: Request) => {
   }
 
   const admin = supabaseAdmin();
-  const ahora = new Date();
-  const periodo = ahora.toISOString().slice(0, 7);
-  const dia = ahora.getDate();
+  // Período y día de negocio, no del servidor.
+  //
+  // Esto corre en Vercel, donde el proceso tiene TZ=UTC: `getDate()` y
+  // `toISOString().slice(0, 7)` devuelven el día y el mes de UTC. Con el
+  // cron a las 12:00 UTC (09:00 ART) coinciden con Argentina y por eso
+  // nunca se notó, pero es una coincidencia del horario elegido: correrlo
+  // a mano de madrugada, o mover el schedule, factura contra el día y el
+  // mes equivocados.
+  const hoy = hoyISO();
+  const periodo = hoy.slice(0, 7);
+  const dia = Number(hoy.slice(8, 10));
   const diaVenc = Number(process.env.DIA_VENCIMIENTO_FACTURACION ?? 10);
   const diasPrevio = Number(process.env.DIAS_AVISO_PREVIO ?? 3);
 

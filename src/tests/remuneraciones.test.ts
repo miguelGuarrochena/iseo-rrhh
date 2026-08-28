@@ -25,7 +25,7 @@ describe('analizarSalario', () => {
     rem('e1', '2026-05', 1010000),
     rem('e1', '2026-06', 1075000),
   ];
-  const analisis = analizarSalario(rems, new Date('2026-06-15T00:00:00'));
+  const analisis = analizarSalario(rems, '2026-06-15');
 
   it('ordena y toma la última', () => {
     expect(analisis.ultima?.periodo).toBe('2026-06');
@@ -49,7 +49,7 @@ describe('analizarSalario', () => {
   it('no separa semestres distintos en el aguinaldo', () => {
     const conOtroSemestre = analizarSalario(
       [...rems, rem('e1', '2026-08', 2000000)],
-      new Date('2026-06-15T00:00:00')
+      '2026-06-15'
     );
     // Agosto es 2º semestre: no debe contar para el aguinaldo de junio.
     expect(conOtroSemestre.mejorSemestreBruto).toBe(1075000);

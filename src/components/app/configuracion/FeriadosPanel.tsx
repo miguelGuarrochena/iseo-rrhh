@@ -8,7 +8,7 @@ import { Campo, CampoSelect } from '@/components/app/ui/Campo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { avisoError, avisoExito } from '@/lib/avisos';
-import { formatearFecha } from '@/lib/fechas';
+import { anioEmpresa, formatearFecha, formatearFechaCivil } from '@/lib/fechas';
 import {
   eliminarFeriado,
   getFeriados,
@@ -17,7 +17,7 @@ import {
 import { Feriado } from '@/types/rrhh';
 
 const diaDeLaSemana = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('es-AR', { weekday: 'long' });
+  formatearFechaCivil(iso, { weekday: 'long' });
 
 const tipoLabels: Record<Feriado['tipo'], string> = {
   nacional: 'Nacional',
@@ -36,7 +36,9 @@ const tipoExtraOpciones = [
  * propios, y puede quitar sólo esos (no los nacionales).
  */
 export const FeriadosPanel = () => {
-  const [anio, setAnio] = useState(new Date().getFullYear());
+  // Año de negocio: el 31/12 a la noche el panel abría directamente en el
+  // año siguiente y parecía que se habían borrado los feriados.
+  const [anio, setAnio] = useState(anioEmpresa());
   const [lista, setLista] = useState<Feriado[]>([]);
   const [cargando, setCargando] = useState(true);
   const [fecha, setFecha] = useState('');

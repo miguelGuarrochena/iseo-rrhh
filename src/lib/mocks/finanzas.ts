@@ -1,16 +1,19 @@
 import { MovimientoFinanciero } from '@/types/rrhh';
-import { hoyISO } from '@/lib/fechas';
+import { hoyISO, sumarMesesEmpresa } from '@/lib/fechas';
 
 const hoy = hoyISO();
 const periodoActual = hoy.slice(0, 7);
 const diaBase = `${periodoActual}-03`;
 
-/** Devuelve el período (YYYY-MM) de hace n meses respecto de hoy. */
-const periodoMenos = (n: number): string => {
-  const d = new Date(`${periodoActual}-01T00:00:00`);
-  d.setMonth(d.getMonth() - n);
-  return d.toISOString().slice(0, 7);
-};
+/**
+ * Devuelve el período (YYYY-MM) de hace n meses respecto de hoy.
+ *
+ * Con `Date` esto mezclaba la medianoche local con `toISOString()` (UTC):
+ * desde un huso al este de Greenwich el mock arrancaba un mes antes y los
+ * gráficos de la demo no coincidían con el período seleccionado.
+ */
+const periodoMenos = (n: number): string =>
+  sumarMesesEmpresa(periodoActual, -n);
 
 /** Historial de abonos cobrados los meses anteriores (para el gráfico). */
 const historial: MovimientoFinanciero[] = [1, 2, 3, 4].flatMap((n) => {

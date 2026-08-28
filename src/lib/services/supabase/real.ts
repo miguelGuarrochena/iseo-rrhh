@@ -88,7 +88,6 @@ import {
 import { claveTurno, controlarJornada, indexarTurnos } from '@/lib/turnos';
 import { traerTodo as traerTodoBase } from './paginado';
 import {
-  aISOLocal,
   diasAusencia,
   diasEntre,
   finDeMesEmpresa,
@@ -96,6 +95,7 @@ import {
   inicioDelDiaEmpresa,
   instanteEnZonaEmpresa,
   mesEmpresa,
+  proximoAniversario,
   sumarDiasEmpresa,
 } from '@/lib/fechas';
 import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
@@ -2734,10 +2734,14 @@ export const getAlertas = async (): Promise<Alerta[]> => {
       .not('fecha_vencimiento', 'is', null),
   ]);
   const diasAviso = empresa.config.diasAvisoVencimiento;
-  const limite = new Date();
-  limite.setDate(limite.getDate() + diasAviso);
-  const limiteISO = aISOLocal(limite);
+  // El límite del aviso se cuenta desde el día de negocio, igual que
+  // `hoy`. Antes salía del reloj del dispositivo (`aISOLocal(new Date())`)
+  // mientras `hoy` ya usaba `hoyISO()`: los dos extremos del rango se
+  // medían con varas distintas, y después de las 21:00 de Buenos Aires el
+  // límite se corría un día y entraban (o se caían) vencimientos del
+  // borde.
   const hoy = hoyISO();
+  const limiteISO = sumarDiasEmpresa(hoy, diasAviso);
   const nombreDe = (id: string) => {
     const e = empleados.find((x) => x.id === id);
     return e ? `${e.nombre} ${e.apellido}` : '—';
@@ -2803,11 +2807,17 @@ export const getEventosProximos = async (): Promise<EventoAgenda[]> => {
     sb().rpc('cumples_de_empresa', { p_empresa: eid }),
   ]);
 
-  // Medianoche de hoy: si se compara contra `new Date()` (con hora), el
-  // cumpleaños de hoy queda "en el pasado" y se corre al año que viene,
-  // así que justo el día no aparecía en Eventos.
-  const ahora = new Date();
-  const hoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
+  // El próximo cumpleaños se calcula sobre el día de NEGOCIO.
+  //
+  // Antes se armaba un `new Date(ahora.getFullYear(), ...)` con las
+  // partes del reloj del dispositivo: a las 21:30 de Buenos Aires ese
+  // reloj ya está en el día siguiente si el equipo tiene otro huso, así
+  // que el cumpleaños de hoy quedaba "en el pasado" y se corría un año
+  // entero, o el de mañana aparecía como si fuera hoy.
+  //
+  // `proximoAniversario` incluye el día mismo —quien cumple hoy cumple
+  // hoy— y resuelve el 29 de febrero de los años no bisiestos.
+  const hoy = hoyISO();
   const cumples: EventoAgenda[] = (cumplesRaw ?? [])
     .filter((e: { fecha_nacimiento?: string }) => e.fecha_nacimiento)
     .map(
@@ -2816,20 +2826,15 @@ export const getEventosProximos = async (): Promise<EventoAgenda[]> => {
         nombre: string;
         apellido: string;
         fecha_nacimiento: string;
-      }) => {
-        const [, mes, dia] = e.fecha_nacimiento.split('-').map(Number);
-        const fecha = new Date(hoy.getFullYear(), mes - 1, dia);
-        if (fecha < hoy) fecha.setFullYear(fecha.getFullYear() + 1);
-        return {
-          id: `cumple-${e.empleado_id}`,
-          empresaId: eid,
-          tipo: 'cumpleanios' as const,
-          titulo: `Cumpleaños de ${e.nombre} ${e.apellido}`,
-          fecha: `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}-${String(fecha.getDate()).padStart(2, '0')}`,
-        };
-      }
+      }) => ({
+        id: `cumple-${e.empleado_id}`,
+        empresaId: eid,
+        tipo: 'cumpleanios' as const,
+        titulo: `Cumpleaños de ${e.nombre} ${e.apellido}`,
+        fecha: proximoAniversario(e.fecha_nacimiento, hoy),
+      })
     )
-    .filter((c: EventoAgenda) => diasEntre(hoyISO(), c.fecha) <= 90);
+    .filter((c: EventoAgenda) => diasEntre(hoy, c.fecha) <= 90);
 
   return [...oFalla(data, error).map(aEvento), ...cumples].sort((a, b) =>
     a.fecha.localeCompare(b.fecha)

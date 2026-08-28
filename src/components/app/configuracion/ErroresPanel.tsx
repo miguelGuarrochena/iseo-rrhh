@@ -6,9 +6,15 @@ import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
 import { getErroresApp } from '@/lib/services/rrhh';
 import { ErrorApp } from '@/types/rrhh';
+import { formatearInstante } from '@/lib/fechas';
 
+/**
+ * Cuándo ocurrió el error, en hora de la empresa. Es un instante: sin
+ * `timeZone` cada quien lo leía con el reloj de su equipo, y comparar
+ * "a qué hora se cayó" entre dos personas no daba lo mismo.
+ */
 const cuando = (iso: string) =>
-  new Date(iso).toLocaleString('es-AR', {
+  formatearInstante(iso, {
     day: '2-digit',
     month: '2-digit',
     hour: '2-digit',

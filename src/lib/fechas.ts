@@ -4,7 +4,11 @@
  * 1985 (fecha de nacimiento) y "27" es 2027 (fin de contrato).
  */
 export const expandirAnio = (yy: number, hoy = new Date()): number => {
-  const corte = (hoy.getFullYear() % 100) + 10;
+  // El corte sale del año de NEGOCIO: el 31 de diciembre a las 21:00 de
+  // Buenos Aires el reloj del dispositivo ya dice el año siguiente y la
+  // ventana se corría un año. Es un caso chico —cambia qué dos dígitos
+  // caen en 19xx— pero es el mismo defecto que el resto.
+  const corte = (anioEmpresa(hoy) % 100) + 10;
   return yy <= corte ? 2000 + yy : 1900 + yy;
 };
 
@@ -73,22 +77,24 @@ export const diasAusencia = (
   return diasEntre(desde, hasta);
 };
 
-export const formatearFecha = (iso: string): string =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString('es-AR', {
-    day: 'numeric',
-    month: 'short',
-  });
-
 /**
- * Date → "YYYY-MM-DD" en horario local. Ojo con `toISOString()`: da UTC,
- * así que en Argentina (UTC-3) después de las 21:00 devuelve el día
- * siguiente y las cosas de hoy quedan fuera de los listados.
+ * Una fecha CIVIL para mostrar. "1982-05-14" siempre se lee 14 de mayo.
+ *
+ * El `T00:00:00` sin zona la ancla a la medianoche LOCAL, y se formatea
+ * también en local: el día entra y sale igual en cualquier huso. Es a
+ * propósito y es la diferencia con `formatearInstante`, que sí tiene que
+ * convertir porque recibe un momento real.
+ *
+ * Está acá y no repetida en cada pantalla porque las dos formas se
+ * parecen demasiado: una copia a la que alguien le pase un `timestamptz`
+ * en vez de un día muestra la fecha corrida y nadie lo nota.
  */
-export const aISOLocal = (d: Date): string => {
-  const mes = String(d.getMonth() + 1).padStart(2, '0');
-  const dia = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mes}-${dia}`;
-};
+export const formatearFechaCivil = (
+  iso: string,
+  opciones: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' }
+): string => new Date(`${iso}T00:00:00`).toLocaleDateString('es-AR', opciones);
+
+export const formatearFecha = (iso: string): string => formatearFechaCivil(iso);
 
 /**
  * Zona horaria en la que la empresa cuenta los días.
@@ -253,6 +259,141 @@ export const finDeMesEmpresa = (periodo: string): string => {
   const d = new Date(Date.UTC(anio, mes, 0));
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 };
+
+/**
+ * Año de negocio. El 31 de diciembre a las 21:00 de Buenos Aires el reloj
+ * del dispositivo ya dice el año siguiente.
+ */
+export const anioEmpresa = (ahora: Date = new Date()): number =>
+  Number(hoyISO(ahora).slice(0, 4));
+
+/**
+ * Partes de una fecha civil, sin pasar por `Date`.
+ *
+ * Una fecha civil —nacimiento, ingreso, vencimiento— no es un instante:
+ * es un día del calendario. Construir un `Date` para leerle el día es
+ * darle una hora y una zona que el dato no tiene, y de ahí salen los
+ * "13/05/1982" donde dice 14.
+ */
+export const partesDeFecha = (
+  fecha: string
+): { anio: number; mes: number; dia: number } => {
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  return { anio, mes: mes || 1, dia: dia || 1 };
+};
+
+/**
+ * Día de la semana de una fecha civil: 0 domingo … 6 sábado.
+ *
+ * En UTC a propósito: es aritmética de calendario y el resultado no puede
+ * depender de dónde esté la computadora.
+ */
+export const diaSemanaEmpresa = (fecha: string): number => {
+  const { anio, mes, dia } = partesDeFecha(fecha);
+  return new Date(Date.UTC(anio, mes - 1, dia)).getUTCDay();
+};
+
+/** Lunes de la semana que contiene a esa fecha civil. */
+export const lunesDeSemanaEmpresa = (fecha: string): string =>
+  sumarDiasEmpresa(fecha, -((diaSemanaEmpresa(fecha) + 6) % 7));
+
+/** Domingo de la semana que contiene a esa fecha civil. */
+export const domingoDeSemanaEmpresa = (fecha: string): string =>
+  sumarDiasEmpresa(lunesDeSemanaEmpresa(fecha), 6);
+
+/**
+ * Suma (o resta) meses a un período "YYYY-MM".
+ *
+ * Sobre el período y no sobre un día, porque no tiene respuesta correcta
+ * qué es "31 de enero + 1 mes". Quien necesite un día usa
+ * `finDeMesEmpresa` después.
+ */
+export const sumarMesesEmpresa = (periodo: string, delta: number): string => {
+  const [anio, mes] = periodo.split('-').map(Number);
+  const total = anio * 12 + (mes - 1) + delta;
+  const a = Math.floor(total / 12);
+  const m = total - a * 12 + 1;
+  return `${a}-${String(m).padStart(2, '0')}`;
+};
+
+/**
+ * Cuántos días hay entre dos fechas civiles (hasta − desde). Puede ser
+ * negativo. `diasEntre` cuenta los dos extremos; ésta mide la distancia.
+ */
+export const diferenciaEnDias = (desde: string, hasta: string): number =>
+  Math.round((comoDiaUTC(hasta) - comoDiaUTC(desde)) / 86400000);
+
+/**
+ * El próximo cumpleaños (o aniversario) de una fecha civil, a partir de
+ * un día dado, inclusive.
+ *
+ * El día mismo cuenta: quien cumple hoy cumple hoy, no el año que viene.
+ * El 29 de febrero cae en el 1 de marzo los años no bisiestos — es el
+ * criterio del Código Civil argentino (art. 25) para los plazos de mes a
+ * mes, y es el que la gente espera ver en la agenda.
+ */
+export const proximoAniversario = (
+  fechaCivil: string,
+  desde: string
+): string => {
+  const { mes, dia } = partesDeFecha(fechaCivil);
+  const anioBase = Number(desde.slice(0, 4));
+  const enAnio = (anio: number): string => {
+    const ultimo = Number(
+      finDeMesEmpresa(`${anio}-${String(mes).padStart(2, '0')}`).slice(8)
+    );
+    const d = Math.min(dia, ultimo);
+    const propuesta = `${anio}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    // 29/02 en un año no bisiesto: se corre al 1 de marzo, no al 28.
+    return dia > ultimo ? sumarDiasEmpresa(propuesta, 1) : propuesta;
+  };
+  const esteAnio = enAnio(anioBase);
+  return esteAnio >= desde ? esteAnio : enAnio(anioBase + 1);
+};
+
+/**
+ * Años cumplidos entre dos fechas civiles: edad, antigüedad.
+ *
+ * Se cuenta por calendario y no dividiendo milisegundos por 365,25: quien
+ * nació un 29 de febrero cumple años, y una división aproximada hace que
+ * el aniversario caiga un día antes o después según el año.
+ */
+export const aniosCumplidos = (desde: string, hasta: string): number => {
+  const d = partesDeFecha(desde);
+  const h = partesDeFecha(hasta);
+  let anios = h.anio - d.anio;
+  if (h.mes < d.mes || (h.mes === d.mes && h.dia < d.dia)) anios -= 1;
+  return Math.max(0, anios);
+};
+
+/**
+ * Un instante (timestamptz) mostrado como fecha y hora de la empresa.
+ *
+ * Es lo que hay que usar para `creado_en`, `firmado_en`, `ultimo_acceso`
+ * y compañía: son instantes, y sin `timeZone` cada dispositivo los leía
+ * con su propio reloj. Distinto de `formatearFecha`, que recibe un día
+ * civil y no tiene ninguna hora que convertir.
+ */
+export const formatearInstante = (
+  iso: string,
+  opciones: Intl.DateTimeFormatOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }
+): string =>
+  compactarMeridiano(
+    new Date(iso).toLocaleString('es-AR', {
+      ...opciones,
+      timeZone: ZONA_EMPRESA,
+    })
+  );
+
+/** Un instante mostrado sólo como el día de la empresa en que ocurrió. */
+export const formatearFechaDeInstante = (iso: string): string =>
+  formatearFecha(diaEmpresa(iso));
 
 const MESES = [
   'Enero',

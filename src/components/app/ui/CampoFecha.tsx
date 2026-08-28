@@ -7,7 +7,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
 } from '@tabler/icons-react';
-import { expandirAnio } from '@/lib/fechas';
+import { expandirAnio, hoyISO, partesDeFecha } from '@/lib/fechas';
 
 const MESES = [
   'Enero',
@@ -96,10 +96,13 @@ export const CampoFecha = ({
   const [montado, setMontado] = useState(false);
   const contenedor = useRef<HTMLDivElement>(null);
 
-  const hoy = new Date();
+  // Sin valor, el calendario abre en el mes de NEGOCIO. Con el reloj del
+  // dispositivo, el 31 a la noche abría en el mes siguiente y el día que
+  // la persona quería elegir no estaba a la vista.
+  const hoy = partesDeFecha(hoyISO());
   const base = value ? value.split('-').map(Number) : null;
-  const [anio, setAnio] = useState(base ? base[0] : hoy.getFullYear());
-  const [mes, setMes] = useState(base ? base[1] - 1 : hoy.getMonth());
+  const [anio, setAnio] = useState(base ? base[0] : hoy.anio);
+  const [mes, setMes] = useState(base ? base[1] - 1 : hoy.mes - 1);
 
   useEffect(() => {
     setMontado(true);

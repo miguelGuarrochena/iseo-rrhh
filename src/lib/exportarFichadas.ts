@@ -20,6 +20,7 @@ import {
   minutosAHhMm,
   Resumen,
 } from '@/lib/fichadas';
+import { formatearInstante } from '@/lib/fechas';
 
 /** Columnas que se repiten para cada día del rango. */
 const COLUMNAS_DIA = [
@@ -170,7 +171,11 @@ export const descargarResumenFichadas = async ({
     `Período: ${aDdMmAaaa(resumen.desde)} a ${aDdMmAaaa(resumen.hasta)}`,
   ]);
   hojaFiltros.addRow([`Empresa: ${empresa}`]);
-  hojaFiltros.addRow([`Generado: ${new Date().toLocaleString('es-AR')}`]);
+  // Hora de la empresa: el archivo se manda por mail y la marca de
+  // generación tiene que decir lo mismo para todos.
+  hojaFiltros.addRow([
+    `Generado: ${formatearInstante(new Date().toISOString())}`,
+  ]);
   hojaFiltros.addRow([]);
   if (filtros.length > 0) {
     filtros.forEach((f) => hojaFiltros.addRow([f]));

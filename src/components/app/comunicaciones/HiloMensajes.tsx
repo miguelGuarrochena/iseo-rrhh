@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Comunicacion, ComunicacionMensaje } from '@/types/rrhh';
+import { formatearInstante } from '@/lib/fechas';
 
 interface HiloMensajesProps {
   comunicacion: Comunicacion;
@@ -75,7 +76,7 @@ export const HiloMensajes = ({
               {m.cuerpo}
             </div>
             <p className="px-1 text-[0.6rem] text-ink-soft">
-              {new Date(m.creadoEn).toLocaleString('es-AR', {
+              {formatearInstante(m.creadoEn, {
                 day: '2-digit',
                 month: '2-digit',
                 hour: '2-digit',

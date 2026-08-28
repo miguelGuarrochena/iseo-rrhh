@@ -2,6 +2,12 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enviarEmail } from '@/lib/email/resend';
 import { desdeIncidencias } from '@/lib/fichadas';
+import {
+  formatearFechaCivil,
+  hoyISO,
+  lunesDeSemanaEmpresa,
+  sumarDiasEmpresa,
+} from '@/lib/fechas';
 
 /**
  * Resumen semanal a quien administra RRHH en cada empresa.
@@ -88,21 +94,24 @@ const procesar = async (req: Request) => {
     return NextResponse.json({ ok: true, enviados: 0, motivo: 'desactivado' });
   }
 
-  const hoy = new Date();
-  const enUnMes = new Date(hoy);
-  enUnMes.setDate(enUnMes.getDate() + 30);
-  const hoyISO = hoy.toISOString().slice(0, 10);
-  const limiteISO = enUnMes.toISOString().slice(0, 10);
+  // Todo el resumen se fecha en la zona de negocio.
+  //
+  // Esto corre en Vercel con TZ=UTC: `toISOString()`, `getDay()` y
+  // `setDate()` daban el día, la semana y el límite de UTC. Con el cron
+  // los lunes a las 11:00 UTC (08:00 ART) coincidían con Argentina, pero
+  // era una propiedad del horario elegido y no de la cuenta. Un reintento
+  // de madrugada mandaba el resumen con la semana anterior como clave de
+  // dedup, o directamente lo saltaba.
+  const hoy = hoyISO();
+  const limiteISO = sumarDiasEmpresa(hoy, 30);
   // Misma ventana que usan la pantalla de Fichaje y el aviso de Inicio:
   // el mail no puede decir una cantidad distinta de la que se ve al
   // entrar a corregirlas.
-  const desdeIncidenciasISO = desdeIncidencias(hoy);
+  const desdeIncidenciasISO = desdeIncidencias();
 
   // Lunes de esta semana: la clave de dedup. Si el cron corre dos veces
   // (reintento, deploy, ejecución manual) el segundo no manda nada.
-  const lunes = new Date(hoy);
-  lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7));
-  const semana = lunes.toISOString().slice(0, 10);
+  const semana = lunesDeSemanaEmpresa(hoy);
 
   const { data: empresas } = await admin
     .from('empresas')
@@ -164,7 +173,7 @@ const procesar = async (req: Request) => {
             {
               p_empresa_id: empresa.id,
               p_desde: desdeIncidenciasISO,
-              p_hasta: hoyISO,
+              p_hasta: hoy,
               p_empleado_ids: null,
             },
             { count: 'exact', head: true }
@@ -176,7 +185,7 @@ const procesar = async (req: Request) => {
           .select('nombre, fecha_vencimiento')
           .eq('empresa_id', empresa.id)
           .not('fecha_vencimiento', 'is', null)
-          .gte('fecha_vencimiento', hoyISO)
+          .gte('fecha_vencimiento', hoy)
           .lte('fecha_vencimiento', limiteISO)
           .order('fecha_vencimiento')
           .limit(5),
@@ -191,9 +200,14 @@ const procesar = async (req: Request) => {
       jornadasSinCerrar: activo('fichaje') ? (incompletas.count ?? 0) : 0,
       vencimientos: (alertas.data ?? []).map((d) => ({
         titulo: String(d.nombre),
-        fecha: new Date(
-          `${String(d.fecha_vencimiento)}T00:00:00`
-        ).toLocaleDateString('es-AR'),
+        // Fecha civil: el vencimiento es un día, no un instante. Y va
+        // por el formateador compartido para que el mail diga lo mismo
+        // que la pantalla.
+        fecha: formatearFechaCivil(String(d.fecha_vencimiento), {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+        }),
       })),
     };
 

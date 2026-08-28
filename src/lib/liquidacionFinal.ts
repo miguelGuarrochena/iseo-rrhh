@@ -17,8 +17,15 @@ import {
   type EscalaVacaciones,
   type UnidadVacaciones,
 } from '@/lib/vacaciones';
+import { diasEntre, partesDeFecha } from '@/lib/fechas';
 
-const MS_POR_DIA = 1000 * 60 * 60 * 24;
+/**
+ * Todo lo de acá son fechas CIVILES: ingreso, baja, bordes de semestre.
+ * Ninguna es un instante, así que la cuenta se hace sobre "YYYY-MM-DD" y
+ * no construyendo `Date`. Con `Date` el resultado quedaba atado al huso
+ * del dispositivo —correcto en Argentina, que no tiene horario de verano,
+ * pero por casualidad y no por diseño.
+ */
 
 /**
  * Días de vacaciones que se pagan al irse (art. 156 LCT): los que le
@@ -31,11 +38,9 @@ export const diasVacacionesProporcionales = (
   diasYaGozados: number,
   escala: EscalaVacaciones = ESCALA_LCT
 ): number => {
-  const baja = new Date(`${fechaBajaISO}T00:00:00`);
-  const ingreso = new Date(`${fechaIngresoISO}T00:00:00`);
-  if (Number.isNaN(baja.getTime()) || Number.isNaN(ingreso.getTime())) return 0;
+  if (!fechaBajaISO || !fechaIngresoISO) return 0;
 
-  const anio = baja.getFullYear();
+  const anio = partesDeFecha(fechaBajaISO).anio;
   const correspondenPorAnio = diasVacacionesPorAntiguedad(
     fechaIngresoISO,
     anio,
@@ -44,9 +49,10 @@ export const diasVacacionesProporcionales = (
   // Si entró este mismo año, el proporcional se cuenta desde su ingreso,
   // no desde el 1 de enero.
   const inicio =
-    ingreso.getFullYear() === anio ? ingreso : new Date(anio, 0, 1);
-  const diasEnElAnio =
-    Math.round((baja.getTime() - inicio.getTime()) / MS_POR_DIA) + 1;
+    partesDeFecha(fechaIngresoISO).anio === anio
+      ? fechaIngresoISO
+      : `${anio}-01-01`;
+  const diasEnElAnio = diasEntre(inicio, fechaBajaISO);
   if (diasEnElAnio <= 0) return 0;
 
   const proporcionales = (correspondenPorAnio * diasEnElAnio) / 365;
@@ -69,28 +75,19 @@ export const fraccionSemestreHastaBaja = (
   fechaIngresoISO: string,
   fechaBajaISO: string
 ): number => {
-  const baja = new Date(`${fechaBajaISO}T00:00:00`);
-  const ingreso = new Date(`${fechaIngresoISO}T00:00:00`);
-  if (Number.isNaN(baja.getTime()) || Number.isNaN(ingreso.getTime())) return 0;
+  if (!fechaBajaISO || !fechaIngresoISO) return 0;
 
-  const anio = baja.getFullYear();
-  const primerSemestre = baja.getMonth() <= 5;
-  const inicioSemestre = primerSemestre
-    ? new Date(anio, 0, 1)
-    : new Date(anio, 6, 1);
-  const finSemestre = primerSemestre
-    ? new Date(anio, 5, 30)
-    : new Date(anio, 11, 31);
+  const { anio, mes } = partesDeFecha(fechaBajaISO);
+  const primerSemestre = mes <= 6;
+  const inicioSemestre = primerSemestre ? `${anio}-01-01` : `${anio}-07-01`;
+  const finSemestre = primerSemestre ? `${anio}-06-30` : `${anio}-12-31`;
 
-  const desde = ingreso > inicioSemestre ? ingreso : inicioSemestre;
-  if (baja < desde) return 0;
+  const desde =
+    fechaIngresoISO > inicioSemestre ? fechaIngresoISO : inicioSemestre;
+  if (fechaBajaISO < desde) return 0;
 
-  const diasSemestre =
-    Math.round(
-      (finSemestre.getTime() - inicioSemestre.getTime()) / MS_POR_DIA
-    ) + 1;
-  const diasTrabajados =
-    Math.round((baja.getTime() - desde.getTime()) / MS_POR_DIA) + 1;
+  const diasSemestre = diasEntre(inicioSemestre, finSemestre);
+  const diasTrabajados = diasEntre(desde, fechaBajaISO);
   return Math.max(0, Math.min(1, diasTrabajados / diasSemestre));
 };
 

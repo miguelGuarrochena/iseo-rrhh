@@ -34,7 +34,12 @@ import {
   formatearMinutos,
   resumirControlTurnos,
 } from '@/lib/turnos';
-import { finDeMesEmpresa, hoyISO, sumarDiasEmpresa } from '@/lib/fechas';
+import {
+  finDeMesEmpresa,
+  formatearFechaCivil,
+  hoyISO,
+  sumarDiasEmpresa,
+} from '@/lib/fechas';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { Ausencia, Empleado, Fichaje, Turno } from '@/types/rrhh';
 import { RequireModulo } from '@/components/app/RequireModulo';
@@ -138,7 +143,7 @@ const FilaDia = ({
       <div className="w-24 shrink-0">
         <p className="text-sm font-bold text-ink">{etiqueta}</p>
         <p className="text-xs text-ink-soft">
-          {new Date(`${fecha}T00:00:00`).toLocaleDateString('es-AR', {
+          {formatearFechaCivil(fecha, {
             day: '2-digit',
             month: '2-digit',
           })}
@@ -512,11 +517,7 @@ const TurnosPage = () => {
             <IconChevronLeft size={16} />
           </button>
           <span className="text-sm font-semibold text-ink">
-            Semana del{' '}
-            {new Date(`${dias[0]}T00:00:00`).toLocaleDateString('es-AR', {
-              day: 'numeric',
-              month: 'short',
-            })}
+            Semana del {formatearFechaCivil(dias[0])}
           </span>
           <button
             type="button"
