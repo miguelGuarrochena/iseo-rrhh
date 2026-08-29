@@ -24,6 +24,7 @@ import type { HorasExtrasPeriodo } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   calcularLiquidacion,
+  errorDeLimitesLiquidacion,
   APORTES_TOTAL,
   HORAS_MENSUALES,
   tieneAportesDeLey,
@@ -124,6 +125,10 @@ export const RemuneracionModal = ({
     aprobadas: 0,
   });
   const [horasMensuales, setHorasMensuales] = useState(HORAS_MENSUALES);
+  /** Tope de la base imponible del período; sin configurar, sin tope. */
+  const [topeImponible, setTopeImponible] = useState<number | undefined>(
+    undefined
+  );
   const [regimen, setRegimen] = useState<RegimenLaboral>(
     'relacion_dependencia'
   );
@@ -194,10 +199,12 @@ export const RemuneracionModal = ({
     void getEmpresa()
       .then((e) => {
         setHorasMensuales(e.config.horasMensuales ?? HORAS_MENSUALES);
+        setTopeImponible(e.config.topeImponibleAportes);
         setRegimen(e.regimen ?? 'relacion_dependencia');
       })
       .catch(() => {
         setHorasMensuales(HORAS_MENSUALES);
+        setTopeImponible(undefined);
         setRegimen('relacion_dependencia');
       });
   }, [abierto]);
@@ -278,6 +285,18 @@ export const RemuneracionModal = ({
     noRemunerativo: num(noRem),
     otrosDescuentos: otrosTotal,
     regimen,
+    topeImponible,
+  });
+  /**
+   * Art. 133 LCT (tope del 20%) y neto negativo. Se avisa mientras se
+   * escribe y se frena al guardar: antes el único freno era la constraint
+   * de Postgres, que aparecía como "violates check constraint".
+   */
+  const errorLimites = errorDeLimitesLiquidacion({
+    montoBruto: num(bruto),
+    noRemunerativo: num(noRem),
+    otrosDescuentos: otrosTotal,
+    aportes,
   });
 
   const guardar = async () => {
@@ -295,6 +314,10 @@ export const RemuneracionModal = ({
     }
     if (num(noRem) < 0 || num(adicional) < 0) {
       setError('Los importes no pueden ser negativos.');
+      return;
+    }
+    if (errorLimites) {
+      setError(errorLimites);
       return;
     }
     setError(null);
@@ -537,7 +560,11 @@ export const RemuneracionModal = ({
             {conAportes && (
               <Renglon
                 etiqueta="Aportes del empleado"
-                detalle={`jubilación + PAMI + obra social (${Math.round(APORTES_TOTAL * 100)}%)`}
+                detalle={
+                  topeImponible && num(bruto) > topeImponible
+                    ? `jubilación + PAMI + obra social (${Math.round(APORTES_TOTAL * 100)}% sobre el tope de ${formatearPesos(topeImponible)})`
+                    : `jubilación + PAMI + obra social (${Math.round(APORTES_TOTAL * 100)}%)`
+                }
                 valor={formatearPesos(aportes)}
                 resta
               />
@@ -560,9 +587,21 @@ export const RemuneracionModal = ({
           </div>
           <p className="mt-2 text-xs text-ink-soft">
             {conAportes
-              ? 'Estimación para gestión interna; la liquidación oficial la hace tu contador.'
+              ? 'Estimación para gestión interna; la liquidación oficial la hace tu contador. No incluye la retención de Ganancias ni aportes de convenio: el neto real puede ser menor.'
               : 'Esta empresa está configurada como régimen simplificado: no se retienen aportes de ley. Si la empresa paga el monotributo, cargalo en la ficha del colaborador para que entre en el costo del mes.'}
           </p>
+          {conAportes && !topeImponible && (
+            <p className="mt-1.5 text-xs text-ink-soft">
+              Sin tope de base imponible cargado, los aportes salen sobre el
+              bruto completo. Cargalo en Configuración → Remuneraciones para que
+              el cálculo respete el límite del art. 9 de la Ley 24.241.
+            </p>
+          )}
+          {errorLimites && (
+            <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900">
+              {errorLimites}
+            </p>
+          )}
         </div>
 
         {error &&

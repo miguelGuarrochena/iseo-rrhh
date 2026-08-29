@@ -402,6 +402,10 @@ export const getAuditoria = elegir(real.getAuditoria, demo.getAuditoria);
 
 // ---------- Feriados ----------
 export const getFeriados = elegir(real.getFeriados, demo.getFeriados);
+export const getFeriadosParaCalculo = elegir(
+  real.getFeriadosParaCalculo,
+  demo.getFeriadosParaCalculo
+);
 export const guardarFeriados = elegir(
   real.guardarFeriados,
   demo.guardarFeriados

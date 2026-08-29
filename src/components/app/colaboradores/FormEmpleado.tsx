@@ -265,8 +265,17 @@ export const FormEmpleado = ({
       email: validarEmail(datos.email ?? ''),
       telefono: validarTelefono(datos.telefono ?? ''),
       cbu: validarCbu(datos.cbu ?? ''),
-      // Puesto, sector y fecha de ingreso se pueden completar después
-      // desde la ficha (mismo criterio que la importación por Excel).
+      // Puesto, sector y fecha de ingreso son `not null` en la base: sin
+      // ellos el guardado falla entero con el mensaje crudo de Postgres y
+      // ni siquiera se guardan los campos que sí estaban bien. La fecha
+      // de ingreso, además, es la base de la antigüedad y de todo el
+      // cálculo de vacaciones.
+      puesto: validarRequerido(datos.puesto ?? '', 'El puesto'),
+      sector: validarRequerido(datos.sector ?? '', 'El sector'),
+      fechaIngreso: validarRequerido(
+        datos.fechaIngreso ?? '',
+        'La fecha de ingreso'
+      ),
       fechaFinContrato:
         datos.modalidadContratacion === 'plazo_fijo' && !datos.fechaFinContrato
           ? 'El contrato a plazo fijo necesita fecha de fin.'

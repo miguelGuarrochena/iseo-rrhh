@@ -108,6 +108,19 @@ export interface ConfigEmpresa {
    */
   horasMensuales?: number;
   /**
+   * Tope máximo de la base imponible para los aportes personales
+   * (jubilación, PAMI y obra social), en pesos del período.
+   *
+   * El art. 9 de la Ley 24.241 fija un límite por encima del cual no se
+   * aporta, y ANSES lo actualiza cada trimestre. Por eso es un número
+   * configurable y no una constante: cablearlo garantiza que quede viejo.
+   *
+   * Sin definir, no se aplica tope y los aportes salen sobre el bruto
+   * completo — que es lo que hacía la app antes de existir este campo, y
+   * lo que corresponde mientras nadie cargue el valor vigente.
+   */
+  topeImponibleAportes?: number;
+  /**
    * Si la empresa recibe el resumen semanal por mail. Ausente = sí, así
    * las empresas que ya existen lo tienen sin tocar nada.
    *
@@ -534,15 +547,46 @@ export type TipoAusencia =
   | 'home_office'
   | 'casamiento'
   | 'donacion_sangre'
-  | 'examenes';
+  | 'examenes'
+  | 'maternidad'
+  | 'nacimiento'
+  | 'excedencia';
 
-/** Tipos de licencia legal con cupo anual configurable. */
+/**
+ * Licencias que la ley otorga por HECHO GENERADOR, no por año.
+ *
+ * El art. 158 concede diez días corridos por matrimonio, tres por
+ * fallecimiento de cónyuge/hijos/padres, uno por fallecimiento de hermano
+ * y dos por nacimiento de hijo — cada vez que el hecho ocurre. Un cupo
+ * anual sobre estos tipos le niega al trabajador la segunda licencia del
+ * año, que es exactamente el derecho que el artículo le da.
+ *
+ * Lo mismo vale para maternidad (art. 177) y excedencia (art. 183): son
+ * licencias de duración legal propia, no un saldo que se consume.
+ *
+ * Estar en esta lista significa: nunca tienen cupo, ni en la
+ * configuración ni en el control de la base.
+ */
+export const TIPOS_LICENCIA_POR_EVENTO: TipoAusencia[] = [
+  'fallecimiento',
+  'casamiento',
+  'nacimiento',
+  'maternidad',
+  'excedencia',
+];
+
+/**
+ * Tipos de licencia con cupo anual configurable.
+ *
+ * `examenes` está acá por el art. 158 inc. e, que sí fija un máximo de
+ * diez días por año calendario. `mudanza`, `estudio` y `especial` son
+ * convencionales: el tope lo decide el convenio o el acuerdo de cada
+ * empresa, y por eso siguen siendo configurables.
+ */
 export const TIPOS_LICENCIA_CON_CUPO: TipoAusencia[] = [
   'mudanza',
-  'casamiento',
   'donacion_sangre',
   'examenes',
-  'fallecimiento',
   'estudio',
   'especial',
 ];
@@ -981,6 +1025,11 @@ export interface DocumentoFirma {
   archivoUrl: string;
   creadoPor?: string;
   creadoEn: string;
+  /**
+   * Si tiene fecha, salió de circulación. Se archiva en vez de borrarse
+   * cuando ya alguien lo firmó: la constancia de esa firma es prueba.
+   */
+  archivadoEn?: string;
 }
 
 export interface DocumentoFirmaDestinatario {

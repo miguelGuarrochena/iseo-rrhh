@@ -139,35 +139,40 @@ describe('art. 151: la mitad de los días hábiles del año', () => {
     expect(diasHabilesArt151('2026-06-15', '2026-06-19')).toBe(5);
   });
 
-  it('un feriado en el que esa persona normalmente NO trabaja no cuenta', () => {
-    // `sinPrestacion` son los días en que ese puesto no presta servicios.
-    expect(
-      diasHabilesArt151('2026-06-15', '2026-06-19', new Set(['2026-06-17']))
-    ).toBe(4);
+  it('cuenta lunes a viernes y nada más (F-18)', () => {
+    /**
+     * La función no tiene forma de excluir días sueltos, y es a propósito:
+     * el `sinPrestacion` que tenía no lo usaba ningún llamador y la
+     * función SQL espejo, `dias_habiles_art151`, ni siquiera lo tenía. El
+     * primero que lo hubiera usado habría hecho que la pantalla y la base
+     * calcularan cupos distintos para el mismo legajo.
+     *
+     * Las jornadas de seis días son una decisión de negocio pendiente y
+     * se resuelve en los dos lados a la vez.
+     */
+    // Semana con el feriado del 17 de junio adentro: cuenta igual.
+    expect(diasHabilesArt151('2026-06-15', '2026-06-19')).toBe(5);
+    // Sábado y domingo nunca cuentan.
+    expect(diasHabilesArt151('2026-06-20', '2026-06-21')).toBe(0);
   });
 
   describe('el borde exacto del 50%', () => {
     /**
      * "La mitad, como mínimo": la mitad exacta ALCANZA.
      *
-     * 2026 tiene 261 hábiles, que es impar y no se puede partir al
-     * medio. Se descuenta el 1 de enero —un día en el que esta persona no
-     * presta servicios— para dejar un denominador par de 260, y así el
-     * borde se puede tocar con precisión de un día.
+     * Hace falta un año con una cantidad PAR de días hábiles para poder
+     * tocar el borde con precisión de un día. 2026 tiene 261, que es
+     * impar; 2024 tiene 262 y sirve.
      */
-    const sinPrestacion = new Set(['2026-01-01']);
-    const delAnio = diasHabilesArt151(
-      '2026-01-01',
-      '2026-12-31',
-      sinPrestacion
-    );
+    const ANIO = 2024;
+    const delAnio = diasHabilesArt151(`${ANIO}-01-01`, `${ANIO}-12-31`);
 
     /** El ingreso más tardío que todavía deja `n` hábiles hasta el 31/12. */
     const ingresoConHabiles = (n: number): string => {
-      let fecha = '2026-01-01';
+      let fecha = `${ANIO}-01-01`;
       for (let i = 0; i < 366; i += 1) {
-        const candidato = sumarDiasEmpresa('2026-01-01', i);
-        if (diasHabilesArt151(candidato, '2026-12-31', sinPrestacion) === n) {
+        const candidato = sumarDiasEmpresa(`${ANIO}-01-01`, i);
+        if (diasHabilesArt151(candidato, `${ANIO}-12-31`) === n) {
           fecha = candidato;
         }
       }
@@ -175,34 +180,32 @@ describe('art. 151: la mitad de los días hábiles del año', () => {
     };
 
     it('el denominador queda par para poder tocar el borde', () => {
-      expect(delAnio).toBe(260);
+      expect(delAnio).toBe(262);
       expect(delAnio % 2).toBe(0);
     });
 
     it('la mitad exacta da derecho al período completo', () => {
-      const ingreso = ingresoConHabiles(delAnio / 2); // 130
+      const ingreso = ingresoConHabiles(delAnio / 2); // 131
       const datos = {
         fechaIngreso: ingreso,
         fechaBaja: undefined,
-        anio: 2026,
-        sinPrestacion,
+        anio: ANIO,
       };
-      expect(diasTrabajadosArt151(datos)).toBe(130);
+      expect(diasTrabajadosArt151(datos)).toBe(131);
       expect(cumpleRequisitoArt151(datos)).toBe(true);
       expect(calcularVacacionesLegalesCorridas(datos)).toBe(14);
     });
 
     it('un día hábil menos que la mitad ya no alcanza', () => {
-      const ingreso = ingresoConHabiles(delAnio / 2 - 1); // 129
+      const ingreso = ingresoConHabiles(delAnio / 2 - 1); // 130
       const datos = {
         fechaIngreso: ingreso,
         fechaBaja: undefined,
-        anio: 2026,
-        sinPrestacion,
+        anio: ANIO,
       };
-      expect(diasTrabajadosArt151(datos)).toBe(129);
+      expect(diasTrabajadosArt151(datos)).toBe(130);
       expect(cumpleRequisitoArt151(datos)).toBe(false);
-      // Y cae al proporcional del art. 153: 129 / 20 → 6.
+      // Y cae al proporcional del art. 153: 130 / 20 → 6.
       expect(calcularVacacionesLegalesCorridas(datos)).toBe(6);
     });
   });

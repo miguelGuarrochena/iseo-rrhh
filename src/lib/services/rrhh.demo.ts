@@ -62,10 +62,19 @@ import {
   diasVacacionesDeRangoEnAnio,
   diasVacacionesCorresponden,
 } from '@/lib/vacaciones';
-import { calcularLiquidacion } from '@/lib/remuneraciones';
+import {
+  calcularLiquidacion,
+  errorDeLimiteAdelanto,
+  errorDeLimitesLiquidacion,
+} from '@/lib/remuneraciones';
+import {
+  diasLicenciaAprobadosEnAnio,
+  esLicenciaPorEvento,
+} from '@/lib/seguridad/cuposLicencia';
 import {
   diaEmpresa,
   diasAusencia,
+  diasCorridosEnAnio,
   hoyISO,
   mesEmpresa,
   sumarDiasEmpresa,
@@ -78,7 +87,11 @@ import { distanciaMetros } from '@/lib/facial/ubicacion';
  */
 const MARGEN_RELOJ_MS = 5 * 60 * 1000;
 import { VERSION_PLANTILLA } from '@/lib/facial/plantilla';
-import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
+import {
+  aniosFeriadosAsegurar,
+  fechasNoLaborables,
+  feriadosSugeridos,
+} from '@/lib/feriados';
 import {
   puedeAprobarLicenciaContraCupo,
   saldoLicenciaDisponibleDe,
@@ -798,30 +811,40 @@ export const crearAusencia = async (
   const estado: Ausencia['estado'] = datos.aprobarAutomaticamente
     ? 'aprobada'
     : 'pendiente';
-  // Espejo DB (BUG-010): solo al quedar aprobada se exige cupo.
+  // Espejo DB (BUG-010): solo al quedar aprobada se exige cupo, y se
+  // revisa cada año que el rango toca (F-06), igual que el trigger.
   if (estado === 'aprobada') {
-    const anio = Number(datos.fechaDesde.slice(0, 4));
     const previas = ausenciasMock.filter(
       (a) => a.empleadoId === datos.empleadoId
     );
-    if (
-      !puedeAprobarLicenciaContraCupo(
-        cuposLicenciaMock,
-        previas,
-        datos.tipo,
-        anio,
-        dias
-      )
-    ) {
-      const quedan = saldoLicenciaDisponibleDe(
-        cuposLicenciaMock,
-        previas,
-        datos.tipo,
+    const desde = Number(datos.fechaDesde.slice(0, 4));
+    const hasta = Number(datos.fechaHasta.slice(0, 4));
+    for (let anio = desde; anio <= hasta; anio += 1) {
+      const pedidos = diasCorridosEnAnio(
+        datos.fechaDesde,
+        datos.fechaHasta,
         anio
       );
-      throw new Error(
-        `No hay días de licencia suficientes para ${datos.tipo} (pedís ${dias}, quedan ${Math.max(0, quedan ?? 0)})`
-      );
+      if (pedidos === 0) continue;
+      if (
+        !puedeAprobarLicenciaContraCupo(
+          cuposLicenciaMock,
+          previas,
+          datos.tipo,
+          anio,
+          pedidos
+        )
+      ) {
+        const quedan = saldoLicenciaDisponibleDe(
+          cuposLicenciaMock,
+          previas,
+          datos.tipo,
+          anio
+        );
+        throw new Error(
+          `No hay días de licencia suficientes para ${datos.tipo} en ${anio} (pedís ${pedidos}, quedan ${Math.max(0, quedan ?? 0)})`
+        );
+      }
     }
   }
   const nueva: Ausencia = {
@@ -956,6 +979,11 @@ export const getSaldoVacaciones = async (
     fechaBaja: empleado.fechaBaja,
     ausencias: delEmpleado,
   });
+  // Los mismos feriados que usa `crearAusencia`: sin ellos el saldo
+  // descontaba días que la carga no consumía (F-02).
+  const feriados = habiles
+    ? fechasNoLaborables(feriadosMock)
+    : new Set<string>();
   const enAnio = (estado: 'aprobada' | 'pendiente') =>
     delEmpleado.reduce((acc, a) => {
       if (a.tipo !== 'vacaciones' || a.estado !== estado) return acc;
@@ -963,6 +991,7 @@ export const getSaldoVacaciones = async (
         acc +
         diasVacacionesDeRangoEnAnio(a.fechaDesde, a.fechaHasta, anio, {
           habiles,
+          feriados: habiles ? feriados : undefined,
         })
       );
     }, 0);
@@ -1740,6 +1769,15 @@ export const cargarRemuneracion = async (
   datos: NuevaRemuneracion
 ): Promise<Remuneracion> => {
   const { aportes, neto } = calcularLiquidacion(datos);
+  // Mismo control que el servicio real: la demo tiene que fallar donde
+  // falla la app, si no se prueba una cosa y se usa otra.
+  const limite = errorDeLimitesLiquidacion({
+    montoBruto: datos.montoBruto,
+    noRemunerativo: datos.noRemunerativo,
+    otrosDescuentos: datos.otrosDescuentos,
+    aportes,
+  });
+  if (limite) throw new Error(limite);
   const tipo = datos.tipo ?? 'mensual';
   const existente = remuneracionesMock.find(
     (r) =>
@@ -1917,6 +1955,15 @@ export const solicitarAdelanto = async (
   monto: number,
   motivo?: string
 ): Promise<Adelanto> => {
+  // Art. 130 LCT, igual que en el servicio real.
+  const ultimoBruto = remuneracionesMock
+    .filter(
+      (r) => r.empleadoId === empleadoId && (r.tipo ?? 'mensual') === 'mensual'
+    )
+    .sort((a, b) => b.periodo.localeCompare(a.periodo))[0]?.montoBruto;
+  const limite = errorDeLimiteAdelanto(monto, ultimoBruto);
+  if (limite) throw new Error(limite);
+
   const nuevo: Adelanto = {
     id: `ade-${Date.now()}`,
     empleadoId,
@@ -2178,14 +2225,19 @@ export const eliminarFacturaMonotributo = async (id: string): Promise<void> => {
 export const getCuposLicencia = async (): Promise<CupoLicencia[]> =>
   simular([...cuposLicenciaMock]);
 
+/** `null` = sin límite, y se expresa quitando la fila. */
 export const guardarCupoLicencia = async (
   tipo: TipoAusencia,
-  diasAnuales: number
-): Promise<CupoLicencia> => {
-  const existente = cuposLicenciaMock.find((c) => c.tipo === tipo);
-  if (existente) {
-    existente.diasAnuales = diasAnuales;
-    return simular(existente);
+  diasAnuales: number | null
+): Promise<CupoLicencia | null> => {
+  const i = cuposLicenciaMock.findIndex((c) => c.tipo === tipo);
+  if (diasAnuales === null) {
+    if (i >= 0) cuposLicenciaMock.splice(i, 1);
+    return simular(null);
+  }
+  if (i >= 0) {
+    cuposLicenciaMock[i].diasAnuales = diasAnuales;
+    return simular(cuposLicenciaMock[i]);
   }
   const nuevo: CupoLicencia = {
     id: `cupo-${Date.now()}`,
@@ -2203,22 +2255,17 @@ export const getSaldosLicencia = async (
 ): Promise<SaldoLicencia[]> => {
   const ausencias = ausenciasMock.filter((a) => a.empleadoId === empleadoId);
   return simular(
-    cuposLicenciaMock.map((c) => {
-      const usados = ausencias
-        .filter(
-          (a) =>
-            a.tipo === c.tipo &&
-            a.estado === 'aprobada' &&
-            a.fechaDesde.startsWith(String(anio))
-        )
-        .reduce((acc, a) => acc + a.dias, 0);
-      return {
-        tipo: c.tipo,
-        diasAnuales: c.diasAnuales,
-        diasUtilizados: usados,
-        diasDisponibles: Math.max(0, c.diasAnuales - usados),
-      };
-    })
+    cuposLicenciaMock
+      .filter((c) => !esLicenciaPorEvento(c.tipo))
+      .map((c) => {
+        const usados = diasLicenciaAprobadosEnAnio(ausencias, c.tipo, anio);
+        return {
+          tipo: c.tipo,
+          diasAnuales: c.diasAnuales,
+          diasUtilizados: usados,
+          diasDisponibles: c.diasAnuales - usados,
+        };
+      })
   );
 };
 
@@ -2313,6 +2360,14 @@ export const getFeriados = async (anio?: number): Promise<Feriado[]> => {
       .sort((a, b) => (a.fecha < b.fecha ? -1 : 1))
   );
 };
+
+/**
+ * Espejo de `getFeriadosParaCalculo` del servicio real: sólo los no
+ * laborables. En demo no hay sincronización que pueda fallar.
+ */
+export const getFeriadosParaCalculo = async (
+  anio?: number
+): Promise<Set<string>> => fechasNoLaborables(await getFeriados(anio));
 
 export const guardarFeriados = async (
   nuevos: NuevoFeriado[]

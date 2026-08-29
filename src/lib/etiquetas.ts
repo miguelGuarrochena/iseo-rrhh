@@ -1,5 +1,6 @@
 import {
   Icon,
+  IconBabyCarriage,
   IconBeach,
   IconClockHour4,
   IconClockPause,
@@ -9,6 +10,7 @@ import {
   IconHome,
   IconLicense,
   IconSchool,
+  IconMoodKid,
   IconStethoscope,
   IconTruck,
   IconWriting,
@@ -41,6 +43,9 @@ export const tipoAusenciaLabels: Record<TipoAusencia, string> = {
   casamiento: 'Casamiento',
   donacion_sangre: 'Donación de sangre',
   examenes: 'Exámenes',
+  maternidad: 'Maternidad',
+  nacimiento: 'Nacimiento de hijo',
+  excedencia: 'Excedencia',
 };
 
 export const tipoAusenciaIconos: Record<TipoAusencia, Icon> = {
@@ -57,6 +62,9 @@ export const tipoAusenciaIconos: Record<TipoAusencia, Icon> = {
   casamiento: IconHeartHandshake,
   donacion_sangre: IconHeartHandshake,
   examenes: IconWriting,
+  maternidad: IconBabyCarriage,
+  nacimiento: IconMoodKid,
+  excedencia: IconDoorExit,
 };
 
 /**
@@ -77,6 +85,9 @@ export const tipoAusenciaColores: Record<TipoAusencia, string> = {
   casamiento: 'bg-pink-500',
   donacion_sangre: 'bg-rose-600',
   examenes: 'bg-indigo-500',
+  maternidad: 'bg-fuchsia-500',
+  nacimiento: 'bg-sky-500',
+  excedencia: 'bg-stone-500',
 };
 
 /** Tipos de jornada (se alinean con Turnos; también se pueden cargar a mano). */

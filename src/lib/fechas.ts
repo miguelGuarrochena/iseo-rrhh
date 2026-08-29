@@ -78,6 +78,46 @@ export const diasAusencia = (
 };
 
 /**
+ * Días corridos de un rango que caen dentro de un año calendario.
+ *
+ * Es la misma pregunta que resuelve `diasVacacionesDeRangoEnAnio` pero sin
+ * la rama de días hábiles: las licencias del art. 158 se cuentan siempre
+ * en corridos. Existe porque el cupo anual de una licencia que cruza el
+ * 31/12 se imputaba entero al año en que empezaba — el mismo BUG-012 que
+ * ya se había arreglado en vacaciones y que seguía vivo acá.
+ */
+export const diasCorridosEnAnio = (
+  desde: string,
+  hasta: string,
+  anio: number | string
+): number => {
+  const y = Number(anio);
+  const ini = desde > `${y}-01-01` ? desde : `${y}-01-01`;
+  const fin = hasta < `${y}-12-31` ? hasta : `${y}-12-31`;
+  if (fin < ini) return 0;
+  return diasEntre(ini, fin);
+};
+
+/**
+ * Días hábiles (lun–vie) de un rango que caen dentro de un mes de negocio
+ * ("YYYY-MM"). Es lo que necesita el ausentismo para no imputarle a un mes
+ * los días de una ausencia que pertenecen al siguiente.
+ */
+export const diasHabilesEnMes = (
+  desde: string,
+  hasta: string,
+  mes: string,
+  feriados?: Set<string>
+): number => {
+  const inicioMes = `${mes}-01`;
+  const finMes = finDeMesEmpresa(mes);
+  const ini = desde > inicioMes ? desde : inicioMes;
+  const fin = hasta < finMes ? hasta : finMes;
+  if (fin < ini) return 0;
+  return diasHabilesEntre(ini, fin, feriados);
+};
+
+/**
  * Una fecha CIVIL para mostrar. "1982-05-14" siempre se lee 14 de mayo.
  *
  * El `T00:00:00` sin zona la ancla a la medianoche LOCAL, y se formatea

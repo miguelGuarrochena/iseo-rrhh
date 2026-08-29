@@ -83,78 +83,100 @@ const procesar = async (req: Request) => {
   /** Avisos que no se pudieron entregar. Se devuelven para poder alertar. */
   let fallos = 0;
 
-  // Marca dedup: intenta insertar; si choca con el unique, ya se hizo.
+  /**
+   * Marca de dedup: intenta insertar; si choca con el unique, ya se hizo.
+   *
+   * Sólo la violación de unique (23505) significa "ya avisado". Cualquier
+   * otro error —una caída de red, un permiso— se trataba igual, así que
+   * un fallo transitorio silenciaba el recordatorio de ese período para
+   * siempre. Ahora se propaga: mejor reintentar que perderlo.
+   */
   const yaHecho = async (empresaId: string, tipo: string): Promise<boolean> => {
     const { error } = await admin
       .from('avisos_facturacion')
       .insert({ empresa_id: empresaId, periodo, tipo });
-    return Boolean(error);
+    if (!error) return false;
+    if (error.code === '23505') return true;
+    throw new Error(`No se pudo registrar el aviso ${tipo}: ${error.message}`);
   };
 
   for (const e of impagas) {
-    const abono = Number(e.abono_mensual) || 0;
+    // Una empresa que falla no puede dejar sin avisos a las que siguen:
+    // el error se registra, se cuenta y el bucle continúa.
+    try {
+      const abono = Number(e.abono_mensual) || 0;
 
-    if (enVentanaPrevio && e.contacto_email) {
-      if (!(await yaHecho(e.id, 'recordatorio'))) {
-        const vence = `${String(diaVenc).padStart(2, '0')}/${periodo.slice(
-          5,
-          7
-        )}/${periodo.slice(0, 4)}`;
-        const ok = await enviarEmail({
-          para: [e.contacto_email],
-          asunto: `Aviso de pago — Abono ${periodo} · ISEO RH`,
-          html: emailRecordatorio({
-            razonSocial: e.razon_social || e.nombre,
-            cuit: e.cuit ?? '',
-            domicilio: e.domicilio ?? '',
-            plan: e.plan ?? '',
-            contacto: e.contacto_nombre ?? '',
-            periodo,
-            monto: abono,
-            vence,
-          }),
-        });
-        if (ok) {
-          recordatorios += 1;
-        } else {
-          // La marca de dedup ya se insertó, así que este recordatorio no
-          // se reintenta nunca. Sin registrarlo, la empresa se queda sin
-          // el aviso de cobro y no queda rastro de por qué.
-          fallos += 1;
-          logError(
-            'No se pudo enviar el recordatorio de pago',
-            new Error('enviarEmail devolvió false'),
-            { ruta: '/api/cron/facturacion', empresaId: e.id, periodo }
-          );
-        }
-      }
-    }
-
-    if (vencido && superadmins.length > 0) {
-      if (!(await yaHecho(e.id, 'vencido'))) {
-        // Antes esto sumaba a `notificados` sin mirar el resultado: si el
-        // insert fallaba, la respuesta del cron informaba avisos que no
-        // existían y nadie se enteraba de nada.
-        const { error: errorNotif } = await admin.from('notificaciones').insert(
-          superadmins.map((s) => ({
-            usuario_id: s.id,
-            tipo: 'vencimiento',
-            titulo: 'Pago pendiente',
-            cuerpo: `${e.nombre} no registra el pago del abono de ${periodo}.`,
-            link: '/finanzas',
-          }))
-        );
-        if (errorNotif) {
-          fallos += 1;
-          logError('No se pudo notificar el vencimiento', errorNotif, {
-            ruta: '/api/cron/facturacion',
-            empresaId: e.id,
-            periodo,
+      if (enVentanaPrevio && e.contacto_email) {
+        if (!(await yaHecho(e.id, 'recordatorio'))) {
+          const vence = `${String(diaVenc).padStart(2, '0')}/${periodo.slice(
+            5,
+            7
+          )}/${periodo.slice(0, 4)}`;
+          const ok = await enviarEmail({
+            para: [e.contacto_email],
+            asunto: `Aviso de pago — Abono ${periodo} · ISEO RH`,
+            html: emailRecordatorio({
+              razonSocial: e.razon_social || e.nombre,
+              cuit: e.cuit ?? '',
+              domicilio: e.domicilio ?? '',
+              plan: e.plan ?? '',
+              contacto: e.contacto_nombre ?? '',
+              periodo,
+              monto: abono,
+              vence,
+            }),
           });
-        } else {
-          notificados += 1;
+          if (ok) {
+            recordatorios += 1;
+          } else {
+            // La marca de dedup ya se insertó, así que este recordatorio no
+            // se reintenta nunca. Sin registrarlo, la empresa se queda sin
+            // el aviso de cobro y no queda rastro de por qué.
+            fallos += 1;
+            logError(
+              'No se pudo enviar el recordatorio de pago',
+              new Error('enviarEmail devolvió false'),
+              { ruta: '/api/cron/facturacion', empresaId: e.id, periodo }
+            );
+          }
         }
       }
+
+      if (vencido && superadmins.length > 0) {
+        if (!(await yaHecho(e.id, 'vencido'))) {
+          // Antes esto sumaba a `notificados` sin mirar el resultado: si el
+          // insert fallaba, la respuesta del cron informaba avisos que no
+          // existían y nadie se enteraba de nada.
+          const { error: errorNotif } = await admin
+            .from('notificaciones')
+            .insert(
+              superadmins.map((s) => ({
+                usuario_id: s.id,
+                tipo: 'vencimiento',
+                titulo: 'Pago pendiente',
+                cuerpo: `${e.nombre} no registra el pago del abono de ${periodo}.`,
+                link: '/finanzas',
+              }))
+            );
+          if (errorNotif) {
+            fallos += 1;
+            logError('No se pudo notificar el vencimiento', errorNotif, {
+              ruta: '/api/cron/facturacion',
+              empresaId: e.id,
+              periodo,
+            });
+          } else {
+            notificados += 1;
+          }
+        }
+      }
+    } catch (err) {
+      fallos += 1;
+      logError('No se pudo procesar la facturación de la empresa', err, {
+        ruta: '/api/cron/facturacion',
+        empresaId: e.id,
+        periodo,
+      });
     }
   }
 

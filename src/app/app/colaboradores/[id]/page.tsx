@@ -56,6 +56,7 @@ import {
   getAusenciasDeEmpleado,
   getEmpleado,
   getEmpresa,
+  getFeriadosParaCalculo,
   getMiMes,
   getRemuneraciones,
   getSaldoVacaciones,
@@ -129,6 +130,8 @@ const FichaColaboradorPage = () => {
   });
   const regimen = cEmpresa.datos?.regimen ?? 'relacion_dependencia';
   /** Corridos o hábiles: cambia qué significan los números de vacaciones. */
+  const vacacionesEnHabiles =
+    unidadVacacionesDe(cEmpresa.datos?.config) === 'habiles';
   const unidadEmpresa =
     UNIDAD_VACACIONES_LABELS[unidadVacacionesDe(cEmpresa.datos?.config)];
 
@@ -216,6 +219,27 @@ const FichaColaboradorPage = () => {
   );
 
   /**
+   * Feriados del año de la baja.
+   *
+   * Sólo hacen falta cuando la empresa cuenta las vacaciones en días
+   * hábiles: ahí un feriado adentro del período no se consume, y contar
+   * lo gozado sin ellos daría de más.
+   */
+  const anioBaja = fechaBaja.slice(0, 4);
+  const cFeriadosBaja = useCarga(
+    // `ParaCalculo` y no `getFeriados`: acá los feriados entran en una
+    // cuenta de plata, así que no pueden ser los que el cliente arma en
+    // memoria cuando la sincronización falló.
+    () => getFeriadosParaCalculo(Number(anioBaja)),
+    [anioBaja],
+    {
+      activo: Boolean(fechaBaja) && vacacionesEnHabiles,
+      contexto: 'ficha/feriados-baja',
+      inicial: new Set<string>(),
+    }
+  );
+
+  /**
    * Días de vacaciones ya gozados **en el año de la baja**.
    *
    * No sale de `cSaldo`: ese saldo es del año en curso porque alimenta la
@@ -229,12 +253,19 @@ const FichaColaboradorPage = () => {
    * todavía no había tomado ninguno, y la empresa terminaba pagando de
    * nuevo vacaciones que ya se había tomado.
    *
-   * Se deriva de `ausencias`, que ya está en memoria, con el mismo
-   * criterio que usa `getSaldoVacaciones`.
+   * Y van **en la unidad de la empresa**, que es la parte que faltaba: la
+   * liquidación resta estos días de un cupo expresado en la unidad
+   * configurada. Contándolos siempre en corridos y restándolos de un cupo
+   * en hábiles, se restaba de más y se pagaban menos vacaciones de las
+   * que correspondían. Es el mismo criterio que usa `getSaldoVacaciones`.
    */
   const diasGozadosEnAnioBaja = useMemo(
-    () => diasVacacionesGozadosEn(ausencias, fechaBaja.slice(0, 4)),
-    [ausencias, fechaBaja]
+    () =>
+      diasVacacionesGozadosEn(ausencias, anioBaja, {
+        habiles: vacacionesEnHabiles,
+        feriados: vacacionesEnHabiles ? cFeriadosBaja.datos : undefined,
+      }),
+    [ausencias, anioBaja, vacacionesEnHabiles, cFeriadosBaja.datos]
   );
 
   /**
@@ -244,9 +275,12 @@ const FichaColaboradorPage = () => {
    *
    * Si las ausencias no se pudieron leer no se arma: sin ellas no se sabe
    * cuántos días de vacaciones ya se tomó, y suponer cero paga de más.
+   * Lo mismo con los feriados cuando la empresa cuenta en hábiles: sin
+   * ellos, lo gozado sale mal y el importe también.
    */
   const borradorBaja = useMemo(() => {
     if (!empleado || !fechaBaja || cAusencias.fase !== 'ok') return null;
+    if (vacacionesEnHabiles && cFeriadosBaja.fase !== 'ok') return null;
     const analisis = analizarSalario(
       remuneraciones,
       fechaBaja,
@@ -270,6 +304,8 @@ const FichaColaboradorPage = () => {
     diasGozadosEnAnioBaja,
     cAusencias.fase,
     cEmpresa.datos?.config,
+    vacacionesEnHabiles,
+    cFeriadosBaja.fase,
   ]);
 
   if (!usuario || rolEfectivo === 'empleado') {

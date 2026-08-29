@@ -205,22 +205,22 @@ export const AUSENCIAS_NO_COMPUTABLES_ART_152 = new Set<string>();
  * días hábiles, y ahí un feriado adentro del período efectivamente no se
  * consume. Dos preguntas distintas, dos funciones distintas.
  *
- * `sinPrestacion` son los días en que esa persona en particular no
- * trabajaba (un feriado que en su puesto no se trabaja, una jornada
- * reducida). Sin él, todo lunes a viernes cuenta.
+ * Lunes a viernes, fijo. Hubo un parámetro `sinPrestacion` para excluir
+ * los días que esa persona en particular no trabajaba, pero no lo usaba
+ * ningún llamador y la función SQL espejo, `dias_habiles_art151`, ni
+ * siquiera lo tenía: el primero que lo hubiera usado habría hecho que la
+ * pantalla y la base calcularan cupos distintos. Las jornadas de seis
+ * días son una decisión de negocio pendiente y se resuelve en los dos
+ * lados a la vez, no con un parámetro suelto de un solo lado.
  */
-export const diasHabilesArt151 = (
-  desde: string,
-  hasta: string,
-  sinPrestacion?: Set<string>
-): number => {
+export const diasHabilesArt151 = (desde: string, hasta: string): number => {
   if (hasta < desde) return 0;
   let n = 0;
   let cur = desde;
   // Cota de seguridad: un rango mal armado no puede colgar el cálculo.
   for (let i = 0; cur <= hasta && i < 800; i += 1) {
     const dia = diaSemanaEmpresa(cur);
-    if (dia !== 0 && dia !== 6 && !sinPrestacion?.has(cur)) n += 1;
+    if (dia !== 0 && dia !== 6) n += 1;
     cur = sumarDiasEmpresa(cur, 1);
   }
   return n;
@@ -254,11 +254,14 @@ export interface DatosVacacionesLegales {
    * art. 152 NO manda computar; el resto cuenta como trabajado.
    */
   ausencias?: Pick<Ausencia, 'tipo' | 'estado' | 'fechaDesde' | 'fechaHasta'>[];
-  /** Días en los que esa persona no debía prestar servicios. */
-  sinPrestacion?: Set<string>;
   /**
    * Tipos de ausencia que no se computan como trabajados. Por defecto,
    * los de `AUSENCIAS_NO_COMPUTABLES_ART_152` — hoy, ninguno.
+   *
+   * A diferencia del `sinPrestacion` que se sacó de acá, esto SÍ tiene
+   * espejo en la base: `tipos_ausencia_no_computables_art152()`. Se deja
+   * inyectable para poder probar la maquinaria sin inventar un tipo que
+   * no existe en el producto.
    */
   noComputables?: Set<string>;
 }
@@ -280,7 +283,7 @@ export const diasTrabajadosArt151 = (datos: DatosVacacionesLegales): number => {
     datos.fechaBaja && datos.fechaBaja < cierre ? datos.fechaBaja : cierre;
   if (hasta < desde) return 0;
 
-  const habiles = diasHabilesArt151(desde, hasta, datos.sinPrestacion);
+  const habiles = diasHabilesArt151(desde, hasta);
 
   // Art. 152: sólo se descuentan las ausencias que le son imputables.
   const excluidos = datos.noComputables ?? AUSENCIAS_NO_COMPUTABLES_ART_152;
@@ -290,7 +293,7 @@ export const diasTrabajadosArt151 = (datos: DatosVacacionesLegales): number => {
   const descontar = noComputables.reduce((acc, a) => {
     const ini = a.fechaDesde > desde ? a.fechaDesde : desde;
     const fin = a.fechaHasta < hasta ? a.fechaHasta : hasta;
-    return acc + diasHabilesArt151(ini, fin, datos.sinPrestacion);
+    return acc + diasHabilesArt151(ini, fin);
   }, 0);
 
   return Math.max(0, habiles - descontar);
@@ -310,8 +313,7 @@ export const cumpleRequisitoArt151 = (
 ): boolean => {
   const delAnio = diasHabilesArt151(
     `${datos.anio}-01-01`,
-    `${datos.anio}-12-31`,
-    datos.sinPrestacion
+    `${datos.anio}-12-31`
   );
   if (delAnio === 0) return false;
   return diasTrabajadosArt151(datos) * 2 >= delAnio;

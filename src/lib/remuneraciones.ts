@@ -19,9 +19,108 @@ export const APORTES = {
 export const APORTES_TOTAL =
   APORTES.jubilacion + APORTES.ley19032 + APORTES.obraSocial;
 
+/**
+ * Base sobre la que se aportan los 17%.
+ *
+ * El art. 9 de la Ley 24.241 fija un tope: por encima de esa base no se
+ * aporta. Sin él, un sueldo alto quedaba con una retención mayor que la
+ * legal, y el neto que la app le mostraba al empleado era más bajo que el
+ * que iba a cobrar.
+ *
+ * El tope no se cablea: ANSES lo actualiza cada trimestre y una constante
+ * en el código queda vieja sola. Viene de `config.topeImponibleAportes`,
+ * y mientras nadie lo cargue no se aplica tope — que es exactamente lo
+ * que la app hacía antes, así que ninguna empresa cambia de número por
+ * este cambio.
+ */
+export const baseImponibleAportes = (
+  remunerativo: number,
+  topeImponible?: number
+): number => {
+  const base = Math.max(0, remunerativo);
+  if (!topeImponible || topeImponible <= 0) return base;
+  return Math.min(base, topeImponible);
+};
+
 /** Aportes personales estimados sobre el sueldo remunerativo. */
-export const calcularAportes = (remunerativo: number): number =>
-  Math.round(Math.max(0, remunerativo) * APORTES_TOTAL);
+export const calcularAportes = (
+  remunerativo: number,
+  topeImponible?: number
+): number =>
+  Math.round(baseImponibleAportes(remunerativo, topeImponible) * APORTES_TOTAL);
+
+/**
+ * Tope de las deducciones sobre la remuneración en dinero (art. 133 LCT).
+ *
+ * "Las deducciones, retenciones o compensaciones no podrán insumir en
+ * conjunto más del veinte por ciento (20%) del monto total de la
+ * remuneración en dinero". No incluye los aportes de ley, que son
+ * retenciones de la seguridad social y no deducciones del empleador.
+ */
+export const LIMITE_DESCUENTOS_PCT = 0.2;
+
+/**
+ * Tope del adelanto de remuneraciones (art. 130 LCT): hasta el 50% de las
+ * remuneraciones correspondientes a no más de un período de pago.
+ */
+export const LIMITE_ADELANTO_PCT = 0.5;
+
+/** La remuneración en dinero del período, que es la base del art. 133. */
+const remuneracionEnDinero = (montoBruto: number, noRemunerativo = 0): number =>
+  Math.max(0, montoBruto) + Math.max(0, noRemunerativo);
+
+/**
+ * Qué límite rompe una liquidación, si rompe alguno.
+ *
+ * Devuelve el mensaje listo para mostrar, o `null` si está todo bien. La
+ * app no tenía ningún control: se podía guardar un descuento mayor al
+ * sueldo y el único freno era la constraint de Postgres, que aparecía
+ * como "violates check constraint" y no le decía nada a quien cargaba.
+ */
+export const errorDeLimitesLiquidacion = (d: {
+  montoBruto: number;
+  noRemunerativo?: number;
+  otrosDescuentos?: number;
+  aportes?: number;
+}): string | null => {
+  const enDinero = remuneracionEnDinero(d.montoBruto, d.noRemunerativo);
+  const descuentos = Math.max(0, d.otrosDescuentos ?? 0);
+  if (descuentos === 0) return null;
+
+  const neto = enDinero - (d.aportes ?? 0) - descuentos;
+  if (neto < 0) {
+    return 'Los descuentos superan lo que se le paga en el período: el neto quedaría negativo.';
+  }
+
+  const tope = enDinero * LIMITE_DESCUENTOS_PCT;
+  if (descuentos > tope) {
+    const pct = enDinero > 0 ? Math.round((descuentos / enDinero) * 100) : 100;
+    return `Los descuentos son el ${pct}% de la remuneración del período y el art. 133 de la LCT permite hasta el 20%.`;
+  }
+  return null;
+};
+
+/**
+ * Qué límite rompe un adelanto, si rompe alguno (art. 130 LCT).
+ *
+ * `remuneracionDelPeriodo` es el último bruto conocido de esa persona. Sin
+ * él —alguien sin ninguna remuneración cargada— no se puede afirmar nada
+ * y no se frena: inventar un tope sobre un sueldo que no conocemos sería
+ * peor que no controlarlo.
+ */
+export const errorDeLimiteAdelanto = (
+  monto: number,
+  remuneracionDelPeriodo?: number
+): string | null => {
+  if (monto <= 0) return 'El monto del adelanto tiene que ser mayor a cero.';
+  if (!remuneracionDelPeriodo || remuneracionDelPeriodo <= 0) return null;
+  const tope = remuneracionDelPeriodo * LIMITE_ADELANTO_PCT;
+  if (monto > tope) {
+    const pct = Math.round((monto / remuneracionDelPeriodo) * 100);
+    return `El adelanto es el ${pct}% del sueldo del período y el art. 130 de la LCT permite hasta el 50%.`;
+  }
+  return null;
+};
 
 /**
  * ¿A esta empresa se le descuentan aportes de ley?
@@ -40,15 +139,22 @@ export const tieneAportesDeLey = (regimen?: RegimenLaboral): boolean =>
  *
  * En régimen simplificado los aportes son 0 y el neto es bruto + no
  * remunerativo − descuentos: lo que efectivamente se paga.
+ *
+ * **Es un neto estimado, no una liquidación.** Los aportes son los tres de
+ * ley con su tope, pero acá no hay retención de Ganancias ni aportes
+ * convencionales: la app no tiene los datos para calcularlos y no los
+ * inventa. Quien muestre este número tiene que decir que es estimado.
  */
 export const calcularLiquidacion = (d: {
   montoBruto: number;
   noRemunerativo?: number;
   otrosDescuentos?: number;
   regimen?: RegimenLaboral;
+  /** Tope de la base imponible del período (art. 9 Ley 24.241). */
+  topeImponible?: number;
 }): { aportes: number; neto: number } => {
   const aportes = tieneAportesDeLey(d.regimen)
-    ? calcularAportes(d.montoBruto)
+    ? calcularAportes(d.montoBruto, d.topeImponible)
     : 0;
   const neto = Math.round(
     d.montoBruto + (d.noRemunerativo ?? 0) - aportes - (d.otrosDescuentos ?? 0)

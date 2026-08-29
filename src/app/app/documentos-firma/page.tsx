@@ -208,27 +208,29 @@ const DocumentosFirmaPage = () => {
   };
 
   /**
-   * Baja un documento que no debería estar circulando. Si alguien ya
-   * firmó, se avisa: esa firma es una constancia y se va con él, así que
-   * conviene que sea una decisión y no un click de más.
+   * Baja un documento que no debería estar circulando.
+   *
+   * Con firmas se archiva y sin firmas se borra, y el cartel dice cuál de
+   * las dos cosas va a pasar. Antes las dos ramas borraban, así que la
+   * constancia de quien había firmado desaparecía.
    */
   const borrar = async (doc: DocumentoFirma & { firmados: number }) => {
+    const conFirmas = doc.firmados > 0;
     const ok = await confirmar({
-      titulo: 'Eliminar el documento',
-      detalle:
-        doc.firmados > 0
-          ? `${doc.titulo} ya tiene ${doc.firmados} firma${doc.firmados === 1 ? '' : 's'}. Al eliminarlo se borran también esas constancias y el PDF. No se puede deshacer.`
-          : `${doc.titulo} va a dejar de pedirse y se borra el PDF. No se puede deshacer.`,
-      confirmar: 'Eliminar',
+      titulo: conFirmas ? 'Archivar el documento' : 'Eliminar el documento',
+      detalle: conFirmas
+        ? `${doc.titulo} ya tiene ${doc.firmados} firma${doc.firmados === 1 ? '' : 's'}. Deja de pedirse y sale del listado, pero el PDF y las constancias se conservan como respaldo.`
+        : `${doc.titulo} va a dejar de pedirse y se borra el PDF. No se puede deshacer.`,
+      confirmar: conFirmas ? 'Archivar' : 'Eliminar',
       peligrosa: true,
     });
     if (!ok) return;
     try {
       await eliminarDocumentoFirma(doc.id);
-      avisoExito('Documento eliminado');
+      avisoExito(conFirmas ? 'Documento archivado' : 'Documento eliminado');
     } catch (err) {
       avisoError(
-        'No pudimos eliminarlo',
+        'No pudimos darlo de baja',
         err instanceof Error ? err.message : undefined
       );
     }

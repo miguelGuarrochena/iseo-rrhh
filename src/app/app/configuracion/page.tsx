@@ -402,6 +402,35 @@ const ConfiguracionPage = () => {
               semanales); si tu convenio usa otra base, cambiala acá.
             </span>
           </label>
+          <label className="mt-4 flex max-w-xs flex-col gap-1.5">
+            <span className="text-sm font-semibold text-ink">
+              Tope de base imponible para aportes
+            </span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              placeholder="Sin tope"
+              value={config.topeImponibleAportes ?? ''}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  topeImponibleAportes:
+                    e.target.value.trim() === ''
+                      ? undefined
+                      : Number(e.target.value),
+                })
+              }
+              className={campoClase}
+            />
+            <span className="text-xs text-ink-soft">
+              Por encima de este monto no se aportan jubilación, PAMI ni obra
+              social (art. 9, Ley 24.241). ANSES lo actualiza cada trimestre,
+              así que hay que ponerlo al día. Vacío = sin tope: los aportes
+              salen sobre el bruto completo y quedan más altos que los reales en
+              los sueldos que lo superan.
+            </span>
+          </label>
         </Panel>
 
         <Panel>

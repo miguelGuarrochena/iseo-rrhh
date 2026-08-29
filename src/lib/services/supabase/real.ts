@@ -75,8 +75,17 @@ import {
   diasVacacionesDeRangoEnAnio,
   diasVacacionesCorresponden,
 } from '@/lib/vacaciones';
-import { tipoAusenciaLabels } from '@/lib/etiquetas';
-import { calcularLiquidacion } from '@/lib/remuneraciones';
+import { TIPOS_AUSENCIA_JORNADA, tipoAusenciaLabels } from '@/lib/etiquetas';
+import {
+  diasLicenciaAprobadosEnAnio,
+  esLicenciaPorEvento,
+} from '@/lib/seguridad/cuposLicencia';
+import { documentoFirmaSeArchiva } from '@/lib/seguridad/documentosFirma';
+import {
+  calcularLiquidacion,
+  errorDeLimiteAdelanto,
+  errorDeLimitesLiquidacion,
+} from '@/lib/remuneraciones';
 import {
   desdeEstadoIso,
   horasEntre,
@@ -89,6 +98,8 @@ import { traerTodo as traerTodoBase } from './paginado';
 import {
   diasAusencia,
   diasEntre,
+  diasHabilesEnMes,
+  diasHabilesEntre,
   finDeMesEmpresa,
   hoyISO,
   inicioDelDiaEmpresa,
@@ -97,7 +108,11 @@ import {
   proximoAniversario,
   sumarDiasEmpresa,
 } from '@/lib/fechas';
-import { aniosFeriadosAsegurar, feriadosSugeridos } from '@/lib/feriados';
+import {
+  aniosFeriadosAsegurar,
+  fechasNoLaborables,
+  feriadosSugeridos,
+} from '@/lib/feriados';
 import { supabase } from '@/lib/supabase/cliente';
 import { getTerminalLocal } from '@/lib/terminal';
 import { VERSION_PLANTILLA } from '@/lib/facial/plantilla';
@@ -874,9 +889,12 @@ export const getDocumentosDeEmpleado = async (
 export const agregarDocumento = async (
   datos: NuevoDocumento & { archivo?: File }
 ): Promise<DocumentoLegajo> => {
-  const path = datos.archivo
-    ? await subirDocumentoLegajo(datos.empleadoId, datos.archivo)
-    : '';
+  // Sin archivo la fila quedaba con `archivo_url = ''` y el documento
+  // aparecía en el legajo con un enlace que no abre nada.
+  if (!datos.archivo) {
+    fallar('Elegí el archivo del documento antes de guardarlo.');
+  }
+  const path = await subirDocumentoLegajo(datos.empleadoId, datos.archivo!);
   const { data, error } = await sb()
     .from('documentos_legajo')
     .insert({
@@ -889,6 +907,10 @@ export const agregarDocumento = async (
     })
     .select()
     .single();
+  // Si la fila no entró, el PDF ya subido queda huérfano ocupando el
+  // espacio contratado y sin nada que lo referencie. Mismo cuidado que
+  // `crearDocumentoFirma`, que sí lo limpiaba.
+  if (error || !data) await borrarDeStorage('documentos', [path]);
   const documento = aDocumento(oFalla(data, error));
   await registrarAuditoria('agregar', 'documento_legajo', documento.id, {
     empleadoId: datos.empleadoId,
@@ -1603,9 +1625,13 @@ export const getSaldoVacaciones = async (
   // Días que quedaron del año anterior y RRHH decidió acumular.
   const ajuste = arrastre?.dias ?? 0;
   const habiles = Boolean(empresa?.config?.vacacionesDiasHabiles);
-  const feriados = new Set(
-    (await getFeriados(anio).catch(() => [])).map((f) => f.fecha)
-  );
+  // Sólo los NO LABORABLES, y sólo los que están guardados: es el mismo
+  // criterio del modal y de `dias_habiles_entre` en la base. Antes esto
+  // tomaba todos los feriados sin filtrar, así que un feriado marcado
+  // como laborable descontaba un día acá y no en el dato guardado.
+  const feriados = habiles
+    ? await getFeriadosParaCalculo(anio).catch(() => new Set<string>())
+    : new Set<string>();
   const enAnio = (
     a: (typeof ausencias)[number],
     estado: 'aprobada' | 'pendiente'
@@ -2595,11 +2621,17 @@ export const getResumenControl = async (
       getJornadas(desde, hasta, { empresaIdOverride }),
       getTurnosEntre(desde, hasta, { empresaIdOverride }),
       getAusenciasEntre(inicioMes, finMes, empresaIdOverride),
+      // Mismos filtros que `recibos_select` y que el badge del empleado:
+      // vigente y publicado. Sin ellos el panel contaba borradores sin
+      // publicar y versiones rectificadas, y daba siempre más alto que
+      // lo que el colaborador ve para firmar.
       sb()
         .from('recibos')
         .select('id', { count: 'exact', head: true })
         .eq('empresa_id', empresaIdEfectiva(empresaIdOverride))
-        .eq('estado_firma', 'pendiente'),
+        .eq('estado_firma', 'pendiente')
+        .is('archivado_en', null)
+        .not('firmado_empleador_en', 'is', null),
     ]);
 
   const control = controlDeJornadas(jornadas, empresa.config, turnos);
@@ -2629,12 +2661,36 @@ export const getResumenControl = async (
     })
     .sort((a, b) => b.minutosTarde - a.minutosTarde);
 
+  /**
+   * Ausentismo del mes.
+   *
+   * Tres cosas que estaban mal y se arreglan juntas porque son la misma
+   * cuenta:
+   *
+   *  1. Se sumaba `a.dias` entero de toda ausencia cuyo `fecha_desde`
+   *     cayera en el mes. Una del 20/07 al 10/08 aportaba sus 22 días a
+   *     julio y cero a agosto. Ahora se cuentan los días que pertenecen
+   *     al mes, que es el criterio que la migración 68 ya aplicó a
+   *     vacaciones.
+   *  2. Se mezclaban unidades: `dias` viene en hábiles para vacaciones
+   *     cuando la empresa las cuenta así, y en corridos para el resto.
+   *     Ahora las dos puntas de la fracción se miden en días hábiles.
+   *  3. Home office y las parciales de jornada contaban como un día de
+   *     ausencia completo. Home office es trabajo, y de una llegada
+   *     tarde no sabemos los minutos: sumarla como día entero es peor
+   *     que no contarla.
+   *
+   * El denominador era `empleados × 22`, un mes fijo. Ahora son los días
+   * hábiles reales del mes que se está midiendo.
+   */
+  const NO_SON_AUSENCIA: string[] = TIPOS_AUSENCIA_JORNADA;
   const diasAusencia = ausencias
-    .filter(
-      (a) => a.estado === 'aprobada' && a.fechaDesde.startsWith(mesActual)
-    )
-    .reduce((acc, a) => acc + a.dias, 0);
-  const diasPersona = empleados.length * 22;
+    .filter((a) => a.estado === 'aprobada' && !NO_SON_AUSENCIA.includes(a.tipo))
+    .reduce(
+      (acc, a) => acc + diasHabilesEnMes(a.fechaDesde, a.fechaHasta, mesActual),
+      0
+    );
+  const diasPersona = empleados.length * diasHabilesEntre(inicioMes, finMes);
 
   return {
     ausentismoPct:
@@ -2923,7 +2979,19 @@ export const cargarRemuneracion = async (
   const { aportes, neto } = calcularLiquidacion({
     ...datos,
     regimen: empresa.regimen,
+    topeImponible: empresa.config.topeImponibleAportes,
   });
+  // Los límites del art. 133 se revisan también acá y no sólo en el
+  // formulario: el modal es la primera línea, pero la autoridad de lo que
+  // se guarda no puede ser la pantalla. Antes el único freno era la
+  // constraint de Postgres, que además sólo atajaba el neto negativo.
+  const limite = errorDeLimitesLiquidacion({
+    montoBruto: datos.montoBruto,
+    noRemunerativo: datos.noRemunerativo,
+    otrosDescuentos: datos.otrosDescuentos,
+    aportes,
+  });
+  if (limite) fallar(limite);
   const tipo = datos.tipo ?? 'mensual';
   const { data, error } = await sb()
     .from('remuneraciones')
@@ -3221,6 +3289,18 @@ export const solicitarAdelanto = async (
   monto: number,
   motivo?: string
 ): Promise<Adelanto> => {
+  // Art. 130 LCT: el adelanto no puede pasar del 50% de un período de
+  // pago. La base sólo exigía `monto > 0`, así que un pedido por el
+  // sueldo entero entraba y después se descontaba completo.
+  //
+  // El sueldo sale de la última remuneración mensual cargada. Si esa
+  // persona no tiene ninguna, no se afirma nada y no se frena.
+  const ultimoBruto = (await getRemuneraciones(empleadoId).catch(() => []))
+    .filter((r) => (r.tipo ?? 'mensual') === 'mensual')
+    .sort((a, b) => b.periodo.localeCompare(a.periodo))[0]?.montoBruto;
+  const limite = errorDeLimiteAdelanto(monto, ultimoBruto);
+  if (limite) fallar(limite);
+
   const { data, error } = await sb()
     .from('adelantos')
     .insert({
@@ -3648,10 +3728,29 @@ export const getCuposLicencia = async (): Promise<CupoLicencia[]> => {
   );
 };
 
+/**
+ * Fija (o quita) el cupo anual de un tipo de licencia.
+ *
+ * `null` = sin límite, y se expresa borrando la fila: es la forma en que
+ * la base lo entiende, y hasta ahora no había manera de llegar a ese
+ * estado desde la app — un cupo de 0 quedaba puesto para siempre.
+ */
 export const guardarCupoLicencia = async (
   tipo: TipoAusencia,
-  diasAnuales: number
-): Promise<CupoLicencia> => {
+  diasAnuales: number | null
+): Promise<CupoLicencia | null> => {
+  if (diasAnuales === null) {
+    const { error } = await sb()
+      .from('cupos_licencia')
+      .delete()
+      .eq('empresa_id', empresaId())
+      .eq('tipo', tipo);
+    if (error) fallar(error.message);
+    await registrarAuditoria('editar', 'empresa', empresaId(), {
+      cupoLicencia: { tipo, diasAnuales: null },
+    });
+    return null;
+  }
   const { data, error } = await sb()
     .from('cupos_licencia')
     .upsert(
@@ -3681,22 +3780,25 @@ export const getSaldosLicencia = async (
     getCuposLicencia(),
     getAusenciasDeEmpleado(empleadoId),
   ]);
-  return cupos.map((c) => {
-    const usados = ausencias
-      .filter(
-        (a) =>
-          a.tipo === c.tipo &&
-          a.estado === 'aprobada' &&
-          a.fechaDesde.startsWith(String(anio))
-      )
-      .reduce((acc, a) => acc + a.dias, 0);
-    return {
-      tipo: c.tipo,
-      diasAnuales: c.diasAnuales,
-      diasUtilizados: usados,
-      diasDisponibles: Math.max(0, c.diasAnuales - usados),
-    };
-  });
+  return (
+    cupos
+      // Una licencia por evento no tiene cupo aunque haya quedado una fila
+      // vieja en la tabla: la ley la otorga por cada hecho que la genera.
+      .filter((c) => !esLicenciaPorEvento(c.tipo))
+      .map((c) => {
+        // Los días se imputan al año al que pertenecen, no al año en que
+        // empezó la licencia: un rango que cruza el 31/12 se parte.
+        const usados = diasLicenciaAprobadosEnAnio(ausencias, c.tipo, anio);
+        return {
+          tipo: c.tipo,
+          diasAnuales: c.diasAnuales,
+          diasUtilizados: usados,
+          // Sin `Math.max(0, …)`: si hay sobregiro, hay que verlo. La RPC
+          // de la base devuelve el negativo y la pantalla lo ocultaba.
+          diasDisponibles: c.diasAnuales - usados,
+        };
+      })
+  );
 };
 
 // ---------- Comunicaciones ----------
@@ -4002,6 +4104,9 @@ export const getDocumentosFirma = async (): Promise<
     .from('documentos_firma')
     .select('*')
     .eq('empresa_id', empresaId())
+    // Los archivados salieron de circulación; se conservan por sus
+    // firmas, no para seguir listándolos.
+    .is('archivado_en', null)
     .order('creado_en', { ascending: false });
   const docs = oFalla(data, error).map(aDocumentoFirma);
   const conStats = await Promise.all(
@@ -4047,16 +4152,26 @@ export const getDocumentosFirmaPendientes = async (
     .eq('empleado_id', empleadoId)
     .is('firmado_en', null);
   if (error) throw new Error(error.message);
-  return (data ?? [])
-    .filter((r) => r.documentos_firma)
-    .map((r) => {
-      const raw = r.documentos_firma as unknown;
-      const doc = Array.isArray(raw) ? raw[0] : raw;
-      return {
-        ...aDocumentoFirma(doc as Record<string, unknown>),
-        destinatarioId: r.id as string,
-      };
-    });
+  return (
+    (data ?? [])
+      .filter((r) => r.documentos_firma)
+      // Un documento archivado ya no pide firma.
+      .filter((r) => {
+        const raw = r.documentos_firma as unknown;
+        const doc = (Array.isArray(raw) ? raw[0] : raw) as
+          | Record<string, unknown>
+          | undefined;
+        return !doc?.archivado_en;
+      })
+      .map((r) => {
+        const raw = r.documentos_firma as unknown;
+        const doc = Array.isArray(raw) ? raw[0] : raw;
+        return {
+          ...aDocumentoFirma(doc as Record<string, unknown>),
+          destinatarioId: r.id as string,
+        };
+      })
+  );
 };
 
 export const crearDocumentoFirma = async (datos: {
@@ -4131,9 +4246,16 @@ export const abrirDocumentoFirma = async (
  * había forma de bajarlo y quedaba ahí pidiéndole la firma a gente que no
  * correspondía.
  *
- * Las firmas ya hechas se van con él —los destinatarios cascadean—, así
- * que la pantalla avisa antes si alguien ya firmó: eso es una constancia
- * y borrarla es una decisión, no un descuido.
+ * Si nadie firmó todavía, se borra: no hay nada que conservar y el PDF
+ * equivocado no tiene por qué quedar ocupando el bucket.
+ *
+ * Si **alguien ya firmó**, se archiva. Una firma es la constancia de que
+ * a esa persona se le notificó algo y lo aceptó; el DELETE cascadeaba
+ * sobre los destinatarios y se llevaba puesta esa prueba, dejando sólo el
+ * rastro de la eliminación en `auditoria_acciones`. Archivado, el
+ * documento sale de circulación —no se lista, no le pide la firma a
+ * nadie— y las constancias quedan. Mismo criterio que los recibos
+ * rectificados.
  */
 export const eliminarDocumentoFirma = async (
   documentoId: string
@@ -4143,6 +4265,26 @@ export const eliminarDocumentoFirma = async (
     .select('archivo_url, titulo')
     .eq('id', documentoId)
     .maybeSingle();
+
+  const { count: firmas } = await sb()
+    .from('documento_firma_destinatarios')
+    .select('id', { count: 'exact', head: true })
+    .eq('documento_id', documentoId)
+    .not('firmado_en', 'is', null);
+
+  if (documentoFirmaSeArchiva(firmas ?? 0)) {
+    const { error } = await sb()
+      .from('documentos_firma')
+      .update({ archivado_en: new Date().toISOString() })
+      .eq('id', documentoId);
+    if (error) fallar(error.message);
+    // El PDF NO se borra: es lo que esas personas firmaron.
+    await registrarAuditoria('archivar', 'documento_firma', documentoId, {
+      titulo: previo?.titulo,
+      firmas,
+    });
+    return;
+  }
 
   const { error } = await sb()
     .from('documentos_firma')
@@ -4170,12 +4312,20 @@ const aFeriado = (f: Record<string, unknown>): Feriado => ({
 /**
  * Inserta los nacionales faltantes del/los año(s). Usa RPC security
  * definer porque el colaborador puede leer feriados pero no insertar
- * (RLS). Si la RPC aún no está en la base, seguimos: la lectura igual
- * fusiona en memoria más abajo.
+ * (RLS).
+ *
+ * Devuelve si la sincronización salió bien. Antes tragaba el error y
+ * seguía: la lectura fusionaba los faltantes en memoria y la pantalla
+ * quedaba contando un feriado que la base no conocía. En el régimen de
+ * días hábiles eso son dos números distintos para la misma solicitud —el
+ * modal decía 4 días y la base guardaba 5—, así que quien use estos
+ * feriados para calcular tiene que poder enterarse.
  */
-const asegurarFeriadosNacionales = async (anios: number[]): Promise<void> => {
+const asegurarFeriadosNacionales = async (
+  anios: number[]
+): Promise<boolean> => {
   const sugeridos = anios.flatMap(feriadosSugeridos);
-  if (sugeridos.length === 0) return;
+  if (sugeridos.length === 0) return true;
   const { error } = await sb().rpc('asegurar_feriados_nacionales', {
     p_feriados: sugeridos.map((f) => ({
       fecha: f.fecha,
@@ -4185,14 +4335,14 @@ const asegurarFeriadosNacionales = async (anios: number[]): Promise<void> => {
     })),
     p_empresa: empresaId(),
   });
-  // Sin migración / sin permiso: no rompemos la lectura.
-  if (error) return;
+  return !error;
 };
 
 /**
  * Si faltan nacionales en la tabla (RPC vieja o falló), los armamos en
  * memoria para agenda / preview de ausencias. El saldo SQL sólo ve la
- * tabla: por eso preferimos la RPC arriba.
+ * tabla: por eso preferimos la RPC arriba, y por eso esta fusión NO se
+ * usa cuando los feriados van a entrar en una cuenta de días.
  */
 const fusionarNacionalesFaltantes = (
   existentes: Feriado[],
@@ -4214,11 +4364,8 @@ const fusionarNacionalesFaltantes = (
   );
 };
 
-/** Feriados de la empresa. Con `anio`, sólo los de ese año. */
-export const getFeriados = async (anio?: number): Promise<Feriado[]> => {
-  const anios = aniosFeriadosAsegurar(anio);
-  await asegurarFeriadosNacionales(anios);
-
+/** Los feriados que la BASE tiene guardados, sin fusionar nada. */
+const feriadosPersistidos = async (anio?: number): Promise<Feriado[]> => {
   let q = sb()
     .from('feriados')
     .select('*')
@@ -4226,7 +4373,44 @@ export const getFeriados = async (anio?: number): Promise<Feriado[]> => {
     .order('fecha');
   if (anio) q = q.gte('fecha', `${anio}-01-01`).lte('fecha', `${anio}-12-31`);
   const { data, error } = await q;
-  return fusionarNacionalesFaltantes(oFalla(data, error).map(aFeriado), anios);
+  return oFalla(data, error).map(aFeriado);
+};
+
+/** Feriados de la empresa, para mostrar. Con `anio`, sólo los de ese año. */
+export const getFeriados = async (anio?: number): Promise<Feriado[]> => {
+  const anios = aniosFeriadosAsegurar(anio);
+  await asegurarFeriadosNacionales(anios);
+  return fusionarNacionalesFaltantes(await feriadosPersistidos(anio), anios);
+};
+
+/**
+ * Los feriados con los que se CUENTAN días, no los que se muestran.
+ *
+ * Dos diferencias con `getFeriados`, y las dos existen para que la
+ * pantalla y la base digan lo mismo:
+ *
+ *  - Si la sincronización de nacionales falló, esto falla. Seguir en
+ *    silencio es lo que producía un número en el modal y otro en la fila
+ *    guardada.
+ *  - No fusiona los faltantes en memoria: un feriado que sólo existe en
+ *    el navegador no puede descontar un día de vacaciones, porque el
+ *    trigger que recalcula `dias` no lo ve.
+ *
+ * Devuelve sólo los NO LABORABLES, que son los únicos que no se consumen:
+ * un feriado que en esa empresa se trabaja es un día de vacaciones como
+ * cualquier otro. Es el mismo filtro que aplica `dias_habiles_entre` en
+ * la base.
+ */
+export const getFeriadosParaCalculo = async (
+  anio?: number
+): Promise<Set<string>> => {
+  const anios = aniosFeriadosAsegurar(anio);
+  if (!(await asegurarFeriadosNacionales(anios))) {
+    fallar(
+      'No pudimos sincronizar los feriados nacionales. Recargá la pantalla antes de cargar la ausencia: sin ellos la cuenta de días no coincide con la que hace el sistema.'
+    );
+  }
+  return fechasNoLaborables(await feriadosPersistidos(anio));
 };
 
 /**
@@ -4269,11 +4453,17 @@ export const eliminarFeriado = async (feriadoId: string): Promise<void> => {
   if (error) fallar(error.message);
 };
 
-/** Fechas no laborables de la empresa, listas para las cuentas de días. */
+/**
+ * Fechas no laborables de la empresa, listas para las cuentas de días.
+ *
+ * Va por `getFeriadosParaCalculo`, así que no fusiona feriados virtuales
+ * y falla si la sincronización no anduvo. El `dias` que se manda en el
+ * insert es informativo —el trigger lo recalcula—, pero si acá se cuenta
+ * distinto, la pantalla muestra un total y se guarda otro.
+ */
 const feriadosNoLaborables = async (): Promise<Set<string>> => {
   try {
-    const feriados = await getFeriados();
-    return new Set(feriados.filter((f) => f.noLaborable).map((f) => f.fecha));
+    return await getFeriadosParaCalculo();
   } catch {
     // Si la tabla todavía no existe en la base, seguimos sin feriados.
     return new Set();
@@ -4390,4 +4580,5 @@ const aDocumentoFirma = (f: Record<string, unknown>): DocumentoFirma => ({
   archivoUrl: f.archivo_url as string,
   creadoPor: (f.creado_por as string) ?? undefined,
   creadoEn: String(f.creado_en).slice(0, 10),
+  archivadoEn: f.archivado_en ? String(f.archivado_en).slice(0, 10) : undefined,
 });

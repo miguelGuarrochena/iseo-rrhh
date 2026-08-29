@@ -19,9 +19,9 @@ import { Selector } from '@/components/app/ui/Selector';
 import { Boton } from '@/components/app/ui/Boton';
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { descargarCSV } from '@/lib/csv';
-import { hoyISO } from '@/lib/fechas';
+import { anioEmpresa, hoyISO } from '@/lib/fechas';
 import {
-  getAusencias,
+  getAusenciasEntre,
   getEmpleados,
   getEmpresas,
   getFichajesDeHoy,
@@ -87,9 +87,14 @@ const ReportesPage = () => {
   const cDetalle = useCarga(
     async () => {
       const idEmpresa = esGlobal ? empresaSel : undefined;
+      // Del año en curso, no del histórico completo: `getAusencias()`
+      // traía todas las ausencias que la empresa cargó desde siempre, así
+      // que con años de uso el gráfico dejaba de decir algo del presente
+      // y la pantalla se bajaba miles de filas para dibujarlo.
+      const anio = anioEmpresa();
       const [resumen, ausencias, empleados, fichajes] = await Promise.all([
         getResumenControl(idEmpresa),
-        getAusencias(idEmpresa),
+        getAusenciasEntre(`${anio}-01-01`, `${anio}-12-31`, idEmpresa),
         getEmpleados(idEmpresa),
         conFichaje ? getFichajesDeHoy(idEmpresa) : Promise.resolve([]),
       ]);
@@ -216,13 +221,16 @@ const ReportesPage = () => {
             />
           </Panel>
           <Panel>
+            {/* Este dato sale del mismo `cDetalle` que el resto del
+                detalle, o sea de la empresa elegida abajo. El título
+                decía "todas las empresas" y no era cierto. */}
             <h2 className="mb-4 text-[1.0625rem] font-bold tracking-tight text-ink">
-              Ausencias por tipo (todas las empresas)
+              Ausencias por tipo{nombreSel ? ` — ${nombreSel}` : ''}
             </h2>
             <Dona
               datos={ausenciasPorTipo}
               centro={String(ausencias.length)}
-              centroDetalle="solicitudes"
+              centroDetalle={`solicitudes en ${anioEmpresa()}`}
             />
           </Panel>
         </div>
