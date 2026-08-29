@@ -174,8 +174,10 @@ begin
   assert v_enfermedad = 21,
     'la enfermedad inculpable se computa: seis años → 21, dio ' || v_enfermedad;
 
+  -- F-17: la firma perdió el `p_anio`, que no usaba. El rango ya lo
+  -- acota el caller y un parámetro muerto invita a llamarla mal.
   assert dias_no_computables_art152(
-    'bbbb0000-0000-0000-0000-0000000000e6', 2026, '2026-01-01', '2026-12-31') = 0,
+    'bbbb0000-0000-0000-0000-0000000000e6', '2026-01-01', '2026-12-31') = 0,
     'hoy no hay ningún tipo de ausencia que se descuente';
 
   assert cardinality(tipos_ausencia_no_computables_art152()) = 0,

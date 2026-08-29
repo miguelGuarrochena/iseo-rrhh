@@ -47,6 +47,21 @@ export const diasVacacionesProporcionales = (
   unidad: UnidadVacaciones = 'corridos'
 ): number => {
   if (!fechaBajaISO || !fechaIngresoISO) return 0;
+  /**
+   * Un período imposible no paga nada.
+   *
+   * Con la baja anterior al ingreso, la cuenta de abajo igual daba un
+   * número: el año se toma de la baja, el proporcional arranca el 1 de
+   * enero de ESE año —que es anterior al ingreso— y el tramo del art. 150
+   * se resuelve contra un cierre que el ingreso ni alcanza. Un legajo con
+   * ingreso 21/06/2022 y baja 31/10/2020 devolvía 11,7 días a pagar por
+   * un tiempo que nunca se trabajó.
+   *
+   * No es hipotético: la constraint `empleados_baja_posterior_al_ingreso`
+   * de la migración 51 es NOT VALID, así que nunca frenó las filas
+   * viejas, y hay una en la base real.
+   */
+  if (fechaBajaISO < fechaIngresoISO) return 0;
 
   const anio = partesDeFecha(fechaBajaISO).anio;
   /**

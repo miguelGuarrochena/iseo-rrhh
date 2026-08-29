@@ -265,13 +265,22 @@ export const FormEmpleado = ({
       email: validarEmail(datos.email ?? ''),
       telefono: validarTelefono(datos.telefono ?? ''),
       cbu: validarCbu(datos.cbu ?? ''),
-      // Puesto, sector y fecha de ingreso son `not null` en la base: sin
-      // ellos el guardado falla entero con el mensaje crudo de Postgres y
-      // ni siquiera se guardan los campos que sí estaban bien. La fecha
-      // de ingreso, además, es la base de la antigüedad y de todo el
-      // cálculo de vacaciones.
-      puesto: validarRequerido(datos.puesto ?? '', 'El puesto'),
-      sector: validarRequerido(datos.sector ?? '', 'El sector'),
+      /**
+       * La fecha de ingreso sí es obligatoria, y sólo ella.
+       *
+       * Vacía se manda como `null` a una columna `not null`, así que el
+       * guardado fallaba ENTERO con el mensaje crudo de Postgres y no se
+       * guardaba tampoco lo que estaba bien. Y es la base de la
+       * antigüedad y de todo el cálculo de vacaciones: sin ella el legajo
+       * no puede calcular nada.
+       *
+       * Puesto y sector se quedan opcionales a propósito. Vacíos se
+       * guardan como cadena vacía y no rompen nada, y la ficha ya los
+       * pide por otro lado (`faltasDeEmpleado`). Hacerlos obligatorios
+       * dejaría sin poder editar a los legajos que hoy los tienen en
+       * blanco —21 en la base real— aunque sólo se les quiera corregir el
+       * teléfono.
+       */
       fechaIngreso: validarRequerido(
         datos.fechaIngreso ?? '',
         'La fecha de ingreso'

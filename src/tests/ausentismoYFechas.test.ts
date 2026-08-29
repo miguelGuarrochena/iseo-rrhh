@@ -1,4 +1,9 @@
 import { diasCorridosEnAnio, diasHabilesEnMes } from '@/lib/fechas';
+import { calcularVacacionesLegalesCorridas } from '@/lib/vacaciones';
+import {
+  armarLiquidacionFinal,
+  diasVacacionesProporcionales,
+} from '@/lib/liquidacionFinal';
 import { documentoFirmaSeArchiva } from '@/lib/seguridad/documentosFirma';
 import { TIPOS_AUSENCIA_JORNADA } from '@/lib/etiquetas';
 
@@ -80,6 +85,52 @@ describe('F-04: diasHabilesEnMes', () => {
         'salida_intermedia',
       ])
     );
+  });
+});
+
+/**
+ * Datos degenerados que existen HOY en la base real.
+ *
+ * Hay un legajo con `fecha_baja` anterior a `fecha_ingreso` (la constraint
+ * de la migración 51 es NOT VALID, así que nunca lo frenó). No se puede
+ * corregir desde acá —es un dato del cliente y no sabemos cuál de las dos
+ * fechas está mal— pero sí hay que saber qué hace el sistema con él: lo
+ * que no puede pasar es que devuelva un número negativo o absurdo y que
+ * ese número termine en una liquidación.
+ */
+describe('legajo con baja anterior al ingreso', () => {
+  const INGRESO = '2022-06-21';
+  const BAJA = '2020-10-31';
+
+  it('el cupo legal del año da 0, no un negativo', () => {
+    expect(
+      calcularVacacionesLegalesCorridas({
+        fechaIngreso: INGRESO,
+        fechaBaja: BAJA,
+        anio: 2026,
+      })
+    ).toBe(0);
+  });
+
+  it('la liquidación final da 0, no un importe inventado', () => {
+    expect(diasVacacionesProporcionales(INGRESO, BAJA, 0)).toBe(0);
+    const borrador = armarLiquidacionFinal({
+      fechaIngreso: INGRESO,
+      fechaBaja: BAJA,
+      brutoMensual: 1_000_000,
+      mejorBrutoSemestre: 1_000_000,
+      diasVacacionesGozados: 0,
+    });
+    const vacaciones = borrador.conceptos.find((c) =>
+      c.concepto.startsWith('Vacaciones proporcionales')
+    );
+    expect(vacaciones).toBeUndefined();
+    expect(borrador.total).toBeGreaterThanOrEqual(0);
+  });
+
+  it('ninguna cuenta de días devuelve un negativo', () => {
+    expect(diasCorridosEnAnio(INGRESO, BAJA, 2026)).toBe(0);
+    expect(diasHabilesEnMes(INGRESO, BAJA, '2026-06')).toBe(0);
   });
 });
 
