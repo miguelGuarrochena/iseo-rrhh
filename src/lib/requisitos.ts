@@ -247,6 +247,14 @@ const REGLAS: Regla[] = [
   },
 ];
 
+/**
+ * En qué ámbitos pega una falta. Lo necesita el Estado de RRHH para
+ * agrupar los pendientes por área sin volver a escribir el catálogo:
+ * las reglas siguen viviendo sólo acá.
+ */
+export const ambitosDeFalta = (clave: string): Ambito[] =>
+  REGLAS.find((r) => r.clave === clave)?.ambitos ?? [];
+
 const aFalta = (r: Regla, e: Empleado): Falta => ({
   clave: r.clave,
   severidad: r.severidad,

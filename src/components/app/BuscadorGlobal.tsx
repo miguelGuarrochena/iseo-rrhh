@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Modal } from '@mantine/core';
 import { IconSearch, IconUser } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { useModulos } from '@/lib/auth/useModulos';
+import { useModulos, useServicios } from '@/lib/auth/useModulos';
 import { navItemsPorRol } from './navItems';
 import { getEmpleados } from '@/lib/services/rrhh';
 import { Empleado } from '@/types/rrhh';
@@ -18,6 +18,7 @@ import { useCarga } from '@/lib/useCarga';
 export const BuscadorGlobal = () => {
   const { usuario, rolEfectivo } = useAuth();
   const modulos = useModulos();
+  const servicios = useServicios();
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [q, setQ] = useState('');
@@ -56,7 +57,7 @@ export const BuscadorGlobal = () => {
   const resultados = useMemo(() => {
     if (!rolEfectivo) return [];
     const texto = q.trim().toLowerCase();
-    const secciones = navItemsPorRol(rolEfectivo, modulos)
+    const secciones = navItemsPorRol(rolEfectivo, modulos, servicios)
       .filter((s) => !texto || s.etiqueta.toLowerCase().includes(texto))
       .map((s) => ({
         id: s.href,
@@ -83,7 +84,7 @@ export const BuscadorGlobal = () => {
             }))
         : [];
     return [...gente, ...secciones].slice(0, 8);
-  }, [q, rolEfectivo, empleados, esGestor, modulos]);
+  }, [q, rolEfectivo, empleados, esGestor, modulos, servicios]);
 
   const ir = useCallback(
     (href: string) => {

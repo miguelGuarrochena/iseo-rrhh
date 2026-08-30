@@ -86,3 +86,30 @@ describe('empresas_cuit_key (caso reportado en producción)', () => {
     expect(campoDeErrorDb('violates row-level security policy')).toBeNull();
   });
 });
+
+describe('período cerrado', () => {
+  const crudo = 'PERIODO_CERRADO: el período 2026-06 está cerrado';
+
+  it('dice qué período es y cómo salir de ahí', () => {
+    const m = mensajeDeErrorDb(crudo);
+    expect(m).toContain('2026-06');
+    expect(m).toContain('Cierre del mes');
+    expect(m).not.toContain('PERIODO_CERRADO');
+  });
+
+  /**
+   * El trigger lo levanta como una excepción común de Postgres, así que
+   * si esta regla quedara después de la de check constraint el mensaje
+   * saldría como "revisá fechas y montos" — y mandaría a buscar el
+   * problema al lugar equivocado: el dato está bien, el mes está cerrado.
+   */
+  it('no se lo come la traducción genérica de constraints', () => {
+    const m = mensajeDeErrorDb(`${crudo} — violates check constraint algo`);
+    expect(m).toContain('está cerrado');
+    expect(m).not.toContain('Revisá fechas y montos');
+  });
+
+  it('sin el período en el mensaje sigue siendo entendible', () => {
+    expect(mensajeDeErrorDb('PERIODO_CERRADO: algo')).toContain('cerrado');
+  });
+});

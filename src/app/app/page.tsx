@@ -34,7 +34,7 @@ import {
   getMetricasGlobales,
   getMiMes,
   getRecibos,
-  getRemuneracionesTodas,
+  getEmpleadosConSueldo,
   getResumenFinanzas,
   getSaldoVacaciones,
   getVacacionesAprobadasMiSector,
@@ -47,7 +47,6 @@ import {
   EventoAgenda,
   Fichaje,
   ReciboSueldo,
-  Remuneracion,
   VacacionSector,
 } from '@/types/rrhh';
 import { desdeIncidencias, horaLocal, Jornada } from '@/lib/fichadas';
@@ -231,14 +230,17 @@ const DashboardPage = () => {
     contexto: 'inicio/cuentas',
     inicial: [] as string[],
   });
-  const cSueldos = useCarga(() => getRemuneracionesTodas(), [gestionEmpresa], {
+  // Sólo los ids de quienes tienen algún sueldo cargado, que es lo que
+  // mira la regla `sin_sueldo`: traer el histórico salarial entero para
+  // armar ese conjunto era el pedido más pesado de esta pantalla.
+  const cSueldos = useCarga(() => getEmpleadosConSueldo(), [gestionEmpresa], {
     activo: gestionEmpresa,
     contexto: 'inicio/sueldos',
-    inicial: [] as Remuneracion[],
+    inicial: [] as string[],
   });
   const faltantes = useMemo(() => {
     const cuentas = new Set(cCuentas.datos);
-    const conSueldo = new Set(cSueldos.datos.map((r) => r.empleadoId));
+    const conSueldo = new Set(cSueldos.datos);
     return empleados.map((e) => ({
       nombre: `${e.nombre} ${e.apellido}`,
       // Cada dato que no se pudo consultar va undefined por separado: si

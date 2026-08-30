@@ -7,6 +7,7 @@ import {
   AccionAuditoria,
   Alerta,
   Ausencia,
+  CierrePeriodo,
   Comunicacion,
   ComunicacionMensaje,
   ConfigPlataforma,
@@ -75,10 +76,14 @@ import {
   diaEmpresa,
   diasAusencia,
   diasCorridosEnAnio,
+  finDeMesEmpresa,
   hoyISO,
   mesEmpresa,
   sumarDiasEmpresa,
+  sumarMesesEmpresa,
 } from '@/lib/fechas';
+import type { DatosNovedades } from '@/lib/novedades';
+import type { DatosReporte } from '@/lib/reporteMensual';
 import { distanciaMetros } from '@/lib/facial/ubicacion';
 
 /**
@@ -217,6 +222,16 @@ export const actualizarModulosEmpresa = async (
   const empresa = empresasMock.find((e) => e.id === empresaId);
   if (!empresa) throw new Error('Empresa no encontrada.');
   empresa.config = { ...empresa.config, ...extras, modulos };
+  return simular(empresa);
+};
+
+export const actualizarServiciosEmpresa = async (
+  empresaId: string,
+  servicios: Record<string, boolean>
+): Promise<Empresa> => {
+  const empresa = empresasMock.find((e) => e.id === empresaId);
+  if (!empresa) throw new Error('Empresa no encontrada.');
+  empresa.servicios = servicios;
   return simular(empresa);
 };
 
@@ -1761,6 +1776,14 @@ export const getRemuneraciones = async (
   simular(remuneracionesMock.filter((r) => r.empleadoId === empleadoId));
 
 /** Todas las remuneraciones de la empresa (vista admin). */
+export const getRemuneracionesDePeriodos = async (
+  periodos: string[]
+): Promise<Remuneracion[]> =>
+  simular(remuneracionesMock.filter((r) => periodos.includes(r.periodo)));
+
+export const getEmpleadosConSueldo = async (): Promise<string[]> =>
+  simular([...new Set(remuneracionesMock.map((r) => r.empleadoId))]);
+
 export const getRemuneracionesTodas = async (): Promise<Remuneracion[]> =>
   simular(remuneracionesMock.filter((r) => esDeEmpresaDemo(r.empleadoId)));
 
@@ -2582,5 +2605,162 @@ export const getPendientesResumen = async (): Promise<PendientesResumen> => {
       ausenciasPorResolver +
       comunicacionesSinLeer +
       documentosPorFirmar,
+  });
+};
+
+// ---------- Cierre de novedades del mes ----------
+
+/**
+ * En demo el cierre vive en memoria: alcanza para recorrer el flujo
+ * completo (revisar, cerrar, reabrir) sin base. Se pierde al recargar,
+ * como el resto de los mocks.
+ */
+const cierresDemo = new Map<string, CierrePeriodo>();
+
+const cierreDemo = (periodo: string): CierrePeriodo =>
+  cierresDemo.get(periodo) ?? {
+    id: `cierre-${periodo}`,
+    empresaId: 'emp-1',
+    periodo,
+    estado: 'abierto',
+    categoriasRevisadas: [],
+  };
+
+export const getCierrePeriodo = async (
+  periodo: string
+): Promise<CierrePeriodo | null> => simular(cierresDemo.get(periodo) ?? null);
+
+export const getCierresPeriodo = async (
+  limite = 12
+): Promise<CierrePeriodo[]> =>
+  simular(
+    [...cierresDemo.values()]
+      .sort((a, b) => b.periodo.localeCompare(a.periodo))
+      .slice(0, limite)
+  );
+
+export const cerrarPeriodo = async (
+  periodo: string,
+  notas?: string
+): Promise<CierrePeriodo> => {
+  const actual = cierreDemo(periodo);
+  if (actual.estado === 'cerrado') {
+    throw new Error(`El período ${periodo} ya está cerrado.`);
+  }
+  const cerrado: CierrePeriodo = {
+    ...actual,
+    estado: 'cerrado',
+    notas: notas?.trim() || actual.notas,
+    cerradoPor: 'usr-rrhh',
+    cerradoEn: new Date().toISOString(),
+  };
+  cierresDemo.set(periodo, cerrado);
+  return simular(cerrado);
+};
+
+export const reabrirPeriodo = async (
+  periodo: string,
+  motivo: string
+): Promise<CierrePeriodo> => {
+  const actual = cierresDemo.get(periodo);
+  if (!actual || actual.estado !== 'cerrado') {
+    throw new Error(`El período ${periodo} no está cerrado.`);
+  }
+  if (!motivo.trim()) {
+    throw new Error('Para reabrir un período hay que decir por qué.');
+  }
+  const abierto: CierrePeriodo = {
+    ...actual,
+    estado: 'abierto',
+    reabiertoPor: 'usr-rrhh',
+    reabiertoEn: new Date().toISOString(),
+    motivoReapertura: motivo.trim(),
+  };
+  cierresDemo.set(periodo, abierto);
+  return simular(abierto);
+};
+
+export const marcarCategoriaRevisada = async (
+  periodo: string,
+  categoria: string,
+  revisada: boolean
+): Promise<CierrePeriodo> => {
+  const actual = cierreDemo(periodo);
+  if (actual.estado === 'cerrado') {
+    throw new Error(`El período ${periodo} está cerrado.`);
+  }
+  const sinEsa = actual.categoriasRevisadas.filter((c) => c !== categoria);
+  const actualizado: CierrePeriodo = {
+    ...actual,
+    categoriasRevisadas: revisada ? [...sinEsa, categoria] : sinEsa,
+  };
+  cierresDemo.set(periodo, actualizado);
+  return simular(actualizado);
+};
+
+export const getDescuentosDeEmpresa = async (): Promise<
+  DescuentoRecurrente[]
+> => simular([...descuentosRecurrentesMock]);
+
+export const getDatosNovedades = async (
+  periodo: string
+): Promise<Omit<DatosNovedades, 'modulos'>> => {
+  const desde = `${periodo}-01`;
+  const hasta = finDeMesEmpresa(periodo);
+  const anterior = sumarMesesEmpresa(periodo, -1);
+  const [empleados, ausencias, jornadas] = await Promise.all([
+    getEmpleadosTodos(),
+    getAusenciasEntre(desde, hasta),
+    getJornadas(desde, hasta),
+  ]);
+  const turnos = new Map(
+    turnosMock.map((t) => [`${t.empleadoId}|${t.fecha}`, t])
+  );
+  return simular({
+    periodo,
+    empleados,
+    ausencias,
+    remuneraciones: remuneracionesMock.filter(
+      (r) => r.periodo === periodo || r.periodo === anterior
+    ),
+    adelantos: [...adelantosMock],
+    descuentos: [...descuentosRecurrentesMock],
+    jornadas: jornadas.map((j) => ({
+      empleadoId: j.empleadoId,
+      fecha: j.fecha,
+      // El mock no calcula extras contra el turno; se toman como
+      // aprobadas las horas por encima de las 8 del día que además
+      // tienen turno cargado, para que la demo muestre algo coherente.
+      horasExtrasAprobadas: turnos.get(`${j.empleadoId}|${j.fecha}`)
+        ?.extrasAprobadas
+        ? Math.max(0, Math.round((j.horas - 8) * 10) / 10)
+        : 0,
+      incompleta: j.incompleta,
+    })),
+  });
+};
+
+export const getDatosReporte = async (
+  periodo: string
+): Promise<Omit<DatosReporte, 'modulos'>> => {
+  const hasta = finDeMesEmpresa(periodo);
+  const anterior = sumarMesesEmpresa(periodo, -1);
+  const [empresa, empleados, ausencias, datos] = await Promise.all([
+    getEmpresa(),
+    getEmpleadosTodos(),
+    getAusenciasEntre(`${anterior}-01`, hasta),
+    getDatosNovedades(periodo),
+  ]);
+  return simular({
+    periodo,
+    empresa,
+    empleados,
+    ausencias,
+    remuneraciones: remuneracionesMock.filter(
+      (r) => r.periodo === periodo || r.periodo === anterior
+    ),
+    // Las jornadas ya vienen calculadas del mismo lugar que usa el
+    // cierre: una sola definición de "hora extra aprobada" también acá.
+    jornadas: datos.jornadas,
   });
 };

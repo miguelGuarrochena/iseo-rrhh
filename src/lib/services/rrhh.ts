@@ -67,6 +67,10 @@ export const actualizarModulosEmpresa = elegir(
   real.actualizarModulosEmpresa,
   demo.actualizarModulosEmpresa
 );
+export const actualizarServiciosEmpresa = elegir(
+  real.actualizarServiciosEmpresa,
+  demo.actualizarServiciosEmpresa
+);
 export const getEmpresaPorId = elegir(
   real.getEmpresaPorId,
   demo.getEmpresaPorId
@@ -82,6 +86,36 @@ export const getMovimientosDeEmpresa = elegir(
 export const actualizarConfigEmpresa = elegir(
   real.actualizarConfigEmpresa,
   demo.actualizarConfigEmpresa
+);
+
+// ---------- Cierre de novedades del mes ----------
+export const getCierrePeriodo = elegir(
+  real.getCierrePeriodo,
+  demo.getCierrePeriodo
+);
+export const getCierresPeriodo = elegir(
+  real.getCierresPeriodo,
+  demo.getCierresPeriodo
+);
+export const cerrarPeriodo = elegir(real.cerrarPeriodo, demo.cerrarPeriodo);
+export const reabrirPeriodo = elegir(real.reabrirPeriodo, demo.reabrirPeriodo);
+export const marcarCategoriaRevisada = elegir(
+  real.marcarCategoriaRevisada,
+  demo.marcarCategoriaRevisada
+);
+export const getDescuentosDeEmpresa = elegir(
+  real.getDescuentosDeEmpresa,
+  demo.getDescuentosDeEmpresa
+);
+export const getDatosNovedades = elegir(
+  real.getDatosNovedades,
+  demo.getDatosNovedades
+);
+
+// ---------- Reporte mensual (servicio de asesoría) ----------
+export const getDatosReporte = elegir(
+  real.getDatosReporte,
+  demo.getDatosReporte
 );
 
 // ---------- Configuración de la plataforma ----------
@@ -342,6 +376,14 @@ export const getHorasExtrasDelPeriodo = elegir(
 export const getRemuneraciones = elegir(
   real.getRemuneraciones,
   demo.getRemuneraciones
+);
+export const getRemuneracionesDePeriodos = elegir(
+  real.getRemuneracionesDePeriodos,
+  demo.getRemuneracionesDePeriodos
+);
+export const getEmpleadosConSueldo = elegir(
+  real.getEmpleadosConSueldo,
+  demo.getEmpleadosConSueldo
 );
 export const getRemuneracionesTodas = elegir(
   real.getRemuneracionesTodas,

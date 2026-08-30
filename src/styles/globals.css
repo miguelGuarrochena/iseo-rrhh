@@ -699,3 +699,59 @@ a:focus-visible,
 [data-mantine-color-scheme='dark'] .app-scope .hover\:border-red-200:hover {
   border-color: rgba(239, 68, 68, 0.45) !important;
 }
+
+/* ---------------------------------------------------------------
+   Impresión del Reporte mensual
+   ---------------------------------------------------------------
+   Existe para una sola pantalla: el reporte se lleva impreso a la
+   visita. Por eso casi todo cuelga de `.hoja-impresa`, la clase que esa
+   pantalla pone en su raíz, y no de `.app-scope`, que es toda la app.
+
+   La primera versión de esto era global y afectaba a cualquier pantalla
+   que alguien imprimiera: escondía el `<nav>` —o sea también los
+   breadcrumbs, que son un `<nav>`— y ponía `break-inside: avoid` en cada
+   `<li>` de la app.
+
+   El menú, el encabezado y la barra inferior son HERMANOS del contenido,
+   no descendientes, así que se llega a ellos con `:has()`. Si el
+   navegador no lo soporta, lo peor que pasa es que el menú salga impreso:
+   no se rompe nada.
+   --------------------------------------------------------------- */
+@media print {
+  /* Opt-in puro: sólo afecta a lo que lleva la clase. */
+  .no-imprimir {
+    display: none !important;
+  }
+
+  body:has(.hoja-impresa) .app-scope aside,
+  body:has(.hoja-impresa) .app-scope header,
+  body:has(.hoja-impresa) .app-scope nav {
+    display: none !important;
+  }
+
+  body:has(.hoja-impresa) .app-scope .lg\:pl-64 {
+    padding-left: 0 !important;
+  }
+
+  body:has(.hoja-impresa) .app-scope main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  /* Sin sombras ni fondos de color: en papel sólo estorban. */
+  .hoja-impresa,
+  .hoja-impresa * {
+    box-shadow: none !important;
+  }
+
+  .hoja-impresa .bg-surface,
+  .hoja-impresa .bg-paper {
+    background-color: #fff !important;
+  }
+
+  /* Que una tarjeta no quede partida entre dos hojas. */
+  .hoja-impresa section,
+  .hoja-impresa .grid > * {
+    break-inside: avoid;
+  }
+}

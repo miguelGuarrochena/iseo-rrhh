@@ -70,6 +70,19 @@ export const mensajeDeErrorDb = (mensaje: string): string => {
     );
   }
 
+  /**
+   * El período está cerrado (migración 99).
+   *
+   * Va antes que el resto porque el trigger lo levanta como una
+   * excepción común y quedaría traducido a "revisá fechas y montos", que
+   * manda a buscar el problema al lugar equivocado: el dato está bien,
+   * lo que pasa es que ese mes ya se cerró.
+   */
+  if (contiene(m, 'PERIODO_CERRADO')) {
+    const periodo = m.match(/PERIODO_CERRADO: el período (\d{4}-\d{2})/)?.[1];
+    return `El período ${periodo ?? 'de esa fila'} está cerrado, así que no se pueden cargar ni modificar remuneraciones ni adelantos de ese mes. Si hace falta corregirlo, reabrilo desde Cierre del mes explicando el motivo.`;
+  }
+
   // RLS: la operación no está permitida para el rol/empresa actual.
   if (contiene(m, 'row-level security policy')) {
     return 'No tenés permiso para guardar esto en la empresa que estás viendo. Si sos superadmin, revisá que tengas la empresa correcta seleccionada; si no, pedile acceso a quien administra la empresa.';

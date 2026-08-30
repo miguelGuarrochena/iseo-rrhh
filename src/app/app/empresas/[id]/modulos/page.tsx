@@ -6,6 +6,7 @@ import {
   IconAlertTriangle,
   IconDeviceFloppy,
   IconLayoutGrid,
+  IconSparkles,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
@@ -13,12 +14,18 @@ import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
 import { Boton } from '@/components/app/ui/Boton';
 import { Switch } from '@/components/app/ui/Switch';
 import { avisoError, avisoExito } from '@/lib/avisos';
-import { actualizarModulosEmpresa, getEmpresaPorId } from '@/lib/services/rrhh';
+import {
+  actualizarModulosEmpresa,
+  actualizarServiciosEmpresa,
+  getEmpresaPorId,
+} from '@/lib/services/rrhh';
 import {
   dependenDe,
   MODULOS_OPCIONALES,
   ModuloOpcional,
+  SERVICIOS_OPCIONALES,
 } from '@/components/app/navItems';
+import { olvidarCapacidades } from '@/lib/auth/useModulos';
 import { Empresa } from '@/types/rrhh';
 
 const etiquetaDe = (clave: ModuloOpcional): string =>
@@ -38,6 +45,7 @@ const ModulosEmpresaPage = () => {
 
   const [empresa, setEmpresa] = useState<Empresa | null>(null);
   const [modulos, setModulos] = useState<Record<string, boolean>>({});
+  const [servicios, setServicios] = useState<Record<string, boolean>>({});
   const [resumen, setResumen] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [cargando, setCargando] = useState(true);
@@ -59,6 +67,21 @@ const ModulosEmpresaPage = () => {
           )
         );
         setResumen(e?.config.resumenSemanal !== false);
+        /*
+         * Al revés que los módulos: acá lo que no figura NO está
+         * contratado. Una empresa que sólo usa la plataforma tiene que
+         * quedar con todos los servicios apagados sin que nadie los
+         * apague.
+         */
+        const contratados = e?.servicios ?? {};
+        setServicios(
+          Object.fromEntries(
+            SERVICIOS_OPCIONALES.map((sv) => [
+              sv.clave,
+              contratados[sv.clave] === true,
+            ])
+          )
+        );
       })
       .finally(() => setCargando(false));
   }, [id]);
@@ -89,8 +112,15 @@ const ModulosEmpresaPage = () => {
     setGuardando(true);
     try {
       await actualizarModulosEmpresa(id, modulos, { resumenSemanal: resumen });
+      // Los servicios son otra columna y otro permiso (sólo superadmin,
+      // lo hace cumplir la base), así que van en su propia llamada.
+      await actualizarServiciosEmpresa(id, servicios);
+      // El menú de esa empresa depende de las dos cosas: si queda el
+      // valor viejo en caché, el cliente sigue viendo (o sin ver) una
+      // sección hasta que recargue.
+      olvidarCapacidades(id);
       avisoExito(
-        'Módulos actualizados',
+        'Cambios guardados',
         `${empresa?.nombre ?? 'La empresa'} ve ${prendidos} de ${MODULOS_OPCIONALES.length} secciones.`
       );
     } catch (err) {
@@ -246,6 +276,73 @@ const ModulosEmpresaPage = () => {
           se pueden apagar: sin legajo no hay a quién liquidarle ni a quién
           darle acceso, y sin Permisos la empresa se queda sin forma de
           administrar sus propios usuarios.
+        </p>
+      </Panel>
+
+      {/* Lo que se contrata aparte. La plataforma es de autogestión: la
+          empresa maneja su RRHH sola. Esto es el acompañamiento de ISEO,
+          que algunos clientes suman y otros no. */}
+      <Panel>
+        <h2 className="flex items-center gap-2 text-[1.0625rem] font-bold tracking-tight text-ink">
+          <IconSparkles size={19} className="text-ink-soft" />
+          Servicios contratados
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-soft">
+          Se venden aparte de la plataforma. A diferencia de las secciones de
+          arriba, <strong>arrancan apagados</strong>: una empresa que sólo usa
+          la herramienta no ve nada de esto.
+        </p>
+
+        <div className="mt-4 flex flex-col gap-2.5">
+          {SERVICIOS_OPCIONALES.map((sv) => {
+            const activo = servicios[sv.clave] === true;
+            return (
+              <label
+                key={sv.clave}
+                className={`flex cursor-pointer items-start gap-3.5 rounded-2xl border px-4 py-3.5 transition-[background-color,border-color] duration-150 ${
+                  activo
+                    ? 'border-brand-200 bg-surface hover:border-brand-300'
+                    : 'border-line bg-paper/60'
+                }`}
+              >
+                <Switch
+                  checked={activo}
+                  onChange={(e) =>
+                    setServicios((prev) => ({
+                      ...prev,
+                      [sv.clave]: e.target.checked,
+                    }))
+                  }
+                  etiquetaAccesible={`${sv.etiqueta}: ${activo ? 'contratado' : 'no contratado'}`}
+                  className="mt-0.5"
+                />
+                <div className="min-w-0 flex-1">
+                  <p
+                    className={`text-sm font-bold ${activo ? 'text-ink' : 'text-ink-soft'}`}
+                  >
+                    {sv.etiqueta}
+                    {!activo && (
+                      <span className="ml-2 rounded-full bg-paper px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-ink-soft">
+                        No contratado
+                      </span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
+                    {sv.descripcion}
+                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink-soft/80">
+                    <span className="font-semibold">Qué habilita:</span>{' '}
+                    {sv.queHabilita}
+                  </p>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+
+        <p className="mt-4 text-xs leading-relaxed text-ink-soft">
+          Sólo vos podés cambiar esto: el cliente no ve el interruptor y la base
+          rechaza el cambio si lo intenta por otro lado.
         </p>
       </Panel>
 

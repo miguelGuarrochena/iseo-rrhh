@@ -8,6 +8,7 @@ import {
   Adelanto,
   Alerta,
   Ausencia,
+  CierrePeriodo,
   Comunicacion,
   ComunicacionMensaje,
   ConfigPlataforma,
@@ -75,7 +76,10 @@ import {
   diasVacacionesDeRangoEnAnio,
   diasVacacionesCorresponden,
 } from '@/lib/vacaciones';
-import { TIPOS_AUSENCIA_JORNADA, tipoAusenciaLabels } from '@/lib/etiquetas';
+import { tipoAusenciaLabels } from '@/lib/etiquetas';
+import { calcularAusentismo } from '@/lib/ausentismo';
+import type { DatosNovedades } from '@/lib/novedades';
+import type { DatosReporte } from '@/lib/reporteMensual';
 import {
   diasLicenciaAprobadosEnAnio,
   esLicenciaPorEvento,
@@ -98,8 +102,6 @@ import { traerTodo as traerTodoBase } from './paginado';
 import {
   diasAusencia,
   diasEntre,
-  diasHabilesEnMes,
-  diasHabilesEntre,
   finDeMesEmpresa,
   hoyISO,
   inicioDelDiaEmpresa,
@@ -107,6 +109,7 @@ import {
   mesEmpresa,
   proximoAniversario,
   sumarDiasEmpresa,
+  sumarMesesEmpresa,
 } from '@/lib/fechas';
 import {
   aniosFeriadosAsegurar,
@@ -402,6 +405,33 @@ export const actualizarModulosEmpresa = async (
   return empresa;
 };
 
+/**
+ * Prende y apaga servicios contratados de una empresa (asesoría de ISEO,
+ * y lo que venga después). Es del dueño de ISEO, no del cliente.
+ *
+ * Se guarda la bolsa entera y no una clave suelta: `servicios` es un
+ * JSONB y un update parcial lo reemplazaría completo.
+ *
+ * La autoridad no está acá: el trigger `solo_superadmin_cambia_servicios`
+ * (migración 100) rechaza el cambio si quien escribe no es superadmin.
+ * Esta función es la comodidad, no el control.
+ */
+export const actualizarServiciosEmpresa = async (
+  empresaId: string,
+  servicios: Record<string, boolean>
+): Promise<Empresa> => {
+  const { data, error } = await sb()
+    .from('empresas')
+    .update({ servicios })
+    .eq('id', empresaId)
+    .select()
+    .single();
+  invalidarEmpresa();
+  const empresa = aEmpresa(oFalla(data, error));
+  await registrarAuditoria('editar', 'empresa', empresaId, { servicios });
+  return empresa;
+};
+
 export const cambiarEstadoEmpresa = async (
   id: string,
   estado: Empresa['estado']
@@ -445,6 +475,14 @@ export const getMetricasGlobales = async (): Promise<MetricasGlobales> => {
   };
 };
 
+/**
+ * Los datos que la empresa administra de sí misma, desde Configuración.
+ *
+ * Sin `regimen`: decide si se retienen aportes de ley, así que es de
+ * ISEO y va por `actualizarDatosEmpresa`. Ninguna pantalla lo mandaba
+ * por acá, pero estaba en el tipo y la base ahora lo rechaza (mig. 101):
+ * dejarlo era una trampa para el próximo que agregara el campo al form.
+ */
 export const actualizarEmpresa = async (
   datos: Partial<
     Pick<
@@ -457,7 +495,6 @@ export const actualizarEmpresa = async (
       | 'cuit'
       | 'razonSocial'
       | 'domicilio'
-      | 'regimen'
     >
   >
 ): Promise<Empresa> => {
@@ -478,7 +515,6 @@ export const actualizarEmpresa = async (
   if (datos.cuit !== undefined) cambios.cuit = datos.cuit;
   if (datos.razonSocial !== undefined) cambios.razon_social = datos.razonSocial;
   if (datos.domicilio !== undefined) cambios.domicilio = datos.domicilio;
-  if (datos.regimen !== undefined) cambios.regimen = datos.regimen;
   const { data, error } = await sb()
     .from('empresas')
     .update(cambios)
@@ -2664,39 +2700,15 @@ export const getResumenControl = async (
   /**
    * Ausentismo del mes.
    *
-   * Tres cosas que estaban mal y se arreglan juntas porque son la misma
-   * cuenta:
-   *
-   *  1. Se sumaba `a.dias` entero de toda ausencia cuyo `fecha_desde`
-   *     cayera en el mes. Una del 20/07 al 10/08 aportaba sus 22 días a
-   *     julio y cero a agosto. Ahora se cuentan los días que pertenecen
-   *     al mes, que es el criterio que la migración 68 ya aplicó a
-   *     vacaciones.
-   *  2. Se mezclaban unidades: `dias` viene en hábiles para vacaciones
-   *     cuando la empresa las cuenta así, y en corridos para el resto.
-   *     Ahora las dos puntas de la fracción se miden en días hábiles.
-   *  3. Home office y las parciales de jornada contaban como un día de
-   *     ausencia completo. Home office es trabajo, y de una llegada
-   *     tarde no sabemos los minutos: sumarla como día entero es peor
-   *     que no contarla.
-   *
-   * El denominador era `empleados × 22`, un mes fijo. Ahora son los días
-   * hábiles reales del mes que se está midiendo.
+   * La cuenta vive en `ausentismo.ts` desde que el Reporte mensual
+   * necesitó la misma para un período cualquiera. Ahí están explicadas
+   * las tres decisiones (días dentro del mes, todo en hábiles, y las
+   * parciales de jornada no cuentan); acá no cambió ningún número.
    */
-  const NO_SON_AUSENCIA: string[] = TIPOS_AUSENCIA_JORNADA;
-  const diasAusencia = ausencias
-    .filter((a) => a.estado === 'aprobada' && !NO_SON_AUSENCIA.includes(a.tipo))
-    .reduce(
-      (acc, a) => acc + diasHabilesEnMes(a.fechaDesde, a.fechaHasta, mesActual),
-      0
-    );
-  const diasPersona = empleados.length * diasHabilesEntre(inicioMes, finMes);
+  const ausentismo = calcularAusentismo(ausencias, empleados.length, mesActual);
 
   return {
-    ausentismoPct:
-      diasPersona > 0
-        ? Math.round((diasAusencia / diasPersona) * 1000) / 10
-        : 0,
+    ausentismoPct: ausentismo.pct,
     llegadasTardeTotal: porEmpleado.reduce(
       (acc, e) => acc + e.llegadasTarde,
       0
@@ -2965,6 +2977,63 @@ export const getRemuneracionesTodas = async (): Promise<Remuneracion[]> => {
     'remuneraciones'
   );
   return filas.map(aRemuneracion);
+};
+
+/**
+ * Las remuneraciones de unos períodos concretos.
+ *
+ * El cierre y el reporte miran el mes y el anterior. Antes se traían
+ * TODAS y se filtraban en memoria: con dos años de historia eso es
+ * bajarse el 95% de las filas para descartarlas en el navegador. El
+ * filtro es exactamente el mismo, movido al servidor.
+ */
+export const getRemuneracionesDePeriodos = async (
+  periodos: string[]
+): Promise<Remuneracion[]> => {
+  if (periodos.length === 0) return [];
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('remuneraciones')
+        .select('*')
+        .eq('empresa_id', empresaId())
+        .in('periodo', periodos)
+        .order('periodo', { ascending: false })
+        .order('id')
+        .range(d, h),
+    'remuneraciones del período'
+  );
+  return filas.map(aRemuneracion);
+};
+
+/**
+ * Quiénes tienen al menos una remuneración cargada, alguna vez.
+ *
+ * Es lo único que necesita la regla `sin_sueldo` de `requisitos.ts`, y
+ * lo usan cuatro pantallas (Inicio, Colaboradores, Estado de RRHH y el
+ * Reporte mensual). Todas armaban el conjunto con
+ * `getRemuneracionesTodas()`, o sea bajándose la fila entera —bruto,
+ * neto, aportes, convenio— de cada sueldo de cada mes para quedarse con
+ * la columna del id.
+ *
+ * Acá se pide sólo esa columna. No se acota por período a propósito: la
+ * pregunta es "¿tiene sueldo cargado alguna vez?", no "¿tiene el de este
+ * mes?". Acotarla convertiría en "sin sueldo" a quien cobró en enero y
+ * todavía no tiene cargado junio, que es justo el falso positivo que la
+ * regla evita.
+ */
+export const getEmpleadosConSueldo = async (): Promise<string[]> => {
+  const filas = await traerTodo<{ empleado_id: string }>(
+    (d, h) =>
+      sb()
+        .from('remuneraciones')
+        .select('empleado_id')
+        .eq('empresa_id', empresaId())
+        .order('empleado_id')
+        .range(d, h),
+    'empleados con sueldo'
+  );
+  return [...new Set(filas.map((f) => f.empleado_id))];
 };
 
 /** Carga o actualiza la remuneración de un empleado para un período. */
@@ -4582,3 +4651,232 @@ const aDocumentoFirma = (f: Record<string, unknown>): DocumentoFirma => ({
   creadoEn: String(f.creado_en).slice(0, 10),
   archivadoEn: f.archivado_en ? String(f.archivado_en).slice(0, 10) : undefined,
 });
+
+// ---------- Cierre de novedades del mes ----------
+
+const aCierre = (f: Record<string, unknown>): CierrePeriodo => ({
+  id: f.id as string,
+  empresaId: f.empresa_id as string,
+  periodo: f.periodo as string,
+  estado: f.estado as CierrePeriodo['estado'],
+  categoriasRevisadas: Array.isArray(f.categorias_revisadas)
+    ? (f.categorias_revisadas as string[])
+    : [],
+  notas: (f.notas as string) ?? undefined,
+  cerradoPor: (f.cerrado_por as string) ?? undefined,
+  cerradoEn: f.cerrado_en ? String(f.cerrado_en) : undefined,
+  reabiertoPor: (f.reabierto_por as string) ?? undefined,
+  reabiertoEn: f.reabierto_en ? String(f.reabierto_en) : undefined,
+  motivoReapertura: (f.motivo_reapertura as string) ?? undefined,
+});
+
+/**
+ * El estado del período. Que no exista la fila significa "abierto": el
+ * cierre es un acto explícito, y no hace falta crear un renglón por cada
+ * mes que nadie tocó.
+ */
+export const getCierrePeriodo = async (
+  periodo: string
+): Promise<CierrePeriodo | null> => {
+  const { data, error } = await sb()
+    .from('cierres_periodo')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .eq('periodo', periodo)
+    .maybeSingle();
+  if (error) fallar(error.message, 'cierre/estado');
+  return data ? aCierre(data) : null;
+};
+
+/** Los últimos cierres, para ver de un vistazo qué meses ya están cerrados. */
+export const getCierresPeriodo = async (
+  limite = 12
+): Promise<CierrePeriodo[]> => {
+  const { data, error } = await sb()
+    .from('cierres_periodo')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .order('periodo', { ascending: false })
+    .limit(limite);
+  return oFalla(data, error).map(aCierre);
+};
+
+/**
+ * Cierra el mes.
+ *
+ * El rol, el tenant y la auditoría los resuelve el RPC en la base
+ * (migración 99). Acá no se valida nada de eso a propósito: si la
+ * validación viviera en el navegador, alcanzaría con un fetch a mano
+ * para saltearla.
+ */
+export const cerrarPeriodo = async (
+  periodo: string,
+  notas?: string
+): Promise<CierrePeriodo> => {
+  const { data, error } = await sb().rpc('cerrar_periodo', {
+    p_empresa_id: empresaId(),
+    p_periodo: periodo,
+    p_notas: notas?.trim() || null,
+  });
+  return aCierre(oFalla(data, error) as Record<string, unknown>);
+};
+
+export const reabrirPeriodo = async (
+  periodo: string,
+  motivo: string
+): Promise<CierrePeriodo> => {
+  const { data, error } = await sb().rpc('reabrir_periodo', {
+    p_empresa_id: empresaId(),
+    p_periodo: periodo,
+    p_motivo: motivo,
+  });
+  return aCierre(oFalla(data, error) as Record<string, unknown>);
+};
+
+export const marcarCategoriaRevisada = async (
+  periodo: string,
+  categoria: string,
+  revisada: boolean
+): Promise<CierrePeriodo> => {
+  const { data, error } = await sb().rpc('marcar_categoria_revisada', {
+    p_empresa_id: empresaId(),
+    p_periodo: periodo,
+    p_categoria: categoria,
+    p_revisada: revisada,
+  });
+  return aCierre(oFalla(data, error) as Record<string, unknown>);
+};
+
+/** Descuentos recurrentes de toda la empresa (el cierre los mira juntos). */
+export const getDescuentosDeEmpresa = async (): Promise<
+  DescuentoRecurrente[]
+> => {
+  const filas = await traerTodo(
+    (d, h) =>
+      sb()
+        .from('descuentos_recurrentes')
+        .select('*')
+        .eq('empresa_id', empresaId())
+        .order('creado_en', { ascending: false })
+        .order('id')
+        .range(d, h),
+    'descuentos de la empresa'
+  );
+  return filas.map(aDescuentoRecurrente);
+};
+
+/**
+ * Todo lo que pasó en un período, sin interpretar.
+ *
+ * Devuelve los datos crudos y no las categorías armadas: quién los
+ * agrupa es `novedades.ts`, que es lógica pura y se testea sin base. Acá
+ * sólo se traen, cada consulta acotada al mes.
+ *
+ * Las jornadas se piden con un día de margen a cada lado por la misma
+ * razón que `marcasDelPeriodoConMargen`: la jornada que entra el 31 a
+ * las 22:00 y sale el 1º a las 07:30 es una sola, del mes que empezó.
+ */
+export const getDatosNovedades = async (
+  periodo: string
+): Promise<Omit<DatosNovedades, 'modulos'>> => {
+  const desde = `${periodo}-01`;
+  const hasta = finDeMesEmpresa(periodo);
+  const anterior = sumarMesesEmpresa(periodo, -1);
+
+  const [empresa, empleados, ausencias, remuneraciones, adelantos, descuentos] =
+    await Promise.all([
+      getEmpresa(),
+      getEmpleadosTodos(),
+      getAusenciasEntre(desde, hasta),
+      // Sólo los dos períodos que se comparan: el resto no se usa.
+      getRemuneracionesDePeriodos([periodo, anterior]),
+      getAdelantos(),
+      getDescuentosDeEmpresa(),
+    ]);
+
+  const [jornadasCrudas, turnos] = await Promise.all([
+    getJornadas(sumarDiasEmpresa(desde, -1), sumarDiasEmpresa(hasta, 1)),
+    getTurnosEntre(desde, hasta),
+  ]);
+
+  // El control (extras aprobadas, jornada incompleta) sale de la misma
+  // función que usa Reportes y la liquidación: una sola definición de
+  // "hora extra aprobada" para toda la app.
+  const jornadas = controlDeJornadas(
+    jornadasCrudas.filter((j) => j.fecha >= desde && j.fecha <= hasta),
+    empresa.config,
+    turnos
+  ).map((j) => ({
+    empleadoId: j.empleadoId,
+    fecha: j.fecha,
+    horasExtrasAprobadas: j.horasExtrasAprobadas,
+    incompleta: j.incompleta,
+  }));
+
+  return {
+    periodo,
+    empleados,
+    ausencias,
+    remuneraciones,
+    adelantos,
+    descuentos,
+    jornadas,
+  };
+};
+
+// ---------- Reporte mensual (servicio de asesoría) ----------
+
+/**
+ * Los datos del mes para el reporte, sin interpretar.
+ *
+ * Igual que el cierre: acá sólo se traen, y `reporteMensual.ts` —que es
+ * lógica pura— arma los indicadores.
+ *
+ * Las ausencias se piden desde el mes ANTERIOR: el ausentismo se compara
+ * contra el mes previo y sin esas filas la comparación daría "bajó a
+ * cero" en vez de "no se puede calcular".
+ *
+ * Este servicio no controla que la empresa tenga la asesoría contratada:
+ * eso lo hace la pantalla (`RequireServicio`) y, sobre los datos, la RLS
+ * de siempre. Lo que devuelve son datos de la empresa activa y de
+ * ninguna otra.
+ */
+export const getDatosReporte = async (
+  periodo: string
+): Promise<Omit<DatosReporte, 'modulos'>> => {
+  const desde = `${periodo}-01`;
+  const hasta = finDeMesEmpresa(periodo);
+  const anterior = sumarMesesEmpresa(periodo, -1);
+
+  const [empresa, empleados, ausencias, remuneraciones] = await Promise.all([
+    getEmpresa(),
+    getEmpleadosTodos(),
+    getAusenciasEntre(`${anterior}-01`, hasta),
+    getRemuneracionesDePeriodos([periodo, anterior]),
+  ]);
+
+  const [jornadasCrudas, turnos] = await Promise.all([
+    getJornadas(sumarDiasEmpresa(desde, -1), sumarDiasEmpresa(hasta, 1)),
+    getTurnosEntre(desde, hasta),
+  ]);
+
+  const jornadas = controlDeJornadas(
+    jornadasCrudas.filter((j) => j.fecha >= desde && j.fecha <= hasta),
+    empresa.config,
+    turnos
+  ).map((j) => ({
+    empleadoId: j.empleadoId,
+    fecha: j.fecha,
+    horasExtrasAprobadas: j.horasExtrasAprobadas,
+    incompleta: j.incompleta,
+  }));
+
+  return {
+    periodo,
+    empresa,
+    empleados,
+    ausencias,
+    remuneraciones,
+    jornadas,
+  };
+};

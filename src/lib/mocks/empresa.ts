@@ -25,6 +25,13 @@ export const empresasMock: Empresa[] = [
     contactoTelefono: '11-4501-2233',
     plan: 'Full',
     config: configBase,
+    /*
+     * La empresa del demo tiene la asesoría contratada para que se pueda
+     * recorrer el Reporte mensual. Las otras dos NO, a propósito: así el
+     * demo también muestra cómo se ve un cliente de autogestión pura,
+     * que es el caso más común.
+     */
+    servicios: { asesoria: true },
     abonoMensual: 85000,
     creadaEn: '2026-01-05',
   },

@@ -41,6 +41,7 @@ export const aEmpresa = (f: Fila): Empresa => ({
   contactoTelefono: f.contacto_telefono ?? undefined,
   config: f.config,
   regimen: (f.regimen ?? 'relacion_dependencia') as Empresa['regimen'],
+  servicios: (f.servicios as Record<string, boolean>) ?? {},
   plan: f.plan ?? undefined,
   abonoMensual: f.abono_mensual != null ? Number(f.abono_mensual) : undefined,
   creadaEn: String(f.creada_en).slice(0, 10),
@@ -222,6 +223,7 @@ export const aDescuentoRecurrente = (f: Fila): DescuentoRecurrente => ({
   monto: Number(f.monto),
   modo: (f.modo as DescuentoRecurrente['modo']) ?? 'monto',
   porcentaje: f.porcentaje != null ? Number(f.porcentaje) : undefined,
+  creadoEn: f.creado_en ? String(f.creado_en).slice(0, 10) : undefined,
 });
 
 export const aAdelanto = (f: Fila): Adelanto => ({

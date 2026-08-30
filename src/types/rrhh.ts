@@ -172,6 +172,15 @@ export interface Empresa {
   config: ConfigEmpresa;
   /** Cómo liquida. Ausente = relación de dependencia. */
   regimen?: RegimenLaboral;
+  /**
+   * Servicios contratados a ISEO, por clave: `{ asesoria: true }`.
+   *
+   * Es distinto de `config.modulos`: los módulos son lo que la empresa
+   * usa de la app y los apaga ella misma, y lo que no figura está
+   * ENCENDIDO. Acá al revés: lo que no figura NO está contratado, y sólo
+   * el superadmin puede cambiarlo (la base lo hace cumplir, no la UI).
+   */
+  servicios?: Record<string, boolean>;
   /** Nombre del plan contratado (ej. "Básico", "Full"). */
   plan?: string;
   /** Abono mensual que la empresa le paga a ISEO (facturación). */
@@ -466,6 +475,12 @@ export interface DescuentoRecurrente {
   modo?: 'monto' | 'porcentaje';
   /** Porcentaje del bruto (si modo === 'porcentaje'). */
   porcentaje?: number;
+  /**
+   * YYYY-MM-DD en que se dio de alta. El descuento se arrastra todos los
+   * meses, así que la novedad del período es el alta, no el descuento:
+   * sin esta fecha el cierre no puede distinguir uno de otro.
+   */
+  creadoEn?: string;
 }
 
 /** Factura / cuota de monotributo cargada como costo laboral. */
@@ -911,6 +926,33 @@ export interface ResumenControl {
   jornadasIncompletas: number;
   recibosSinFirmar: number;
   porEmpleado: ControlEmpleado[];
+}
+
+// ---------- Cierre de novedades del mes ----------
+
+export type EstadoCierre = 'abierto' | 'cerrado';
+
+/**
+ * El estado del mes para una empresa.
+ *
+ * No guarda importes ni novedades: las novedades se calculan cada vez
+ * a partir de lo que ya está cargado. Acá vive sólo el acto —"este mes
+ * está revisado"— y quién lo hizo.
+ */
+export interface CierrePeriodo {
+  id: string;
+  empresaId: string;
+  /** YYYY-MM */
+  periodo: string;
+  estado: EstadoCierre;
+  /** Claves de categoría que RRHH ya revisó. */
+  categoriasRevisadas: string[];
+  notas?: string;
+  cerradoPor?: string;
+  cerradoEn?: string;
+  reabiertoPor?: string;
+  reabiertoEn?: string;
+  motivoReapertura?: string;
 }
 
 // ---------- Finanzas del negocio (solo superadmin / ISEO) ----------

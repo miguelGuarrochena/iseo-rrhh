@@ -1,12 +1,14 @@
 import {
   Icon,
   IconAdjustments,
+  IconArchive,
   IconBuildingFactory2,
   IconCashBanknote,
   IconCalendarClock,
   IconCalendarEvent,
   IconChartBar,
   IconClockCheck,
+  IconFileAnalytics,
   IconFileCertificate,
   IconFileCheck,
   IconGavel,
@@ -15,6 +17,7 @@ import {
   IconLifebuoy,
   IconMessages,
   IconPlaneDeparture,
+  IconProgressCheck,
   IconReportMoney,
   IconSettings,
   IconShieldCheck,
@@ -39,7 +42,60 @@ export interface NavItem {
    * `modulo`, siempre se muestra: son las partes que no se negocian.
    */
   modulo?: ModuloOpcional;
+  /**
+   * Servicio contratado del que depende la sección. Sin el servicio
+   * habilitado, no existe para esa empresa: ni en el menú, ni en el
+   * buscador, ni entrando por la URL (ver `RequireServicio`).
+   */
+  servicio?: ServicioOpcional;
 }
+
+/**
+ * Servicios que se contratan aparte de la plataforma.
+ *
+ * ISEO RH es, ante todo, una herramienta de autogestión: la empresa
+ * gestiona su RRHH sola. Algunos clientes además contratan el
+ * acompañamiento mensual de ISEO, y eso —y sólo eso— es lo que habilita
+ * estas secciones. No es el centro de la app: es una capacidad más que
+ * puede estar o no.
+ *
+ * Se lee al revés que los módulos, y está bien que así sea:
+ *   - módulo ausente  = ENCENDIDO (lo tiene y puede apagarlo).
+ *   - servicio ausente = NO CONTRATADO (no lo tiene hasta que ISEO lo dé).
+ */
+export type ServicioOpcional = 'asesoria';
+
+export interface ServicioInfo {
+  clave: ServicioOpcional;
+  etiqueta: string;
+  /** Qué le suma al cliente, en una línea. */
+  descripcion: string;
+  /** Qué aparece en la app cuando se habilita. */
+  queHabilita: string;
+}
+
+export const SERVICIOS_OPCIONALES: ServicioInfo[] = [
+  {
+    clave: 'asesoria',
+    etiqueta: 'Asesoría ISEO',
+    descripcion:
+      'Acompañamiento mensual de ISEO: diagnóstico, visitas y seguimiento de indicadores.',
+    queHabilita:
+      'El Reporte mensual: dotación, rotación, ausentismo, extras y masa salarial del período, comparados contra el mes anterior, para llevar a la visita.',
+  },
+];
+
+/**
+ * ¿La empresa tiene contratado ese servicio?
+ *
+ * Sin servicio declarado en el NavItem, la sección no depende de
+ * ninguno y se muestra. Con servicio, hace falta un `true` explícito:
+ * acá el default es "no", al revés que en los módulos.
+ */
+export const servicioActivo = (
+  servicio: ServicioOpcional | undefined,
+  servicios?: Record<string, boolean>
+): boolean => (servicio ? servicios?.[servicio] === true : true);
 
 /**
  * Secciones que se pueden encender y apagar por empresa.
@@ -237,6 +293,19 @@ export const navItems: NavItem[] = [
     roles: GESTION,
   },
   {
+    /*
+     * Estado de RRHH. No se negocia por la misma razón que Colaboradores:
+     * no agrega obligaciones ni datos nuevos, sólo ordena lo que
+     * `requisitos.ts` ya sabe de los legajos que la empresa cargó. Una
+     * empresa que la apagara seguiría teniendo los mismos pendientes,
+     * pero sin ningún lugar donde verlos juntos.
+     */
+    etiqueta: 'Estado de RRHH',
+    href: '/estado-rrhh',
+    icono: IconProgressCheck,
+    roles: ['admin_rrhh'],
+  },
+  {
     etiqueta: 'Mi legajo',
     href: '/mi-legajo',
     icono: IconId,
@@ -278,6 +347,21 @@ export const navItems: NavItem[] = [
     icono: IconReportMoney,
     roles: OPERATIVOS,
     modulo: 'remuneraciones',
+  },
+  {
+    /*
+     * Cierre del mes. Va después de Remuneraciones porque es el paso
+     * siguiente del mismo trabajo: cargar el mes y después revisarlo.
+     *
+     * No es apagable: no depende de ninguna sección en particular —una
+     * empresa sin Remuneraciones igual tiene altas, bajas y licencias
+     * que informar— y las categorías de secciones apagadas ya
+     * desaparecen solas de la pantalla.
+     */
+    etiqueta: 'Cierre del mes',
+    href: '/cierre',
+    icono: IconArchive,
+    roles: ['admin_rrhh'],
   },
   {
     etiqueta: 'Agenda',
@@ -324,6 +408,22 @@ export const navItems: NavItem[] = [
     modulo: 'reportes',
   },
   {
+    /*
+     * Reporte mensual. Es la única sección que cuelga de un servicio
+     * contratado, y por eso no aparece —ni en el menú ni por URL— en las
+     * empresas que sólo usan la plataforma.
+     *
+     * Va pegada a Reportes porque son lo mismo mirado distinto: Reportes
+     * es el tablero del día a día; esto es la foto cerrada de un mes,
+     * pensada para la visita.
+     */
+    etiqueta: 'Reporte mensual',
+    href: '/reporte-mensual',
+    icono: IconFileAnalytics,
+    roles: ['admin_rrhh'],
+    servicio: 'asesoria',
+  },
+  {
     // De una empresa: invita usuarios a ESA empresa. Al superadmin le
     // aparece cuando entra a un cliente (ahí su rol efectivo es admin).
     // En su menú suelto no iba: no hay empresa sobre la cual dar permisos.
@@ -358,10 +458,14 @@ export const moduloActivo = (
 
 export const navItemsPorRol = (
   rol: Rol,
-  modulos?: Record<string, boolean>
+  modulos?: Record<string, boolean>,
+  servicios?: Record<string, boolean>
 ): NavItem[] =>
   navItems.filter(
-    (item) => item.roles.includes(rol) && moduloActivo(item.modulo, modulos)
+    (item) =>
+      item.roles.includes(rol) &&
+      moduloActivo(item.modulo, modulos) &&
+      servicioActivo(item.servicio, servicios)
   );
 
 /**

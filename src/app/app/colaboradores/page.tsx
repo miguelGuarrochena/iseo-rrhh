@@ -23,9 +23,9 @@ import {
 import {
   getEmpleadosConCuenta,
   getEmpleadosTodos,
-  getRemuneracionesTodas,
+  getEmpleadosConSueldo,
 } from '@/lib/services/rrhh';
-import { Empleado, ModalidadContratacion, Remuneracion } from '@/types/rrhh';
+import { Empleado, ModalidadContratacion } from '@/types/rrhh';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
@@ -74,16 +74,17 @@ const ColaboradoresPage = () => {
     contexto: 'colaboradores/cuentas',
     inicial: [] as string[],
   });
-  // Una sola consulta para toda la empresa, no una por persona.
-  const cSueldos = useCarga(() => getRemuneracionesTodas(), [], {
+  // Una sola consulta para toda la empresa, no una por persona, y sólo
+  // los ids: es lo único que necesita la regla `sin_sueldo`.
+  const cSueldos = useCarga(() => getEmpleadosConSueldo(), [], {
     activo: rolEfectivo === 'admin_rrhh',
     contexto: 'colaboradores/sueldos',
-    inicial: [] as Remuneracion[],
+    inicial: [] as string[],
   });
   const faltasPorEmpleado = useMemo(() => {
     const cuentas = new Set(cCuentas.datos);
     const sabemosCuentas = cCuentas.fase === 'ok';
-    const conSueldo = new Set(cSueldos.datos.map((r) => r.empleadoId));
+    const conSueldo = new Set(cSueldos.datos);
     const sabemosSueldos = cSueldos.fase === 'ok';
     return new Map(
       empleados

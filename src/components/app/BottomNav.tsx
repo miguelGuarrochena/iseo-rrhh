@@ -7,7 +7,7 @@ import { useDisclosure } from '@mantine/hooks';
 import { IconLogout2, IconMenu2 } from '@tabler/icons-react';
 import { navItemsPorRol, tabsDeBarra } from './navItems';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { useModulos } from '@/lib/auth/useModulos';
+import { useModulos, useServicios } from '@/lib/auth/useModulos';
 import { PendientesResumen } from '@/types/rrhh';
 import { usePendientes } from '@/lib/pendientes';
 
@@ -27,6 +27,7 @@ const Badge = ({ n }: { n: number }) =>
 export const BottomNav = () => {
   const { usuario, rolEfectivo, empresaVista, salirDeEmpresa } = useAuth();
   const modulos = useModulos();
+  const servicios = useServicios();
   const pathname = usePathname();
   const router = useRouter();
   const [masAbierto, { open: abrirMas, close: cerrarMas }] =
@@ -40,7 +41,7 @@ export const BottomNav = () => {
     return pendientes[key] ?? 0;
   };
 
-  const items = navItemsPorRol(rolEfectivo, modulos);
+  const items = navItemsPorRol(rolEfectivo, modulos, servicios);
 
   /**
    * El dueño de ISEO adentro de un cliente navega con el menú de esa

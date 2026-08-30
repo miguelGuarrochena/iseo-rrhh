@@ -7,7 +7,7 @@ import { Logo } from '@/components/Logo';
 import { navItemsPorRol } from './navItems';
 import { Boton } from './ui/Boton';
 import { useAuth } from '@/lib/auth/AuthProvider';
-import { useModulos } from '@/lib/auth/useModulos';
+import { useModulos, useServicios } from '@/lib/auth/useModulos';
 import { getEmpresa } from '@/lib/services/rrhh';
 import { PendientesResumen } from '@/types/rrhh';
 import { useCarga } from '@/lib/useCarga';
@@ -41,6 +41,7 @@ const MarcaEmpresa = ({
 export const Sidebar = () => {
   const { usuario, rolEfectivo, empresaVista, salirDeEmpresa } = useAuth();
   const modulos = useModulos();
+  const servicios = useServicios();
   const pathname = usePathname();
   const router = useRouter();
   const pendientes = usePendientes(Boolean(usuario), usuario?.id);
@@ -73,7 +74,7 @@ export const Sidebar = () => {
       </Link>
 
       <nav className="mt-8 flex flex-1 flex-col gap-1 overflow-y-auto pb-2">
-        {navItemsPorRol(rolEfectivo, modulos).map((item) => {
+        {navItemsPorRol(rolEfectivo, modulos, servicios).map((item) => {
           const ruta = pathname.replace(/^\/app(?=\/|$)/, '') || '/';
           const activo =
             item.href === '/' ? ruta === '/' : ruta.startsWith(item.href);
