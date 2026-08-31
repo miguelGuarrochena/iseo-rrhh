@@ -1,13 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import {
   IconAlertTriangle,
   IconArrowNarrowRight,
   IconCheck,
   IconChevronDown,
-  IconChevronRight,
 } from '@tabler/icons-react';
 import { CategoriaNovedad, ItemNovedad } from '@/lib/novedades';
 import { formatearPesos } from '@/lib/formato';
@@ -33,106 +31,143 @@ const totalDe = (c: CategoriaNovedad): string | null => {
 };
 
 /**
+ * La línea que resume la categoría sin obligar a abrirla: cuántas
+ * novedades y, cuando sumarlas significa algo, cuánto suman.
+ *
+ * Reemplaza a la descripción larga, que ocupaba dos renglones en cada
+ * una de las nueve filas y hacía que la lista se leyera como un texto
+ * en vez de como una lista de trabajo. La descripción sigue estando,
+ * adentro, para cuando hace falta.
+ */
+const resumenDe = (c: CategoriaNovedad): string => {
+  if (c.items.length === 0) return 'Sin novedades';
+  const cuantas = `${c.items.length} ${c.items.length === 1 ? 'novedad' : 'novedades'}`;
+  const total = totalDe(c);
+  return total ? `${cuantas} · ${total}` : cuantas;
+};
+
+/**
  * Una categoría del cierre.
  *
  * El tilde de "revisada" es del trabajo de RRHH, no un permiso: no
  * habilita ni bloquea nada. Sirve para saber por dónde se iba cuando el
- * mes tiene nueve categorías y la revisión se hace en dos ratos.
+ * mes tiene nueve categorías y la revisión se hace en dos ratos. Por eso
+ * es lo primero de la fila y tiene forma de casilla: es la acción que se
+ * repite nueve veces.
  */
 export const CategoriaCard = ({
   categoria,
   revisada,
   bloqueada,
+  abierta,
+  onAbrir,
   onRevisar,
+  verTodo,
+  onVerTodo,
 }: {
   categoria: CategoriaNovedad;
   revisada: boolean;
   /** Período cerrado: se puede mirar, no tildar. */
   bloqueada: boolean;
+  abierta: boolean;
+  onAbrir: (abierta: boolean) => void;
   onRevisar: (revisada: boolean) => void;
+  verTodo: boolean;
+  onVerTodo: (verTodo: boolean) => void;
 }) => {
-  const [abierta, setAbierta] = useState(false);
-  const [verTodo, setVerTodo] = useState(false);
   const vacia = categoria.items.length === 0;
   const items = verTodo ? categoria.items : categoria.items.slice(0, VISIBLES);
-  const total = totalDe(categoria);
+  const atencion = categoria.requiereAtencion;
+
+  /*
+   * Tres tratamientos y nada más: lo que tiene datos que faltan, lo que
+   * ya se revisó y el resto. Cuando cada fila se pintaba igual, la
+   * categoría con un problema real quedaba escondida entre ocho vacías.
+   */
+  const marco = atencion
+    ? 'border-amber-300 bg-amber-50/50'
+    : revisada
+      ? 'border-line bg-paper/50'
+      : 'border-line bg-surface';
 
   return (
-    <div
-      className={`rounded-2xl border bg-surface ${
-        categoria.requiereAtencion ? 'border-amber-300' : 'border-line'
-      }`}
-    >
-      <div className="flex flex-wrap items-start gap-3 p-4 sm:p-5">
+    <div className={`rounded-2xl border transition-colors ${marco}`}>
+      <div
+        className={`flex items-center gap-3 px-3.5 sm:px-4 ${
+          vacia ? 'py-2.5' : 'py-3'
+        }`}
+      >
         <button
           type="button"
-          onClick={() => setAbierta((v) => !v)}
-          disabled={vacia}
-          aria-expanded={abierta}
-          className={`flex min-w-0 flex-1 items-start gap-2.5 text-left ${
-            vacia ? '' : 'cursor-pointer'
+          role="checkbox"
+          aria-checked={revisada}
+          aria-label={
+            revisada
+              ? `${categoria.etiqueta}: revisada`
+              : `Marcar ${categoria.etiqueta} como revisada`
+          }
+          title={revisada ? 'Revisada' : 'Marcar como revisada'}
+          onClick={() => onRevisar(!revisada)}
+          disabled={bloqueada}
+          className={`presionable flex h-6 w-6 shrink-0 items-center justify-center rounded-md border transition-colors disabled:cursor-default disabled:opacity-55 ${
+            revisada
+              ? 'border-emerald-500 bg-emerald-500 text-white'
+              : 'cursor-pointer border-line-strong bg-surface text-transparent hover:border-brand-500 hover:text-brand-200'
           }`}
         >
-          <span className="mt-0.5 shrink-0 text-ink-soft">
-            {vacia ? (
-              <span className="inline-block h-[18px] w-[18px]" />
-            ) : abierta ? (
-              <IconChevronDown size={18} />
-            ) : (
-              <IconChevronRight size={18} />
-            )}
-          </span>
-          <span className="min-w-0">
-            <span className="flex flex-wrap items-center gap-2">
-              <span className="text-[0.9375rem] font-bold text-ink">
-                {categoria.etiqueta}
-              </span>
-              <span
-                className={`rounded-full px-2 py-0.5 text-xs font-bold ${
-                  vacia
-                    ? 'bg-paper text-ink-soft'
-                    : categoria.requiereAtencion
-                      ? 'bg-amber-100 text-amber-900'
-                      : 'bg-brand-100 text-brand-800'
-                }`}
-              >
-                {categoria.items.length}
-              </span>
-              {total && (
-                <span className="text-[0.8125rem] font-semibold text-ink-soft tabular-nums">
-                  {total}
-                </span>
-              )}
-              {categoria.requiereAtencion && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-amber-900">
-                  <IconAlertTriangle size={12} />
-                  Revisar antes de cerrar
-                </span>
-              )}
-            </span>
-            <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
-              {categoria.descripcion}
-            </span>
-          </span>
+          <IconCheck size={15} stroke={3} />
         </button>
 
         <button
           type="button"
-          onClick={() => onRevisar(!revisada)}
-          disabled={bloqueada}
-          className={`presionable inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-[0.8125rem] font-bold transition-colors disabled:cursor-default disabled:opacity-55 ${
-            revisada
-              ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
-              : 'cursor-pointer border-line bg-surface text-ink-soft hover:border-brand-300 hover:text-brand-700'
+          onClick={() => onAbrir(!abierta)}
+          disabled={vacia}
+          aria-expanded={vacia ? undefined : abierta}
+          className={`flex min-w-0 flex-1 items-center gap-3 text-left ${
+            vacia ? '' : 'cursor-pointer'
           }`}
         >
-          <IconCheck size={15} stroke={2.4} />
-          {revisada ? 'Revisada' : 'Marcar revisada'}
+          <span className="min-w-0 flex-1">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span
+                className={`text-[0.9375rem] font-bold ${
+                  revisada && !atencion ? 'text-ink-soft' : 'text-ink'
+                }`}
+              >
+                {categoria.etiqueta}
+              </span>
+              {atencion && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-amber-900">
+                  <IconAlertTriangle size={12} />
+                  Faltan datos
+                </span>
+              )}
+            </span>
+            <span
+              className={`mt-0.5 block text-[0.8125rem] ${
+                vacia ? 'text-ink-soft/70' : 'font-semibold text-ink-soft'
+              }`}
+            >
+              {resumenDe(categoria)}
+            </span>
+          </span>
+
+          {!vacia && (
+            <IconChevronDown
+              size={18}
+              className={`shrink-0 text-ink-soft transition-transform ${
+                abierta ? 'rotate-180' : ''
+              }`}
+            />
+          )}
         </button>
       </div>
 
       {abierta && !vacia && (
-        <div className="border-t border-line px-4 pb-4 pt-3 sm:px-5">
+        <div className="border-t border-line px-3.5 pb-3.5 pt-3 sm:px-4">
+          <p className="mb-2.5 text-xs leading-relaxed text-ink-soft">
+            {categoria.descripcion}
+          </p>
           <ul className="flex list-none flex-col gap-1.5">
             {items.map((i) => (
               <li
@@ -164,7 +199,7 @@ export const CategoriaCard = ({
           {categoria.items.length > VISIBLES && (
             <button
               type="button"
-              onClick={() => setVerTodo((v) => !v)}
+              onClick={() => onVerTodo(!verTodo)}
               className="presionable mt-2 min-h-10 w-full cursor-pointer rounded-xl border border-line bg-surface/60 px-4 text-sm font-bold text-ink-soft hover:bg-surface hover:text-ink"
             >
               {verTodo

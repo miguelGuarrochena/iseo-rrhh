@@ -114,6 +114,13 @@ const dibujar = () =>
     </MantineProvider>
   );
 
+/**
+ * Los botones de cerrar de la PANTALLA (no el de la confirmación): hay
+ * dos, el del encabezado y el del panel de notas, y son el mismo acto.
+ */
+const botonesCerrar = (mes = 'septiembre 2026') =>
+  screen.queryAllByRole('button', { name: new RegExp(`^cerrar ${mes}$`, 'i') });
+
 /** Dibuja la pantalla y espera a que las novedades estén en pantalla. */
 const esperarPantalla = async (mes = 'septiembre 2026') => {
   dibujar();
@@ -188,9 +195,7 @@ describe('Cierre del mes · estado del período', () => {
     // Sin novedades no hay barra de avance que mirar…
     expect(screen.queryByRole('progressbar')).toBeNull();
     // …pero el mes se puede cerrar igual.
-    expect(
-      screen.getByRole('button', { name: /^cerrar septiembre 2026$/i })
-    ).toBeEnabled();
+    expect(botonesCerrar()[0]).toBeEnabled();
   });
 
   it('lo que tiene datos incompletos se lista aparte, con su link, y no bloquea', async () => {
@@ -206,9 +211,16 @@ describe('Cierre del mes · estado del período', () => {
       screen.getByText(/no impiden cerrar el período/i)
     ).toBeInTheDocument();
     // El botón sigue disponible: nada de esto es un bloqueo.
+    expect(botonesCerrar()[0]).toBeEnabled();
+
+    // En la lista, lo que tiene datos faltantes va primero y ya abierto.
+    const filas = screen.getAllByRole('checkbox');
+    expect(filas[0]).toHaveAccessibleName(
+      /marcar jornadas sin cerrar como revisada/i
+    );
     expect(
-      screen.getByRole('button', { name: /cerrar septiembre 2026/i })
-    ).toBeEnabled();
+      screen.getByRole('button', { name: /jornadas sin cerrar/i })
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 });
 
@@ -216,11 +228,24 @@ describe('Cierre del mes · cerrar', () => {
   const abrirConfirmacion = async () => {
     const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
     await esperarPantalla();
-    await user.click(
-      screen.getByRole('button', { name: /cerrar septiembre 2026/i })
-    );
+    await user.click(botonesCerrar()[0]);
     return { user, dialogo: await screen.findByRole('dialog') };
   };
+
+  it('la revisión se puede tildar y queda registrada', async () => {
+    const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+    await esperarPantalla();
+
+    await user.click(
+      screen.getByRole('checkbox', { name: /marcar altas como revisada/i })
+    );
+    await waitFor(() =>
+      expect(mRevisada).toHaveBeenCalledWith(PERIODO, 'altas', true)
+    );
+    expect(
+      await screen.findByRole('checkbox', { name: /altas: revisada/i })
+    ).toBeChecked();
+  });
 
   it('pide confirmación y explica qué implica, sin cerrar todavía', async () => {
     const { dialogo } = await abrirConfirmacion();
@@ -239,9 +264,7 @@ describe('Cierre del mes · cerrar', () => {
     expect(mCerrar).not.toHaveBeenCalled();
     // El diálogo se va y el período sigue ofreciéndose para cerrar.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(
-      screen.getByRole('button', { name: /cerrar septiembre 2026/i })
-    ).toBeInTheDocument();
+    expect(botonesCerrar().length).toBeGreaterThan(0);
   });
 
   it('al confirmar cierra el período y la pantalla pasa a cerrado', async () => {
@@ -256,9 +279,7 @@ describe('Cierre del mes · cerrar', () => {
     // Recién cuando el diálogo termina de irse queda sólo la pantalla, y
     // ahí ya no hay nada que cerrar.
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(
-      screen.queryByRole('button', { name: /cerrar septiembre 2026/i })
-    ).not.toBeInTheDocument();
+    expect(botonesCerrar()).toHaveLength(0);
   });
 
   it('un doble clic no cierra dos veces', async () => {
@@ -276,9 +297,9 @@ describe('Cierre del mes · cerrar', () => {
     await user.click(confirmar);
     // El diálogo ya se fue; el botón de la pantalla queda deshabilitado
     // mientras la llamada está en vuelo.
-    const enPantalla = await screen.findByRole('button', {
-      name: /cerrando…/i,
-    });
+    const enPantalla = (
+      await screen.findAllByRole('button', { name: /cerrando…/i })
+    )[0];
     expect(enPantalla).toBeDisabled();
     await user.click(enPantalla);
     resolver(cierreCerrado);
@@ -300,9 +321,7 @@ describe('Cierre del mes · cerrar', () => {
       )
     );
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(
-      screen.getByRole('button', { name: /cerrar septiembre 2026/i })
-    ).toBeEnabled();
+    expect(botonesCerrar()[0]).toBeEnabled();
   });
 });
 
@@ -333,7 +352,7 @@ describe('Cierre del mes · período ya cerrado', () => {
 
   it('las categorías no se pueden tildar', async () => {
     await esperarPantalla();
-    const tildes = screen.getAllByRole('button', { name: /marcar revisada/i });
+    const tildes = screen.getAllByRole('checkbox');
     expect(tildes[0]).toBeDisabled();
     expect(mRevisada).not.toHaveBeenCalled();
   });
@@ -355,9 +374,7 @@ describe('Cierre del mes · estados límite', () => {
     expect(
       await screen.findByText('No pudimos leer el estado')
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /^cerrar septiembre 2026$/i })
-    ).not.toBeInTheDocument();
+    expect(botonesCerrar()).toHaveLength(0);
   });
 
   it('un mes que todavía no terminó no se cierra', async () => {
@@ -377,9 +394,7 @@ describe('Cierre del mes · estados límite', () => {
     expect(
       await screen.findByText('El mes todavía no terminó')
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /^cerrar septiembre 2026$/i })
-    ).not.toBeInTheDocument();
+    expect(botonesCerrar()).toHaveLength(0);
     jest.setSystemTime(new Date('2026-09-10T12:00:00.000Z'));
   });
 });

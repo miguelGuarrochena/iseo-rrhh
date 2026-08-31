@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   IconAlertTriangle,
@@ -26,7 +26,11 @@ import { useModulos } from '@/lib/auth/useModulos';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { descargarCSV } from '@/lib/csv';
 import { formatearInstante, formatearPeriodo, mesEmpresa } from '@/lib/fechas';
-import { armarNovedades, filasDeExportacion } from '@/lib/novedades';
+import {
+  armarNovedades,
+  CategoriaNovedad,
+  filasDeExportacion,
+} from '@/lib/novedades';
 import { Usuario } from '@/types/rrhh';
 import {
   cerrarPeriodo,
@@ -64,32 +68,45 @@ type EstadoVisual = 'cerrado' | 'futuro' | 'listo' | 'revisar' | 'desconocido';
 
 const CARTEL: Record<
   EstadoVisual,
-  { texto: string; clases: string; icono: typeof IconLock }
+  {
+    texto: string;
+    /** Caja del cartel. Nunca `bg-paper`: contra el fondo de la app —que
+     *  es ese mismo celeste— el bloque desaparece. */
+    clases: string;
+    /** El color vive acá, en la pastilla del ícono. */
+    icono: typeof IconLock;
+    clasesIcono: string;
+  }
 > = {
   cerrado: {
     texto: 'Período cerrado',
     clases: 'border-emerald-200 bg-emerald-50 text-emerald-900',
     icono: IconLock,
+    clasesIcono: 'bg-emerald-100 text-emerald-700',
   },
   listo: {
     texto: 'Listo para cerrar',
     clases: 'border-emerald-200 bg-emerald-50 text-emerald-900',
     icono: IconCircleCheck,
+    clasesIcono: 'bg-emerald-100 text-emerald-700',
   },
   revisar: {
     texto: 'Hay cosas para revisar',
     clases: 'border-amber-200 bg-amber-50 text-amber-900',
     icono: IconAlertTriangle,
+    clasesIcono: 'bg-amber-100 text-amber-700',
   },
   futuro: {
     texto: 'El mes todavía no terminó',
-    clases: 'border-line bg-paper text-ink',
+    clases: 'border-line-strong bg-surface text-ink',
     icono: IconClock,
+    clasesIcono: 'bg-paper text-ink-soft',
   },
   desconocido: {
     texto: 'No pudimos leer el estado',
-    clases: 'border-line bg-paper text-ink',
+    clases: 'border-line-strong bg-surface text-ink',
     icono: IconAlertTriangle,
+    clasesIcono: 'bg-paper text-ink-soft',
   },
 };
 
@@ -104,6 +121,9 @@ const CierrePage = () => {
   const [motivo, setMotivo] = useState('');
   const [reabriendo, setReabriendo] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  /** Qué categorías están desplegadas y cuáles muestran todos sus ítems. */
+  const [abiertas, setAbiertas] = useState<Set<string>>(new Set());
+  const [verTodo, setVerTodo] = useState<Set<string>>(new Set());
 
   const cEmpresa = useCarga(() => getEmpresa(), [], {
     activo: esAdmin,
@@ -173,6 +193,62 @@ const CierrePage = () => {
     : [];
 
   /**
+   * Orden de la lista: primero lo que tiene datos faltantes, después lo
+   * que trae novedades y al final lo vacío. Es sólo presentación —el
+   * catálogo y la exportación mantienen su orden— pero es la diferencia
+   * entre encontrar el problema arriba o entre ocho filas en cero.
+   */
+  const categoriasOrdenadas = useMemo(() => {
+    const peso = (c: CategoriaNovedad) =>
+      c.requiereAtencion ? 0 : c.items.length > 0 ? 1 : 2;
+    return novedades
+      ? [...novedades.categorias].sort((a, b) => peso(a) - peso(b))
+      : [];
+  }, [novedades]);
+
+  /**
+   * Lo que hay que mirar arranca abierto: si hay que hacer un clic para
+   * enterarse, la fila con el problema se lee igual que las vacías.
+   *
+   * La dependencia es la LISTA DE CLAVES, no el objeto `novedades`. Es
+   * la diferencia entre andar y colgarse: `novedades` se rearma en cada
+   * render (depende de `modulos`, que puede llegar como un objeto nuevo
+   * cada vez), así que un efecto que dependiera de él haría `setState`
+   * en cada render, y de ahí no se sale.
+   */
+  const clavesConAtencion = useMemo(
+    () =>
+      (novedades?.categorias ?? [])
+        .filter((c) => c.requiereAtencion)
+        .map((c) => c.clave)
+        .join(','),
+    [novedades]
+  );
+
+  useEffect(() => {
+    setAbiertas(new Set(clavesConAtencion ? clavesConAtencion.split(',') : []));
+    setVerTodo(new Set());
+  }, [clavesConAtencion]);
+
+  const alternarEn = (
+    set: Set<string>,
+    poner: (s: Set<string>) => void,
+    clave: string,
+    valor: boolean
+  ) => {
+    const copia = new Set(set);
+    if (valor) copia.add(clave);
+    else copia.delete(clave);
+    poner(copia);
+  };
+
+  const todasAbiertas =
+    categoriasOrdenadas.filter((c) => c.items.length > 0).length > 0 &&
+    categoriasOrdenadas
+      .filter((c) => c.items.length > 0)
+      .every((c) => abiertas.has(c.clave));
+
+  /**
    * Cuánta gente toca este mes. Sale de las novedades que ya están en
    * memoria —no es una consulta nueva ni una estimación— y es lo que
    * dimensiona el período: ocho novedades de una persona y ocho de ocho
@@ -209,10 +285,14 @@ const CierrePage = () => {
    * el encabezado y el bloque de pendientes gritan lo mismo dos veces y
    * el color deja de señalar nada.
    */
-  const clasesCartel =
-    estadoVisual === 'revisar' && requierenAtencion === 0
-      ? 'border-line bg-paper text-ink'
-      : cartel.clases;
+  const soloFaltanTildes =
+    estadoVisual === 'revisar' && requierenAtencion === 0;
+  const clasesCartel = soloFaltanTildes
+    ? 'border-brand-200 bg-surface text-ink'
+    : cartel.clases;
+  const clasesIcono = soloFaltanTildes
+    ? 'bg-brand-100 text-brand-700'
+    : cartel.clasesIcono;
   const textoEstado =
     sinNovedades && !cerrado && !esFuturo && !estadoDesconocido
       ? 'Sin novedades para revisar'
@@ -413,7 +493,9 @@ const CierrePage = () => {
               className={`aparece rounded-3xl border p-5 sm:p-6 ${clasesCartel}`}
             >
               <div className="flex flex-wrap items-start gap-3.5">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface/70">
+                <span
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${clasesIcono}`}
+                >
                   <IconoEstado size={20} stroke={2} />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -487,7 +569,7 @@ const CierrePage = () => {
                         </span>
                       </div>
                       <div
-                        className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface"
+                        className="mt-1.5 h-2 w-full overflow-hidden rounded-full border border-line bg-paper"
                         role="progressbar"
                         aria-valuemin={0}
                         aria-valuemax={novedades.categorias.length}
@@ -512,7 +594,10 @@ const CierrePage = () => {
                   )}
                 </div>
 
-                {cerrado && (
+                {/* La acción vive al lado del estado. Abajo queda el mismo
+                    botón con el campo de notas: es el mismo cierre y las
+                    notas que hayas escrito viajan igual. */}
+                {cerrado ? (
                   <Boton
                     variante="secundario"
                     onClick={() => setReabriendo((v) => !v)}
@@ -520,6 +605,20 @@ const CierrePage = () => {
                     <IconLockOpen size={16} />
                     Reabrir
                   </Boton>
+                ) : (
+                  !esFuturo &&
+                  !estadoDesconocido && (
+                    <Boton
+                      variante="negro"
+                      onClick={() => void pedirCierre()}
+                      disabled={guardando}
+                    >
+                      <IconArchive size={16} />
+                      {guardando
+                        ? 'Cerrando…'
+                        : `Cerrar ${periodoLargo.toLowerCase()}`}
+                    </Boton>
+                  )
                 )}
               </div>
             </section>
@@ -603,17 +702,63 @@ const CierrePage = () => {
 
             <Panel
               titulo={`Novedades de ${periodoLargo.toLowerCase()}`}
-              descripcion="Sólo aparecen las categorías de las secciones que tu empresa usa. Tildá cada una a medida que la revisás."
+              descripcion={
+                cerrado
+                  ? 'Sólo aparecen las categorías de las secciones que tu empresa usa.'
+                  : `Tildá cada una a medida que la revisás. ${revisadasCuantas} de ${novedades.categorias.length} revisadas.`
+              }
+              acciones={
+                categoriasOrdenadas.some((c) => c.items.length > 0) ? (
+                  <Boton
+                    variante="secundario"
+                    tamano="sm"
+                    onClick={() =>
+                      setAbiertas(
+                        todasAbiertas
+                          ? new Set()
+                          : new Set(
+                              categoriasOrdenadas
+                                .filter((c) => c.items.length > 0)
+                                .map((c) => c.clave)
+                            )
+                      )
+                    }
+                  >
+                    {todasAbiertas ? 'Contraer todo' : 'Expandir todo'}
+                  </Boton>
+                ) : undefined
+              }
             >
-              <div className="flex flex-col gap-3">
-                {novedades.categorias.map((c) => (
-                  <CategoriaCard
-                    key={c.clave}
-                    categoria={c}
-                    revisada={revisadas.has(c.clave)}
-                    bloqueada={cerrado}
-                    onRevisar={(valor) => void alternarRevisada(c.clave, valor)}
-                  />
+              <div className="flex flex-col gap-2">
+                {categoriasOrdenadas.map((c, i) => (
+                  <Fragment key={c.clave}>
+                    {/* Las vacías van juntas al final, detrás de una
+                        línea: no hay nada que revisar ahí, pero se
+                        tildan igual para saber que se miraron. */}
+                    {c.items.length === 0 &&
+                      categoriasOrdenadas[i - 1]?.items.length !== 0 && (
+                        <p className="mt-2 flex items-center gap-2 text-[0.6875rem] font-bold uppercase tracking-wide text-ink-soft">
+                          Sin novedades este mes
+                          <span className="h-px flex-1 bg-line" />
+                        </p>
+                      )}
+                    <CategoriaCard
+                      categoria={c}
+                      revisada={revisadas.has(c.clave)}
+                      bloqueada={cerrado}
+                      abierta={abiertas.has(c.clave)}
+                      onAbrir={(valor) =>
+                        alternarEn(abiertas, setAbiertas, c.clave, valor)
+                      }
+                      verTodo={verTodo.has(c.clave)}
+                      onVerTodo={(valor) =>
+                        alternarEn(verTodo, setVerTodo, c.clave, valor)
+                      }
+                      onRevisar={(valor) =>
+                        void alternarRevisada(c.clave, valor)
+                      }
+                    />
+                  </Fragment>
                 ))}
               </div>
             </Panel>
