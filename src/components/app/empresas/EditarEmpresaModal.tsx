@@ -161,6 +161,7 @@ export const EditarEmpresaModal = ({
               value={datos.plan ?? ''}
               onChange={set('plan')}
               placeholder="Básico, Full…"
+              ayuda="Es una etiqueta comercial: no habilita ni bloquea nada. Lo que la empresa puede usar se define en Módulos y Servicios."
             />
             <Campo
               etiqueta="Cuota mensual"

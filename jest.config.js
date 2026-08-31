@@ -16,6 +16,12 @@ const customJestConfig = {
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    /*
+     * En jsdom, `exceljs` resuelve `uuid` a su build ESM y Jest no lo
+     * puede parsear. `uuid` publica un CJS al lado; se apunta ahí. Sin
+     * esto no se puede probar nada que lea o escriba planillas.
+     */
+    '^uuid$': '<rootDir>/node_modules/uuid/dist/index.js',
     // Dependencia opcional de supabase-js (buckets analíticos): no la usamos.
     '^iceberg-js$': '<rootDir>/src/tests/mocks/moduloVacio.js',
     // En jsdom las animaciones no aportan nada y la librería real sólo

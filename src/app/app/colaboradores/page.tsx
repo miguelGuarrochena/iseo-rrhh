@@ -24,7 +24,10 @@ import {
   getEmpleadosConCuenta,
   getEmpleadosTodos,
   getEmpleadosConSueldo,
+  getSolicitudesDeLegajo,
 } from '@/lib/services/rrhh';
+import { PedidosDeCambio } from '@/components/app/legajo/PedidosDeCambio';
+import { SolicitudDatoLegajo } from '@/lib/autoservicioLegajo';
 import { Empleado, ModalidadContratacion } from '@/types/rrhh';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { BloqueError } from '@/components/app/EstadoCarga';
@@ -57,6 +60,20 @@ const ColaboradoresPage = () => {
   const carga = useCarga(() => getEmpleadosTodos(), [], {
     contexto: 'colaboradores',
     inicial: [] as Empleado[],
+  });
+
+  /*
+   * Los pedidos de cambio viven acá y no en una pantalla propia: RRHH
+   * ya viene a Colaboradores para editar legajos, y esto es exactamente
+   * eso, con la diferencia de que lo pidió la persona.
+   *
+   * Sólo lo carga quien los puede resolver. La RLS los ocultaría igual,
+   * pero no hace falta el viaje.
+   */
+  const cargaPedidos = useCarga(() => getSolicitudesDeLegajo(true), [], {
+    activo: rolEfectivo === 'admin_rrhh',
+    contexto: 'colaboradores/pedidos-de-cambio',
+    inicial: [] as SolicitudDatoLegajo[],
   });
   const empleados = carga.datos;
   const cargarEmpleados = carga.recargar;
@@ -187,6 +204,15 @@ const ColaboradoresPage = () => {
           </div>
         )}
       </div>
+
+      <PedidosDeCambio
+        solicitudes={cargaPedidos.datos}
+        onCambio={() => {
+          cargaPedidos.recargar();
+          // Aprobar cambia el legajo: la lista de abajo ya no es la misma.
+          carga.recargar();
+        }}
+      />
 
       {/* Una línea, no la lista entera: quién es está al lado de cada
           nombre. Acá sólo hace falta saber que hay algo que mirar. */}

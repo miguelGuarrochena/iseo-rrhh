@@ -16,6 +16,7 @@ import {
   IconSearch,
   IconTrendingUp,
   IconUsers,
+  IconFileSpreadsheet,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
@@ -24,6 +25,7 @@ import {
   AdelantosEmpleado,
 } from '@/components/app/remuneraciones/Adelantos';
 import { RemuneracionModal } from '@/components/app/remuneraciones/RemuneracionModal';
+import { ImportarLiquidacionModal } from '@/components/app/remuneraciones/ImportarLiquidacionModal';
 import { GenerarAguinaldoModal } from '@/components/app/remuneraciones/GenerarAguinaldoModal';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import {
@@ -37,6 +39,7 @@ import {
   analizarSalario,
   CARGAS_PATRONALES,
   resumirMasa,
+  errorDeTopeImponible,
 } from '@/lib/remuneraciones';
 import { formatearPesos, formatearPorcentaje } from '@/lib/formato';
 import { formatearPeriodo } from '@/lib/fechas';
@@ -391,6 +394,18 @@ const VistaAdmin = () => {
     if (pct != null) setCargasPct(pct);
   }, [cEmpresa.datos]);
 
+  const [importarAbierto, setImportarAbierto] = useState(false);
+
+  /*
+   * Sin tope de aportes configurado no se puede liquidar. Se calcula acá
+   * para poder decir por qué el modal no deja avanzar, en vez de dejar
+   * un botón que falla recién al confirmar.
+   */
+  const bloqueoDeImportacion = errorDeTopeImponible(
+    cEmpresa.datos?.config.topeImponibleAportes,
+    cEmpresa.datos?.regimen
+  );
+
   const cargar = useCallback(() => {
     cRems.recargar();
     cEmpleados.recargar();
@@ -605,6 +620,14 @@ const VistaAdmin = () => {
             >
               <IconGift />
               Generar aguinaldo
+            </Boton>
+            <Boton
+              variante="secundario"
+              tamano="sm"
+              onClick={() => setImportarAbierto(true)}
+            >
+              <IconFileSpreadsheet />
+              Importar liquidación
             </Boton>
             <Boton variante="negro" tamano="sm" onClick={abrirNueva}>
               <IconPlus />
@@ -845,6 +868,14 @@ const VistaAdmin = () => {
         }
         onCerrar={() => setModalAbierto(false)}
         onGuardado={cargar}
+      />
+
+      <ImportarLiquidacionModal
+        abierto={importarAbierto}
+        empleados={empleados}
+        bloqueo={bloqueoDeImportacion}
+        onCerrar={() => setImportarAbierto(false)}
+        onImportado={cargar}
       />
 
       <GenerarAguinaldoModal

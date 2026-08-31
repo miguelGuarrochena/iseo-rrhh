@@ -30,6 +30,7 @@ import {
   APORTES_TOTAL,
   HORAS_MENSUALES,
   tieneAportesDeLey,
+  errorDeTopeImponible,
   valorHorasExtras,
 } from '@/lib/remuneraciones';
 import { useModulos } from '@/lib/auth/useModulos';
@@ -338,6 +339,14 @@ export const RemuneracionModal = ({
       setError('Los importes no pueden ser negativos.');
       return;
     }
+    // El tope pasó a ser obligatorio. Frenar acá evita el viaje, pero
+    // no es el freno: el servicio lo vuelve a mirar y la base tiene el
+    // trigger `exigir_tope_de_aportes`.
+    const sinTope = errorDeTopeImponible(topeImponible, regimen);
+    if (sinTope) {
+      setError(sinTope);
+      return;
+    }
     if (errorLimites) {
       setError(errorLimites);
       return;
@@ -613,10 +622,12 @@ export const RemuneracionModal = ({
               : 'Esta empresa está configurada como régimen simplificado: no se retienen aportes de ley. Si la empresa paga el monotributo, cargalo en la ficha del colaborador para que entre en el costo del mes.'}
           </p>
           {conAportes && !topeImponible && (
-            <p className="mt-1.5 text-xs text-ink-soft">
-              Sin tope de base imponible cargado, los aportes salen sobre el
-              bruto completo. Cargalo en Configuración → Remuneraciones para que
-              el cálculo respete el límite del art. 9 de la Ley 24.241.
+            <p className="mt-2 rounded-xl bg-amber-50 px-4 py-3 text-xs font-bold leading-relaxed text-amber-900">
+              Falta el tope de base imponible para aportes. Cargalo en
+              Configuración → Remuneraciones: sin ese dato no se puede guardar
+              la liquidación, porque los aportes saldrían sobre el bruto
+              completo y el neto quedaría más bajo que el que se cobra (art. 9,
+              Ley 24.241).
             </p>
           )}
           {errorLimites && (

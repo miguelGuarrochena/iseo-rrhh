@@ -450,6 +450,14 @@ export interface Remuneracion {
   montoNeto: number;
   /** Convenio colectivo aplicado (ej. "CCT 130/75"). */
   convenio?: string;
+  /** Cargada a mano o traída de la planilla del estudio contable. */
+  origen?: 'manual' | 'importacion';
+  /**
+   * Desglose informado por el estudio (básico, antigüedad, presentismo,
+   * extras, adicionales). Es trazabilidad: para liquidar valen los
+   * importes, no esto.
+   */
+  detalle?: Record<string, number>;
 }
 
 /** Datos para cargar/actualizar la remuneración de un período. */
@@ -553,6 +561,19 @@ export interface ReciboSueldo {
   archivadoEn?: string;
   /** Recibo al que vino a corregir. */
   rectificaA?: string;
+  /**
+   * SHA-256 del PDF exacto que se firmó.
+   *
+   * Es la evidencia de integridad: con esto se puede verificar después
+   * que el archivo es el mismo que la persona tuvo delante. Ausente en
+   * los recibos firmados antes de que existiera — la firma vale igual,
+   * pero sin constancia del contenido.
+   *
+   * Firma electrónica con evidencia, **no** firma digital certificada.
+   */
+  hashFirmado?: string;
+  /** Con qué algoritmo se calculó el hash. */
+  hashAlgoritmo?: string;
 }
 
 // ---------- Ausencias ----------

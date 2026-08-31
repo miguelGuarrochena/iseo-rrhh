@@ -12,16 +12,18 @@ grant usage on schema public to authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
 
 -- ---------- Fixtures: dos tenants ----------
+-- Desde la migración 107 el tope imponible de aportes es obligatorio para
+-- guardar remuneraciones. Estos fixtures liquidan, así que lo cargan.
 insert into empresas (id, nombre, cuit, contacto_nombre, contacto_email, config) values
  (
    'a0a0a0a0-a0a0-a0a0-a0a0-a0a0a0a0a0a1',
    'M60-A', '30-m60a', 'A', 'm60a@t.test',
-   '{"horaEntrada":"08:00","horaSalida":"17:00","toleranciaLlegadaTardeMin":10,"diasAvisoVencimiento":30,"metodosFichaje":["celular"]}'::jsonb
+   '{"horaEntrada":"08:00","horaSalida":"17:00","toleranciaLlegadaTardeMin":10,"diasAvisoVencimiento":30,"metodosFichaje":["celular"],"topeImponibleAportes":1200000}'::jsonb
  ),
  (
    'b0b0b0b0-b0b0-b0b0-b0b0-b0b0b0b0b0b1',
    'M60-B', '30-m60b', 'B', 'm60b@t.test',
-   '{"horaEntrada":"08:00","horaSalida":"17:00","toleranciaLlegadaTardeMin":10,"diasAvisoVencimiento":30,"metodosFichaje":["celular"]}'::jsonb
+   '{"horaEntrada":"08:00","horaSalida":"17:00","toleranciaLlegadaTardeMin":10,"diasAvisoVencimiento":30,"metodosFichaje":["celular"],"topeImponibleAportes":1200000}'::jsonb
  );
 
 insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso, puesto, sector) values

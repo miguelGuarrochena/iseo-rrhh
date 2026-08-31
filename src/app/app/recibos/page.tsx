@@ -30,6 +30,7 @@ import {
   cargarRecibo,
   eliminarRecibo,
   firmarRecibo,
+  hashDelRecibo,
   firmarReciboEmpleador,
   getEmpleados,
   getRecibos,
@@ -305,7 +306,14 @@ const RecibosPage = () => {
     if (!aFirmar) return;
     setFirmando(true);
     try {
-      await firmarRecibo(aFirmar.id);
+      /*
+       * El hash del PDF exacto que se está firmando: es la evidencia de
+       * QUÉ documento se firmó. Si no se pudo calcular, se firma igual
+       * —el derecho a firmar el propio recibo no depende de que el
+       * navegador tenga WebCrypto— y queda sin constancia de contenido.
+       */
+      const hash = await hashDelRecibo(aFirmar);
+      await firmarRecibo(aFirmar.id, hash);
       avisoExito(
         'Recibo firmado',
         `${formatearPeriodo(aFirmar.periodo)} quedó con constancia de recepción.`

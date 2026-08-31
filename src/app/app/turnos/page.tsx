@@ -68,6 +68,8 @@ const FilaDia = ({
   etiqueta,
   turno,
   turnoControl,
+  sinTurnoFichado,
+  porDefecto,
   fichajes,
   ausencias,
   puedeGestionar,
@@ -85,6 +87,10 @@ const FilaDia = ({
    * página para que el resumen de la semana use el mismo criterio.
    */
   turnoControl?: Turno;
+  /** Fichó ese día pero nadie le asignó turno: no hay contra qué medir. */
+  sinTurnoFichado?: boolean;
+  /** Horario general de la empresa, como punto de partida del turno nuevo. */
+  porDefecto?: { entrada: string; salida: string };
   fichajes: Fichaje[];
   ausencias: Ausencia[];
   puedeGestionar: boolean;
@@ -92,8 +98,12 @@ const FilaDia = ({
   onAprobarExtras: (aprobado: boolean) => Promise<void>;
   onQuitar: () => Promise<void>;
 }) => {
-  const [entrada, setEntrada] = useState(turno?.horaEntrada ?? '08:00');
-  const [salida, setSalida] = useState(turno?.horaSalida ?? '17:00');
+  const [entrada, setEntrada] = useState(
+    turno?.horaEntrada ?? porDefecto?.entrada ?? '08:00'
+  );
+  const [salida, setSalida] = useState(
+    turno?.horaSalida ?? porDefecto?.salida ?? '17:00'
+  );
   const [guardando, setGuardando] = useState(false);
   const [quitando, setQuitando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -229,15 +239,22 @@ const FilaDia = ({
               type="button"
               onClick={() => void onAprobarExtras(true)}
               className="cursor-pointer rounded-full border border-emerald-300 px-2.5 py-1 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-50"
-              title={
-                turno
-                  ? 'Marcar estas extras para liquidar'
-                  : `Marcar estas extras para liquidar. Como el día no tenía turno asignado, se le asigna el horario general (${turnoControl?.horaEntrada}–${turnoControl?.horaSalida}), que es contra el que ya se estaban midiendo.`
-              }
+              title="Marcar estas extras para liquidar"
             >
               Aprobar extra
             </button>
           ))}
+        {/* Fichó sin turno: es una situación a configurar, no un
+            resultado. Decir "En horario" acá sería afirmar que cumplió
+            un horario que nadie definió. */}
+        {sinTurnoFichado && (
+          <span
+            title="Fichó este día pero no tiene turno asignado. Sin turno no se calculan llegadas tarde ni horas extras: asignale el turno para que se controle."
+            className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 ring-1 ring-inset ring-amber-200"
+          >
+            Fichó sin turno
+          </span>
+        )}
         {control &&
           !control.ausente &&
           !control.deLicencia &&
@@ -320,19 +337,18 @@ const TurnosPage = () => {
   );
 
   /**
-   * Horario general de la empresa: es el que se aplica a los días sin
-   * turno asignado. Va aparte de `cSemana` porque no depende del
-   * empleado elegido y no tiene por qué volver a pedirse al cambiarlo.
+   * El horario general de la empresa. Ya no se usa para controlar nada
+   * —sin turno no se controla, ver `controlarJornada`— pero sigue siendo
+   * el punto de partida razonable al asignar un turno nuevo. Es lo único
+   * que hace hoy ese par de campos de Configuración.
    */
   const cEmpresa = useCarga(() => getEmpresa(), [], {
     contexto: 'turnos/empresa',
   });
-  const horarioGeneral = cEmpresa.datos?.config
-    ? {
-        horaEntrada: cEmpresa.datos.config.horaEntrada,
-        horaSalida: cEmpresa.datos.config.horaSalida,
-      }
-    : null;
+  const porDefecto = {
+    entrada: cEmpresa.datos?.config.horaEntrada ?? '08:00',
+    salida: cEmpresa.datos?.config.horaSalida ?? '17:00',
+  };
 
   const cargar = cSemana.recargar;
 
@@ -344,28 +360,27 @@ const TurnosPage = () => {
   const turnoDe = (fecha: string) => turnos.find((t) => t.fecha === fecha);
 
   /**
-   * Contra qué horario se controla cada día: el turno asignado o, si no
-   * hay, el horario general de la empresa — el mismo criterio que usa
-   * `controlDeJornadas` en el servidor para Reportes y la liquidación.
+   * Contra qué horario se controla cada día: el turno asignado, y nada
+   * más.
    *
-   * Sólo se arma el turno "de control" si esa persona fichó ese día. Sin
-   * marcas no hay nada que controlar, y compararlo igual contra el
-   * horario general pondría "Ausente" en cada sábado y domingo.
+   * Antes, si el día no tenía turno se sintetizaba uno con el horario
+   * general de la empresa. Para quien no trabaja en ese horario el
+   * control salía inventado —un turno de gastronomía de sábado
+   * 20:00–02:00 medido contra 08:00–17:00 daba doce horas de llegada
+   * tarde— y encima esta pantalla y el servidor tenían el mismo criterio
+   * escrito dos veces, listos para divergir. Ahora los dos dicen lo
+   * mismo: sin turno no se controla (ver `controlarJornada`).
+   *
+   * El día no desaparece: si fichó, se lo marca como "fichó sin turno",
+   * que es una situación que se resuelve asignándole el turno.
    */
-  const turnoDeControl = (fecha: string): Turno | undefined => {
-    const asignado = turnoDe(fecha);
-    if (asignado) return asignado;
-    if (!horarioGeneral || !empleadoId) return undefined;
-    if (!ficho(fichajes, empleadoId, fecha)) return undefined;
-    return {
-      id: '',
-      empleadoId,
-      fecha,
-      horaEntrada: horarioGeneral.horaEntrada,
-      horaSalida: horarioGeneral.horaSalida,
-      extrasAprobadas: false,
-    };
-  };
+  const turnoDeControl = (fecha: string): Turno | undefined => turnoDe(fecha);
+
+  /** Fichó ese día pero nadie le planificó el turno. */
+  const fichoSinTurno = (fecha: string): boolean =>
+    !turnoDe(fecha) &&
+    Boolean(empleadoId) &&
+    ficho(fichajes, empleadoId, fecha);
 
   const turnosSemana = dias
     .map(turnoDeControl)
@@ -610,6 +625,8 @@ const TurnosPage = () => {
                 etiqueta={DIAS[i]}
                 turno={turnoDe(fecha)}
                 turnoControl={turnoDeControl(fecha)}
+                sinTurnoFichado={fichoSinTurno(fecha)}
+                porDefecto={porDefecto}
                 fichajes={fichajes}
                 ausencias={ausencias}
                 puedeGestionar={puedeGestionar}

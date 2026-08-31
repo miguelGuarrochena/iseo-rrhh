@@ -6,7 +6,6 @@ import {
   getAusenciasPendientes,
   getDescriptoresFaciales,
   getEmpleados,
-  getEmpresa,
   getSaldoVacaciones,
   getEstadoDeCuentas,
   getTurnosDeEmpleado,
@@ -156,34 +155,48 @@ describe('servicios (mocks)', () => {
   });
 
   /**
-   * Las extras sólo se dan por aprobadas si el día tiene un turno, así
-   * que un día que nadie planificó las detectaba y no se podían pagar
-   * nunca: la liquidación ofrecía cero para siempre. Aprobarlas ahora
-   * materializa el turno que faltaba.
+   * Antes, aprobar las extras de un día sin turno creaba el turno con el
+   * horario general de la empresa. Tenía sentido mientras ese día se
+   * medía contra ese mismo horario: el turno no movía ningún número.
+   *
+   * Desde que un día sin turno no se mide (ver `controlarJornada`),
+   * crearlo sería inventar las extras que después se pagan, con un
+   * horario que puede no ser el de esa persona — el falso positivo de
+   * gastronomía, convertido en plata. Ahora se pide el turno primero.
    */
-  it('aprobar extras de un día sin turno crea el turno con el horario general', async () => {
+  it('aprobar extras de un día sin turno falla y dice qué hacer', async () => {
     const fecha = '2026-07-15';
     const antes = await getTurnosDeEmpleado('ple-3');
     expect(antes.some((t) => t.fecha === fecha)).toBe(false);
 
-    const turno = await aprobarExtrasDeJornada('ple-3', fecha, true);
-    const empresa = await getEmpresa();
-
-    expect(turno.extrasAprobadas).toBe(true);
-    // Mismo horario contra el que ya se venían midiendo esas extras: el
-    // turno creado no puede mover la cuenta del día, sólo autorizarla.
-    expect(turno.horaEntrada).toBe(empresa.config.horaEntrada);
-    expect(turno.horaSalida).toBe(empresa.config.horaSalida);
+    await expect(aprobarExtrasDeJornada('ple-3', fecha, true)).rejects.toThrow(
+      /no tiene turno asignado/i
+    );
   });
 
-  it('desaprobar no borra el turno, lo desmarca', async () => {
+  it('y no deja un turno inventado atrás', async () => {
     const fecha = '2026-07-16';
-    await aprobarExtrasDeJornada('ple-3', fecha, true);
-    const quitado = await aprobarExtrasDeJornada('ple-3', fecha, false);
+    await expect(
+      aprobarExtrasDeJornada('ple-3', fecha, true)
+    ).rejects.toThrow();
+    const turnos = await getTurnosDeEmpleado('ple-3');
+    expect(turnos.some((t) => t.fecha === fecha)).toBe(false);
+  });
+
+  it('desaprobar un día con turno lo desmarca sin borrarlo', async () => {
+    const [turnoExistente] = await getTurnosDeEmpleado('ple-3');
+    await aprobarExtrasDeJornada('ple-3', turnoExistente.fecha, true);
+    const quitado = await aprobarExtrasDeJornada(
+      'ple-3',
+      turnoExistente.fecha,
+      false
+    );
 
     expect(quitado.extrasAprobadas).toBe(false);
     const turnos = await getTurnosDeEmpleado('ple-3');
-    expect(turnos.filter((t) => t.fecha === fecha)).toHaveLength(1);
+    expect(turnos.filter((t) => t.fecha === turnoExistente.fecha)).toHaveLength(
+      1
+    );
   });
 
   it('sobre un día que ya tiene turno respeta el horario planificado', async () => {

@@ -172,6 +172,7 @@ export const NuevaEmpresaModal = ({
             value={datos.plan ?? ''}
             onChange={(e) => set('plan')(e.target.value)}
             placeholder="Básico, Full…"
+            ayuda="Es una etiqueta comercial: no habilita ni bloquea nada. Lo que la empresa puede usar se define en Módulos y Servicios."
           />
           <Campo
             etiqueta="Cuota mensual"

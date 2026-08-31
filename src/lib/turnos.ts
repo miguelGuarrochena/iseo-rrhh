@@ -211,6 +211,16 @@ export interface ControlDeJornada {
   llegadaTardeMin: number;
   /** Minutos trabajados después de la hora de salida esperada. */
   extrasMin: number;
+  /**
+   * No había horario de referencia para ese día: no se comparó contra
+   * nada y los dos números de arriba son cero por eso, no porque la
+   * persona haya cumplido.
+   *
+   * Quien muestre esto tiene que distinguir los dos casos: decir "en
+   * horario" cuando no se sabía cuál era el horario es afirmar algo que
+   * nadie verificó.
+   */
+  sinHorario: boolean;
 }
 
 /**
@@ -228,9 +238,23 @@ const minutosDelISO = (iso: string): number => minutosDelDiaEmpresa(iso);
 /**
  * Compara una jornada real contra el horario que le correspondía.
  *
- * El horario puede venir del turno asignado a esa persona ese día o, si
- * no tiene turno, del horario general de la empresa. Quien llama decide
- * cuál corresponde; acá sólo se hace la cuenta.
+ * El horario viene del turno asignado a esa persona ese día. **Con
+ * `null` no se compara nada**: se devuelven ceros y `sinHorario`.
+ *
+ * Ese `null` es el arreglo de un falso positivo caro. Antes, el día sin
+ * turno se comparaba contra el horario general de la empresa, y para
+ * quien no trabaja en ese horario el resultado era inventado: un turno
+ * gastronómico de sábado 20:00–02:00 medido contra 08:00–17:00 daba 12
+ * horas de llegada tarde y 9 de extras. En dos meses de datos reales eso
+ * produjo 26 horas de "llegada tarde" y 15 de extras que nadie hizo — y
+ * las extras detectadas alimentan la sugerencia de la liquidación, así
+ * que el error terminaba en plata.
+ *
+ * La empresa no siempre sabe el horario de cada persona, y cuando no lo
+ * sabe la respuesta correcta es "no sé", no "el general".
+ *
+ * (Trabajar sábado tampoco implica recargo: eso lo declara quien
+ * liquida, ver `RECARGO_EXTRA_100` en `remuneraciones.ts`.)
  *
  * **Sólo cuenta como extra la salida tardía**, no la entrada anticipada:
  * llegar veinte minutos antes suele ser el colectivo, no trabajo pedido.
@@ -242,9 +266,12 @@ const minutosDelISO = (iso: string): number => minutosDelDiaEmpresa(iso);
  */
 export const controlarJornada = (
   jornada: { entrada?: string | null; salida?: string | null },
-  horario: HorarioEsperado,
+  horario: HorarioEsperado | null,
   toleranciaMin = 0
 ): ControlDeJornada => {
+  if (!horario) {
+    return { llegadaTardeMin: 0, extrasMin: 0, sinHorario: true };
+  }
   const entradaEsperada = aMinutos(horario.horaEntrada);
   let salidaEsperada = aMinutos(horario.horaSalida);
   // Salida menor o igual que la entrada sólo tiene sentido si el turno
@@ -267,6 +294,7 @@ export const controlarJornada = (
       egresoMin !== null && egresoMin > salidaEsperada
         ? egresoMin - salidaEsperada
         : 0,
+    sinHorario: false,
   };
 };
 

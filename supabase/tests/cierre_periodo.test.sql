@@ -23,12 +23,14 @@ grant select, insert on table public.auditoria_acciones to authenticated;
 -- ---------- Datos ----------
 
 -- Tenant A
+-- Desde la migración 107 el tope imponible de aportes es obligatorio para
+-- guardar remuneraciones. Estos fixtures liquidan, así que lo cargan.
 insert into empresas (id, nombre, cuit, contacto_nombre, contacto_email, config)
 values (
   'cccccccc-cccc-cccc-cccc-ccccccccccc1',
   'Cierre SA', '30-ci-1', 'C', 'c@c.com',
   '{"horaEntrada":"08:00","horaSalida":"17:00","toleranciaLlegadaTardeMin":10,
-    "diasAvisoVencimiento":30,"metodosFichaje":["celular"]}'::jsonb
+    "diasAvisoVencimiento":30,"metodosFichaje":["celular"],"topeImponibleAportes":1200000}'::jsonb
 );
 
 -- Tenant B (aislamiento)
@@ -37,7 +39,7 @@ values (
   'cccccccc-cccc-cccc-cccc-ccccccccccc9',
   'Otra SA', '30-ci-9', 'O', 'o@o.com',
   '{"horaEntrada":"08:00","horaSalida":"17:00","toleranciaLlegadaTardeMin":10,
-    "diasAvisoVencimiento":30,"metodosFichaje":["celular"]}'::jsonb
+    "diasAvisoVencimiento":30,"metodosFichaje":["celular"],"topeImponibleAportes":1200000}'::jsonb
 );
 
 insert into empleados (id, empresa_id, nombre, apellido, dni, fecha_ingreso, puesto, sector)

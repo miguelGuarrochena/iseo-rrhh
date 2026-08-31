@@ -132,22 +132,51 @@ const parsearCsv = (texto: string): FilaPlanilla[] => {
 /** Error con mensaje pensado para mostrar directo al usuario. */
 export class ArchivoNoSoportado extends Error {}
 
+/** Lo único que se puede leer. Se dice tal cual en los mensajes. */
+export const EXTENSIONES_PERMITIDAS = ['.xlsx', '.csv'] as const;
+
+/** Para el `accept` del input y para los textos de la pantalla. */
+export const ACCEPT_PLANILLA =
+  '.xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv';
+
+export const FORMATOS_PERMITIDOS_TEXTO = 'Excel (.xlsx) o CSV (.csv)';
+
 /**
  * Lee un .xlsx o .csv y devuelve las filas como objetos {columna: valor},
  * tomando la primera fila como encabezado.
+ *
+ * La extensión se valida **antes** de tocar el contenido. Antes, un .pdf
+ * o un .doc entraban igual al parser de xlsx y morían con "No pudimos
+ * leer el archivo": el usuario no se enteraba de que el problema era el
+ * formato, y volvía a intentar con el mismo archivo.
  */
 export const leerFilasDeArchivo = async (
   archivo: File
 ): Promise<FilaPlanilla[]> => {
   const nombre = archivo.name.toLowerCase();
-  const esCsv = archivo.type === 'text/csv' || nombre.endsWith('.csv');
-  if (esCsv) return parsearCsv(await archivo.text());
+
+  if (nombre.endsWith('.csv')) return parsearCsv(await archivo.text());
 
   if (nombre.endsWith('.xls') && !nombre.endsWith('.xlsx')) {
     throw new ArchivoNoSoportado(
-      'El formato .xls (Excel viejo) no se puede leer. Abrilo en Excel/Google Sheets y guardalo como .xlsx o .csv.'
+      'El formato .xls (Excel viejo) no se puede leer. Abrilo en Excel o Google Sheets y guardalo como .xlsx o .csv.'
     );
   }
+
+  if (!nombre.endsWith('.xlsx')) {
+    /*
+     * Se mira la extensión y no el MIME type: el `type` que manda el
+     * navegador depende del sistema operativo y viene vacío bastante
+     * seguido, sobre todo desde el celular.
+     */
+    const extension = nombre.includes('.')
+      ? nombre.slice(nombre.lastIndexOf('.'))
+      : 'sin extensión';
+    throw new ArchivoNoSoportado(
+      `Formato no válido (${extension}). Debe subir un archivo ${FORMATOS_PERMITIDOS_TEXTO}.`
+    );
+  }
+
   return leerXlsx(archivo);
 };
 

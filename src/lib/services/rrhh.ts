@@ -88,6 +88,59 @@ export const actualizarConfigEmpresa = elegir(
   demo.actualizarConfigEmpresa
 );
 
+// ---------- Parámetros legales (los mantiene ISEO) ----------
+// ---------- Importación de liquidaciones ----------
+
+export const importarRemuneraciones = elegir(
+  real.importarRemuneraciones,
+  demo.importarRemuneraciones
+);
+
+export const remuneracionesExistentes = elegir(
+  real.remuneracionesExistentes,
+  demo.remuneracionesExistentes
+);
+
+// ---------- Autoservicio del legajo ----------
+
+export const getMisSolicitudesDeLegajo = elegir(
+  real.getMisSolicitudesDeLegajo,
+  demo.getMisSolicitudesDeLegajo
+);
+
+export const getSolicitudesDeLegajo = elegir(
+  real.getSolicitudesDeLegajo,
+  demo.getSolicitudesDeLegajo
+);
+
+export const solicitarCambioDeLegajo = elegir(
+  real.solicitarCambioDeLegajo,
+  demo.solicitarCambioDeLegajo
+);
+
+export const anularSolicitudDeLegajo = elegir(
+  real.anularSolicitudDeLegajo,
+  demo.anularSolicitudDeLegajo
+);
+
+export const resolverSolicitudDeLegajo = elegir(
+  real.resolverSolicitudDeLegajo,
+  demo.resolverSolicitudDeLegajo
+);
+
+export const getParametrosLegales = elegir(
+  real.getParametrosLegales,
+  demo.getParametrosLegales
+);
+export const crearParametroLegal = elegir(
+  real.crearParametroLegal,
+  demo.crearParametroLegal
+);
+export const eliminarParametroLegal = elegir(
+  real.eliminarParametroLegal,
+  demo.eliminarParametroLegal
+);
+
 // ---------- Cierre de novedades del mes ----------
 export const getCierrePeriodo = elegir(
   real.getCierrePeriodo,
@@ -406,6 +459,7 @@ export const getRecibosArchivadosTodos = elegir(
   real.getRecibosArchivadosTodos,
   demo.getRecibosArchivadosTodos
 );
+export const hashDelRecibo = elegir(real.hashDelRecibo, demo.hashDelRecibo);
 export const firmarRecibo = elegir(real.firmarRecibo, demo.firmarRecibo);
 export const cargarRecibo = elegir(real.cargarRecibo, demo.cargarRecibo);
 export const firmarReciboEmpleador = elegir(

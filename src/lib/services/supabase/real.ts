@@ -79,6 +79,16 @@ import {
 import { tipoAusenciaLabels } from '@/lib/etiquetas';
 import { calcularAusentismo } from '@/lib/ausentismo';
 import type { DatosNovedades } from '@/lib/novedades';
+import type {
+  NuevoParametroLegal,
+  ParametroLegal,
+} from '@/lib/parametrosLegales';
+import type {
+  NuevaSolicitudDatoLegajo,
+  SolicitudDatoLegajo,
+} from '@/lib/autoservicioLegajo';
+import type { FilaLiquidacion } from '@/lib/importarLiquidacion';
+import { ALGORITMO_HASH, hashDeArchivo } from '@/lib/constanciaFirma';
 import type { DatosReporte } from '@/lib/reporteMensual';
 import {
   diasLicenciaAprobadosEnAnio,
@@ -87,6 +97,7 @@ import {
 import { documentoFirmaSeArchiva } from '@/lib/seguridad/documentosFirma';
 import {
   calcularLiquidacion,
+  errorDeTopeImponible,
   errorDeLimiteAdelanto,
   errorDeLimitesLiquidacion,
 } from '@/lib/remuneraciones';
@@ -2301,26 +2312,23 @@ export const asignarTurnos = async (lista: NuevoTurno[]): Promise<void> => {
 };
 
 /**
- * Aprueba (o desaprueba) las horas extras de un día, haya o no un turno
- * planificado.
+ * Aprueba (o desaprueba) las horas extras de un día que tiene turno.
  *
- * `controlDeJornadas` sólo da por aprobadas las extras de un turno
- * asignado, así que un día sin turno las detectaba y no las podía pagar
- * **nunca**: la liquidación ofrecía cero para siempre. Pasaba con
- * cualquier día que nadie planificó y con toda empresa que usa Fichaje y
- * Remuneraciones pero no Turnos, que es una combinación válida.
+ * Antes también aceptaba días sin turno y lo creaba con el horario
+ * general de la empresa. Eso tenía sentido mientras `controlDeJornadas`
+ * medía esos días contra ese mismo horario: crear el turno no movía
+ * ningún número, sólo convertía "detectadas" en "aprobadas".
  *
- * La aprobación se materializa creando el turno que faltaba con el
- * horario general de la empresa. No es un rodeo: es exactamente el
- * horario contra el que esas extras ya se venían midiendo (`turno ??
- * horarioGeneral` en `controlDeJornadas`), así que crearlo no mueve ni
- * las horas extras ni las llegadas tarde de ese día — sólo convierte
- * "detectadas" en "aprobadas". Y deja una sola definición de extras
- * aprobadas en la base, en vez de una segunda tabla que después haya que
- * cruzar en cada cuenta.
+ * Ya no es así. Sin turno no se miden extras (ver `controlarJornada`),
+ * así que crearlo con el horario general dejó de ser un trámite: sería
+ * **inventar** las extras que después se pagan, con un horario que puede
+ * no ser el de esa persona. Por eso ahora se pide que el turno exista.
  *
- * Se busca por (empleado, fecha) y no por id de turno porque el llamador
- * puede no tener ninguno: es la clave única de la tabla.
+ * El camino correcto para un día que nadie planificó es asignarle el
+ * turno real desde la pantalla de Turnos y aprobar después. Es un paso
+ * más, y es el paso donde alguien dice cuál era el horario esperado.
+ *
+ * Se busca por (empleado, fecha) porque es la clave única de la tabla.
  */
 export const aprobarExtrasDeJornada = async (
   empleadoId: string,
@@ -2341,30 +2349,9 @@ export const aprobarExtrasDeJornada = async (
     return aTurno(existente.data[0]);
   }
 
-  const empresa = await getEmpresa();
-  const { data, error } = await sb()
-    .from('turnos')
-    .insert({
-      empresa_id: empresaId(),
-      empleado_id: empleadoId,
-      fecha,
-      hora_entrada: empresa.config.horaEntrada,
-      hora_salida: empresa.config.horaSalida,
-      extras_aprobadas: aprobado,
-    })
-    .select()
-    .single();
-
-  // Otro gestor asignó el turno entre el UPDATE y el INSERT: la fila ya
-  // existe (unique empleado_id, fecha) y sólo falta marcarla. Se
-  // reintenta el UPDATE una vez y no se recursiona: si tampoco aparece,
-  // el error de verdad es otro y conviene que se vea.
-  if (error?.code === '23505') {
-    const reintento = await marcar();
-    if (reintento.error) fallar(reintento.error.message);
-    if (reintento.data?.[0]) return aTurno(reintento.data[0]);
-  }
-  return aTurno(oFalla(data, error));
+  return fallar(
+    'Ese día no tiene turno asignado, así que no hay horario contra el cual medir las horas extras. Asignale el turno y volvé a aprobarlas.'
+  );
 };
 
 export const quitarTurno = async (id: string): Promise<void> => {
@@ -2549,12 +2536,17 @@ interface JornadaControl {
    *
    * Se separan porque son dos preguntas distintas: Reportes muestra lo
    * que pasó, y la liquidación paga lo que se autorizó. Sólo un turno
-   * asignado puede aprobarse, así que un día sin turno detecta extras
-   * pero no las da por aprobadas.
+   * asignado puede aprobarse.
    */
   horasExtrasAprobadas: number;
   llegadaTardeMin: number;
   incompleta: boolean;
+  /**
+   * Ese día no tenía turno asignado, así que no había horario contra el
+   * cual medir: `horasExtras` y `llegadaTardeMin` son cero por eso, no
+   * porque la persona haya cumplido el horario.
+   */
+  sinHorario: boolean;
 }
 
 /**
@@ -2566,11 +2558,9 @@ interface JornadaControl {
  * podían divergir —y de hecho redondeaban distinto—, así que ahora
  * recibe la jornada ya armada y sólo hace la parte que le toca.
  *
- * El horario esperado sale del **turno asignado** a esa persona ese día,
- * y sólo si no tiene turno se cae al horario general de la empresa.
- * Antes usaba siempre el general: quien tenía turno noche aparecía con
- * cientos de minutos de llegada tarde por día, y las horas extras que se
- * sugerían al liquidar no eran las suyas.
+ * El horario esperado sale del **turno asignado** a esa persona ese día.
+ * Sin turno no se controla: ver `controlarJornada`, donde está explicado
+ * por qué el horario general de la empresa no sirve de reemplazo.
  */
 /**
  * Marcas de una persona en un período, con un día de margen a cada lado.
@@ -2596,22 +2586,31 @@ const marcasDelPeriodoConMargen = (
     hasta: sumarDiasEmpresa(hasta, 1),
   });
 
+/**
+ * Cruza las jornadas con el turno que le tocaba a cada persona ese día.
+ *
+ * **Sin turno no se controla nada.** Antes se caía al horario general de
+ * la empresa, y para quien no trabaja en ese horario el resultado era
+ * inventado (ver `controlarJornada`). Las horas trabajadas sí se
+ * informan siempre: salen de las marcas y son un hecho; lo que no se
+ * afirma es si llegó tarde o hizo extras, porque para eso hace falta
+ * saber contra qué.
+ *
+ * `config` se sigue recibiendo por la tolerancia de llegada tarde, que
+ * es de la empresa y no del turno.
+ */
 const controlDeJornadas = (
   jornadas: Jornada[],
   config: Empresa['config'],
   turnos: Turno[] = []
 ): JornadaControl[] => {
   const porTurno = indexarTurnos(turnos);
-  const horarioGeneral = {
-    horaEntrada: config.horaEntrada,
-    horaSalida: config.horaSalida,
-  };
 
   return jornadas.map((j) => {
     const turno = porTurno.get(claveTurno(j.empleadoId, j.fecha));
-    const { llegadaTardeMin, extrasMin } = controlarJornada(
+    const { llegadaTardeMin, extrasMin, sinHorario } = controlarJornada(
       j,
-      turno ?? horarioGeneral,
+      turno ?? null,
       config.toleranciaLlegadaTardeMin
     );
     const horasExtras = Math.round((extrasMin / 60) * 10) / 10;
@@ -2623,6 +2622,7 @@ const controlDeJornadas = (
       horasExtrasAprobadas: turno?.extrasAprobadas ? horasExtras : 0,
       llegadaTardeMin,
       incompleta: j.incompleta,
+      sinHorario,
     };
   });
 };
@@ -3036,6 +3036,154 @@ export const getEmpleadosConSueldo = async (): Promise<string[]> => {
   return [...new Set(filas.map((f) => f.empleado_id))];
 };
 
+/**
+ * Guarda una importación completa, o no guarda nada.
+ *
+ * Lo que hace distinta a esta función de llamar N veces a
+ * `cargarRemuneracion`: los datos comunes —empresa, tope, embargos— se
+ * traen una sola vez, y las 120 filas entran en un único `upsert`. Que
+ * sea una sola sentencia es lo que garantiza que un archivo con un
+ * problema no deje medio mes cargado y medio no.
+ *
+ * Las validaciones por fila (quién es, qué mes, cuánto) ya corrieron en
+ * `armarFilasDeLiquidacion`. Acá se revisa lo que la pantalla no puede
+ * saber por sí sola y lo que no puede tener la última palabra:
+ *
+ *  - el tope de aportes de la empresa, sin el cual no se liquida;
+ *  - el límite de deducciones del art. 133, por fila;
+ *  - que ninguna fila traiga un empleado que no sea de esta empresa.
+ *
+ * Y por debajo siguen los tres frenos de la base, que no se pueden
+ * saltear desde ningún cliente: `assert_empleado_de_empresa`,
+ * `bloquear_periodo_cerrado` y `exigir_tope_de_aportes`.
+ */
+export const importarRemuneraciones = async (
+  filas: FilaLiquidacion[],
+  tipo: Remuneracion['tipo'] = 'mensual'
+): Promise<{ guardadas: number; periodos: string[] }> => {
+  const importables = filas.filter((f) => f.errores.length === 0);
+  if (importables.length === 0) {
+    fallar('No hay filas para importar.', 'remuneraciones/importar');
+  }
+
+  const empresa = await getEmpresa();
+  const sinTope = errorDeTopeImponible(
+    empresa.config.topeImponibleAportes,
+    empresa.regimen
+  );
+  if (sinTope) fallar(sinTope, 'remuneraciones/importar');
+
+  /*
+   * Los empleados de la empresa activa, traídos del servidor.
+   *
+   * La pantalla ya resolvió los ids contra la lista que tenía cargada,
+   * pero esa lista viene del cliente: si alguien manipula el payload,
+   * acá se corta. La base lo volvería a rechazar por trigger; esto sólo
+   * hace que el error se lea.
+   */
+  const propios = new Set((await getEmpleadosTodos()).map((e) => e.id));
+  const ajenas = importables.filter(
+    (f) => !f.empleadoId || !propios.has(f.empleadoId)
+  );
+  if (ajenas.length > 0) {
+    fallar(
+      `Hay ${ajenas.length} fila(s) con colaboradores que no son de esta empresa.`,
+      'remuneraciones/importar'
+    );
+  }
+
+  // Un solo viaje para los embargos de todas las personas del archivo.
+  const conEmbargo = await empleadosConEmbargo(
+    importables.map((f) => f.empleadoId as string)
+  );
+
+  const aGuardar = importables.map((f) => {
+    const { aportes, neto } = calcularLiquidacion({
+      montoBruto: f.montoBruto,
+      noRemunerativo: f.noRemunerativo,
+      otrosDescuentos: f.otrosDescuentos,
+      regimen: empresa.regimen,
+      topeImponible: empresa.config.topeImponibleAportes,
+    });
+    const limite = errorDeLimitesLiquidacion({
+      montoBruto: f.montoBruto,
+      noRemunerativo: f.noRemunerativo,
+      otrosDescuentos: f.otrosDescuentos,
+      aportes,
+      conEmbargo: conEmbargo.has(f.empleadoId as string),
+    });
+    if (limite) {
+      fallar(
+        `Fila ${f.fila} (${f.empleadoNombre ?? f.identificador}): ${limite}`,
+        'remuneraciones/importar'
+      );
+    }
+    return {
+      empresa_id: empresaId(),
+      empleado_id: f.empleadoId as string,
+      periodo: f.periodo as string,
+      tipo,
+      monto_bruto: f.montoBruto,
+      no_remunerativo: f.noRemunerativo,
+      otros_descuentos: f.otrosDescuentos,
+      aportes,
+      monto_neto: neto,
+      origen: 'importacion',
+      detalle: Object.keys(f.detalle).length > 0 ? f.detalle : null,
+    };
+  });
+
+  const { error } = await sb()
+    .from('remuneraciones')
+    .upsert(aGuardar, { onConflict: 'empleado_id,periodo,tipo' });
+  if (error) fallar(mensajeDeErrorDb(error.message), 'remuneraciones/importar');
+
+  const periodos = [...new Set(aGuardar.map((r) => r.periodo))].sort();
+  await registrarAuditoria('importar', 'remuneracion', undefined, {
+    filas: aGuardar.length,
+    periodos,
+    tipo,
+  });
+  return { guardadas: aGuardar.length, periodos };
+};
+
+/** Quiénes de esta lista tienen un embargo judicial vigente. */
+const empleadosConEmbargo = async (
+  empleadoIds: string[]
+): Promise<Set<string>> => {
+  if (empleadoIds.length === 0) return new Set();
+  const { data, error } = await sb()
+    .from('descuentos_recurrentes')
+    .select('empleado_id')
+    .in('empleado_id', [...new Set(empleadoIds)])
+    .eq('es_embargo', true);
+  if (error) return new Set();
+  return new Set((data ?? []).map((f) => f.empleado_id as string));
+};
+
+/**
+ * Las claves `empleadoId|periodo` que ya tienen remuneración cargada.
+ *
+ * Sirve para avisar antes de importar qué se va a pisar. Se pregunta por
+ * los períodos del archivo, no por todo el historial.
+ */
+export const remuneracionesExistentes = async (
+  periodos: string[],
+  tipo: Remuneracion['tipo'] = 'mensual'
+): Promise<Set<string>> => {
+  if (periodos.length === 0) return new Set();
+  const { data, error } = await sb()
+    .from('remuneraciones')
+    .select('empleado_id, periodo')
+    .eq('empresa_id', empresaId())
+    .eq('tipo', tipo)
+    .in('periodo', [...new Set(periodos)]);
+  if (error) return new Set();
+  return new Set(
+    (data ?? []).map((f) => `${f.empleado_id as string}|${f.periodo as string}`)
+  );
+};
+
 /** Carga o actualiza la remuneración de un empleado para un período. */
 export const cargarRemuneracion = async (
   datos: NuevaRemuneracion
@@ -3045,6 +3193,20 @@ export const cargarRemuneracion = async (
   // no, en una empresa simplificada la pantalla mostraba "a pagar $100"
   // y se guardaba $83 con aportes que nadie retiene.
   const empresa = await getEmpresa();
+  /*
+   * Sin tope no se liquida.
+   *
+   * Antes, si faltaba, los aportes salían sobre el bruto completo y el
+   * resultado parecía un cálculo: nadie veía que el neto guardado era
+   * más bajo que el que la persona iba a cobrar. Se corta acá y no sólo
+   * en el formulario; la base lo vuelve a exigir por trigger.
+   */
+  const sinTope = errorDeTopeImponible(
+    empresa.config.topeImponibleAportes,
+    empresa.regimen
+  );
+  if (sinTope) fallar(sinTope, 'remuneraciones/tope');
+
   const { aportes, neto } = calcularLiquidacion({
     ...datos,
     regimen: empresa.regimen,
@@ -3156,12 +3318,25 @@ export const getRecibosArchivadosTodos = async (): Promise<ReciboSueldo[]> => {
 };
 
 export const firmarRecibo = async (
-  reciboId: string
+  reciboId: string,
+  /**
+   * Hash del PDF que la persona tuvo delante. Se calcula en el navegador
+   * sobre los bytes descargados (ver `constanciaFirma.ts`).
+   *
+   * Opcional a propósito: si el navegador no pudo calcularlo, se firma
+   * igual. El derecho del empleado a firmar su recibo no puede depender
+   * de que `crypto.subtle` esté disponible; lo que se pierde es la
+   * evidencia del contenido, y eso queda registrado como tal.
+   */
+  hash?: string | null
 ): Promise<ReciboSueldo | null> => {
   // La firma va por RPC: el empleado ya no tiene policy UPDATE sobre
-  // `recibos` (BUG-005). El servidor sólo toca estado_firma + firmado_en.
-  const { data, error } = await sb().rpc('firmar_recibo', {
+  // `recibos` (BUG-005). El servidor sólo toca estado_firma, firmado_en
+  // y la constancia.
+  const { data, error } = await sb().rpc('firmar_recibo_con_constancia', {
     p_recibo_id: reciboId,
+    p_hash: hash ?? null,
+    p_algoritmo: ALGORITMO_HASH,
   });
   if (error) throw new Error(error.message);
   const fila = Array.isArray(data) ? data[0] : data;
@@ -3170,8 +3345,30 @@ export const firmarRecibo = async (
   await registrarAuditoria('firmar', 'recibo', recibo.id, {
     empleadoId: recibo.empleadoId,
     periodo: recibo.periodo,
+    conConstancia: Boolean(hash),
   });
   return recibo;
+};
+
+/**
+ * Baja el PDF del recibo y calcula su hash, para firmarlo con constancia.
+ *
+ * Se descarga el archivo aunque la pantalla ya lo haya mostrado: el hash
+ * tiene que ser el del documento, y la URL firmada de Storage sirve
+ * exactamente los mismos bytes.
+ */
+export const hashDelRecibo = async (
+  recibo: ReciboSueldo
+): Promise<string | null> => {
+  try {
+    const url = await abrirRecibo(recibo);
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    return await hashDeArchivo(await res.blob());
+  } catch {
+    // Sin hash se firma igual: ver el comentario de `firmarRecibo`.
+    return null;
+  }
 };
 
 /** Avisa al empleado que su recibo ya está disponible para firmar. */
@@ -4679,6 +4876,185 @@ const aDocumentoFirma = (f: Record<string, unknown>): DocumentoFirma => ({
   creadoEn: String(f.creado_en).slice(0, 10),
   archivadoEn: f.archivado_en ? String(f.archivado_en).slice(0, 10) : undefined,
 });
+
+// ---------- Parámetros legales (los mantiene ISEO) ----------
+
+const aParametroLegal = (f: Record<string, unknown>): ParametroLegal => ({
+  id: f.id as string,
+  clave: f.clave as string,
+  valor: Number(f.valor),
+  vigenciaDesde: f.vigencia_desde as string,
+  vigenciaHasta: (f.vigencia_hasta as string) ?? undefined,
+  fuente: (f.fuente as string) ?? undefined,
+  observacion: (f.observacion as string) ?? undefined,
+  actualizadoEn: f.actualizado_en ? String(f.actualizado_en) : undefined,
+  actualizadoPor: (f.actualizado_por as string) ?? undefined,
+});
+
+/**
+ * Todos los parámetros legales, con su historia.
+ *
+ * Los lee cualquiera con sesión: no son datos sensibles —son valores
+ * publicados en el Boletín Oficial— y la liquidación los necesita desde
+ * el navegador de quien liquida. Escribirlos es sólo del superadmin, y
+ * eso lo hace cumplir la RLS (migración 104).
+ */
+export const getParametrosLegales = async (): Promise<ParametroLegal[]> => {
+  const { data, error } = await sb()
+    .from('parametros_legales')
+    .select('*')
+    .order('clave')
+    .order('vigencia_desde', { ascending: false });
+  return oFalla(data, error).map(aParametroLegal);
+};
+
+export const crearParametroLegal = async (
+  datos: NuevoParametroLegal
+): Promise<ParametroLegal> => {
+  const { data, error } = await sb()
+    .from('parametros_legales')
+    .insert({
+      clave: datos.clave,
+      valor: datos.valor,
+      vigencia_desde: datos.vigenciaDesde,
+      vigencia_hasta: datos.vigenciaHasta ?? null,
+      fuente: datos.fuente ?? null,
+      observacion: datos.observacion ?? null,
+    })
+    .select()
+    .single();
+  const creado = aParametroLegal(oFalla(data, error));
+  await registrarAuditoria('crear', 'parametro_legal', creado.id, {
+    clave: creado.clave,
+    valor: creado.valor,
+    vigenciaDesde: creado.vigenciaDesde,
+  });
+  return creado;
+};
+
+export const eliminarParametroLegal = async (id: string): Promise<void> => {
+  const { error } = await sb().from('parametros_legales').delete().eq('id', id);
+  if (error) fallar(error.message, 'parametros/eliminar');
+  await registrarAuditoria('eliminar', 'parametro_legal', id);
+};
+
+// ---------- Autoservicio del legajo ----------
+
+const aSolicitudLegajo = (f: Record<string, unknown>): SolicitudDatoLegajo => {
+  // El join con empleados sólo viene en la consulta de RRHH.
+  const emp = f.empleados as
+    | { nombre?: string; apellido?: string }
+    | null
+    | undefined;
+  return {
+    id: f.id as string,
+    empresaId: f.empresa_id as string,
+    empleadoId: f.empleado_id as string,
+    campo: f.campo as string,
+    valorActual: f.valor_actual ?? undefined,
+    valorPropuesto: f.valor_propuesto,
+    comentario: (f.comentario as string) ?? undefined,
+    estado: f.estado as SolicitudDatoLegajo['estado'],
+    motivoResolucion: (f.motivo_resolucion as string) ?? undefined,
+    creadaEn: f.creada_en as string,
+    resueltaEn: (f.resuelta_en as string) ?? undefined,
+    resueltaPor: (f.resuelta_por as string) ?? undefined,
+    empleadoNombre: emp
+      ? `${emp.nombre ?? ''} ${emp.apellido ?? ''}`.trim() || undefined
+      : undefined,
+  };
+};
+
+/**
+ * Las propuestas del empleado que hizo la consulta.
+ *
+ * No filtra por empleado: la RLS ya devuelve sólo las propias cuando
+ * quien pregunta es un empleado. Poner el `eq` acá haría creer que la
+ * separación la hace el cliente.
+ */
+export const getMisSolicitudesDeLegajo = async (): Promise<
+  SolicitudDatoLegajo[]
+> => {
+  const { data, error } = await sb()
+    .from('solicitudes_datos_legajo')
+    .select('*')
+    .order('creada_en', { ascending: false });
+  return oFalla(data, error).map(aSolicitudLegajo);
+};
+
+/** Las de toda la empresa, para la bandeja de RRHH. */
+export const getSolicitudesDeLegajo = async (
+  soloPendientes = false
+): Promise<SolicitudDatoLegajo[]> => {
+  let consulta = sb()
+    .from('solicitudes_datos_legajo')
+    .select('*, empleados!inner(nombre, apellido)')
+    .eq('empresa_id', empresaId())
+    .order('creada_en', { ascending: false });
+  if (soloPendientes) consulta = consulta.eq('estado', 'pendiente');
+  const { data, error } = await consulta;
+  return oFalla(data, error).map(aSolicitudLegajo);
+};
+
+/**
+ * Propone un cambio sobre el propio legajo.
+ *
+ * El valor viaja como jsonb porque del otro lado hay columnas de texto,
+ * enums y objetos; `to_jsonb` unifica los tres casos. Para los campos
+ * del formulario siempre es un string.
+ */
+export const solicitarCambioDeLegajo = async (
+  datos: NuevaSolicitudDatoLegajo
+): Promise<SolicitudDatoLegajo> => {
+  const { data, error } = await sb().rpc('solicitar_cambio_de_legajo', {
+    p_campo: datos.campo,
+    p_valor: datos.valor,
+    p_comentario: datos.comentario ?? null,
+  });
+  if (error) fallar(error.message, 'legajo/solicitar');
+  const filas = (data ?? []) as Record<string, unknown>[];
+  if (filas.length === 0) {
+    fallar('No pudimos registrar el pedido.', 'legajo/solicitar');
+  }
+  return aSolicitudLegajo(filas[0]);
+};
+
+/** El empleado se arrepiente antes de que RRHH la mire. */
+export const anularSolicitudDeLegajo = async (id: string): Promise<void> => {
+  const { data, error } = await sb().rpc('anular_solicitud_de_legajo', {
+    p_id: id,
+  });
+  if (error) fallar(error.message, 'legajo/anular');
+  // Vacío = ya la resolvieron mientras la pantalla mostraba "pendiente".
+  if (((data ?? []) as unknown[]).length === 0) {
+    fallar('El pedido ya no está pendiente.', 'legajo/anular');
+  }
+};
+
+/**
+ * RRHH aprueba o rechaza.
+ *
+ * La auditoría la escribe la propia función en la base: es el registro
+ * de quién autorizó tocar un legajo ajeno, y no puede depender de que
+ * el cliente se acuerde de mandarlo.
+ */
+export const resolverSolicitudDeLegajo = async (
+  id: string,
+  aprobar: boolean,
+  motivo?: string
+): Promise<SolicitudDatoLegajo> => {
+  const { data, error } = await sb().rpc('resolver_solicitud_de_legajo', {
+    p_id: id,
+    p_aprobar: aprobar,
+    p_motivo: motivo ?? null,
+  });
+  if (error) fallar(error.message, 'legajo/resolver');
+  const filas = (data ?? []) as Record<string, unknown>[];
+  if (filas.length === 0) {
+    fallar('El pedido ya fue resuelto por otra persona.', 'legajo/resolver');
+  }
+  return aSolicitudLegajo(filas[0]);
+};
 
 // ---------- Cierre de novedades del mes ----------
 

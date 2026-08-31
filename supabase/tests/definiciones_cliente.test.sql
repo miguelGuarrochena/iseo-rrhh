@@ -45,7 +45,8 @@ values
 insert into auth.users (id, instance_id, email, aud, role) values
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb10', '00000000-0000-0000-0000-000000000000', 'df-sup@t.test', 'authenticated', 'authenticated'),
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb11', '00000000-0000-0000-0000-000000000000', 'df-adm@t.test', 'authenticated', 'authenticated'),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb12', '00000000-0000-0000-0000-000000000000', 'df-emp@t.test', 'authenticated', 'authenticated');
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb12', '00000000-0000-0000-0000-000000000000', 'df-emp@t.test', 'authenticated', 'authenticated'),
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb13', '00000000-0000-0000-0000-000000000000', 'df-adm2@t.test', 'authenticated', 'authenticated');
 
 insert into usuarios (id, email, rol, nombre_completo, empresa_id, empleado_id) values
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb10', 'df-sup@t.test', 'supervisor', 'Jorge Sup',
@@ -53,7 +54,10 @@ insert into usuarios (id, email, rol, nombre_completo, empresa_id, empleado_id) 
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb11', 'df-adm@t.test', 'admin_rrhh', 'Admin',
    'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', null),
   ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb12', 'df-emp@t.test', 'empleado', 'Ana Emp',
-   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3');
+   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb3'),
+  -- Un admin_rrhh CON legajo: la regla es sobre la persona, no el rol.
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb13', 'df-adm2@t.test', 'admin_rrhh', 'Juan Admin',
+   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4');
 
 create or replace function pg_temp.como(p uuid) returns void
 language plpgsql as $$
@@ -145,6 +149,35 @@ begin
    where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbba1';
   perform pg_temp.chk('14.5', 'otra persona sí puede resolverla',
     (select estado from ausencias where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbba1') = 'aprobada');
+end $$;
+
+-- El admin_rrhh tampoco: la regla mira la persona, no el rol.
+select pg_temp.servicio();
+
+insert into ausencias (id, empresa_id, empleado_id, tipo, fecha_desde, fecha_hasta, dias, estado)
+values
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbba3',
+   'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb4',
+   'vacaciones', '2027-03-01', '2027-03-14', 14, 'pendiente');
+
+select pg_temp.como('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb13');
+
+do $$
+declare ok boolean;
+begin
+  begin
+    update ausencias
+       set estado = 'aprobada', resuelta_por = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb13',
+           resuelta_en = now()
+     where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbba3';
+    ok := false;
+  exception
+    when raise_exception then ok := sqlerrm like '%AUSENCIA_PROPIA%';
+    when others then ok := false;
+  end;
+  perform pg_temp.chk('14.6', 'un admin_rrhh CON legajo tampoco se autoaprueba', ok);
+  perform pg_temp.chk('14.7', 'y su ausencia sigue pendiente',
+    (select estado from ausencias where id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbba3') = 'pendiente');
 end $$;
 
 -- =====================================================================
@@ -284,9 +317,9 @@ begin
   perform pg_temp.chk('15.6', 'los recibos firmados sobreviven a la baja',
     (select count(*) from recibos
       where empresa_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1') = 2);
-  perform pg_temp.chk('15.7', 'las ausencias resueltas también',
+  perform pg_temp.chk('15.7', 'las ausencias también',
     (select count(*) from ausencias
-      where empresa_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1') = 2);
+      where empresa_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbb1') = 3);
 end $$;
 
 select pg_temp.servicio();

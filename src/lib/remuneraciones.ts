@@ -28,10 +28,14 @@ export const APORTES_TOTAL =
  * que iba a cobrar.
  *
  * El tope no se cablea: ANSES lo actualiza cada trimestre y una constante
- * en el código queda vieja sola. Viene de `config.topeImponibleAportes`,
- * y mientras nadie lo cargue no se aplica tope — que es exactamente lo
- * que la app hacía antes, así que ninguna empresa cambia de número por
- * este cambio.
+ * en el código queda vieja sola. Lo carga cada empresa en
+ * `config.topeImponibleAportes`.
+ *
+ * Esta función sigue tolerando que falte, y a propósito: es aritmética,
+ * no una regla de negocio. Quien decide que no se puede liquidar sin
+ * tope es `errorDeTopeImponible`, y eso se comprueba antes de guardar
+ * —también en la base— para que el dato faltante no se convierta
+ * calladamente en "aportes sobre el bruto completo".
  */
 export const baseImponibleAportes = (
   remunerativo: number,
@@ -48,6 +52,49 @@ export const calcularAportes = (
   topeImponible?: number
 ): number =>
   Math.round(baseImponibleAportes(remunerativo, topeImponible) * APORTES_TOTAL);
+
+/**
+ * Un tope válido es un importe positivo.
+ *
+ * No se valida contra ningún rango "razonable": el tope de ANSES sube
+ * con la inflación y cualquier techo que pusiéramos hoy trabaría una
+ * carga correcta el año que viene. Lo único que se puede afirmar sin
+ * inventar nada es que un tope de cero o negativo no es un tope.
+ */
+export const errorDeConfiguracionDeTope = (
+  valor: number | undefined | null
+): string | null => {
+  if (valor === undefined || valor === null || Number.isNaN(valor)) {
+    return 'Cargá el tope imponible de aportes.';
+  }
+  if (!Number.isFinite(valor)) return 'El tope tiene que ser un número.';
+  if (valor <= 0) return 'El tope tiene que ser mayor a cero.';
+  return null;
+};
+
+/**
+ * ¿Se puede liquidar sin este tope?
+ *
+ * Antes, sin tope configurado, los aportes salían sobre el bruto
+ * completo y nadie se enteraba: el neto que la app mostraba era más bajo
+ * que el que la persona iba a cobrar, y el error crecía justo en los
+ * sueldos altos. Un dato faltante no puede tener un resultado por
+ * defecto que parezca un cálculo.
+ *
+ * En régimen simplificado no hay aportes de ley que retener, así que el
+ * tope no hace falta y no se pide: bloquear ahí sería frenar una
+ * liquidación por un dato que no entra en ninguna cuenta.
+ */
+export const errorDeTopeImponible = (
+  tope: number | undefined | null,
+  regimen?: RegimenLaboral
+): string | null => {
+  if (!tieneAportesDeLey(regimen)) return null;
+  if (errorDeConfiguracionDeTope(tope)) {
+    return 'Configurá el tope imponible de aportes antes de liquidar. Está en Configuración › Remuneraciones.';
+  }
+  return null;
+};
 
 /**
  * Tope de las deducciones sobre la remuneración en dinero (art. 133 LCT).

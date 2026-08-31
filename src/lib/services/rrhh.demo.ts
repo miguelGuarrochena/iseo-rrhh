@@ -83,6 +83,11 @@ import {
   sumarMesesEmpresa,
 } from '@/lib/fechas';
 import type { DatosNovedades } from '@/lib/novedades';
+import type {
+  NuevoParametroLegal,
+  ParametroLegal,
+} from '@/lib/parametrosLegales';
+import { ALGORITMO_HASH } from '@/lib/constanciaFirma';
 import type { DatosReporte } from '@/lib/reporteMensual';
 import { distanciaMetros } from '@/lib/facial/ubicacion';
 
@@ -114,6 +119,14 @@ import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import { dotacionMock, empresaMock, empresasMock } from '@/lib/mocks/empresa';
 import { usuariosMock } from '@/lib/mocks/usuarios';
 import { empleadosMock } from '@/lib/mocks/empleados';
+import type { FilaLiquidacion } from '@/lib/importarLiquidacion';
+import {
+  CampoAutogestionable,
+  esCampoAutogestionable,
+  NuevaSolicitudDatoLegajo,
+  SolicitudDatoLegajo,
+  valorActualDe,
+} from '@/lib/autoservicioLegajo';
 import { jornadasMock } from '@/lib/mocks/jornadas';
 import { movimientosMock } from '@/lib/mocks/finanzas';
 import {
@@ -1471,9 +1484,9 @@ export const asignarTurnos = async (lista: NuevoTurno[]): Promise<void> => {
 };
 
 /**
- * Aprueba las extras de un día. Si ese día no tenía turno planificado
- * se crea uno con el horario general, igual que en producción: ver el
- * porqué en `aprobarExtrasDeJornada` de `supabase/real.ts`.
+ * Aprueba las extras de un día que tiene turno. Sin turno falla, igual
+ * que en producción: ver el porqué en `aprobarExtrasDeJornada` de
+ * `supabase/real.ts`.
  */
 export const aprobarExtrasDeJornada = async (
   empleadoId: string,
@@ -1487,16 +1500,9 @@ export const aprobarExtrasDeJornada = async (
     existente.extrasAprobadas = aprobado;
     return simular(existente);
   }
-  const nuevo: Turno = {
-    id: `tur-${Date.now()}`,
-    empleadoId,
-    fecha,
-    horaEntrada: empresaMock.config.horaEntrada,
-    horaSalida: empresaMock.config.horaSalida,
-    extrasAprobadas: aprobado,
-  };
-  turnosMock.push(nuevo);
-  return simular(nuevo);
+  throw new Error(
+    'Ese día no tiene turno asignado, así que no hay horario contra el cual medir las horas extras. Asignale el turno y volvé a aprobarlas.'
+  );
 };
 
 export const quitarTurno = async (id: string): Promise<void> => {
@@ -1864,15 +1870,23 @@ export const getRecibosArchivadosTodos = async (): Promise<ReciboSueldo[]> =>
   );
 
 export const firmarRecibo = async (
-  reciboId: string
+  reciboId: string,
+  hash?: string | null
 ): Promise<ReciboSueldo | null> => {
   const recibo = recibosMock.find((r) => r.id === reciboId);
   if (recibo && recibo.estadoFirma === 'pendiente') {
     recibo.estadoFirma = 'firmado';
     recibo.firmadoEn = hoyISO();
+    if (hash) {
+      recibo.hashFirmado = hash;
+      recibo.hashAlgoritmo = ALGORITMO_HASH;
+    }
   }
   return simular(recibo ?? null);
 };
+
+/** En demo el PDF es un mock: no hay bytes reales que hashear. */
+export const hashDelRecibo = async (): Promise<string | null> => null;
 
 // ---------- Agenda ----------
 
@@ -2639,6 +2653,194 @@ const cierreDemo = (periodo: string): CierrePeriodo =>
     estado: 'abierto',
     categoriasRevisadas: [],
   };
+
+// ---------- Parámetros legales ----------
+
+/** En demo viven en memoria y arrancan vacíos, igual que en producción. */
+const parametrosLegalesDemo: ParametroLegal[] = [];
+
+export const getParametrosLegales = async (): Promise<ParametroLegal[]> =>
+  simular([...parametrosLegalesDemo]);
+
+export const crearParametroLegal = async (
+  datos: NuevoParametroLegal
+): Promise<ParametroLegal> => {
+  const nuevo: ParametroLegal = {
+    id: `par-${Date.now()}`,
+    ...datos,
+    actualizadoEn: new Date().toISOString(),
+  };
+  parametrosLegalesDemo.push(nuevo);
+  return simular(nuevo);
+};
+
+export const eliminarParametroLegal = async (id: string): Promise<void> => {
+  const i = parametrosLegalesDemo.findIndex((p) => p.id === id);
+  if (i >= 0) parametrosLegalesDemo.splice(i, 1);
+  return simular(undefined);
+};
+
+// ---------- Importación de liquidaciones ----------
+
+/**
+ * En demo se calcula igual que en producción pero no se persiste: el
+ * objetivo es poder recorrer la pantalla entera —mapeo, preview,
+ * resumen— sin tocar datos.
+ */
+export const importarRemuneraciones = async (
+  filas: FilaLiquidacion[]
+): Promise<{ guardadas: number; periodos: string[] }> => {
+  const importables = filas.filter((f) => f.errores.length === 0);
+  if (importables.length === 0) {
+    throw new Error('No hay filas para importar.');
+  }
+  return simular({
+    guardadas: importables.length,
+    periodos: [...new Set(importables.map((f) => f.periodo as string))].sort(),
+  });
+};
+
+/** En demo no hay nada cargado que pisar. */
+export const remuneracionesExistentes = async (): Promise<Set<string>> =>
+  simular(new Set<string>());
+
+// ---------- Autoservicio del legajo ----------
+
+/**
+ * En demo viven en memoria. El empleado demo puede proponer y ver el
+ * resultado; aprobar aplica el cambio sobre el legajo demo, igual que
+ * en producción, para que la pantalla se pueda recorrer entera.
+ */
+const solicitudesLegajoDemo: SolicitudDatoLegajo[] = [];
+
+const empleadoDemoDe = (id: string) => empleadosMock.find((e) => e.id === id);
+
+export const getMisSolicitudesDeLegajo = async (): Promise<
+  SolicitudDatoLegajo[]
+> => {
+  const { usuario } = useAuthStore.getState();
+  return simular(
+    solicitudesLegajoDemo.filter((s) => s.empleadoId === usuario?.empleadoId)
+  );
+};
+
+export const getSolicitudesDeLegajo = async (
+  soloPendientes = false
+): Promise<SolicitudDatoLegajo[]> =>
+  simular(
+    solicitudesLegajoDemo.filter(
+      (s) => !soloPendientes || s.estado === 'pendiente'
+    )
+  );
+
+export const solicitarCambioDeLegajo = async (
+  datos: NuevaSolicitudDatoLegajo
+): Promise<SolicitudDatoLegajo> => {
+  const { usuario } = useAuthStore.getState();
+  const empleadoId = usuario?.empleadoId ?? empleadosMock[0]?.id ?? 'emp-demo';
+  const empleado = empleadoDemoDe(empleadoId);
+
+  // Igual que la base: una sola pendiente por campo.
+  solicitudesLegajoDemo
+    .filter(
+      (s) =>
+        s.empleadoId === empleadoId &&
+        s.campo === datos.campo &&
+        s.estado === 'pendiente'
+    )
+    .forEach((s) => {
+      s.estado = 'anulada';
+      s.resueltaEn = new Date().toISOString();
+      s.motivoResolucion = 'Reemplazada por una solicitud posterior';
+    });
+
+  const nueva: SolicitudDatoLegajo = {
+    id: `sol-legajo-${Date.now()}`,
+    empresaId: empleado?.empresaId ?? 'emp-1',
+    empleadoId,
+    campo: datos.campo,
+    valorActual: empleado ? valorActualDe(empleado, datos.campo) : undefined,
+    valorPropuesto: datos.valor,
+    comentario: datos.comentario,
+    estado: 'pendiente',
+    creadaEn: new Date().toISOString(),
+    empleadoNombre: empleado
+      ? `${empleado.nombre} ${empleado.apellido}`
+      : undefined,
+  };
+  solicitudesLegajoDemo.unshift(nueva);
+  return simular(nueva);
+};
+
+export const anularSolicitudDeLegajo = async (id: string): Promise<void> => {
+  const s = solicitudesLegajoDemo.find(
+    (x) => x.id === id && x.estado === 'pendiente'
+  );
+  if (!s) throw new Error('El pedido ya no está pendiente.');
+  s.estado = 'anulada';
+  s.resueltaEn = new Date().toISOString();
+  return simular(undefined);
+};
+
+export const resolverSolicitudDeLegajo = async (
+  id: string,
+  aprobar: boolean,
+  motivo?: string
+): Promise<SolicitudDatoLegajo> => {
+  const s = solicitudesLegajoDemo.find(
+    (x) => x.id === id && x.estado === 'pendiente'
+  );
+  if (!s) throw new Error('El pedido ya fue resuelto por otra persona.');
+
+  if (aprobar) {
+    const empleado = empleadoDemoDe(s.empleadoId);
+    const campo = s.campo;
+    if (empleado && esCampoAutogestionable(campo)) {
+      aplicarEnLegajoDemo(empleado, campo, String(s.valorPropuesto));
+    }
+  }
+  s.estado = aprobar ? 'aprobada' : 'rechazada';
+  s.resueltaEn = new Date().toISOString();
+  s.motivoResolucion = motivo?.trim() || undefined;
+  return simular(s);
+};
+
+/**
+ * Sólo los campos que el formulario ofrece hoy. Los objetos
+ * (`contacto_emergencia`, `grupo_familiar`) no tienen pantalla todavía,
+ * así que tampoco se simulan.
+ */
+const aplicarEnLegajoDemo = (
+  empleado: Empleado,
+  campo: CampoAutogestionable,
+  valor: string
+): void => {
+  switch (campo) {
+    case 'domicilio':
+      empleado.domicilio = valor;
+      break;
+    case 'telefono':
+      empleado.telefono = valor;
+      break;
+    case 'email':
+      empleado.email = valor;
+      break;
+    case 'estado_civil':
+      empleado.estadoCivil = valor as Empleado['estadoCivil'];
+      break;
+    case 'nivel_estudios':
+      empleado.nivelEstudios = valor as Empleado['nivelEstudios'];
+      break;
+    case 'banco':
+      empleado.banco = valor;
+      break;
+    case 'cbu':
+      empleado.cbu = valor;
+      break;
+    default:
+      break;
+  }
+};
 
 export const getCierrePeriodo = async (
   periodo: string

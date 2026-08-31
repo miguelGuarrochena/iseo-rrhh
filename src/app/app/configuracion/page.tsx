@@ -6,7 +6,11 @@ import { IconCamera, IconCheck } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
-import { HORAS_MENSUALES } from '@/lib/remuneraciones';
+import {
+  errorDeConfiguracionDeTope,
+  HORAS_MENSUALES,
+  tieneAportesDeLey,
+} from '@/lib/remuneraciones';
 import { Terminales } from '@/components/app/configuracion/Terminales';
 import { CuposLicenciaPanel } from '@/components/app/configuracion/CuposLicenciaPanel';
 import { FeriadosPanel } from '@/components/app/configuracion/FeriadosPanel';
@@ -14,8 +18,8 @@ import { Boton } from '@/components/app/ui/Boton';
 import { Campo } from '@/components/app/ui/Campo';
 import { Switch } from '@/components/app/ui/Switch';
 import { CampoHora } from '@/components/app/ui/CampoHora';
-import { MODULOS_OPCIONALES } from '@/components/app/navItems';
-import { olvidarModulos } from '@/lib/auth/useModulos';
+import { moduloActivo, MODULOS_OPCIONALES } from '@/components/app/navItems';
+import { olvidarModulos, useModulos } from '@/lib/auth/useModulos';
 import {
   juntarErrores,
   validarEmail,
@@ -44,6 +48,8 @@ const campoClase =
 
 const ConfiguracionPage = () => {
   const { usuario, rolEfectivo, empresaVista } = useAuth();
+  const modulos = useModulos();
+  const conFichaje = moduloActivo('fichaje', modulos);
   const [config, setConfig] = useState<ConfigEmpresa | null>(null);
   const [nombreEmpresa, setNombreEmpresa] = useState('');
   const [contactoNombre, setContactoNombre] = useState('');
@@ -139,6 +145,9 @@ const ConfiguracionPage = () => {
     ? erroresDeEscala(escalaActual, 'habiles', carga.datos?.regimen)
     : {};
 
+  /** Sólo en relación de dependencia hay aportes de ley que topear. */
+  const exigeTope = tieneAportesDeLey(carga.datos?.regimen);
+
   const guardar = async (e: FormEvent) => {
     e.preventDefault();
     // Un tramo por debajo del mínimo no se guarda: sería una config
@@ -167,6 +176,16 @@ const ConfiguracionPage = () => {
         !Number.isFinite(config.diasAvisoVencimiento) ||
         config.diasAvisoVencimiento < 1
           ? 'Los días de aviso deben ser al menos 1.'
+          : null,
+      /*
+       * El tope sólo se exige donde hace falta: en régimen simplificado
+       * no hay aportes de ley que retener, así que pedirlo sería trabar
+       * la configuración por un dato que no entra en ninguna cuenta.
+       */
+      topeImponibleAportes: exigeTope
+        ? errorDeConfiguracionDeTope(config.topeImponibleAportes)
+        : config.topeImponibleAportes !== undefined
+          ? errorDeConfiguracionDeTope(config.topeImponibleAportes)
           : null,
     });
     setErrores(nuevos);
@@ -297,57 +316,69 @@ const ConfiguracionPage = () => {
           </div>
         </Panel>
 
-        <Panel>
-          <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
-            Fichaje
-          </h2>
-          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            El modo de fichaje (en planta, celular con GPS o remoto) se
-            configura por colaborador desde su ficha. Acá definís los horarios y
-            la tolerancia que aplican a toda la empresa.
-          </p>
+        {/* Sin control horario no hay nada que configurar acá, y mostrar
+            "hora de entrada" y "tolerancia de llegada tarde" a una
+            empresa administrativa es lo que hace pensar que la app viene
+            a controlar horarios. */}
+        {conFichaje && (
+          <Panel>
+            <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+              Fichaje
+            </h2>
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
+              El modo de fichaje (en planta, celular con GPS o remoto) se
+              configura por colaborador desde su ficha. El horario de acá es el
+              punto de partida al asignar un turno nuevo: el control de llegadas
+              tarde y horas extras se hace siempre contra el turno de cada
+              persona.
+            </p>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <CampoHora
-              etiqueta="Hora de entrada"
-              value={config.horaEntrada}
-              onChange={(v) => setConfig({ ...config, horaEntrada: v })}
-              error={errores.horaEntrada}
-            />
-            <CampoHora
-              etiqueta="Hora de salida"
-              value={config.horaSalida}
-              onChange={(v) => setConfig({ ...config, horaSalida: v })}
-              error={errores.horaSalida}
-            />
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-semibold text-ink">
-                Tolerancia (min)
-              </span>
-              <input
-                type="number"
-                min={0}
-                value={config.toleranciaLlegadaTardeMin}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    toleranciaLlegadaTardeMin: Number(e.target.value),
-                  })
-                }
-                className={campoClase}
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <CampoHora
+                etiqueta="Hora de entrada"
+                value={config.horaEntrada}
+                onChange={(v) => setConfig({ ...config, horaEntrada: v })}
+                error={errores.horaEntrada}
               />
-              {errores.tolerancia && (
-                <span className="text-xs font-medium text-red-600">
-                  {errores.tolerancia}
+              <CampoHora
+                etiqueta="Hora de salida"
+                value={config.horaSalida}
+                onChange={(v) => setConfig({ ...config, horaSalida: v })}
+                error={errores.horaSalida}
+              />
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-semibold text-ink">
+                  Tolerancia (min)
                 </span>
-              )}
-            </label>
-          </div>
-        </Panel>
+                <input
+                  type="number"
+                  min={0}
+                  value={config.toleranciaLlegadaTardeMin}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      toleranciaLlegadaTardeMin: Number(e.target.value),
+                    })
+                  }
+                  className={campoClase}
+                />
+                {errores.tolerancia && (
+                  <span className="text-xs font-medium text-red-600">
+                    {errores.tolerancia}
+                  </span>
+                )}
+              </label>
+            </div>
+          </Panel>
+        )}
 
-        <Panel>
-          <Terminales />
-        </Panel>
+        {/* Las terminales son las tablets donde se ficha: sin control
+            horario no hay ninguna que administrar. */}
+        {conFichaje && (
+          <Panel>
+            <Terminales />
+          </Panel>
+        )}
 
         <Panel>
           <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
@@ -402,15 +433,20 @@ const ConfiguracionPage = () => {
               semanales); si tu convenio usa otra base, cambiala acá.
             </span>
           </label>
-          <label className="mt-4 flex max-w-xs flex-col gap-1.5">
+          <label
+            className="mt-4 flex max-w-xs flex-col gap-1.5"
+            {...(errores.topeImponibleAportes
+              ? { 'data-error-campo': '' }
+              : {})}
+          >
             <span className="text-sm font-semibold text-ink">
-              Tope de base imponible para aportes
+              Tope de base imponible para aportes{exigeTope ? ' *' : ''}
             </span>
             <input
               type="number"
               min={0}
               step={1}
-              placeholder="Sin tope"
+              placeholder="Ej.: 1200000"
               value={config.topeImponibleAportes ?? ''}
               onChange={(e) =>
                 setConfig({
@@ -423,12 +459,18 @@ const ConfiguracionPage = () => {
               }
               className={campoClase}
             />
+            {errores.topeImponibleAportes && (
+              <span className="text-xs font-medium text-red-600">
+                {errores.topeImponibleAportes}
+              </span>
+            )}
             <span className="text-xs text-ink-soft">
               Por encima de este monto no se aportan jubilación, PAMI ni obra
               social (art. 9, Ley 24.241). ANSES lo actualiza cada trimestre,
-              así que hay que ponerlo al día. Vacío = sin tope: los aportes
-              salen sobre el bruto completo y quedan más altos que los reales en
-              los sueldos que lo superan.
+              así que hay que ponerlo al día.{' '}
+              {exigeTope
+                ? 'Es obligatorio: sin este dato no se pueden cargar ni importar remuneraciones.'
+                : 'En tu régimen no se retienen aportes de ley, así que este dato no se usa.'}
             </span>
           </label>
         </Panel>

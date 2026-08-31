@@ -14,6 +14,16 @@ jest.mock('@/lib/avisos', () => ({
   avisoError: jest.fn(),
 }));
 
+/**
+ * El módulo Fichaje es el interruptor del control horario. Se mockea
+ * para poder ver el formulario con y sin él: una empresa administrativa
+ * no tiene que ver campos de fichaje.
+ */
+const modulosMock = jest.fn(() => ({}) as Record<string, boolean>);
+jest.mock('@/lib/auth/useModulos', () => ({
+  useModulos: () => modulosMock(),
+}));
+
 (getEmpleados as jest.MockedFunction<typeof getEmpleados>).mockResolvedValue(
   []
 );
@@ -113,5 +123,46 @@ describe('F-09: puesto y sector siguen siendo opcionales', () => {
     expect(onGuardar).toHaveBeenCalledWith(
       expect.objectContaining({ telefono: '1122334455' })
     );
+  });
+});
+
+describe('control horario en el formulario del legajo', () => {
+  const props = {
+    textoGuardar: 'Guardar',
+    onGuardar: jest.fn(),
+    onCancelar: jest.fn(),
+  };
+
+  afterEach(() => modulosMock.mockReturnValue({}));
+
+  it('con Fichaje encendido pide el modo de fichaje', () => {
+    modulosMock.mockReturnValue({ fichaje: true });
+    render(<FormEmpleado {...props} />);
+    expect(screen.getByText('Fichaje')).toBeInTheDocument();
+    // `CampoSelect` no asocia el label por `htmlFor`, así que se busca
+    // el texto: lo que importa es que el campo esté a la vista.
+    expect(screen.getByText('Modo de fichaje')).toBeInTheDocument();
+  });
+
+  it('con Fichaje apagado no pregunta nada de fichaje', () => {
+    // Es el pedido del cliente: en una empresa administrativa, ver
+    // campos de control horario da la impresión de que la app viene a
+    // controlar horarios.
+    modulosMock.mockReturnValue({ fichaje: false });
+    render(<FormEmpleado {...props} />);
+    expect(screen.queryByText('Modo de fichaje')).not.toBeInTheDocument();
+    expect(screen.queryByText('Fichaje')).not.toBeInTheDocument();
+  });
+
+  it('pero el acceso a la app se sigue pudiendo definir', () => {
+    // `sinUsuario` no es de fichaje: decide si la persona tiene cuenta.
+    // Esconderlo junto con lo demás sería perder una decisión que la
+    // empresa igual necesita tomar.
+    modulosMock.mockReturnValue({ fichaje: false });
+    render(<FormEmpleado {...props} />);
+    expect(screen.getByText('Acceso a la app')).toBeInTheDocument();
+    expect(
+      screen.getByText(/no le vamos a dar cuenta en la app/i)
+    ).toBeInTheDocument();
   });
 });

@@ -451,3 +451,105 @@ describe('empresa sin control horario', () => {
     expect(estado.pendientes).toBeGreaterThan(0);
   });
 });
+
+// ---------------------------------------------------------------
+// 1 (revisión). Sin turno no se inventa un horario de referencia
+// ---------------------------------------------------------------
+
+describe('jornada sin turno asignado', () => {
+  /**
+   * El falso positivo que motivó la corrección.
+   *
+   * Un turno de gastronomía de sábado 20:00–02:00 medido contra el
+   * horario general de la empresa (08:00–17:00) daba doce horas de
+   * llegada tarde y nueve de extras. Sobre datos reales de producción,
+   * en dos meses eso produjo 26 horas de "llegada tarde" y 15 de extras
+   * que nadie hizo — y las extras detectadas alimentan la sugerencia de
+   * la liquidación, así que terminaba en plata.
+   */
+  const sabadoGastronomico = {
+    entrada: '2027-01-16T23:00:00.000Z', // sábado 20:00 ART
+    salida: '2027-01-17T05:00:00.000Z', // domingo 02:00 ART
+  };
+  const horarioGeneral = { horaEntrada: '08:00', horaSalida: '17:00' };
+
+  it('sin horario de referencia no se calcula nada', () => {
+    const r = controlarJornada(sabadoGastronomico, null);
+    expect(r.llegadaTardeMin).toBe(0);
+    expect(r.extrasMin).toBe(0);
+    expect(r.sinHorario).toBe(true);
+  });
+
+  it('los ceros vienen marcados: no son "cumplió el horario"', () => {
+    // Es la diferencia que la pantalla necesita para no decir "En
+    // horario" sobre un día en que nadie sabía cuál era el horario.
+    const sinTurno = controlarJornada(sabadoGastronomico, null);
+    const cumplió = controlarJornada(
+      {
+        entrada: '2027-01-13T11:00:00.000Z',
+        salida: '2027-01-13T20:00:00.000Z',
+      },
+      horarioGeneral
+    );
+    expect(sinTurno.llegadaTardeMin).toBe(cumplió.llegadaTardeMin);
+    expect(sinTurno.extrasMin).toBe(cumplió.extrasMin);
+    // Mismos números, distinto significado.
+    expect(sinTurno.sinHorario).toBe(true);
+    expect(cumplió.sinHorario).toBe(false);
+  });
+
+  it('contra el horario general daba el disparate que se corrigió', () => {
+    // Este caso documenta el bug: es lo que el sistema calculaba antes.
+    const comoAntes = controlarJornada(sabadoGastronomico, horarioGeneral);
+    expect(comoAntes.llegadaTardeMin).toBe(720); // 12 horas tarde
+    expect(comoAntes.extrasMin).toBe(540); // 9 horas extras
+    // Y esto es lo que calcula ahora sin turno.
+    expect(controlarJornada(sabadoGastronomico, null).extrasMin).toBe(0);
+  });
+
+  it('con su turno real el mismo sábado no tiene nada que reportar', () => {
+    const r = controlarJornada(sabadoGastronomico, {
+      horaEntrada: '20:00',
+      horaSalida: '02:00',
+    });
+    expect(r.llegadaTardeMin).toBe(0);
+    expect(r.extrasMin).toBe(0);
+    expect(r.sinHorario).toBe(false);
+  });
+
+  it('la jornada nocturna que cruza medianoche se sigue resolviendo bien', () => {
+    // Salida menor que entrada = cruzó las 00:00. Sin esto un turno
+    // noche daba cientos de minutos de llegada tarde todos los días.
+    const r = controlarJornada(
+      {
+        entrada: '2027-01-16T23:00:00.000Z', // 20:00
+        salida: '2027-01-17T07:00:00.000Z', // 04:00, dos horas de más
+      },
+      { horaEntrada: '20:00', horaSalida: '02:00' }
+    );
+    expect(r.extrasMin).toBe(120);
+    expect(r.llegadaTardeMin).toBe(0);
+  });
+
+  it('con turno se siguen detectando la llegada tarde y las extras reales', () => {
+    const r = controlarJornada(
+      {
+        entrada: '2027-01-13T11:30:00.000Z', // 08:30, media hora tarde
+        salida: '2027-01-13T21:00:00.000Z', // 18:00, una hora de más
+      },
+      horarioGeneral
+    );
+    expect(r.llegadaTardeMin).toBe(30);
+    expect(r.extrasMin).toBe(60);
+    expect(r.sinHorario).toBe(false);
+  });
+
+  it('la tolerancia sigue aplicando sobre el turno', () => {
+    const r = controlarJornada(
+      { entrada: '2027-01-13T11:05:00.000Z', salida: null }, // 08:05
+      horarioGeneral,
+      10
+    );
+    expect(r.llegadaTardeMin).toBe(0);
+  });
+});

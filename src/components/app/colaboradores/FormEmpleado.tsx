@@ -16,6 +16,8 @@ import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { aOpciones } from '@/components/app/ui/Selector';
+import { useModulos } from '@/lib/auth/useModulos';
+import { moduloActivo } from '@/components/app/navItems';
 import { hoyISO } from '@/lib/fechas';
 import {
   juntarErrores,
@@ -137,6 +139,8 @@ export const FormEmpleado = ({
   onGuardar,
   onCancelar,
 }: FormEmpleadoProps) => {
+  const modulos = useModulos();
+  const conFichaje = moduloActivo('fichaje', modulos);
   const [datos, setDatos] = useState<DatosEmpleado>(
     inicial
       ? desdeEmpleado(inicial)
@@ -680,21 +684,27 @@ export const FormEmpleado = ({
       </Panel>
 
       <Panel>
+        {/* Con control horario apagado no se pregunta cómo ficha nadie:
+            el panel queda sólo con el acceso a la app, que es de otra
+            cosa y sigue haciendo falta. */}
         <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
-          Fichaje
+          {conFichaje ? 'Fichaje' : 'Acceso a la app'}
         </h2>
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-          Definí dónde y cómo ficha este colaborador. En todos los casos se
-          confirma la identidad con reconocimiento facial.
+          {conFichaje
+            ? 'Definí dónde y cómo ficha este colaborador. En todos los casos se confirma la identidad con reconocimiento facial.'
+            : 'Tu empresa no lleva control horario, así que no hay nada de fichaje que configurar.'}
         </p>
-        <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
-          <CampoSelect
-            etiqueta="Modo de fichaje"
-            value={datos.modoFichaje ?? 'celular'}
-            onChange={set('modoFichaje')}
-            opciones={aOpciones(modosFichaje)}
-          />
-        </div>
+        {conFichaje && (
+          <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
+            <CampoSelect
+              etiqueta="Modo de fichaje"
+              value={datos.modoFichaje ?? 'celular'}
+              onChange={set('modoFichaje')}
+              opciones={aOpciones(modosFichaje)}
+            />
+          </div>
+        )}
 
         {/* Pedido para el régimen simplificado: que la gente fiche en la
             tablet sin tener acceso a la app. Se ofrece siempre porque
@@ -712,15 +722,17 @@ export const FormEmpleado = ({
               No le vamos a dar cuenta en la app
             </span>
             <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
-              Ficha en la terminal y RRHH le carga ausencias y remuneración. No
-              se le manda invitación, no ve sus recibos ni recibe documentos
+              {conFichaje
+                ? 'Ficha en la terminal y RRHH le carga ausencias y remuneración.'
+                : 'RRHH le carga ausencias y remuneración.'}{' '}
+              No se le manda invitación, no ve sus recibos ni recibe documentos
               para firmar, y deja de aparecer en los avisos de &quot;sin
               cuenta&quot;.
             </span>
           </span>
         </label>
 
-        {datos.modoFichaje === 'celular' && (
+        {conFichaje && datos.modoFichaje === 'celular' && (
           <div className="mt-4 rounded-xl bg-paper p-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-ink">Zona de trabajo</p>

@@ -1,7 +1,7 @@
 'use client';
 
-import { ReactNode } from 'react';
-import { IconDownload, IconFileText } from '@tabler/icons-react';
+import { ReactNode, useState } from 'react';
+import { IconDownload, IconFileText, IconPencil } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
 import { Boton } from '@/components/app/ui/Boton';
@@ -11,7 +11,11 @@ import {
   abrirDocumento,
   getDocumentosDeEmpleado,
   getEmpleado,
+  getMisSolicitudesDeLegajo,
 } from '@/lib/services/rrhh';
+import { PedirCambioModal } from '@/components/app/legajo/PedirCambioModal';
+import { MisPedidos } from '@/components/app/legajo/MisPedidos';
+import { pendientes, SolicitudDatoLegajo } from '@/lib/autoservicioLegajo';
 import { DocumentoLegajo, EstadoCivil, NivelEstudios } from '@/types/rrhh';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
@@ -90,6 +94,16 @@ const MiLegajoPage = () => {
   );
   const documentos = cargaDocs.datos;
 
+  const cargaSolicitudes = useCarga(() => getMisSolicitudesDeLegajo(), [], {
+    activo: Boolean(empleadoId),
+    contexto: 'mi-legajo/solicitudes',
+    inicial: [] as SolicitudDatoLegajo[],
+  });
+  const solicitudes = cargaSolicitudes.datos;
+  const camposPendientes = pendientes(solicitudes).map((s) => s.campo);
+
+  const [pidiendo, setPidiendo] = useState(false);
+
   const abrir = (doc: DocumentoLegajo) =>
     abrirArchivo(() => abrirDocumento(doc), {
       titulo: 'No pudimos abrir el documento',
@@ -120,14 +134,25 @@ const MiLegajoPage = () => {
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
-          Mi legajo
-        </h1>
-        <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-          Tus datos registrados. Si algo no está bien, avisá a RRHH.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
+            Mi legajo
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
+            Tus datos registrados. Si algo no está bien, pedí el cambio y RRHH
+            lo revisa.
+          </p>
+        </div>
+        <Boton onClick={() => setPidiendo(true)}>
+          <IconPencil size={16} /> Pedir un cambio
+        </Boton>
       </div>
+
+      <MisPedidos
+        solicitudes={solicitudes}
+        onCambio={cargaSolicitudes.recargar}
+      />
 
       <Seccion titulo="Datos personales">
         <Dato
@@ -243,6 +268,19 @@ const MiLegajoPage = () => {
           </div>
         )}
       </Panel>
+
+      <PedirCambioModal
+        abierto={pidiendo}
+        empleado={empleado}
+        yaPendientes={camposPendientes}
+        onCerrar={() => setPidiendo(false)}
+        onListo={() => {
+          cargaSolicitudes.recargar();
+          // El legajo no cambió todavía, pero sí la lista de pendientes;
+          // se recarga igual por si RRHH resolvió algo mientras tanto.
+          cargaEmpleado.recargar();
+        }}
+      />
     </div>
   );
 };

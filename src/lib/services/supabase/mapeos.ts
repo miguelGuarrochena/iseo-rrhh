@@ -214,6 +214,8 @@ export const aRecibo = (f: Fila): ReciboSueldo => ({
   firmadoEmpleadorEn: f.firmado_empleador_en
     ? String(f.firmado_empleador_en).slice(0, 10)
     : undefined,
+  hashFirmado: f.hash_firmado ?? undefined,
+  hashAlgoritmo: f.hash_algoritmo ?? undefined,
 });
 
 export const aDescuentoRecurrente = (f: Fila): DescuentoRecurrente => ({
@@ -251,6 +253,8 @@ export const aRemuneracion = (f: Fila): Remuneracion => ({
     f.otros_descuentos != null ? Number(f.otros_descuentos) : undefined,
   montoNeto: Number(f.monto_neto),
   convenio: f.convenio ?? undefined,
+  origen: (f.origen as Remuneracion['origen']) ?? 'manual',
+  detalle: (f.detalle as Record<string, number>) ?? undefined,
 });
 
 export const aEvento = (f: Fila): EventoAgenda => ({
