@@ -7,6 +7,7 @@
   "scripts": {
     "postinstall": "node scripts/copiar-worker-pdf.mjs && node scripts/copiar-modelos-faciales.mjs",
     "dev": "next dev",
+    "sembrar:local": "node scripts/sembrar-local.mjs",
     "build": "node scripts/copiar-worker-pdf.mjs --estricto && node scripts/copiar-modelos-faciales.mjs --estricto && next build",
     "start": "next start",
     "lint": "next lint",

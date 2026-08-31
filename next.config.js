@@ -6,6 +6,22 @@ const nextConfig = {
     optimizePackageImports: ['@mantine/core', '@mantine/hooks'],
   },
   async headers() {
+    /*
+     * En desarrollo se permite además el Supabase local (`supabase
+     * start`, puerto 54321). Sin esto la app **no se puede correr contra
+     * la base local**: el login falla con un error de CSP en la consola
+     * y en pantalla se ve "Email o contraseña incorrectos", que manda a
+     * buscar el problema al lado equivocado.
+     *
+     * Va sólo en desarrollo. En producción la lista queda igual que
+     * siempre: si un build de producción necesitara hablar con
+     * localhost, sería un error de configuración y conviene que falle.
+     */
+    const enDesarrollo = process.env.NODE_ENV !== 'production';
+    const supabaseLocal = enDesarrollo
+      ? ' http://localhost:54321 http://127.0.0.1:54321 ws://localhost:54321'
+      : '';
+
     // Headers de seguridad para todas las rutas. CSP relativamente laxa en
     // script/style (Mantine/Next inyectan estilos inline), pero restringe
     // orígenes: nada de frames externos, nada de contenido embebido de
@@ -16,7 +32,7 @@ const nextConfig = {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com https://vitals.vercel-insights.com",
+      `connect-src 'self'${supabaseLocal} https://*.supabase.co wss://*.supabase.co https://generativelanguage.googleapis.com https://vitals.vercel-insights.com`,
       // pdf.js corre su parser en un Web Worker propio (/pdf.worker.min.mjs)
       // y en algunos navegadores lo instancia desde un blob. Sin esto, la
       // lectura de recibos muere con un error de CSP difícil de diagnosticar.
