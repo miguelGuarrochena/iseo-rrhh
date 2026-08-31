@@ -246,17 +246,37 @@ end $$;
 select pg_temp.como('dddddddd-0000-0000-0000-000000000205');
 do $$
 begin
+  -- Acotado a las empresas de este test: si dependiera de que la base
+  -- esté vacía, fallaría por datos de al lado y no por la RLS.
   perform pg_temp.chk('109.21', 'el superadmin ve los de todas',
-    (select count(*) from mapeos_importacion_remuneraciones) = 2);
+    (select count(*) from mapeos_importacion_remuneraciones
+      where empresa_id in ('dddddddd-0000-0000-0000-00000000000a',
+                           'dddddddd-0000-0000-0000-00000000000b')) = 2);
+
+  /*
+   * Y de ahí sale una consecuencia que hay que dejar fijada: para el
+   * superadmin la RLS **no** reduce a una fila. La consulta del cliente
+   * tiene que traer el `empresa_id` sí o sí; sin él, el `maybeSingle()`
+   * de supabase-js falla con PGRST116 y el superadmin no puede ni abrir
+   * la importación de una empresa cliente. Pasó.
+   */
+  perform pg_temp.chk('109.22', 'sin filtrar por empresa, al superadmin le vuelve más de una',
+    (select count(*) from mapeos_importacion_remuneraciones) > 1);
+  perform pg_temp.chk('109.23', 'filtrando por empresa, exactamente una',
+    (select count(*) from mapeos_importacion_remuneraciones
+      where empresa_id = 'dddddddd-0000-0000-0000-00000000000a') = 1);
+  perform pg_temp.chk('109.24', 'y puede entrar a cualquiera de las dos',
+    pg_temp.mapeo_de('dddddddd-0000-0000-0000-00000000000a', 'Sueldo') = 'sueldo'
+    and pg_temp.mapeo_de('dddddddd-0000-0000-0000-00000000000b', 'Haberes') = 'sueldo');
 end $$;
 
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 do $$
 begin
-  perform pg_temp.chk('109.22', 'sin sesión no se ve ningún mapeo',
+  perform pg_temp.chk('109.25', 'sin sesión no se ve ningún mapeo',
     (select count(*) from mapeos_importacion_remuneraciones) = 0);
-  perform pg_temp.chk('109.23', 'ni se puede crear uno',
+  perform pg_temp.chk('109.26', 'ni se puede crear uno',
     not pg_temp.entra(
       'insert into mapeos_importacion_remuneraciones (empresa_id, mapeo)
          values (''dddddddd-0000-0000-0000-00000000000a'', ''{"x":"sueldo"}''::jsonb)'));
@@ -269,7 +289,7 @@ select pg_temp.como('dddddddd-0000-0000-0000-000000000201');
 
 do $$
 begin
-  perform pg_temp.chk('109.24', 'no se puede tener dos mapeos de la misma empresa',
+  perform pg_temp.chk('109.27', 'no se puede tener dos mapeos de la misma empresa',
     not pg_temp.entra(
       'insert into mapeos_importacion_remuneraciones (empresa_id, mapeo)
          values (''dddddddd-0000-0000-0000-00000000000a'', ''{"Otro":"sueldo"}''::jsonb)'));
@@ -281,15 +301,15 @@ begin
           '{"Legajo":"legajo","Haberes":"sueldo"}'::jsonb)
   on conflict (empresa_id) do update set mapeo = excluded.mapeo;
 
-  perform pg_temp.chk('109.25', 'reimportar reemplaza el mapeo, no acumula',
+  perform pg_temp.chk('109.28', 'reimportar reemplaza el mapeo, no acumula',
     (select count(*) from mapeos_importacion_remuneraciones
       where empresa_id = 'dddddddd-0000-0000-0000-00000000000a') = 1);
-  perform pg_temp.chk('109.26', 'con los encabezados nuevos',
+  perform pg_temp.chk('109.29', 'con los encabezados nuevos',
     pg_temp.mapeo_de('dddddddd-0000-0000-0000-00000000000a', 'Haberes') = 'sueldo');
-  perform pg_temp.chk('109.27', 'y sin los viejos',
+  perform pg_temp.chk('109.30', 'y sin los viejos',
     pg_temp.mapeo_de('dddddddd-0000-0000-0000-00000000000a', 'Sueldo') is null);
 
-  perform pg_temp.chk('109.28', 'un mapeo que no es un objeto se rechaza',
+  perform pg_temp.chk('109.31', 'un mapeo que no es un objeto se rechaza',
     not pg_temp.entra(
       'update mapeos_importacion_remuneraciones
           set mapeo = ''[1,2,3]''::jsonb
@@ -307,7 +327,7 @@ begin
   delete from empleados where empresa_id = 'dddddddd-0000-0000-0000-00000000000b';
   delete from usuarios where empresa_id = 'dddddddd-0000-0000-0000-00000000000b';
   delete from empresas where id = 'dddddddd-0000-0000-0000-00000000000b';
-  perform pg_temp.chk('109.29', 'al borrar la empresa se va su mapeo',
+  perform pg_temp.chk('109.32', 'al borrar la empresa se va su mapeo',
     (select count(*) from mapeos_importacion_remuneraciones
       where empresa_id = 'dddddddd-0000-0000-0000-00000000000b') = 0);
 end $$;

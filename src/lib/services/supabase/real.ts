@@ -3190,14 +3190,21 @@ export const remuneracionesExistentes = async (
 /**
  * El mapeo de columnas guardado para la empresa activa.
  *
- * No filtra por `empresa_id` en el cliente a propósito: la RLS ya
- * devuelve sólo el de la empresa de quien pregunta. Ponerlo acá haría
- * creer que la separación la hace el `eq`.
+ * El `eq` por empresa hace falta de verdad, y no es defensa en
+ * profundidad: para el superadmin la RLS **no** filtra —ve las de todas
+ * las empresas— así que sin esto la consulta devolvía dos filas y
+ * `maybeSingle()` fallaba con "Cannot coerce the result to a single JSON
+ * object". El superadmin no podía ni abrir la importación de una empresa
+ * cliente.
+ *
+ * Para los demás roles el filtro es redundante con la RLS, que es la que
+ * impide leer el de otra empresa. Acá sólo elige de cuál se habla.
  */
 export const getMapeoImportacion = async (): Promise<MapeoDeEmpresa | null> => {
   const { data, error } = await sb()
     .from('mapeos_importacion_remuneraciones')
     .select('mapeo, actualizado_en')
+    .eq('empresa_id', empresaId())
     .maybeSingle();
   if (error) fallar(error.message, 'importacion/mapeo');
   if (!data) return null;
