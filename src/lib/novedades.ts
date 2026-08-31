@@ -23,6 +23,7 @@ import {
   diasEntre,
   finDeMesEmpresa,
   formatearFechaCivil,
+  formatearPeriodo,
   sumarMesesEmpresa,
 } from '@/lib/fechas';
 import { moduloActivo, ModuloOpcional } from '@/components/app/navItems';
@@ -459,7 +460,7 @@ export const armarNovedades = (datos: DatosNovedades): NovedadesPeriodo => {
     {
       clave: 'sueldos',
       etiqueta: 'Cambios de sueldo',
-      descripcion: `Brutos que cambiaron contra ${anterior}.`,
+      descripcion: `Brutos que cambiaron contra ${formatearPeriodo(anterior).toLowerCase()}.`,
       items: sueldos,
       total: sumar(sueldos),
       unidad: 'pesos',

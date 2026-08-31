@@ -1,33 +1,39 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
   IconAlertTriangle,
   IconArchive,
+  IconArrowNarrowRight,
+  IconCircleCheck,
+  IconClock,
   IconDownload,
   IconLock,
   IconLockOpen,
 } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { Panel } from '@/components/app/Panel';
-import { StatCard } from '@/components/app/dashboard/StatCard';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoMes } from '@/components/app/ui/CampoMes';
 import { CampoTextarea } from '@/components/app/ui/Campo';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { CategoriaCard } from '@/components/app/cierre/CategoriaCard';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { useCarga } from '@/lib/useCarga';
 import { useModulos } from '@/lib/auth/useModulos';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { descargarCSV } from '@/lib/csv';
-import { formatearInstante, mesEmpresa } from '@/lib/fechas';
+import { formatearInstante, formatearPeriodo, mesEmpresa } from '@/lib/fechas';
 import { armarNovedades, filasDeExportacion } from '@/lib/novedades';
+import { Usuario } from '@/types/rrhh';
 import {
   cerrarPeriodo,
   getCierrePeriodo,
   getDatosNovedades,
   getEmpresa,
+  getUsuariosDeEmpresa,
   marcarCategoriaRevisada,
   reabrirPeriodo,
 } from '@/lib/services/rrhh';
@@ -45,11 +51,53 @@ import {
  * Cerrar y reabrir los resuelve la base (RPC de la migración 99), que es
  * la que valida rol y tenant y deja el rastro en la auditoría. Acá se
  * pide y se muestra el resultado.
+ *
+ * La pantalla está armada para contestar dos preguntas en ese orden:
+ * "¿está todo listo para cerrar este mes?" y, recién cuando se aprieta,
+ * "¿qué pasa si lo cierro?". De ahí el encabezado con el estado y la
+ * confirmación con las consecuencias reales — que son sólo dos, y son
+ * las que aplica la base.
  */
+
+/** Los tres estados que puede tener el período en pantalla. */
+type EstadoVisual = 'cerrado' | 'futuro' | 'listo' | 'revisar' | 'desconocido';
+
+const CARTEL: Record<
+  EstadoVisual,
+  { texto: string; clases: string; icono: typeof IconLock }
+> = {
+  cerrado: {
+    texto: 'Período cerrado',
+    clases: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    icono: IconLock,
+  },
+  listo: {
+    texto: 'Listo para cerrar',
+    clases: 'border-emerald-200 bg-emerald-50 text-emerald-900',
+    icono: IconCircleCheck,
+  },
+  revisar: {
+    texto: 'Hay cosas para revisar',
+    clases: 'border-amber-200 bg-amber-50 text-amber-900',
+    icono: IconAlertTriangle,
+  },
+  futuro: {
+    texto: 'El mes todavía no terminó',
+    clases: 'border-line bg-paper text-ink',
+    icono: IconClock,
+  },
+  desconocido: {
+    texto: 'No pudimos leer el estado',
+    clases: 'border-line bg-paper text-ink',
+    icono: IconAlertTriangle,
+  },
+};
+
 const CierrePage = () => {
   const { rolEfectivo } = useAuth();
   const esAdmin = rolEfectivo === 'admin_rrhh';
   const modulos = useModulos();
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
   const [periodo, setPeriodo] = useState(() => mesEmpresa());
   const [notas, setNotas] = useState('');
@@ -72,6 +120,19 @@ const CierrePage = () => {
     contexto: 'cierre/estado',
   });
 
+  /**
+   * Sólo para poner un nombre donde la fila del cierre guarda un id. Si
+   * falla, el cartel muestra la fecha igual: quién cerró es un dato de
+   * lectura, no una condición para operar.
+   */
+  const cUsuarios = useCarga(() => getUsuariosDeEmpresa(), [], {
+    activo: esAdmin,
+    contexto: 'cierre/usuarios',
+    inicial: [] as Usuario[],
+  });
+  const nombreDeUsuario = (id?: string): string | null =>
+    (id && cUsuarios.datos.find((u) => u.id === id)?.nombreCompleto) || null;
+
   const cierre = cCierre.datos ?? null;
   const cerrado = cierre?.estado === 'cerrado';
   /*
@@ -81,6 +142,13 @@ const CierrePage = () => {
    * ofrecerlo y decir por qué.
    */
   const esFuturo = periodo > mesEmpresa();
+  /*
+   * Si el estado del período no se pudo leer, no se ofrece cerrar. Antes
+   * la pantalla asumía "abierto" y mostraba el botón: apretarlo sobre un
+   * mes ya cerrado rebota en la base con un error crudo, y sobre uno
+   * abierto cierra a ciegas sin haber podido mostrar en qué estaba.
+   */
+  const estadoDesconocido = cCierre.fase === 'error';
   const revisadas = useMemo(
     () => new Set(cierre?.categoriasRevisadas ?? []),
     [cierre]
@@ -95,6 +163,60 @@ const CierrePage = () => {
     ? novedades.categorias.filter((c) => !revisadas.has(c.clave)).length
     : 0;
   const requierenAtencion = novedades?.requierenAtencion ?? 0;
+  const revisadasCuantas = novedades
+    ? novedades.categorias.length - pendientesDeRevisar
+    : 0;
+
+  /** Categorías con datos incompletos, con su link para resolverlas. */
+  const paraRevisar = novedades
+    ? novedades.categorias.filter((c) => c.requiereAtencion)
+    : [];
+
+  /**
+   * Cuánta gente toca este mes. Sale de las novedades que ya están en
+   * memoria —no es una consulta nueva ni una estimación— y es lo que
+   * dimensiona el período: ocho novedades de una persona y ocho de ocho
+   * personas se revisan distinto.
+   */
+  const colaboradoresAlcanzados = novedades
+    ? new Set(
+        novedades.categorias.flatMap((c) => c.items.map((i) => i.empleadoId))
+      ).size
+    : 0;
+
+  /**
+   * Un mes sin ninguna novedad no tiene nada que revisar. Sin esto la
+   * pantalla pedía tildar nueve categorías vacías y decía "hay cosas
+   * para revisar" sobre un período en el que no pasó nada.
+   */
+  const sinNovedades = novedades?.total === 0;
+
+  const periodoLargo = formatearPeriodo(periodo);
+  const estadoVisual: EstadoVisual = cerrado
+    ? 'cerrado'
+    : estadoDesconocido
+      ? 'desconocido'
+      : esFuturo
+        ? 'futuro'
+        : requierenAtencion === 0 && (pendientesDeRevisar === 0 || sinNovedades)
+          ? 'listo'
+          : 'revisar';
+  const cartel = CARTEL[estadoVisual];
+  const IconoEstado = cartel.icono;
+  /**
+   * El ámbar significa una sola cosa: hay datos que faltan. Si lo único
+   * pendiente son los tildes de revisión, el cartel va neutro — si no,
+   * el encabezado y el bloque de pendientes gritan lo mismo dos veces y
+   * el color deja de señalar nada.
+   */
+  const clasesCartel =
+    estadoVisual === 'revisar' && requierenAtencion === 0
+      ? 'border-line bg-paper text-ink'
+      : cartel.clases;
+  const textoEstado =
+    sinNovedades && !cerrado && !esFuturo && !estadoDesconocido
+      ? 'Sin novedades para revisar'
+      : cartel.texto;
 
   const alternarRevisada = useCallback(
     async (clave: string, valor: boolean) => {
@@ -115,6 +237,69 @@ const CierrePage = () => {
     [periodo, cCierre]
   );
 
+  /**
+   * Cerrar es el acto que no se deshace solo, así que primero se dice
+   * qué mes es y qué cambia. Las consecuencias son las que aplica la
+   * base y ninguna más: el trigger de la migración 99 frena
+   * `remuneraciones` y `adelantos` de ese período, el resto sigue igual,
+   * y reabrir existe pidiendo motivo.
+   */
+  const pedirCierre = async () => {
+    if (guardando) return;
+    const ok = await confirmar({
+      titulo: `Cerrar ${periodoLargo.toLowerCase()}`,
+      detalle: (
+        <>
+          <p>
+            Vas a cerrar <strong className="text-ink">{periodoLargo}</strong>.
+            Desde ese momento:
+          </p>
+          <ul className="mt-2 flex list-none flex-col gap-1.5">
+            <li>
+              · Las <strong className="text-ink">remuneraciones</strong> y los{' '}
+              <strong className="text-ink">adelantos</strong> de ese mes se
+              bloquean: no se pueden cargar, editar ni borrar mientras esté
+              cerrado.
+            </li>
+            <li>
+              · El resto sigue funcionando igual: se siguen cargando ausencias,
+              fichajes y todo lo demás.
+            </li>
+            <li>· Queda registrado quién lo cerró y cuándo.</li>
+            <li>
+              · Se puede reabrir después explicando el motivo. No se borra ni se
+              pierde nada.
+            </li>
+          </ul>
+          {(pendientesDeRevisar > 0 || requierenAtencion > 0) && (
+            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-amber-900">
+              {requierenAtencion > 0 && (
+                <>
+                  Hay {requierenAtencion}{' '}
+                  {requierenAtencion === 1 ? 'categoría' : 'categorías'} con
+                  datos incompletos.{' '}
+                </>
+              )}
+              {pendientesDeRevisar > 0 && (
+                <>
+                  Quedan {pendientesDeRevisar}{' '}
+                  {pendientesDeRevisar === 1
+                    ? 'categoría sin revisar'
+                    : 'categorías sin revisar'}
+                  .{' '}
+                </>
+              )}
+              Podés cerrar igual.
+            </p>
+          )}
+        </>
+      ),
+      confirmar: `Cerrar ${periodoLargo.toLowerCase()}`,
+    });
+    if (!ok) return;
+    await confirmarCierre();
+  };
+
   const confirmarCierre = async () => {
     setGuardando(true);
     try {
@@ -122,7 +307,7 @@ const CierrePage = () => {
       cCierre.actualizar(actualizado);
       setNotas('');
       avisoExito(
-        `Período ${periodo} cerrado`,
+        `${periodoLargo} cerrado`,
         'Quedó registrado quién lo cerró y cuándo.'
       );
     } catch (err) {
@@ -145,7 +330,7 @@ const CierrePage = () => {
       cCierre.actualizar(actualizado);
       setMotivo('');
       setReabriendo(false);
-      avisoExito(`Período ${periodo} reabierto`, 'Quedó el motivo asentado.');
+      avisoExito(`${periodoLargo} reabierto`, 'Quedó el motivo asentado.');
     } catch (err) {
       avisoError(
         'No pudimos reabrir el período',
@@ -180,9 +365,9 @@ const CierrePage = () => {
             Cierre del mes
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            Todas las novedades del período que conviene revisar antes de
-            mandárselas al contador. No es una liquidación: acá no se calcula
-            ningún sueldo, se junta lo que ya está cargado.
+            Revisá las novedades del período antes de mandárselas al contador.
+            No es una liquidación: acá no se calcula ningún sueldo, se junta lo
+            que ya está cargado.
           </p>
         </div>
 
@@ -206,49 +391,138 @@ const CierrePage = () => {
           </div>
         </div>
 
+        {/* El estado del período se lee aunque las novedades fallen: son
+            dos consultas distintas y "¿está cerrado?" es la pregunta que
+            no puede quedar sin respuesta. */}
+        {estadoDesconocido && cCierre.error && (
+          <BloqueError error={cCierre.error} onReintentar={cCierre.recargar} />
+        )}
+
         {cDatos.fase === 'error' && cDatos.error ? (
           <BloqueError error={cDatos.error} onReintentar={cDatos.recargar} />
         ) : cDatos.fase === 'cargando' || !novedades ? (
           <Panel>
             <p className="text-sm text-ink-soft">
-              Juntando las novedades de {periodo}…
+              Juntando las novedades de {periodoLargo.toLowerCase()}…
             </p>
           </Panel>
         ) : (
           <>
-            {/* Estado del período: lo primero que hay que saber. */}
-            {cerrado && (
-              <div className="flex flex-wrap items-start gap-3.5 rounded-3xl border border-emerald-200 bg-emerald-50 p-5">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-                  <IconLock size={20} stroke={2} />
+            {/* Lo primero: qué mes es y en qué estado está. */}
+            <section
+              className={`aparece rounded-3xl border p-5 sm:p-6 ${clasesCartel}`}
+            >
+              <div className="flex flex-wrap items-start gap-3.5">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface/70">
+                  <IconoEstado size={20} stroke={2} />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-base font-bold text-ink">
-                    Período {periodo} cerrado
+                  <p className="text-lg font-bold tracking-tight sm:text-xl">
+                    {periodoLargo}
                   </p>
-                  <p className="mt-1 max-w-2xl text-sm leading-relaxed text-ink-soft">
-                    {cierre?.cerradoEn
-                      ? `Se cerró el ${formatearInstante(cierre.cerradoEn)}. `
-                      : ''}
-                    Mientras esté cerrado no se pueden cargar ni modificar
-                    remuneraciones ni adelantos de este mes. Se puede seguir
-                    mirando todo.
-                  </p>
-                  {cierre?.notas && (
-                    <p className="mt-2 rounded-xl bg-surface px-3.5 py-2.5 text-sm text-ink-soft">
-                      {cierre.notas}
+                  <p className="mt-0.5 text-sm font-semibold">{textoEstado}</p>
+
+                  {cerrado ? (
+                    <div className="mt-2 max-w-2xl text-sm leading-relaxed">
+                      <p>
+                        {cierre?.cerradoEn
+                          ? `Cerrado el ${formatearInstante(cierre.cerradoEn)}`
+                          : 'Cerrado'}
+                        {nombreDeUsuario(cierre?.cerradoPor)
+                          ? ` por ${nombreDeUsuario(cierre?.cerradoPor)}.`
+                          : ''}
+                      </p>
+                      <p className="mt-1">
+                        Mientras esté cerrado no se pueden cargar ni modificar
+                        remuneraciones ni adelantos de este mes. Todo lo demás
+                        sigue igual y se puede seguir mirando.
+                      </p>
+                      {cierre?.notas && (
+                        <p className="mt-2 rounded-xl bg-surface px-3.5 py-2.5 text-ink-soft">
+                          {cierre.notas}
+                        </p>
+                      )}
+                      {cierre?.reabiertoEn && (
+                        <p className="mt-2 text-[0.8125rem] text-ink-soft">
+                          Se había reabierto el{' '}
+                          {formatearInstante(cierre.reabiertoEn)}
+                          {nombreDeUsuario(cierre.reabiertoPor)
+                            ? ` por ${nombreDeUsuario(cierre.reabiertoPor)}`
+                            : ''}
+                          {cierre.motivoReapertura
+                            ? `: “${cierre.motivoReapertura}”`
+                            : '.'}
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="mt-2 max-w-2xl text-sm leading-relaxed">
+                      {estadoDesconocido
+                        ? 'No pudimos leer si este mes está abierto o cerrado, así que no se ofrece cerrarlo. Reintentá arriba.'
+                        : esFuturo
+                          ? 'Todavía no terminó, así que no hay nada que cerrar. Podés mirar lo que ya está cargado.'
+                          : sinNovedades
+                            ? 'No hay ninguna novedad cargada en este período. Podés cerrarlo igual.'
+                            : estadoVisual === 'listo'
+                              ? 'Revisaste todas las categorías y no quedan datos incompletos.'
+                              : 'Mirá lo que quedó pendiente abajo. Nada de esto impide cerrar el período.'}
                     </p>
                   )}
+
+                  {/* El avance de la revisión, que es el trabajo real. */}
+                  {novedades.categorias.length > 0 && !sinNovedades && (
+                    <div className="mt-4 max-w-md">
+                      <div className="flex flex-wrap items-baseline justify-between gap-2 text-[0.8125rem] font-semibold">
+                        <span>
+                          {revisadasCuantas} de {novedades.categorias.length}{' '}
+                          categorías revisadas
+                        </span>
+                        <span className="text-ink-soft">
+                          {novedades.total}{' '}
+                          {novedades.total === 1 ? 'novedad' : 'novedades'} ·{' '}
+                          {colaboradoresAlcanzados}{' '}
+                          {colaboradoresAlcanzados === 1
+                            ? 'colaborador'
+                            : 'colaboradores'}
+                        </span>
+                      </div>
+                      <div
+                        className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-surface"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={novedades.categorias.length}
+                        aria-valuenow={revisadasCuantas}
+                        aria-label="Categorías revisadas"
+                      >
+                        <div
+                          className={`h-full rounded-full ${
+                            pendientesDeRevisar === 0
+                              ? 'bg-emerald-500'
+                              : 'bg-brand-500'
+                          }`}
+                          style={{
+                            width: `${Math.round(
+                              (revisadasCuantas / novedades.categorias.length) *
+                                100
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <Boton
-                  variante="secundario"
-                  onClick={() => setReabriendo((v) => !v)}
-                >
-                  <IconLockOpen size={16} />
-                  Reabrir
-                </Boton>
+
+                {cerrado && (
+                  <Boton
+                    variante="secundario"
+                    onClick={() => setReabriendo((v) => !v)}
+                  >
+                    <IconLockOpen size={16} />
+                    Reabrir
+                  </Boton>
+                )}
               </div>
-            )}
+            </section>
 
             {cerrado && reabriendo && (
               <Panel
@@ -283,49 +557,52 @@ const CierrePage = () => {
               </Panel>
             )}
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <StatCard
-                etiqueta="Novedades"
-                valor={novedades.total}
-                detalle="en el período"
-              />
-              <StatCard
-                etiqueta="Categorías"
-                valor={novedades.categorias.length}
-                detalle={`${novedades.categorias.length - pendientesDeRevisar} revisadas`}
-              />
-              <StatCard
-                etiqueta="Por revisar"
-                valor={pendientesDeRevisar}
-                detalle="categorías sin tildar"
-              />
-              <StatCard
-                etiqueta="Requieren atención"
-                valor={requierenAtencion}
-                detalle={
-                  requierenAtencion > 0 ? 'datos que faltan' : 'nada pendiente'
-                }
-              />
-            </div>
-
-            {requierenAtencion > 0 && !cerrado && (
-              <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4">
-                <IconAlertTriangle
-                  size={19}
-                  className="mt-0.5 shrink-0 text-amber-700"
-                />
-                <p className="text-sm leading-relaxed text-amber-900">
-                  Hay {requierenAtencion}{' '}
-                  {requierenAtencion === 1 ? 'categoría' : 'categorías'} con
-                  datos incompletos. Podés cerrar igual —a veces no hay más
-                  información que la que hay—, pero conviene resolverlo antes:
-                  lo que falta ahí no le llega al contador.
-                </p>
-              </div>
+            {/* Lo que conviene resolver, con el link a donde se resuelve.
+                Separado del cierre a propósito: ninguna de estas cosas lo
+                bloquea, y decir lo contrario sería inventar una regla. */}
+            {!cerrado && paraRevisar.length > 0 && (
+              <section className="aparece rounded-3xl border border-amber-200 bg-amber-50 p-5 sm:p-6">
+                <div className="flex items-start gap-3">
+                  <IconAlertTriangle
+                    size={19}
+                    className="mt-0.5 shrink-0 text-amber-700"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-[1.0625rem] font-bold tracking-tight text-ink">
+                      Conviene revisar antes de cerrar
+                    </h2>
+                    <p className="mt-1 max-w-2xl text-sm leading-relaxed text-amber-900">
+                      Son datos que faltan y que no le van a llegar al contador.
+                      No impiden cerrar el período.
+                    </p>
+                    <ul className="mt-3 flex list-none flex-col gap-2">
+                      {paraRevisar.map((c) => (
+                        <li key={c.clave}>
+                          <Link
+                            href={c.ruta}
+                            className="hover-bloque flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-amber-200 bg-surface px-3.5 py-2.5 text-sm no-underline"
+                          >
+                            <span className="font-bold text-ink">
+                              {c.etiqueta}
+                            </span>
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
+                              {c.items.length}
+                            </span>
+                            <span className="ml-auto inline-flex items-center gap-1 font-bold text-brand-700">
+                              Resolver
+                              <IconArrowNarrowRight size={16} />
+                            </span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </section>
             )}
 
             <Panel
-              titulo={`Novedades de ${periodo}`}
+              titulo={`Novedades de ${periodoLargo.toLowerCase()}`}
               descripcion="Sólo aparecen las categorías de las secciones que tu empresa usa. Tildá cada una a medida que la revisás."
             >
               <div className="flex flex-col gap-3">
@@ -341,20 +618,10 @@ const CierrePage = () => {
               </div>
             </Panel>
 
-            {!cerrado && esFuturo && (
-              <Panel titulo="Todavía no terminó">
-                <p className="text-sm leading-relaxed text-ink-soft">
-                  {periodo} es un período futuro: no hay nada que cerrar hasta
-                  que el mes termine. Podés mirar lo que ya está cargado, pero
-                  el cierre se habilita recién entonces.
-                </p>
-              </Panel>
-            )}
-
-            {!cerrado && !esFuturo && (
+            {!cerrado && !esFuturo && !estadoDesconocido && (
               <Panel
-                titulo="Cerrar el período"
-                descripcion="Al cerrar queda registrado quién lo hizo y cuándo, y las remuneraciones y adelantos de este mes se bloquean para que nadie los cambie sin querer."
+                titulo={`Cerrar ${periodoLargo.toLowerCase()}`}
+                descripcion="Al cerrar quedan bloqueadas las remuneraciones y los adelantos de este mes, para que nadie los cambie sin querer. Antes de confirmar te vamos a mostrar exactamente qué cambia."
               >
                 <div className="flex flex-col gap-3">
                   <CampoTextarea
@@ -365,11 +632,14 @@ const CierrePage = () => {
                   />
                   <div>
                     <Boton
-                      onClick={() => void confirmarCierre()}
+                      variante="negro"
+                      onClick={() => void pedirCierre()}
                       disabled={guardando}
                     >
                       <IconArchive size={16} />
-                      {guardando ? 'Cerrando…' : `Cerrar ${periodo}`}
+                      {guardando
+                        ? 'Cerrando…'
+                        : `Cerrar ${periodoLargo.toLowerCase()}`}
                     </Boton>
                   </div>
                   <p className="text-xs leading-relaxed text-ink-soft">
@@ -381,6 +651,8 @@ const CierrePage = () => {
             )}
           </>
         )}
+
+        {dialogoConfirmar}
       </div>
     </RequireEmpresa>
   );
