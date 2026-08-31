@@ -2,6 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { CalendarioAusencias } from '@/components/app/ausencias/CalendarioAusencias';
+import { advertenciasDeAusencia } from '@/lib/advertencias';
 import { Ausencia } from '@/types/rrhh';
 
 /**
@@ -40,12 +41,16 @@ const a = (
   ...extra,
 });
 
-const dibujar = (ausencias: Ausencia[]) =>
+const dibujar = (
+  ausencias: Ausencia[],
+  contextoLegal?: { feriados: Set<string>; vacacionesEnHabiles: boolean }
+) =>
   render(
     <MantineProvider>
       <CalendarioAusencias
         ausencias={ausencias}
         nombreEmpleado={nombreEmpleado}
+        contextoLegal={contextoLegal}
       />
     </MantineProvider>
   );
@@ -148,6 +153,44 @@ describe('CalendarioAusencias', () => {
     expect(within(dialogo).getByText('Pendiente')).toBeInTheDocument();
     expect(within(dialogo).getByText('4 días')).toBeInTheDocument();
     expect(within(dialogo).getByText('Reposo indicado')).toBeInTheDocument();
+  });
+
+  it('el detalle trae las advertencias legales cuando hay contexto', async () => {
+    // Martes de agosto pedido con diez días: se aparta del art. 151 y del
+    // 154 (época y anticipación). Las calcula `lib/advertencias`.
+    const a1 = a('1', 'e1', '2026-08-11', '2026-08-14', {
+      dias: 4,
+      creadaEn: '2026-08-01T09:00:00.000Z',
+    });
+    const esperadas = advertenciasDeAusencia(a1, {
+      feriados: new Set<string>(),
+      vacacionesEnHabiles: false,
+    });
+    expect(esperadas.length).toBeGreaterThan(1);
+
+    dibujar([a1], { feriados: new Set<string>(), vacacionesEnHabiles: false });
+    fireEvent.click(screen.getByTitle(/Juan Pérez/));
+    const dialogo = await screen.findByRole('dialog');
+    expect(
+      within(dialogo).getByText(`Advertencias (${esperadas.length})`)
+    ).toBeInTheDocument();
+    expect(
+      within(dialogo).getByText(
+        'Ninguna de estas impide registrar la solicitud.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('sin contexto legal el detalle no muestra advertencias', async () => {
+    dibujar([
+      a('1', 'e1', '2026-08-11', '2026-08-14', {
+        dias: 4,
+        creadaEn: '2026-08-01T09:00:00.000Z',
+      }),
+    ]);
+    fireEvent.click(screen.getByTitle(/Juan Pérez/));
+    const dialogo = await screen.findByRole('dialog');
+    expect(within(dialogo).queryByText(/^Advertencia/)).toBeNull();
   });
 
   it('cambiar de vista no cambia los datos, sólo cómo se ven', () => {

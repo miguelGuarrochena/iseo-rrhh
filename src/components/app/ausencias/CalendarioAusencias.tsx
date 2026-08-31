@@ -38,7 +38,10 @@ import {
   tocaRango,
   VistaCalendario,
 } from '@/lib/calendario';
-import { DetalleAusenciaModal } from '@/components/app/ausencias/DetalleAusenciaModal';
+import {
+  ContextoLegal,
+  DetalleAusenciaModal,
+} from '@/components/app/ausencias/DetalleAusenciaModal';
 
 interface CalendarioAusenciasProps {
   ausencias: Ausencia[];
@@ -50,6 +53,12 @@ interface CalendarioAusenciasProps {
   acciones?: (a: Ausencia, cerrar: () => void) => ReactNode;
   /** Texto del cartel cuando el período no tiene ninguna ausencia. */
   vacio?: string;
+  /**
+   * Régimen y feriados con los que se calculan las advertencias del
+   * detalle. Si no se pasa, el detalle no las muestra: el calendario de
+   * sector que ve un colaborador, por ejemplo, no las necesita.
+   */
+  contextoLegal?: ContextoLegal;
 }
 
 const VISTAS: { valor: VistaCalendario; etiqueta: string }[] = [
@@ -172,6 +181,7 @@ export const CalendarioAusencias = ({
   feriados,
   acciones,
   vacio,
+  contextoLegal,
 }: CalendarioAusenciasProps) => {
   // Día y mes de NEGOCIO. Con el reloj del dispositivo, el calendario
   // abría en el mes siguiente el último día del mes a la noche, y el
@@ -682,6 +692,7 @@ export const CalendarioAusencias = ({
         nombreEmpleado={nombreEmpleado}
         onCerrar={() => setAusenciaSel(null)}
         acciones={acciones}
+        contextoLegal={contextoLegal}
       />
     </div>
   );

@@ -1,8 +1,13 @@
 'use client';
 
-import { ReactNode } from 'react';
+import { ReactNode, useMemo } from 'react';
 import { Modal } from '@mantine/core';
-import { IconCalendarEvent, IconClock, IconUser } from '@tabler/icons-react';
+import {
+  IconAlertTriangle,
+  IconCalendarEvent,
+  IconClock,
+  IconUser,
+} from '@tabler/icons-react';
 import { EstadoBadge } from '@/components/app/EstadoBadge';
 import {
   tipoAusenciaColores,
@@ -11,7 +16,29 @@ import {
 } from '@/lib/etiquetas';
 import { formatearFechaCivil } from '@/lib/fechas';
 import { capitalizar } from '@/lib/calendario';
+import { advertenciasDeAusencia, hayAdvertenciaAlta } from '@/lib/advertencias';
 import { Ausencia } from '@/types/rrhh';
+
+/**
+ * Con qué mirar la ausencia para saber si se aparta de la regla general.
+ *
+ * Son las mismas dos entradas que usa el modal de carga, y por eso van
+ * juntas en un solo objeto: si el detalle recibiera una y no la otra,
+ * mostraría advertencias distintas de las que vio quien la registró.
+ *
+ *  - `feriados`: los NO laborables con los que se cuenta (los que
+ *    devuelve `getFeriadosParaCalculo`). Vacío cuando la empresa cuenta
+ *    en días corridos, igual que en la carga: ahí los feriados no entran
+ *    en la cuenta.
+ *  - `vacacionesEnHabiles`: el régimen de la empresa.
+ *
+ * Sin este contexto el detalle no muestra advertencias, en vez de
+ * calcularlas con datos a medias.
+ */
+export interface ContextoLegal {
+  feriados: Set<string>;
+  vacacionesEnHabiles: boolean;
+}
 
 interface DetalleAusenciaModalProps {
   ausencia: Ausencia | null;
@@ -24,6 +51,8 @@ interface DetalleAusenciaModalProps {
    * de resolver, no quede a la vista el estado viejo.
    */
   acciones?: (a: Ausencia, cerrar: () => void) => ReactNode;
+  /** Si se pasa, el detalle muestra las advertencias legales. */
+  contextoLegal?: ContextoLegal;
 }
 
 const fechaLarga = (iso: string) =>
@@ -69,8 +98,27 @@ export const DetalleAusenciaModal = ({
   nombreEmpleado,
   onCerrar,
   acciones,
+  contextoLegal,
 }: DetalleAusenciaModalProps) => {
   const Icono = ausencia ? tipoAusenciaIconos[ausencia.tipo] : null;
+
+  /**
+   * Las mismas advertencias que ya calcula el sistema, no unas nuevas:
+   * `advertenciasDeAusencia` es el punto de entrada que `lib/advertencias`
+   * expone justo para una solicitud ya guardada (mide la anticipación
+   * contra el día en que se pidió, no contra hoy). Acá sólo se dibujan:
+   * no frenan nada ni cambian ningún dato.
+   */
+  const advertencias = useMemo(
+    () =>
+      ausencia && contextoLegal
+        ? advertenciasDeAusencia(ausencia, {
+            feriados: contextoLegal.feriados,
+            vacacionesEnHabiles: contextoLegal.vacacionesEnHabiles,
+          })
+        : [],
+    [ausencia, contextoLegal]
+  );
   return (
     <Modal
       opened={Boolean(ausencia)}
@@ -121,6 +169,44 @@ export const DetalleAusenciaModal = ({
                 {ausencia.comentarioResolucion}
               </span>
             </Fila>
+          )}
+
+          {/* Informan, no frenan: los botones de abajo no las miran, igual
+              que en el modal de carga. Mismo cartel y mismos niveles. */}
+          {advertencias.length > 0 && (
+            <div
+              className={`rounded-xl border px-4 py-3 ${
+                hayAdvertenciaAlta(advertencias)
+                  ? 'border-amber-300 bg-amber-50'
+                  : 'border-line bg-paper'
+              }`}
+            >
+              <p className="flex items-center gap-1.5 text-xs font-bold text-ink">
+                <IconAlertTriangle
+                  size={14}
+                  className={
+                    hayAdvertenciaAlta(advertencias)
+                      ? 'text-amber-700'
+                      : 'text-ink-soft'
+                  }
+                />
+                {advertencias.length === 1
+                  ? 'Advertencia'
+                  : `Advertencias (${advertencias.length})`}
+              </p>
+              <ul className="mt-2 flex list-none flex-col gap-2">
+                {advertencias.map((a) => (
+                  <li key={a.clave} className="text-xs leading-relaxed">
+                    <span className="font-semibold text-ink">{a.titulo}.</span>{' '}
+                    <span className="text-ink-soft">{a.detalle}</span>{' '}
+                    <span className="text-ink-soft">{a.queHacer}</span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-[0.6875rem] font-semibold text-ink-soft">
+                Ninguna de estas impide registrar la solicitud.
+              </p>
+            </div>
           )}
 
           {acciones && (

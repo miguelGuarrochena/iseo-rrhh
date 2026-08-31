@@ -20,6 +20,7 @@ import { StatCard } from '@/components/app/dashboard/StatCard';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Panel } from '@/components/app/Panel';
 import { CalendarioAusencias } from '@/components/app/ausencias/CalendarioAusencias';
+import { ContextoLegal } from '@/components/app/ausencias/DetalleAusenciaModal';
 import { EstadoBadge } from '@/components/app/EstadoBadge';
 import { NuevaAusenciaModal } from '@/components/app/ausencias/NuevaAusenciaModal';
 import { Boton } from '@/components/app/ui/Boton';
@@ -39,7 +40,9 @@ import {
   abrirAdjuntoAusencia,
   crearAusencia,
   getAusencias,
+  getEmpresa,
   getFeriados,
+  getFeriadosParaCalculo,
   getAusenciasDeEmpleado,
   getEmpleado,
   getEmpleados,
@@ -148,6 +151,34 @@ const AusenciasPage = () => {
     inicial: [] as Feriado[],
   });
   const feriados = cargaFeriados.datos;
+
+  /**
+   * Con qué se calculan las advertencias del detalle. Se arma igual que
+   * en el modal de carga —misma config de empresa y mismos feriados de
+   * cálculo— para que una ausencia muestre exactamente las mismas
+   * advertencias cuando se la registra y cuando se la mira después.
+   *
+   * En días corridos el set va vacío a propósito: es lo que hace la
+   * carga, porque ahí los feriados no entran en la cuenta.
+   *
+   * Si esto falla no se muestran advertencias, y punto: calcularlas con
+   * la mitad de los datos diría cosas que no son.
+   */
+  const cargaContextoLegal = useCarga(
+    async (): Promise<ContextoLegal> => {
+      const empresa = await getEmpresa();
+      const vacacionesEnHabiles = Boolean(empresa.config.vacacionesDiasHabiles);
+      return {
+        vacacionesEnHabiles,
+        feriados: vacacionesEnHabiles
+          ? await getFeriadosParaCalculo()
+          : new Set<string>(),
+      };
+    },
+    [],
+    { activo: !esEmpleado && Boolean(usuario), contexto: 'ausencias/reglas' }
+  );
+  const contextoLegal = cargaContextoLegal.datos;
 
   const cargar = useCallback(() => {
     cargaAusencias.recargar();
@@ -495,6 +526,7 @@ const AusenciasPage = () => {
             nombreEmpleado={nombreEmpleado}
             feriados={feriados}
             acciones={accionesDetalle}
+            contextoLegal={contextoLegal}
           />
         </Panel>
       )}
