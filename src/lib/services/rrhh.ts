@@ -96,6 +96,16 @@ export const importarRemuneraciones = elegir(
   demo.importarRemuneraciones
 );
 
+export const getMapeoImportacion = elegir(
+  real.getMapeoImportacion,
+  demo.getMapeoImportacion
+);
+
+export const guardarMapeoImportacion = elegir(
+  real.guardarMapeoImportacion,
+  demo.guardarMapeoImportacion
+);
+
 export const remuneracionesExistentes = elegir(
   real.remuneracionesExistentes,
   demo.remuneracionesExistentes

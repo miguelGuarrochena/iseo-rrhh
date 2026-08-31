@@ -6,7 +6,7 @@ import { IconAlertTriangle, IconFileSpreadsheet } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { CampoMes } from '@/components/app/ui/CampoMes';
 import { Selector } from '@/components/app/ui/Selector';
-import { avisoExito } from '@/lib/avisos';
+import { avisoError, avisoExito } from '@/lib/avisos';
 import { formatearPesos } from '@/lib/formato';
 import { mesEmpresa } from '@/lib/fechas';
 import {
@@ -15,16 +15,22 @@ import {
   FORMATOS_PERMITIDOS_TEXTO,
   leerFilasDeArchivo,
 } from '@/lib/planillas';
-import { autoMapear, camposSinMapear, IGNORAR } from '@/lib/mapeoDeColumnas';
+import { camposSinMapear, IGNORAR } from '@/lib/mapeoDeColumnas';
 import {
   armarFilasDeLiquidacion,
   CAMPOS_LIQUIDACION,
+  conciliarMapeo,
   errorDeArchivo,
   filasImportables,
   FilaLiquidacion,
+  MapeoConciliado,
+  mapeoParaGuardar,
   resumirImportacion,
+  TEXTO_ORIGEN,
 } from '@/lib/importarLiquidacion';
 import {
+  getMapeoImportacion,
+  guardarMapeoImportacion,
   importarRemuneraciones,
   remuneracionesExistentes,
 } from '@/lib/services/rrhh';
@@ -70,6 +76,14 @@ export const ImportarLiquidacionModal = ({
   const [error, setError] = useState<string | null>(null);
   const [verErrores, setVerErrores] = useState(false);
   const [importando, setImportando] = useState(false);
+  const [conciliado, setConciliado] = useState<MapeoConciliado | null>(null);
+  /*
+   * Las columnas que la persona ya miró. Empieza vacío y se llena al
+   * tocar cada selector: confirmar es un acto, no un estado que se pueda
+   * inferir de que el valor "parezca" bien.
+   */
+  const [confirmadas, setConfirmadas] = useState<Set<string>>(new Set());
+  const [verMapeo, setVerMapeo] = useState(false);
 
   const reiniciar = () => {
     setPaso('archivo');
@@ -80,6 +94,9 @@ export const ImportarLiquidacionModal = ({
     setYaCargadas(new Set());
     setError(null);
     setVerErrores(false);
+    setConciliado(null);
+    setConfirmadas(new Set());
+    setVerMapeo(false);
   };
 
   const cerrar = () => {
@@ -123,6 +140,15 @@ export const ImportarLiquidacionModal = ({
     [mapeo]
   );
 
+  /** Lo que todavía nadie miró de las columnas dudosas. */
+  const pendientes = useMemo(
+    () => (conciliado?.porConfirmar ?? []).filter((c) => !confirmadas.has(c)),
+    [conciliado, confirmadas]
+  );
+
+  const confirmar = (columna: string) =>
+    setConfirmadas((antes) => new Set(antes).add(columna));
+
   const leerArchivo = async (archivo: File) => {
     setError(null);
     if (archivo.size > MAX_MB * 1024 * 1024) {
@@ -136,10 +162,25 @@ export const ImportarLiquidacionModal = ({
         return;
       }
       const cols = Object.keys(datos[0]);
-      const auto = autoMapear(cols, CAMPOS_LIQUIDACION);
+
+      /*
+       * El mapeo de esta empresa, si ya importó alguna vez. La primera
+       * vez `conciliarMapeo` sugiere por nombre; a partir de la segunda
+       * aplica lo guardado, y si el estudio cambió las columnas lo dice
+       * en vez de asumir que lo viejo sigue valiendo.
+       */
+      const guardado = await getMapeoImportacion().catch(() => null);
+      const resultado = conciliarMapeo({ columnas: cols, guardado });
+
       setColumnas(cols);
       setCrudas(datos);
-      setMapeo(auto);
+      setMapeo(resultado.mapeo);
+      setConciliado(resultado);
+      setConfirmadas(new Set());
+      // Si hay algo que mirar, el mapeo se abre solo.
+      setVerMapeo(
+        resultado.origen !== 'guardado' || resultado.porConfirmar.length > 0
+      );
       setNombreArchivo(archivo.name);
 
       /*
@@ -153,7 +194,7 @@ export const ImportarLiquidacionModal = ({
        */
       const primeraPasada = armarFilasDeLiquidacion({
         filas: datos,
-        mapeo: auto,
+        mapeo: resultado.mapeo,
         empleados: paraImportar,
         periodoPorDefecto: periodo,
       });
@@ -177,6 +218,22 @@ export const ImportarLiquidacionModal = ({
     setError(null);
     try {
       const r = await importarRemuneraciones(filasImportables(filas));
+      /*
+       * El mapeo se guarda **después** de que la importación salió bien.
+       * Guardarlo antes dejaría fijado un mapeo que nunca sirvió para
+       * nada, y la próxima vez se aplicaría solo.
+       *
+       * Que falle el guardado no invalida la importación: los datos ya
+       * están. Se avisa y la próxima vez se vuelve a pedir el mapeo.
+       */
+      try {
+        await guardarMapeoImportacion(mapeoParaGuardar(columnas, mapeo));
+      } catch {
+        avisoError(
+          'Importado, pero no guardamos el mapeo',
+          'La próxima vez vas a tener que revisar las columnas de nuevo.'
+        );
+      }
       avisoExito(
         'Liquidación importada',
         `${r.guardadas} ${r.guardadas === 1 ? 'registro' : 'registros'} en ${r.periodos.join(', ')}.`
@@ -194,7 +251,11 @@ export const ImportarLiquidacionModal = ({
 
   const conErrores = filas.filter((f) => f.errores.length > 0);
   const puedeImportar =
-    !bloqueo && !problemaDelArchivo && resumen.validas > 0 && !importando;
+    !bloqueo &&
+    !problemaDelArchivo &&
+    resumen.validas > 0 &&
+    pendientes.length === 0 &&
+    !importando;
 
   return (
     <Modal
@@ -266,44 +327,124 @@ export const ImportarLiquidacionModal = ({
             {resumen.total} {resumen.total === 1 ? 'fila' : 'filas'}
           </p>
 
-          {/* ---------- Mapeo ---------- */}
-          <div>
-            <h3 className="text-sm font-bold text-ink">Qué es cada columna</h3>
-            <p className="mt-0.5 text-xs text-ink-soft">
-              Lo adivinamos por el nombre. Corregí lo que haga falta.
-            </p>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              {columnas.map((col) => (
-                <div key={col} className="flex items-center gap-2">
-                  <span
-                    className="w-32 shrink-0 truncate text-xs font-semibold text-ink"
-                    title={col}
-                  >
-                    {col}
-                  </span>
-                  <Selector
-                    valor={mapeo[col] ?? IGNORAR}
-                    onCambiar={(v) => setMapeo({ ...mapeo, [col]: v })}
-                    className="flex-1"
-                    opciones={[
-                      { valor: IGNORAR, etiqueta: 'No importar' },
-                      ...CAMPOS_LIQUIDACION.map((c) => ({
-                        valor: c.clave,
-                        etiqueta: c.etiqueta,
-                      })),
-                    ]}
-                  />
-                </div>
-              ))}
-            </div>
-            {faltantes.length > 0 && (
-              <p className="mt-2 text-xs text-ink-soft">
-                Sin columna asignada:{' '}
-                {faltantes.map((c) => c.etiqueta).join(', ')}. Si tu planilla no
-                los trae, está bien.
+          {/* ---------- De dónde salió el mapeo ---------- */}
+          {conciliado && (
+            <div
+              className={`rounded-2xl border px-4 py-3 ${
+                conciliado.origen === 'guardado'
+                  ? 'border-emerald-200 bg-emerald-50/60'
+                  : 'border-amber-200 bg-amber-50/60'
+              }`}
+            >
+              <p className="text-sm font-bold text-ink">
+                {TEXTO_ORIGEN[conciliado.origen].titulo}
               </p>
-            )}
-          </div>
+              <p className="mt-0.5 text-xs leading-relaxed text-ink-soft">
+                {TEXTO_ORIGEN[conciliado.origen].detalle}
+              </p>
+
+              {conciliado.columnasNuevas.length > 0 && (
+                <p className="mt-1.5 text-xs text-ink-soft">
+                  Columnas nuevas: <b>{conciliado.columnasNuevas.join(', ')}</b>
+                </p>
+              )}
+              {conciliado.columnasQueFaltan.length > 0 && (
+                <p className="mt-1 text-xs text-ink-soft">
+                  Ya no vienen: <b>{conciliado.columnasQueFaltan.join(', ')}</b>
+                </p>
+              )}
+
+              {!verMapeo && (
+                <button
+                  type="button"
+                  onClick={() => setVerMapeo(true)}
+                  className="mt-2 text-xs font-bold text-brand-700 underline"
+                >
+                  Revisar mapeo
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ---------- Mapeo ---------- */}
+          {verMapeo && (
+            <div>
+              <h3 className="text-sm font-bold text-ink">
+                Qué es cada columna
+              </h3>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                {conciliado?.origen === 'sugerido'
+                  ? 'Lo adivinamos por el nombre. Corregí lo que haga falta.'
+                  : 'Guardado de la última importación. Corregí lo que haga falta.'}
+              </p>
+
+              {pendientes.length > 0 && (
+                <p className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-xs font-bold leading-relaxed text-amber-900">
+                  No pudimos identificar{' '}
+                  {pendientes.length === 1
+                    ? 'esta columna'
+                    : `estas ${pendientes.length} columnas`}
+                  . Seleccioná qué representan (o marcá &laquo;No
+                  importar&raquo;): {pendientes.join(', ')}.
+                </p>
+              )}
+
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {columnas.map((col) => {
+                  const porConfirmar = pendientes.includes(col);
+                  return (
+                    <div
+                      key={col}
+                      className={`flex items-center gap-2 rounded-lg ${
+                        porConfirmar ? 'bg-amber-50 px-2 py-1' : ''
+                      }`}
+                    >
+                      <span
+                        className="w-32 shrink-0 truncate text-xs font-semibold text-ink"
+                        title={col}
+                      >
+                        {col}
+                        {porConfirmar && (
+                          <span className="ml-1 text-amber-700">•</span>
+                        )}
+                      </span>
+                      <Selector
+                        valor={mapeo[col] ?? IGNORAR}
+                        onCambiar={(v) => {
+                          setMapeo({ ...mapeo, [col]: v });
+                          confirmar(col);
+                        }}
+                        className="flex-1"
+                        opciones={[
+                          { valor: IGNORAR, etiqueta: 'No importar' },
+                          ...CAMPOS_LIQUIDACION.map((c) => ({
+                            valor: c.clave,
+                            etiqueta: c.etiqueta,
+                          })),
+                        ]}
+                      />
+                      {porConfirmar && (
+                        <button
+                          type="button"
+                          onClick={() => confirmar(col)}
+                          className="shrink-0 text-xs font-bold text-brand-700 underline"
+                        >
+                          Está bien
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {faltantes.length > 0 && (
+                <p className="mt-2 text-xs text-ink-soft">
+                  Sin columna asignada:{' '}
+                  {faltantes.map((c) => c.etiqueta).join(', ')}. Si tu planilla
+                  no los trae, está bien.
+                </p>
+              )}
+            </div>
+          )}
 
           {problemaDelArchivo && (
             <p className="rounded-xl bg-red-50 px-4 py-3 text-sm font-bold text-red-900">
@@ -456,7 +597,9 @@ export const ImportarLiquidacionModal = ({
             <Boton disabled={!puedeImportar} onClick={() => void importar()}>
               {importando
                 ? 'Importando…'
-                : `Importar ${resumen.validas} ${resumen.validas === 1 ? 'registro' : 'registros'}`}
+                : pendientes.length > 0
+                  ? 'Revisá las columnas marcadas'
+                  : `Importar ${resumen.validas} ${resumen.validas === 1 ? 'registro' : 'registros'}`}
             </Boton>
           </div>
         </div>

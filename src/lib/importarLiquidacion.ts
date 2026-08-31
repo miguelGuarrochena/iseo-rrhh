@@ -28,7 +28,12 @@
  */
 
 import { RegimenLaboral } from '@/types/rrhh';
-import { CampoImportable, IGNORAR } from '@/lib/mapeoDeColumnas';
+import {
+  CampoImportable,
+  IGNORAR,
+  mapeoDeSugerencias,
+  sugerirMapeo,
+} from '@/lib/mapeoDeColumnas';
 
 /** Qué hace cada campo dentro de la cuenta. */
 export type RolDeCampo =
@@ -93,11 +98,56 @@ export const CAMPOS_LIQUIDACION: CampoLiquidacion[] = [
     rol: 'remunerativo',
     alias: ['presentismo', 'asistencia', 'premio asistencia'],
   },
+  /*
+   * Las extras al 50 y al 100 van separadas porque las planillas las
+   * traen separadas (art. 201 LCT: 50% en días comunes, 100% en sábados
+   * después de las 13, domingos y feriados). Las dos son remunerativas y
+   * suman al bruto igual que la genérica; tenerlas aparte es sólo para
+   * que el desglose diga lo que decía el archivo.
+   *
+   * Van antes que la genérica: `sugerirMapeo` recorre en orden y lo
+   * específico tiene que ganar.
+   */
+  {
+    clave: 'horasExtras50',
+    etiqueta: 'Horas extras 50%',
+    rol: 'remunerativo',
+    alias: [
+      'horas extras 50',
+      'hs extras 50',
+      'hs 50',
+      'he 50',
+      'extras 50',
+      'horas al 50',
+      'hs suplementarias 50',
+    ],
+  },
+  {
+    clave: 'horasExtras100',
+    etiqueta: 'Horas extras 100%',
+    rol: 'remunerativo',
+    alias: [
+      'horas extras 100',
+      'hs extras 100',
+      'hs 100',
+      'he 100',
+      'extras 100',
+      'horas al 100',
+      'hs suplementarias 100',
+    ],
+  },
   {
     clave: 'horasExtras',
     etiqueta: 'Horas extras',
     rol: 'remunerativo',
-    alias: ['horas extras', 'extras', 'he', 'horas extra'],
+    alias: [
+      'horas extras',
+      'extras',
+      'he',
+      'horas extra',
+      'hs suplementarias',
+      'horas suplementarias',
+    ],
   },
   {
     clave: 'adicionales',
@@ -516,3 +566,165 @@ export const errorDeArchivo = (d: {
 
   return null;
 };
+
+// ---------- El mapeo guardado de cada empresa ----------
+
+/**
+ * El mapeo que quedó de la última importación de una empresa.
+ *
+ * Cada empresa trabaja con su estudio contable, y cada estudio arma la
+ * planilla a su manera. Guardar el mapeo hace que la primera vez sea la
+ * única en la que hay que explicarlo.
+ *
+ * Se guardan **todas** las columnas del archivo, incluidas las que se
+ * decidió no importar: saber que la columna "Obs." ya se vio y se
+ * descartó a propósito es tan útil como saber cuál era el sueldo. Y es
+ * lo que permite darse cuenta de que el archivo cambió.
+ */
+export interface MapeoDeEmpresa {
+  /** columna del archivo → clave de campo, o `IGNORAR`. */
+  mapeo: Record<string, string>;
+  actualizadoEn?: string;
+}
+
+export type OrigenDelMapeo =
+  /** No hay nada guardado: primera importación de esta empresa. */
+  | 'sugerido'
+  /** El guardado calza con el archivo. */
+  | 'guardado'
+  /** Hay guardado, pero las columnas del archivo no son las mismas. */
+  | 'guardado_con_cambios';
+
+export interface MapeoConciliado {
+  mapeo: Record<string, string>;
+  origen: OrigenDelMapeo;
+  /** Están en el archivo y no en el mapeo guardado. */
+  columnasNuevas: string[];
+  /** Estaban en el mapeo guardado y el archivo ya no las trae. */
+  columnasQueFaltan: string[];
+  /**
+   * Columnas cuya asignación **no** se puede dar por buena sola. La
+   * pantalla no deja importar hasta que la persona las mire una por una.
+   */
+  porConfirmar: string[];
+}
+
+/**
+ * Decide con qué mapeo arranca el preview.
+ *
+ * Tres situaciones, y la del medio es la peligrosa:
+ *
+ *  1. **Sin nada guardado**: se sugiere por nombre. Lo que se adivinó
+ *     "de parecido" hay que confirmarlo.
+ *  2. **Guardado y el archivo calza**: se aplica y no se molesta a nadie.
+ *     Es el caso que justifica todo esto.
+ *  3. **Guardado pero el archivo cambió**: el estudio renombró columnas,
+ *     agregó conceptos o sacó alguno. Acá NO se asume que lo viejo sigue
+ *     valiendo: se conserva lo que todavía calza, se sugiere para lo
+ *     nuevo, y todo lo nuevo pasa por confirmación. Aplicar el mapeo
+ *     viejo a un archivo distinto es cómo un "Retenciones" termina
+ *     sumando al sueldo.
+ */
+export const conciliarMapeo = (d: {
+  columnas: string[];
+  guardado?: MapeoDeEmpresa | null;
+  campos?: CampoLiquidacion[];
+}): MapeoConciliado => {
+  const campos = d.campos ?? CAMPOS_LIQUIDACION;
+  const sugerencias = sugerirMapeo(d.columnas, campos);
+  const guardado = d.guardado?.mapeo;
+
+  if (!guardado || Object.keys(guardado).length === 0) {
+    return {
+      mapeo: mapeoDeSugerencias(sugerencias),
+      origen: 'sugerido',
+      columnasNuevas: [],
+      columnasQueFaltan: [],
+      // Lo adivinado por parecido nunca entra solo.
+      porConfirmar: d.columnas.filter(
+        (c) => sugerencias[c]?.certeza === 'aproximada'
+      ),
+    };
+  }
+
+  const conocidas = new Set(Object.keys(guardado));
+  const columnasNuevas = d.columnas.filter((c) => !conocidas.has(c));
+  const columnasQueFaltan = Object.keys(guardado).filter(
+    (c) => !d.columnas.includes(c)
+  );
+
+  /*
+   * Un campo no se puede asignar dos veces. Lo que ya tomó el mapeo
+   * guardado queda reservado, así que una columna nueva no puede
+   * proponerse para un campo que ya está ocupado.
+   */
+  const ocupados = new Set(
+    d.columnas
+      .filter((c) => conocidas.has(c))
+      .map((c) => guardado[c])
+      .filter((v) => v && v !== IGNORAR)
+  );
+
+  const mapeo: Record<string, string> = {};
+  d.columnas.forEach((columna) => {
+    if (conocidas.has(columna)) {
+      mapeo[columna] = guardado[columna];
+      return;
+    }
+    const sugerido = sugerencias[columna];
+    mapeo[columna] =
+      sugerido && sugerido.campo !== IGNORAR && !ocupados.has(sugerido.campo)
+        ? sugerido.campo
+        : IGNORAR;
+    if (mapeo[columna] !== IGNORAR) ocupados.add(mapeo[columna]);
+  });
+
+  const huboCambios = columnasNuevas.length > 0 || columnasQueFaltan.length > 0;
+
+  return {
+    mapeo,
+    origen: huboCambios ? 'guardado_con_cambios' : 'guardado',
+    columnasNuevas,
+    columnasQueFaltan,
+    /*
+     * Toda columna nueva se confirma, aunque se haya reconocido exacta:
+     * que el estudio agregue una columna es exactamente el momento en
+     * que conviene que alguien mire.
+     */
+    porConfirmar: columnasNuevas,
+  };
+};
+
+/** Cómo explicar en pantalla de dónde salió el mapeo. */
+export const TEXTO_ORIGEN: Record<
+  OrigenDelMapeo,
+  { titulo: string; detalle: string }
+> = {
+  sugerido: {
+    titulo: 'Primera importación',
+    detalle:
+      'Revisá cómo deben interpretarse las columnas del archivo. Lo que confirmes queda guardado para las próximas.',
+  },
+  guardado: {
+    titulo: 'Mapeo detectado',
+    detalle: 'Estamos usando el mapeo guardado para esta empresa.',
+  },
+  guardado_con_cambios: {
+    titulo: 'Detectamos cambios en las columnas del archivo',
+    detalle:
+      'El archivo no trae las mismas columnas que la última vez. Revisá el mapeo antes de continuar.',
+  },
+};
+
+/**
+ * El mapeo que se guarda después de importar.
+ *
+ * Sólo las columnas del archivo que se acaba de usar: si el estudio dejó
+ * de mandar una columna, arrastrarla para siempre haría que el próximo
+ * archivo pareciera "con cambios" eternamente.
+ */
+export const mapeoParaGuardar = (
+  columnas: string[],
+  mapeo: Record<string, string>
+): Record<string, string> =>
+  Object.fromEntries(columnas.map((c) => [c, mapeo[c] ?? IGNORAR]));

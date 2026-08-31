@@ -87,7 +87,10 @@ import type {
   NuevaSolicitudDatoLegajo,
   SolicitudDatoLegajo,
 } from '@/lib/autoservicioLegajo';
-import type { FilaLiquidacion } from '@/lib/importarLiquidacion';
+import type {
+  FilaLiquidacion,
+  MapeoDeEmpresa,
+} from '@/lib/importarLiquidacion';
 import { ALGORITMO_HASH, hashDeArchivo } from '@/lib/constanciaFirma';
 import type { DatosReporte } from '@/lib/reporteMensual';
 import {
@@ -3182,6 +3185,44 @@ export const remuneracionesExistentes = async (
   return new Set(
     (data ?? []).map((f) => `${f.empleado_id as string}|${f.periodo as string}`)
   );
+};
+
+/**
+ * El mapeo de columnas guardado para la empresa activa.
+ *
+ * No filtra por `empresa_id` en el cliente a propósito: la RLS ya
+ * devuelve sólo el de la empresa de quien pregunta. Ponerlo acá haría
+ * creer que la separación la hace el `eq`.
+ */
+export const getMapeoImportacion = async (): Promise<MapeoDeEmpresa | null> => {
+  const { data, error } = await sb()
+    .from('mapeos_importacion_remuneraciones')
+    .select('mapeo, actualizado_en')
+    .maybeSingle();
+  if (error) fallar(error.message, 'importacion/mapeo');
+  if (!data) return null;
+  return {
+    mapeo: (data.mapeo as Record<string, string>) ?? {},
+    actualizadoEn: (data.actualizado_en as string) ?? undefined,
+  };
+};
+
+/**
+ * Guarda el mapeo que se acaba de usar, para la próxima importación.
+ *
+ * Un mapeo activo por empresa: el `upsert` sobre `empresa_id` reemplaza
+ * el anterior en vez de acumular historia que nadie va a mirar.
+ */
+export const guardarMapeoImportacion = async (
+  mapeo: Record<string, string>
+): Promise<void> => {
+  const { error } = await sb()
+    .from('mapeos_importacion_remuneraciones')
+    .upsert({ empresa_id: empresaId(), mapeo }, { onConflict: 'empresa_id' });
+  if (error) fallar(mensajeDeErrorDb(error.message), 'importacion/mapeo');
+  await registrarAuditoria('guardar', 'mapeo_importacion', undefined, {
+    columnas: Object.keys(mapeo).length,
+  });
 };
 
 /** Carga o actualiza la remuneración de un empleado para un período. */

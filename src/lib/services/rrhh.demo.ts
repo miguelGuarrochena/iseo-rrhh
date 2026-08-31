@@ -119,7 +119,10 @@ import { empresaOperativaId, useAuthStore } from '@/lib/auth/store';
 import { dotacionMock, empresaMock, empresasMock } from '@/lib/mocks/empresa';
 import { usuariosMock } from '@/lib/mocks/usuarios';
 import { empleadosMock } from '@/lib/mocks/empleados';
-import type { FilaLiquidacion } from '@/lib/importarLiquidacion';
+import type {
+  FilaLiquidacion,
+  MapeoDeEmpresa,
+} from '@/lib/importarLiquidacion';
 import {
   CampoAutogestionable,
   esCampoAutogestionable,
@@ -2703,6 +2706,26 @@ export const importarRemuneraciones = async (
 /** En demo no hay nada cargado que pisar. */
 export const remuneracionesExistentes = async (): Promise<Set<string>> =>
   simular(new Set<string>());
+
+/**
+ * En demo el mapeo vive en memoria, por empresa, igual que en producción
+ * pero sin persistir. Alcanza para recorrer las dos situaciones: la
+ * primera importación y la siguiente con el mapeo ya guardado.
+ */
+const mapeosImportacionDemo = new Map<string, MapeoDeEmpresa>();
+
+export const getMapeoImportacion = async (): Promise<MapeoDeEmpresa | null> =>
+  simular(mapeosImportacionDemo.get(empresaOperativaId() ?? 'emp-1') ?? null);
+
+export const guardarMapeoImportacion = async (
+  mapeo: Record<string, string>
+): Promise<void> => {
+  mapeosImportacionDemo.set(empresaOperativaId() ?? 'emp-1', {
+    mapeo,
+    actualizadoEn: new Date().toISOString(),
+  });
+  return simular(undefined);
+};
 
 // ---------- Autoservicio del legajo ----------
 
