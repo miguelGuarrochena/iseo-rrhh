@@ -106,6 +106,7 @@ export const aEmpleado = (f: Fila): Empleado => ({
   motivoBaja: f.motivo_baja ?? undefined,
   checklistAlta: (f.checklist_alta ?? []) as ChecklistItem[],
   sinUsuario: Boolean(f.sin_usuario),
+  sinFichaje: Boolean(f.sin_fichaje),
   modoFichaje: (f.modo_fichaje ?? undefined) as Empleado['modoFichaje'],
   geocerca: (f.geocerca ?? undefined) as Empleado['geocerca'],
   // `descriptor_facial` ya no lo devuelve la vista de lectura (FIC-011):

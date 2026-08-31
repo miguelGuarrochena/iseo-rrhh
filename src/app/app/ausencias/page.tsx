@@ -173,9 +173,14 @@ const AusenciasPage = () => {
         feriados: vacacionesEnHabiles
           ? await getFeriadosParaCalculo()
           : new Set<string>(),
+        // El saldo se pide sólo si quien mira lo puede leer: los días
+        // arrastrados viven en `vacaciones_pendientes` y son de RRHH
+        // (migración 50). Un supervisor recibiría cero días y la
+        // advertencia del art. 164 diría "no acumula" sin saberlo.
+        saldoVacaciones: esAdminRRHH ? getSaldoVacaciones : undefined,
       };
     },
-    [],
+    [esAdminRRHH],
     { activo: !esEmpleado && Boolean(usuario), contexto: 'ausencias/reglas' }
   );
   const contextoLegal = cargaContextoLegal.datos;

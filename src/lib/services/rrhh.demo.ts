@@ -376,6 +376,8 @@ export interface NuevoEmpleado {
   /** No va a tener cuenta en la app (régimen simplificado). */
   sinUsuario?: boolean;
   // Fichaje: dónde y cómo ficha
+  /** No registra asistencia: no se le muestran horas ni llegadas tarde. */
+  sinFichaje?: boolean;
   modoFichaje?: Empleado['modoFichaje'];
   geocerca?: Empleado['geocerca'];
 }
@@ -414,6 +416,7 @@ export const crearEmpleado = async (
     obraSocial: datos.obraSocial ?? '',
     art: datos.art ?? '',
     convenio: datos.convenio,
+    sinFichaje: datos.sinFichaje ?? false,
     modoFichaje: datos.modoFichaje ?? 'celular',
     geocerca: datos.geocerca,
     activo: true,

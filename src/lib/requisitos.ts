@@ -72,6 +72,17 @@ interface Regla {
   ruta: (e: Empleado) => string;
   /** true = falta. */
   falta: (e: Empleado, ctx: ContextoEmpleado) => boolean;
+  /**
+   * La falta sólo existe si la persona registra asistencia: lo que
+   * señala es que no va a poder fichar. A quien está marcado
+   * `sinFichaje` no le falta nada de eso.
+   *
+   * No lo lleva `facial_sin_consentimiento`, y es a propósito: esa no
+   * habla de fichar sino de un dato biométrico YA guardado. Si el
+   * rostro está en la base sin consentimiento registrado, el problema
+   * con la Ley 25.326 es el mismo fiche o no fiche.
+   */
+  soloSiRegistraAsistencia?: boolean;
 }
 
 /**
@@ -175,6 +186,7 @@ const REGLAS: Regla[] = [
   },
   {
     clave: 'facial_sin_rostro',
+    soloSiRegistraAsistencia: true,
     ambitos: ['fichaje'],
     severidad: 'avisa',
     titulo: 'Rostro sin enrolar',
@@ -200,6 +212,7 @@ const REGLAS: Regla[] = [
      * tenga que llevar la cuenta a mano.
      */
     clave: 'facial_plantilla_vieja',
+    soloSiRegistraAsistencia: true,
     ambitos: ['fichaje'],
     severidad: 'bloquea',
     titulo: 'Rostro registrado con una versión anterior',
@@ -225,6 +238,7 @@ const REGLAS: Regla[] = [
   },
   {
     clave: 'celular_sin_geocerca',
+    soloSiRegistraAsistencia: true,
     ambitos: ['fichaje'],
     severidad: 'avisa',
     titulo: 'Sin zona de fichaje',
@@ -294,6 +308,11 @@ export const faltasDeEmpleado = (
         !empleado.sinUsuario ||
         !r.ambitos.every((a) => AMBITOS_DE_CUENTA.includes(a))
     )
+    // Mismo criterio que arriba, con la otra decisión del legajo: a
+    // quien no registra asistencia no le falta enrolar el rostro ni
+    // definir una zona de fichaje. Reclamárselo es ruido que tapa las
+    // faltas de verdad.
+    .filter((r) => !empleado.sinFichaje || !r.soloSiRegistraAsistencia)
     .filter((r) => r.falta(empleado, contexto))
     .map((r) => aFalta(r, empleado));
 

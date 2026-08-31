@@ -616,6 +616,7 @@ const EMPLEADO_SELECT_TABLA = `
   motivo_baja,
   checklist_alta,
   sin_usuario,
+  sin_fichaje,
   modo_fichaje,
   geocerca
 `;
@@ -744,6 +745,7 @@ export const crearEmpleado = async (
       art: datos.art ?? '',
       convenio: datos.convenio ?? null,
       sin_usuario: datos.sinUsuario ?? false,
+      sin_fichaje: datos.sinFichaje ?? false,
       modo_fichaje: datos.modoFichaje ?? 'celular',
       geocerca: datos.geocerca ?? null,
       checklist_alta: CHECKLIST_ALTA,
@@ -779,6 +781,7 @@ const DEFAULTS_NO_NULOS: Record<string, unknown> = {
   obra_social: '',
   art: '',
   sin_usuario: false,
+  sin_fichaje: false,
 };
 
 export const actualizarEmpleado = async (
@@ -827,6 +830,7 @@ export const actualizarEmpleado = async (
     art: 'art',
     convenio: 'convenio',
     sinUsuario: 'sin_usuario',
+    sinFichaje: 'sin_fichaje',
     modoFichaje: 'modo_fichaje',
     geocerca: 'geocerca',
   };

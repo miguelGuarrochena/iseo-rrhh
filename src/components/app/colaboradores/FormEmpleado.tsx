@@ -128,6 +128,7 @@ const desdeEmpleado = (e: Empleado): DatosEmpleado => ({
   art: e.art || undefined,
   convenio: e.convenio || undefined,
   sinUsuario: e.sinUsuario ?? false,
+  sinFichaje: e.sinFichaje ?? false,
   modoFichaje: e.modoFichaje ?? 'celular',
   geocerca: e.geocerca,
   fotoUrl: e.fotoUrl,
@@ -695,7 +696,32 @@ export const FormEmpleado = ({
             ? 'Definí dónde y cómo ficha este colaborador. En todos los casos se confirma la identidad con reconocimiento facial.'
             : 'Tu empresa no lleva control horario, así que no hay nada de fichaje que configurar.'}
         </p>
+        {/* El caso mixto: planta que ficha y administración que no. Sin
+            esta marca, al que no ficha el tablero le afirmaba "0 hs
+            trabajadas" y "llegadas tarde 0", que no es que esté
+            impecable: es que no registra asistencia. */}
         {conFichaje && (
+          <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-paper p-4">
+            <input
+              type="checkbox"
+              checked={datos.sinFichaje ?? false}
+              onChange={(e) => setBool('sinFichaje')(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand-600"
+            />
+            <span>
+              <span className="text-sm font-semibold text-ink">
+                No registra asistencia
+              </span>
+              <span className="mt-1 block text-xs leading-relaxed text-ink-soft">
+                No ficha ni se le controlan horarios: dejan de mostrarse sus
+                horas, extras y llegadas tarde. No borra ni cambia nada de lo ya
+                registrado.
+              </span>
+            </span>
+          </label>
+        )}
+
+        {conFichaje && !datos.sinFichaje && (
           <div className="mt-4 grid gap-3.5 sm:grid-cols-2">
             <CampoSelect
               etiqueta="Modo de fichaje"
@@ -732,7 +758,7 @@ export const FormEmpleado = ({
           </span>
         </label>
 
-        {conFichaje && datos.modoFichaje === 'celular' && (
+        {conFichaje && !datos.sinFichaje && datos.modoFichaje === 'celular' && (
           <div className="mt-4 rounded-xl bg-paper p-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-semibold text-ink">Zona de trabajo</p>

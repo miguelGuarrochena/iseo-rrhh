@@ -25,6 +25,7 @@ import {
   getAlertas,
   getAusenciasDeEmpleado,
   getAusenciasPendientes,
+  getEmpleado,
   getEmpleados,
   getEmpleadosConCuenta,
   getEmpresas,
@@ -126,8 +127,29 @@ const DashboardPage = () => {
   });
   const eventos = cEventos.datos;
 
-  const cMiMes = useCarga(() => getMiMes(miId!), [miId, conFichaje], {
-    activo: Boolean(miId) && conFichaje,
+  /**
+   * El propio legajo, sólo para saber si esta persona ficha.
+   *
+   * El módulo se prende por empresa, pero hay empresas mixtas: ficha la
+   * planta y la administración no. Al que no ficha, estas tarjetas le
+   * afirmaban "0 hs" y "llegadas tarde 0 · estás impecable", que no es
+   * un cero: es que no registra asistencia.
+   */
+  const cMiLegajo = useCarga(() => getEmpleado(miId!), [miId], {
+    activo: Boolean(miId) && esEmpleado && conFichaje,
+    contexto: 'inicio/mi-legajo',
+  });
+
+  /**
+   * Se muestran las horas sólo cuando SABEMOS que ficha. Mientras el
+   * legajo no llegó —o si no se pudo leer— no se muestran: aparecer un
+   * segundo después es mejor que afirmar un cero que puede ser falso.
+   */
+  const fichaEstaPersona =
+    conFichaje && cMiLegajo.fase === 'ok' && !cMiLegajo.datos?.sinFichaje;
+
+  const cMiMes = useCarga(() => getMiMes(miId!), [miId, fichaEstaPersona], {
+    activo: Boolean(miId) && fichaEstaPersona,
     contexto: 'inicio/mi-mes',
   });
   const miMes = cMiMes.datos ?? null;
@@ -411,7 +433,7 @@ const DashboardPage = () => {
             href="/ausencias"
             icono={IconInbox}
           />
-          {conFichaje && (
+          {fichaEstaPersona && (
             <>
               <StatCard
                 etiqueta="Mis horas"

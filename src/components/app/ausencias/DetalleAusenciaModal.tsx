@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useMemo } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { Modal } from '@mantine/core';
 import {
   IconAlertTriangle,
@@ -17,7 +17,7 @@ import {
 import { formatearFechaCivil } from '@/lib/fechas';
 import { capitalizar } from '@/lib/calendario';
 import { advertenciasDeAusencia, hayAdvertenciaAlta } from '@/lib/advertencias';
-import { Ausencia } from '@/types/rrhh';
+import { Ausencia, SaldoVacaciones } from '@/types/rrhh';
 
 /**
  * Con qué mirar la ausencia para saber si se aparta de la regla general.
@@ -38,6 +38,21 @@ import { Ausencia } from '@/types/rrhh';
 export interface ContextoLegal {
   feriados: Set<string>;
   vacacionesEnHabiles: boolean;
+  /**
+   * Cómo pedir el saldo del colaborador, para la advertencia de
+   * acumulación del art. 164. Es `getSaldoVacaciones` tal cual: el saldo
+   * lo calcula el servicio, acá no se recalcula nada.
+   *
+   * Va inyectado y es opcional a propósito. Los días arrastrados salen
+   * de `vacaciones_pendientes`, que sólo puede leer RRHH (migración 50):
+   * para un supervisor la consulta devuelve vacío, y un cero prestado no
+   * es "no acumula", es "no sé". En ese caso la pantalla no lo pregunta
+   * y la advertencia sencillamente no se evalúa.
+   */
+  saldoVacaciones?: (
+    empleadoId: string,
+    anio: number
+  ) => Promise<SaldoVacaciones | null>;
 }
 
 interface DetalleAusenciaModalProps {
@@ -103,6 +118,39 @@ export const DetalleAusenciaModal = ({
   const Icono = ausencia ? tipoAusenciaIconos[ausencia.tipo] : null;
 
   /**
+   * Saldo del colaborador para el año de la ausencia. Sólo hace falta
+   * para vacaciones y sólo si hay con qué pedirlo.
+   *
+   * El año se toma del inicio del período: es al que se le imputan los
+   * días y el que compara el art. 164 contra lo arrastrado.
+   */
+  const [saldo, setSaldo] = useState<SaldoVacaciones | null>(null);
+  const pedirSaldo = contextoLegal?.saldoVacaciones;
+
+  useEffect(() => {
+    setSaldo(null);
+    if (!ausencia || ausencia.tipo !== 'vacaciones' || !pedirSaldo) return;
+    let vigente = true;
+    void (async () => {
+      try {
+        const s = await pedirSaldo(
+          ausencia.empleadoId,
+          Number(ausencia.fechaDesde.slice(0, 4))
+        );
+        if (vigente) setSaldo(s);
+      } catch {
+        // Si el saldo no se puede leer, la advertencia de acumulación no
+        // se muestra. Inventarla con los días en cero diría que no
+        // acumula nada, que es justamente lo que no sabemos.
+        if (vigente) setSaldo(null);
+      }
+    })();
+    return () => {
+      vigente = false;
+    };
+  }, [ausencia, pedirSaldo]);
+
+  /**
    * Las mismas advertencias que ya calcula el sistema, no unas nuevas:
    * `advertenciasDeAusencia` es el punto de entrada que `lib/advertencias`
    * expone justo para una solicitud ya guardada (mide la anticipación
@@ -115,9 +163,17 @@ export const DetalleAusenciaModal = ({
         ? advertenciasDeAusencia(ausencia, {
             feriados: contextoLegal.feriados,
             vacacionesEnHabiles: contextoLegal.vacacionesEnHabiles,
+            // Los dos juntos o ninguno: `advertenciasDeSolicitud` sólo
+            // evalúa el art. 164 cuando tiene el período y lo arrastrado.
+            ...(saldo
+              ? {
+                  diasDelPeriodo: saldo.diasCorresponden,
+                  diasArrastrados: saldo.diasAjuste,
+                }
+              : {}),
           })
         : [],
-    [ausencia, contextoLegal]
+    [ausencia, contextoLegal, saldo]
   );
   return (
     <Modal

@@ -344,6 +344,16 @@ export interface Empleado {
    */
   sinUsuario?: boolean;
   // Fichaje
+  /**
+   * No registra asistencia: no ficha ni se le controlan horarios. Es la
+   * administración de una empresa donde ficha la planta.
+   *
+   * Apaga lo que se le MUESTRA (horas, extras, llegadas tarde), nada
+   * más. No toca ningún cálculo ni las marcas ya registradas. Se guarda
+   * explícito y no se deduce de "no tiene fichadas", que es otra cosa:
+   * eso es un estado (todavía no fichó) y esto una decisión.
+   */
+  sinFichaje?: boolean;
   /** Cómo ficha este empleado (default: 'celular'). */
   modoFichaje?: ModoFichaje;
   /** Zona de trabajo (solo si modoFichaje === 'celular'). */

@@ -154,6 +154,48 @@ describe('control horario en el formulario del legajo', () => {
     expect(screen.queryByText('Fichaje')).not.toBeInTheDocument();
   });
 
+  it('ofrece marcar a quien no registra asistencia', () => {
+    modulosMock.mockReturnValue({ fichaje: true });
+    render(<FormEmpleado {...props} />);
+    expect(screen.getByText('No registra asistencia')).toBeInTheDocument();
+  });
+
+  it('con Fichaje apagado no ofrece la marca: no hay asistencia que registrar', () => {
+    modulosMock.mockReturnValue({ fichaje: false });
+    render(<FormEmpleado {...props} />);
+    expect(
+      screen.queryByText('No registra asistencia')
+    ).not.toBeInTheDocument();
+  });
+
+  it('al marcarla deja de preguntar cómo ficha y guarda la decisión', async () => {
+    modulosMock.mockReturnValue({ fichaje: true });
+    const onGuardar = await abrir(enBlanco);
+
+    await userEvent.click(screen.getByText('No registra asistencia'));
+    expect(screen.queryByText('Modo de fichaje')).not.toBeInTheDocument();
+
+    await guardar();
+    await waitFor(() => expect(onGuardar).toHaveBeenCalled());
+    expect(onGuardar).toHaveBeenCalledWith(
+      expect.objectContaining({ sinFichaje: true })
+    );
+  });
+
+  it('un legajo ya marcado abre con la marca puesta', () => {
+    modulosMock.mockReturnValue({ fichaje: true });
+    render(
+      <FormEmpleado
+        {...props}
+        inicial={{ ...enBlanco, sinFichaje: true } as Empleado}
+      />
+    );
+    expect(
+      screen.getByRole('checkbox', { name: /no registra asistencia/i })
+    ).toBeChecked();
+    expect(screen.queryByText('Modo de fichaje')).not.toBeInTheDocument();
+  });
+
   it('pero el acceso a la app se sigue pudiendo definir', () => {
     // `sinUsuario` no es de fichaje: decide si la persona tiene cuenta.
     // Esconderlo junto con lo demás sería perder una decisión que la
