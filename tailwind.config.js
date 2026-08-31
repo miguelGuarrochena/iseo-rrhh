@@ -2,6 +2,10 @@
 module.exports = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
+    // `src/lib` también define clases (los colores por tipo de ausencia
+    // viven en `lib/etiquetas.ts`). Sin esta línea, Tailwind no generaba
+    // `bg-fuchsia-500` y compañía y esos puntos salían invisibles.
+    './src/lib/**/*.{js,ts,jsx,tsx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],

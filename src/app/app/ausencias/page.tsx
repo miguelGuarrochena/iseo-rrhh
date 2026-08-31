@@ -6,6 +6,7 @@ import {
   IconBeach,
   IconCheck,
   IconDownload,
+  IconFilter,
   IconPaperclip,
   IconPlaneDeparture,
   IconPlus,
@@ -38,6 +39,7 @@ import {
   abrirAdjuntoAusencia,
   crearAusencia,
   getAusencias,
+  getFeriados,
   getAusenciasDeEmpleado,
   getEmpleado,
   getEmpleados,
@@ -48,6 +50,7 @@ import {
 import {
   Ausencia,
   Empleado,
+  Feriado,
   SaldoVacaciones,
   TipoAusencia,
   VacacionSector,
@@ -132,6 +135,19 @@ const AusenciasPage = () => {
     }
   );
   const vacacionesSector = cargaSector.datos;
+
+  /**
+   * Sólo para pintar el calendario: marca los feriados y días no
+   * laborables. No entra en ninguna cuenta —de eso se ocupa
+   * `getFeriadosParaCalculo` dentro del modal de carga— así que si falla
+   * la pantalla sigue andando con el calendario sin esa capa.
+   */
+  const cargaFeriados = useCarga(() => getFeriados(), [], {
+    activo: Boolean(usuario),
+    contexto: 'ausencias/feriados',
+    inicial: [] as Feriado[],
+  });
+  const feriados = cargaFeriados.datos;
 
   const cargar = useCallback(() => {
     cargaAusencias.recargar();
@@ -312,6 +328,59 @@ const AusenciasPage = () => {
     cargar();
   };
 
+  /**
+   * Los botones que van dentro del detalle del calendario.
+   *
+   * Se arman acá y no en el calendario a propósito: quién puede resolver
+   * qué ya está decidido en esta pantalla (y de verdad, en el trigger de
+   * la migración 103). El calendario sólo los dibuja.
+   */
+  const accionesDetalle = (a: Ausencia, cerrar: () => void) => (
+    <>
+      {a.adjuntos.length > 0 && (
+        <Boton
+          variante="secundario"
+          tamano="sm"
+          onClick={() => void verAdjunto(a)}
+        >
+          <IconPaperclip size={14} />
+          Certificado
+        </Boton>
+      )}
+      {a.estado === 'pendiente' &&
+        (esPropia(a) ? (
+          <span className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-ink-soft">
+            La tiene que resolver otra persona
+          </span>
+        ) : (
+          <>
+            <Boton
+              variante="aprobar"
+              tamano="sm"
+              onClick={() => {
+                cerrar();
+                void resolver(a.id, 'aprobada');
+              }}
+            >
+              <IconCheck size={14} />
+              Aprobar
+            </Boton>
+            <Boton
+              variante="rechazar"
+              tamano="sm"
+              onClick={() => {
+                cerrar();
+                void resolver(a.id, 'rechazada');
+              }}
+            >
+              <IconX size={14} />
+              Rechazar
+            </Boton>
+          </>
+        ))}
+    </>
+  );
+
   const pendientes = filtradas.filter((a) => a.estado === 'pendiente');
   const resueltas = filtradas.filter((a) => a.estado !== 'pendiente');
   const totalPaginas = totalPaginasDe(resueltas.length, POR_PAGINA);
@@ -344,7 +413,19 @@ const AusenciasPage = () => {
         </div>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span className="flex items-center gap-1.5 text-[0.8125rem] font-bold text-ink">
+            <IconFilter size={16} className="text-ink-soft" />
+            Filtros
+          </span>
+          {/* Que se vea que filtran TODO lo de abajo, calendario incluido:
+              antes eran tres combos sueltos arriba de un panel y se leían
+              como filtros de la lista nada más. */}
+          <span className="text-xs text-ink-soft">
+            Se aplican al calendario y a las listas.
+          </span>
+        </div>
         <div className="flex flex-wrap gap-3">
           <Selector
             valor={filtroTipo}
@@ -380,7 +461,7 @@ const AusenciasPage = () => {
         </div>
 
         {hayFiltros && (
-          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-paper px-4 py-3 text-sm text-ink-soft">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-paper px-4 py-2.5 text-sm text-ink-soft">
             <span>
               Mostrando {filtradas.length} de {ausencias.length} solicitudes.
               {filtroEmpleado
@@ -405,11 +486,15 @@ const AusenciasPage = () => {
             Calendario de ausencias
           </h2>
           <p className="mb-4 mt-1 text-sm text-ink-soft">
-            Quién está ausente cada día. Tocá un día para ver el detalle.
+            Quién está ausente y por cuánto tiempo. Tocá una barra para ver el
+            detalle, o un día para ver a todos los ausentes de esa fecha.
+            {hayFiltros ? ' Está filtrado con los filtros de arriba.' : ''}
           </p>
           <CalendarioAusencias
             ausencias={filtradas}
             nombreEmpleado={nombreEmpleado}
+            feriados={feriados}
+            acciones={accionesDetalle}
           />
         </Panel>
       )}
@@ -450,6 +535,8 @@ const AusenciasPage = () => {
             ausencias={vacacionesSector}
             nombreEmpleado={nombreEmpleado}
             soloAprobadas
+            feriados={feriados}
+            vacio="Nadie de tu sector tiene vacaciones aprobadas en este período."
           />
         </Panel>
       )}
