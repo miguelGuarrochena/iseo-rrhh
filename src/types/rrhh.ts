@@ -481,6 +481,14 @@ export interface DescuentoRecurrente {
    * sin esta fecha el cierre no puede distinguir uno de otro.
    */
   creadoEn?: string;
+  /**
+   * Responde a un embargo judicial u otra deducción autorizada.
+   *
+   * No cambia ningún cálculo: lo que cambia es que el tope del 20% del
+   * art. 133 pasa de bloquear a advertir, porque el embargo tiene su
+   * propia escala (decreto 484/87).
+   */
+  esEmbargo?: boolean;
 }
 
 /** Factura / cuota de monotributo cargada como costo laboral. */

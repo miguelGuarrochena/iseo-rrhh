@@ -14,6 +14,10 @@ import {
   hoyISO,
 } from '@/lib/fechas';
 import { TIPOS_AUSENCIA_JORNADA, tipoAusenciaLabels } from '@/lib/etiquetas';
+import {
+  advertenciasDeSolicitud,
+  hayAdvertenciaAlta,
+} from '@/lib/advertencias';
 import { juntarErrores, validarRequerido } from '@/lib/validaciones';
 import {
   getAusenciasDeEmpleado,
@@ -158,6 +162,26 @@ export const NuevaAusenciaModal = ({
       ),
     [fechaDesde, fechaHasta, tipo, vacacionesDiasHabiles, feriadosNoLaborables]
   );
+  /**
+   * Lo que no coincide con la regla legal general. Nunca frena: el botón
+   * de guardar no las mira. La decisión es de RRHH, que es lo que el
+   * cliente pidió expresamente.
+   */
+  const advertencias = useMemo(
+    () =>
+      fechaDesde && fechaHasta
+        ? advertenciasDeSolicitud({
+            tipo,
+            fechaDesde,
+            fechaHasta,
+            hoy: hoyISO(),
+            feriados: feriadosNoLaborables,
+            vacacionesEnHabiles: vacacionesDiasHabiles,
+          })
+        : [],
+    [tipo, fechaDesde, fechaHasta, feriadosNoLaborables, vacacionesDiasHabiles]
+  );
+
   const etiquetaUnidad =
     tipo === 'vacaciones'
       ? UNIDAD_VACACIONES_LABELS[unidadVacacionesDe({ vacacionesDiasHabiles })]
@@ -561,6 +585,37 @@ export const NuevaAusenciaModal = ({
                 saldo y en el ausentismo.
               </p>
             )}
+          </div>
+        )}
+
+        {/* Advertencias: informan, no frenan. El botón de guardar no las
+            mira a propósito — la ley de vacaciones está escrita para
+            favorecer al empleado y en una PyME hay flexibilidad real. */}
+        {advertencias.length > 0 && (
+          <div
+            className={`rounded-xl border px-4 py-3 ${
+              hayAdvertenciaAlta(advertencias)
+                ? 'border-amber-300 bg-amber-50'
+                : 'border-line bg-paper'
+            }`}
+          >
+            <p className="text-xs font-bold text-ink">
+              {advertencias.length === 1
+                ? 'Revisá esto antes de confirmar'
+                : `Revisá estas ${advertencias.length} cosas antes de confirmar`}
+            </p>
+            <ul className="mt-2 flex flex-col gap-2">
+              {advertencias.map((a) => (
+                <li key={a.clave} className="text-xs leading-relaxed">
+                  <span className="font-semibold text-ink">{a.titulo}.</span>{' '}
+                  <span className="text-ink-soft">{a.detalle}</span>{' '}
+                  <span className="text-ink-soft">{a.queHacer}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[0.6875rem] font-semibold text-ink-soft">
+              Ninguna de estas impide registrar la solicitud.
+            </p>
           </div>
         )}
 

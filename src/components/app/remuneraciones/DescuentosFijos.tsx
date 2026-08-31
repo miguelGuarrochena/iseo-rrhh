@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { IconPlus, IconX } from '@tabler/icons-react';
+import { IconGavel, IconPlus, IconX } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
 import {
@@ -36,6 +36,7 @@ export const DescuentosFijos = ({
   const [concepto, setConcepto] = useState('');
   const [monto, setMonto] = useState('');
   const [modo, setModo] = useState<'monto' | 'porcentaje'>('monto');
+  const [esEmbargo, setEsEmbargo] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
   const carga = useCarga(
@@ -71,12 +72,14 @@ export const DescuentosFijos = ({
         concepto.trim(),
         modo === 'monto' ? m : 0,
         modo,
-        modo === 'porcentaje' ? m : undefined
+        modo === 'porcentaje' ? m : undefined,
+        esEmbargo
       );
       avisoExito('Descuento fijo agregado');
       setConcepto('');
       setMonto('');
       setModo('monto');
+      setEsEmbargo(false);
       setAgregando(false);
       cargar();
       onCambio?.();
@@ -136,8 +139,18 @@ export const DescuentosFijos = ({
           {descuentos.map((d) => (
             <span
               key={d.id}
-              className="flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-semibold text-ink"
+              title={
+                d.esEmbargo
+                  ? 'Embargo judicial: puede superar el tope del 20% del art. 133 LCT.'
+                  : undefined
+              }
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${
+                d.esEmbargo
+                  ? 'border-amber-300 bg-amber-50 text-amber-900'
+                  : 'border-line bg-surface text-ink'
+              }`}
             >
+              {d.esEmbargo && <IconGavel size={13} />}
               {d.concepto} · {textoValor(d)}
               {puedeEditar && (
                 <button
@@ -184,6 +197,26 @@ export const DescuentosFijos = ({
               placeholder="0"
             />
           </div>
+          {/* El embargo no cambia ningún cálculo: cambia que el tope del
+              20% del art. 133 avise en vez de bloquear, porque el embargo
+              judicial tiene su propia escala (decreto 484/87). */}
+          <label className="flex w-full cursor-pointer items-start gap-2 sm:w-full">
+            <input
+              type="checkbox"
+              checked={esEmbargo}
+              onChange={(e) => setEsEmbargo(e.target.checked)}
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand-600"
+            />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-ink">
+                Es un embargo judicial
+              </span>
+              <span className="block text-xs leading-relaxed text-ink-soft">
+                Los descuentos de esta persona van a poder superar el 20% del
+                art. 133 avisando, en vez de frenar la liquidación.
+              </span>
+            </span>
+          </label>
           <Boton
             tamano="sm"
             type="button"

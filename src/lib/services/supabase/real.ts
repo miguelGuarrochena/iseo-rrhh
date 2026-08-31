@@ -3054,11 +3054,19 @@ export const cargarRemuneracion = async (
   // formulario: el modal es la primera línea, pero la autoridad de lo que
   // se guarda no puede ser la pantalla. Antes el único freno era la
   // constraint de Postgres, que además sólo atajaba el neto negativo.
+  /*
+   * Con embargo judicial el tope del art. 133 avisa en vez de frenar: el
+   * embargo tiene su propia escala (decreto 484/87). Se consulta acá y
+   * no se confía en lo que mande el formulario — el modal es la primera
+   * línea, no la autoridad.
+   */
+  const conEmbargo = await tieneEmbargo(datos.empleadoId);
   const limite = errorDeLimitesLiquidacion({
     montoBruto: datos.montoBruto,
     noRemunerativo: datos.noRemunerativo,
     otrosDescuentos: datos.otrosDescuentos,
     aportes,
+    conEmbargo,
   });
   if (limite) fallar(limite);
   const tipo = datos.tipo ?? 'mensual';
@@ -3304,12 +3312,31 @@ export const getDescuentosRecurrentes = async (
   return oFalla(data, error).map(aDescuentoRecurrente);
 };
 
+/**
+ * ¿Este colaborador tiene un embargo judicial cargado?
+ *
+ * Se pregunta contra `descuentos_recurrentes`, que es donde el embargo
+ * vive: no hay un flag suelto en el legajo porque el embargo es un
+ * descuento concreto, con concepto y monto.
+ */
+export const tieneEmbargo = async (empleadoId: string): Promise<boolean> => {
+  const { data, error } = await sb()
+    .from('descuentos_recurrentes')
+    .select('id')
+    .eq('empleado_id', empleadoId)
+    .eq('es_embargo', true)
+    .limit(1);
+  if (error) return false;
+  return (data ?? []).length > 0;
+};
+
 export const crearDescuentoRecurrente = async (
   empleadoId: string,
   concepto: string,
   monto: number,
   modo: 'monto' | 'porcentaje' = 'monto',
-  porcentaje?: number
+  porcentaje?: number,
+  esEmbargo = false
 ): Promise<DescuentoRecurrente> => {
   const { data, error } = await sb()
     .from('descuentos_recurrentes')
@@ -3320,6 +3347,7 @@ export const crearDescuentoRecurrente = async (
       monto: modo === 'monto' ? monto : 0,
       modo,
       porcentaje: modo === 'porcentaje' ? (porcentaje ?? monto) : null,
+      es_embargo: esEmbargo,
     })
     .select()
     .single();

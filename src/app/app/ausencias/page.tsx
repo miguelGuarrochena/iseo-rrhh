@@ -287,6 +287,16 @@ const AusenciasPage = () => {
       vacio: 'El archivo ya no está guardado.',
     });
 
+  /**
+   * ¿Es mi propia ausencia?
+   *
+   * Un supervisor con legajo puede pedir vacaciones como cualquiera, y
+   * las suyas aparecen en la misma lista que las del equipo. Sin esto,
+   * los botones de aprobar salían al lado de su propio pedido.
+   */
+  const esPropia = (a: { empleadoId: string }): boolean =>
+    Boolean(miEmpleadoId) && a.empleadoId === miEmpleadoId;
+
   const resolver = async (id: string, estado: 'aprobada' | 'rechazada') => {
     try {
       await resolverAusencia(id, estado, usuario.empleadoId ?? usuario.id);
@@ -504,22 +514,35 @@ const AusenciasPage = () => {
                         Certificado
                       </Boton>
                     )}
-                    <Boton
-                      variante="aprobar"
-                      tamano="sm"
-                      onClick={() => void resolver(a.id, 'aprobada')}
-                    >
-                      <IconCheck size={14} />
-                      Aprobar
-                    </Boton>
-                    <Boton
-                      variante="rechazar"
-                      tamano="sm"
-                      onClick={() => void resolver(a.id, 'rechazada')}
-                    >
-                      <IconX size={14} />
-                      Rechazar
-                    </Boton>
+                    {/* La propia no se resuelve: tiene que aprobarla otra
+                        persona. Esconder los botones es la cortesía; el
+                        freno de verdad está en el trigger de la base
+                        (migración 103), porque un PATCH a mano se saltea
+                        cualquier botón. */}
+                    {esPropia(a) ? (
+                      <span className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs font-semibold text-ink-soft">
+                        La tiene que resolver otra persona
+                      </span>
+                    ) : (
+                      <>
+                        <Boton
+                          variante="aprobar"
+                          tamano="sm"
+                          onClick={() => void resolver(a.id, 'aprobada')}
+                        >
+                          <IconCheck size={14} />
+                          Aprobar
+                        </Boton>
+                        <Boton
+                          variante="rechazar"
+                          tamano="sm"
+                          onClick={() => void resolver(a.id, 'rechazada')}
+                        >
+                          <IconX size={14} />
+                          Rechazar
+                        </Boton>
+                      </>
+                    )}
                   </div>
                 )
               }

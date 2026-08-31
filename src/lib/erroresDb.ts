@@ -78,6 +78,15 @@ export const mensajeDeErrorDb = (mensaje: string): string => {
    * manda a buscar el problema al lugar equivocado: el dato está bien,
    * lo que pasa es que ese mes ya se cerró.
    */
+  /**
+   * Nadie resuelve su propia ausencia (migración 103). Igual que el
+   * período cerrado, va antes de las traducciones genéricas: el dato no
+   * está mal, lo que pasa es que no le toca a esta persona.
+   */
+  if (contiene(m, 'AUSENCIA_PROPIA')) {
+    return 'No podés aprobar ni rechazar tu propia ausencia. Tiene que resolverla otra persona con permisos de gestión.';
+  }
+
   if (contiene(m, 'PERIODO_CERRADO')) {
     const periodo = m.match(/PERIODO_CERRADO: el período (\d{4}-\d{2})/)?.[1];
     return `El período ${periodo ?? 'de esa fila'} está cerrado, así que no se pueden cargar ni modificar remuneraciones ni adelantos de ese mes. Si hace falta corregirlo, reabrilo desde Cierre del mes explicando el motivo.`;

@@ -679,7 +679,13 @@ const FichaColaboradorPage = () => {
           </div>
         </Panel>
 
-        {empleado.activo && (
+        {/* El enrolamiento facial es para fichar en la terminal: sin
+            Fichaje no hay dónde usarlo. Ofrecerle a una empresa
+            administrativa que le registre el rostro a su gente es
+            justamente lo que hace pensar que la app viene a controlar
+            horarios — y encima es un dato biométrico que no hace falta
+            tomar. */}
+        {empleado.activo && conFichaje && (
           <Panel className="flex h-full flex-col">
             <EnrolamientoFacial
               empleado={empleado}

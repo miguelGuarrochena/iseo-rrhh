@@ -224,6 +224,7 @@ export const aDescuentoRecurrente = (f: Fila): DescuentoRecurrente => ({
   modo: (f.modo as DescuentoRecurrente['modo']) ?? 'monto',
   porcentaje: f.porcentaje != null ? Number(f.porcentaje) : undefined,
   creadoEn: f.creado_en ? String(f.creado_en).slice(0, 10) : undefined,
+  esEmbargo: Boolean(f.es_embargo),
 });
 
 export const aAdelanto = (f: Fila): Adelanto => ({

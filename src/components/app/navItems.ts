@@ -171,9 +171,9 @@ export const MODULOS_OPCIONALES: ModuloInfo[] = [
     clave: 'fichaje',
     etiqueta: 'Fichaje',
     descripcion:
-      'Registro de entrada y salida por celular, tablet con reconocimiento facial o carga manual.',
+      'Registro de entrada y salida por celular, tablet con reconocimiento facial o carga manual. Es el interruptor del control horario: apagarlo saca de toda la app las horas, las horas extras, las llegadas tarde y el enrolamiento de rostro.',
     cuandoApagarla:
-      'Si no se controla horario: equipos por objetivos, todos remotos o gente que factura por su cuenta.',
+      'Si la empresa no controla horario: administrativas, equipos por objetivos, todos remotos o gente que factura por su cuenta. En esos casos conviene apagarlo desde el principio — ver columnas de horas en cero da la impresión de que la app viene a controlar horarios.',
   },
   {
     clave: 'turnos',

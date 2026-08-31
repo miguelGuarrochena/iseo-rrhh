@@ -82,6 +82,16 @@ export const errorDeLimitesLiquidacion = (d: {
   noRemunerativo?: number;
   otrosDescuentos?: number;
   aportes?: number;
+  /**
+   * El colaborador tiene un embargo judicial u otra deducción
+   * autorizada cargada.
+   *
+   * Cambia el tope del art. 133 de bloqueo a advertencia. No lo elimina:
+   * `advertenciaDeLimiteDescuentos` lo sigue informando, y el neto
+   * negativo se sigue frenando porque eso no es un tope legal sino una
+   * cuenta que no cierra.
+   */
+  conEmbargo?: boolean;
 }): string | null => {
   const enDinero = remuneracionEnDinero(d.montoBruto, d.noRemunerativo);
   const descuentos = Math.max(0, d.otrosDescuentos ?? 0);
@@ -92,12 +102,52 @@ export const errorDeLimitesLiquidacion = (d: {
     return 'Los descuentos superan lo que se le paga en el período: el neto quedaría negativo.';
   }
 
+  /*
+   * Con embargo, pasar el 20% deja de ser un error.
+   *
+   * El art. 120 de la LCT y el decreto 484/87 le dan al embargo judicial
+   * su propia escala sobre el salario mínimo, así que el tope general
+   * del art. 133 no es la regla que manda en ese caso. Bloquear ahí
+   * dejaba a RRHH sin poder cargar la liquidación de una persona
+   * embargada, que es exactamente el caso donde más importa cargarla
+   * bien.
+   */
+  if (d.conEmbargo) return null;
+
   const tope = enDinero * LIMITE_DESCUENTOS_PCT;
   if (descuentos > tope) {
     const pct = enDinero > 0 ? Math.round((descuentos / enDinero) * 100) : 100;
     return `Los descuentos son el ${pct}% de la remuneración del período y el art. 133 de la LCT permite hasta el 20%.`;
   }
   return null;
+};
+
+/**
+ * El aviso que acompaña a la liquidación: qué mirar sin que nada frene.
+ *
+ * Existe aparte de `errorDeLimitesLiquidacion` porque son dos preguntas
+ * distintas: aquélla responde "¿puedo guardar?", ésta "¿hay algo que
+ * conviene que sepas?". Con embargo, la segunda dice que sí y la primera
+ * deja pasar.
+ */
+export const advertenciaDeLimiteDescuentos = (d: {
+  montoBruto: number;
+  noRemunerativo?: number;
+  otrosDescuentos?: number;
+  conEmbargo?: boolean;
+}): string | null => {
+  const enDinero = remuneracionEnDinero(d.montoBruto, d.noRemunerativo);
+  const descuentos = Math.max(0, d.otrosDescuentos ?? 0);
+  if (descuentos === 0 || enDinero <= 0) return null;
+
+  const tope = enDinero * LIMITE_DESCUENTOS_PCT;
+  if (descuentos <= tope) return null;
+
+  const pct = Math.round((descuentos / enDinero) * 100);
+  if (d.conEmbargo) {
+    return `Este colaborador tiene un embargo judicial registrado. Los descuentos son el ${pct}% de la remuneración del período, por encima del 20% del art. 133 de la LCT: podés guardar igual porque el embargo tiene su propia escala (decreto 484/87), pero revisá que el importe coincida con el oficio judicial.`;
+  }
+  return `Los descuentos son el ${pct}% de la remuneración del período y el art. 133 de la LCT permite hasta el 20%.`;
 };
 
 /**
@@ -194,16 +244,44 @@ export const costoLaboral = (d: {
 /** Jornada legal: 48 hs semanales ≈ 192 mensuales (LCT art. 1 ley 11.544). */
 export const HORAS_MENSUALES = 192;
 
-/** Recargo de la hora extra común: 50% sobre la hora normal (LCT art. 201). */
-export const RECARGO_HORA_EXTRA = 1.5;
+/**
+ * Los dos recargos del art. 201 de la LCT.
+ *
+ * El 50% es el de los días comunes; el 100% el de sábado después de las
+ * 13, domingos y feriados.
+ *
+ * **Cuál de los dos aplica no lo decide el sistema.** Trabajar un sábado
+ * no implica por sí mismo recargo: hay actividades —gastronomía, por
+ * ejemplo— donde el sábado es jornada normal. Quién carga las horas dice
+ * cuántas van a cada recargo; acá sólo se multiplica.
+ */
+export const RECARGO_EXTRA_50 = 1.5;
+export const RECARGO_EXTRA_100 = 2;
 
 /**
- * Valor a pagar por las horas extras del período.
+ * Alias histórico del recargo del 50%. Se conserva porque lo importan
+ * pantallas y tests; `RECARGO_EXTRA_50` es el nombre que dice cuál es.
+ */
+export const RECARGO_HORA_EXTRA = RECARGO_EXTRA_50;
+
+/**
+ * Valor de la hora normal: el bruto dividido por las horas del mes.
  *
- * Es una sugerencia, no una liquidación: toma el recargo del 50% (el de
- * los días hábiles) y no distingue las del 100% (sábado después de las 13,
- * domingos y feriados), que hay que cargar aparte. Tampoco contempla los
- * adicionales del convenio, que cambian la base de cálculo.
+ * `horasMensuales` sale de la configuración de la empresa porque no toda
+ * jornada son 192 horas: hay convenios con otra base.
+ */
+export const valorHora = (
+  montoBruto: number,
+  horasMensuales: number = HORAS_MENSUALES
+): number =>
+  montoBruto > 0 && horasMensuales > 0 ? montoBruto / horasMensuales : 0;
+
+/**
+ * Valor a pagar por las horas extras del período, al 50%.
+ *
+ * Es una sugerencia, no una liquidación: no contempla los adicionales
+ * del convenio, que cambian la base de cálculo. Para separar las del
+ * 100% está `valorHorasExtrasPorRecargo`.
  */
 export const valorHorasExtras = (
   montoBruto: number,
@@ -211,8 +289,38 @@ export const valorHorasExtras = (
   horasMensuales: number = HORAS_MENSUALES
 ): number => {
   if (montoBruto <= 0 || horasExtras <= 0 || horasMensuales <= 0) return 0;
-  const valorHora = montoBruto / horasMensuales;
-  return Math.round(valorHora * RECARGO_HORA_EXTRA * horasExtras);
+  return Math.round(
+    valorHora(montoBruto, horasMensuales) * RECARGO_EXTRA_50 * horasExtras
+  );
+};
+
+export interface ExtrasPorRecargo {
+  /** Horas al 50%, en pesos. */
+  al50: number;
+  /** Horas al 100%, en pesos. */
+  al100: number;
+  total: number;
+}
+
+/**
+ * Las extras separadas por recargo.
+ *
+ * Las horas de cada bucket las declara quien liquida. El sistema no
+ * clasifica por día de la semana a propósito: ver el comentario de
+ * `RECARGO_EXTRA_100`.
+ */
+export const valorHorasExtrasPorRecargo = (d: {
+  montoBruto: number;
+  horas50?: number;
+  horas100?: number;
+  horasMensuales?: number;
+}): ExtrasPorRecargo => {
+  const hora = valorHora(d.montoBruto, d.horasMensuales ?? HORAS_MENSUALES);
+  const h50 = Math.max(0, d.horas50 ?? 0);
+  const h100 = Math.max(0, d.horas100 ?? 0);
+  const al50 = Math.round(hora * RECARGO_EXTRA_50 * h50);
+  const al100 = Math.round(hora * RECARGO_EXTRA_100 * h100);
+  return { al50, al100, total: al50 + al100 };
 };
 
 const semestreDe = (mes: number): 1 | 2 => (mes <= 6 ? 1 : 2);

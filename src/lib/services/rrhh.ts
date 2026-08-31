@@ -416,6 +416,7 @@ export const getDescuentosRecurrentes = elegir(
   real.getDescuentosRecurrentes,
   demo.getDescuentosRecurrentes
 );
+export const tieneEmbargo = elegir(real.tieneEmbargo, demo.tieneEmbargo);
 export const crearDescuentoRecurrente = elegir(
   real.crearDescuentoRecurrente,
   demo.crearDescuentoRecurrente

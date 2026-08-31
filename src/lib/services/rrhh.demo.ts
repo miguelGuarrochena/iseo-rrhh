@@ -1794,11 +1794,15 @@ export const cargarRemuneracion = async (
   const { aportes, neto } = calcularLiquidacion(datos);
   // Mismo control que el servicio real: la demo tiene que fallar donde
   // falla la app, si no se prueba una cosa y se usa otra.
+  const conEmbargo = descuentosRecurrentesMock.some(
+    (d) => d.empleadoId === datos.empleadoId && d.esEmbargo === true
+  );
   const limite = errorDeLimitesLiquidacion({
     montoBruto: datos.montoBruto,
     noRemunerativo: datos.noRemunerativo,
     otrosDescuentos: datos.otrosDescuentos,
     aportes,
+    conEmbargo,
   });
   if (limite) throw new Error(limite);
   const tipo = datos.tipo ?? 'mensual';
@@ -2181,12 +2185,20 @@ export const eliminarRemuneracion = async (id: string): Promise<void> => {
   return simular(undefined);
 };
 
+export const tieneEmbargo = async (empleadoId: string): Promise<boolean> =>
+  simular(
+    descuentosRecurrentesMock.some(
+      (d) => d.empleadoId === empleadoId && d.esEmbargo === true
+    )
+  );
+
 export const crearDescuentoRecurrente = async (
   empleadoId: string,
   concepto: string,
   monto: number,
   modo: 'monto' | 'porcentaje' = 'monto',
-  porcentaje?: number
+  porcentaje?: number,
+  esEmbargo = false
 ): Promise<DescuentoRecurrente> => {
   const nuevo: DescuentoRecurrente = {
     id: `dsc-${Date.now()}`,
@@ -2195,6 +2207,8 @@ export const crearDescuentoRecurrente = async (
     monto: modo === 'monto' ? monto : 0,
     modo,
     porcentaje: modo === 'porcentaje' ? (porcentaje ?? monto) : undefined,
+    esEmbargo,
+    creadoEn: hoyISO(),
   };
   descuentosRecurrentesMock.push(nuevo);
   return simular(nuevo);

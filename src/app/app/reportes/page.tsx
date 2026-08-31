@@ -320,7 +320,9 @@ const ReportesPage = () => {
           Reportes
         </h1>
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-          Control del mes: ausentismo, puntualidad, horas extras y firmas.
+          {conFichaje
+            ? 'Control del mes: ausentismo, puntualidad, horas extras y firmas.'
+            : 'Control del mes: ausentismo y firmas.'}
         </p>
       </div>
 

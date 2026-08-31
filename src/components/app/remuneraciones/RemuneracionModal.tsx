@@ -6,6 +6,7 @@ import {
   IconCashBanknote,
   IconCoins,
   IconPinned,
+  IconGavel,
   IconPlus,
   IconReceipt2,
 } from '@tabler/icons-react';
@@ -24,6 +25,7 @@ import type { HorasExtrasPeriodo } from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   calcularLiquidacion,
+  advertenciaDeLimiteDescuentos,
   errorDeLimitesLiquidacion,
   APORTES_TOTAL,
   HORAS_MENSUALES,
@@ -292,12 +294,32 @@ export const RemuneracionModal = ({
    * escribe y se frena al guardar: antes el único freno era la constraint
    * de Postgres, que aparecía como "violates check constraint".
    */
+  /*
+   * El embargo sale de los descuentos fijos que ya se cargaron para esta
+   * persona: no hace falta otra consulta. La autoridad sigue estando en
+   * el servicio, que lo vuelve a mirar contra la base al guardar.
+   */
+  const conEmbargo = recurrentes.some((d) => d.esEmbargo);
   const errorLimites = errorDeLimitesLiquidacion({
     montoBruto: num(bruto),
     noRemunerativo: num(noRem),
     otrosDescuentos: otrosTotal,
     aportes,
+    conEmbargo,
   });
+  /*
+   * Con embargo el tope no frena, pero se sigue diciendo: "no bloquea"
+   * no es "no se informa". Sin embargo, el aviso repite el error y por
+   * eso sólo se muestra uno de los dos.
+   */
+  const avisoLimites = errorLimites
+    ? null
+    : advertenciaDeLimiteDescuentos({
+        montoBruto: num(bruto),
+        noRemunerativo: num(noRem),
+        otrosDescuentos: otrosTotal,
+        conEmbargo,
+      });
 
   const guardar = async () => {
     if (!empleadoActual) {
@@ -600,6 +622,12 @@ export const RemuneracionModal = ({
           {errorLimites && (
             <p className="mt-3 rounded-xl bg-amber-50 px-4 py-3 text-xs font-bold text-amber-900">
               {errorLimites}
+            </p>
+          )}
+          {avisoLimites && (
+            <p className="mt-3 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-relaxed text-amber-900">
+              <IconGavel size={15} className="mt-0.5 shrink-0" />
+              <span>{avisoLimites}</span>
             </p>
           )}
         </div>
