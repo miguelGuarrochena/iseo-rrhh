@@ -112,13 +112,20 @@ end $$;
 -- =====================================================================
 -- Un supervisor tampoco: cerrar el mes es de administración
 -- =====================================================================
+--
+-- Se prueban los TRES RPC de escritura, no sólo el de cerrar. Los tres
+-- comparten `assert_puede_cerrar_periodo`, pero eso es una decisión de
+-- hoy: si mañana alguno afloja su guarda por su cuenta, el agujero
+-- aparece en el que no se estaba mirando.
 select pg_temp.as_user('cccccccc-cccc-cccc-cccc-ccccccccccc4');
 
 do $$
+declare
+  v_periodo text := pg_temp.periodo();
 begin
   begin
     perform cerrar_periodo(
-      'cccccccc-cccc-cccc-cccc-ccccccccccc1', pg_temp.periodo()
+      'cccccccc-cccc-cccc-cccc-ccccccccccc1', v_periodo
     );
     raise exception 'FAIL: un supervisor no debería poder cerrar el período';
   exception
@@ -126,6 +133,36 @@ begin
       if sqlerrm like 'FAIL:%' then raise; end if;
     when others then null;
   end;
+
+  begin
+    perform reabrir_periodo(
+      'cccccccc-cccc-cccc-cccc-ccccccccccc1', v_periodo, 'porque sí'
+    );
+    raise exception 'FAIL: un supervisor no debería poder reabrir el período';
+  exception
+    when raise_exception then
+      if sqlerrm like 'FAIL:%' then raise; end if;
+    when others then null;
+  end;
+
+  begin
+    perform marcar_categoria_revisada(
+      'cccccccc-cccc-cccc-cccc-ccccccccccc1', v_periodo, 'altas', true
+    );
+    raise exception 'FAIL: un supervisor no debería poder tildar categorías';
+  exception
+    when raise_exception then
+      if sqlerrm like 'FAIL:%' then raise; end if;
+    when others then null;
+  end;
+
+  -- Y ninguno de los tres dejó rastro.
+  if exists (
+    select 1 from cierres_periodo
+    where empresa_id = 'cccccccc-cccc-cccc-cccc-ccccccccccc1'
+  ) then
+    raise exception 'FAIL: el supervisor creó un cierre';
+  end if;
 end $$;
 
 -- =====================================================================
