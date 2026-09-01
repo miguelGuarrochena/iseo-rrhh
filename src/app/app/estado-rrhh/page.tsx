@@ -1,10 +1,9 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import {
   IconAlertTriangle,
-  IconArrowNarrowRight,
   IconCircleCheck,
   IconProgressCheck,
 } from '@tabler/icons-react';
@@ -13,15 +12,10 @@ import { Panel } from '@/components/app/Panel';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
-import { TarjetaArea } from '@/components/app/estado/TarjetaArea';
-import { DetalleAreaDrawer } from '@/components/app/estado/DetalleAreaDrawer';
+import { VistasPendientes } from '@/components/app/estado/VistasPendientes';
 import { useCarga } from '@/lib/useCarga';
 import { useModulos } from '@/lib/auth/useModulos';
-import {
-  calcularEstadoRrhh,
-  ClaveArea,
-  situacionesPrioritarias,
-} from '@/lib/estadoRrhh';
+import { calcularEstadoRrhh, situacionesPrioritarias } from '@/lib/estadoRrhh';
 import {
   getEmpleadosConCuenta,
   getEmpleadosTodos,
@@ -40,15 +34,15 @@ import { Empleado } from '@/types/rrhh';
  *
  * Está pensada para responder cuatro preguntas en ese orden: ¿está todo
  * bien?, ¿qué requiere atención?, ¿qué es urgente? y ¿qué puedo
- * solucionar ahora? Por eso lo primero es una sola frase, después lo
- * urgente, después las áreas, y el detalle se abre aparte.
+ * solucionar ahora? Por eso lo primero es una sola frase, después los
+ * números, y lo que falta se mira en un selector: la lista de acciones
+ * o el mapa por área. Apilar las dos escondía el mapa debajo del
+ * pliegue. El detalle de un área se abre aparte.
  */
 const EstadoRrhhPage = () => {
   const { rolEfectivo } = useAuth();
   const esAdmin = rolEfectivo === 'admin_rrhh';
   const modulos = useModulos();
-  const [abierta, setAbierta] = useState<ClaveArea | null>(null);
-
   const cEmpleados = useCarga(() => getEmpleadosTodos(), [], {
     activo: esAdmin,
     contexto: 'estado-rrhh/empleados',
@@ -103,9 +97,6 @@ const EstadoRrhhPage = () => {
   );
 
   const prioritarias = useMemo(() => situacionesPrioritarias(estado), [estado]);
-
-  const areaAbierta =
-    estado.areas.find((a) => a.clave === abierta && a.pendientes > 0) ?? null;
 
   const cargando =
     cEmpleados.fase === 'cargando' || cEmpresa.fase === 'cargando';
@@ -239,92 +230,7 @@ const EstadoRrhhPage = () => {
               />
             </div>
 
-            {/* ¿Qué puedo solucionar ahora? */}
-            {prioritarias.length > 0 && (
-              <Panel
-                titulo="Qué resolver primero"
-                descripcion="Ordenado por lo que frena y por cuánta gente afecta. Cada línea lleva a la pantalla donde se arregla."
-              >
-                <ul className="flex list-none flex-col gap-2.5">
-                  {prioritarias.map((s) => (
-                    <li
-                      key={s.falta.clave}
-                      className="rounded-2xl border border-line bg-paper px-4 py-3.5"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-[0.9375rem] font-bold text-ink">
-                          {s.falta.titulo}
-                        </p>
-                        {s.falta.severidad === 'bloquea' && (
-                          <span className="rounded-full bg-red-100 px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide text-red-800">
-                            Frena
-                          </span>
-                        )}
-                        {s.nombres.length > 0 && (
-                          <span className="rounded-full bg-surface px-2 py-0.5 text-xs font-bold text-ink-soft">
-                            {s.nombres.length}
-                          </span>
-                        )}
-                      </div>
-                      {s.nombres.length > 0 && (
-                        <p className="mt-1 text-[0.8125rem] leading-snug text-ink-soft">
-                          {s.nombres.slice(0, 3).join(', ')}
-                          {s.nombres.length > 3
-                            ? ` y ${s.nombres.length - 3} más`
-                            : ''}
-                        </p>
-                      )}
-                      <p className="mt-2 text-sm leading-relaxed text-ink-soft">
-                        {s.falta.detalle}
-                      </p>
-                      {s.falta.ruta && (
-                        <Link
-                          href={
-                            s.nombres.length > 1
-                              ? (s.falta.ruta.split('?')[0] ?? s.falta.ruta)
-                              : s.falta.ruta
-                          }
-                          className="mt-2.5 inline-flex items-start gap-1.5 text-sm font-bold text-brand-700 no-underline underline-offset-4 hover:underline"
-                        >
-                          <IconArrowNarrowRight
-                            size={17}
-                            className="mt-0.5 shrink-0"
-                          />
-                          <span>{s.falta.comoSeArregla}</span>
-                        </Link>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </Panel>
-            )}
-
-            {/* ¿Qué requiere atención, por área? */}
-            <Panel
-              titulo="Por área"
-              descripcion="El porcentaje es el de los legajos activos sin pendientes en esa área. Sólo se muestran las áreas que tu empresa usa."
-            >
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                {estado.areas.map((a) => (
-                  <TarjetaArea
-                    key={a.clave}
-                    area={a}
-                    abierto={a.clave === abierta}
-                    onVerDetalle={
-                      a.pendientes > 0 ? () => setAbierta(a.clave) : undefined
-                    }
-                  />
-                ))}
-              </div>
-            </Panel>
-
-            {/* El detalle va en un panel al costado y no debajo del
-                grid: con tres columnas, lo de abajo caía fuera de la
-                pantalla y apretar "Ver detalle" no parecía hacer nada. */}
-            <DetalleAreaDrawer
-              area={areaAbierta}
-              onCerrar={() => setAbierta(null)}
-            />
+            <VistasPendientes estado={estado} prioritarias={prioritarias} />
           </>
         )}
       </div>
