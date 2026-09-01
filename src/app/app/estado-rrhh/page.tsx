@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import {
   IconAlertTriangle,
   IconCircleCheck,
@@ -12,7 +13,11 @@ import { Panel } from '@/components/app/Panel';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
-import { VistasPendientes } from '@/components/app/estado/VistasPendientes';
+import {
+  SelectorVistaEstado,
+  VistasPendientes,
+  type VistaEstado,
+} from '@/components/app/estado/VistasPendientes';
 import { useCarga } from '@/lib/useCarga';
 import { useModulos } from '@/lib/auth/useModulos';
 import { calcularEstadoRrhh, situacionesPrioritarias } from '@/lib/estadoRrhh';
@@ -35,14 +40,20 @@ import { Empleado } from '@/types/rrhh';
  * Está pensada para responder cuatro preguntas en ese orden: ¿está todo
  * bien?, ¿qué requiere atención?, ¿cómo está cada área? y ¿qué puedo
  * solucionar ahora? Por eso lo primero es una sola frase, después los
- * números, después el mapa por área. Los atajos para ir a resolver
- * viven al lado, no encima: cada uno sale de esta pantalla hacia
- * donde se arregla. El detalle de un área se abre aparte.
+ * números, y el cuerpo es una vista u otra: el mapa por área (la
+ * entrada, porque esta pantalla se llama Estado) o la lista para ir a
+ * resolver. El selector vive junto al título, como en Fichaje. El
+ * detalle de un área se abre aparte.
  */
 const EstadoRrhhPage = () => {
   const { rolEfectivo } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const esAdmin = rolEfectivo === 'admin_rrhh';
   const modulos = useModulos();
+  const vista: VistaEstado =
+    searchParams.get('ver') === 'resolver' ? 'resolver' : 'area';
   const cEmpleados = useCarga(() => getEmpleadosTodos(), [], {
     activo: esAdmin,
     contexto: 'estado-rrhh/empleados',
@@ -98,6 +109,18 @@ const EstadoRrhhPage = () => {
 
   const prioritarias = useMemo(() => situacionesPrioritarias(estado), [estado]);
 
+  const elegirVista = (siguiente: VistaEstado) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (siguiente === 'area') params.delete('ver');
+    else params.set('ver', 'resolver');
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  };
+
+  const hrefResolver = `${pathname}?ver=resolver`;
+
   const cargando =
     cEmpleados.fase === 'cargando' || cEmpresa.fase === 'cargando';
 
@@ -147,15 +170,24 @@ const EstadoRrhhPage = () => {
   return (
     <RequireEmpresa>
       <div className="flex flex-col gap-6 sm:gap-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
-            Estado de RRHH
-          </h1>
-          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            Qué tan completa está la gestión de tu equipo y qué conviene
-            resolver primero. Todo lo que ves acá sale de los datos que ya están
-            cargados: no hay nada que completar en esta pantalla.
-          </p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
+              Estado de RRHH
+            </h1>
+            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
+              Qué tan completa está la gestión de tu equipo y qué conviene
+              resolver primero. Todo lo que ves acá sale de los datos que ya
+              están cargados: no hay nada que completar en esta pantalla.
+            </p>
+          </div>
+          {cEmpleados.fase !== 'error' && !cargando && estado.evaluados > 0 && (
+            <SelectorVistaEstado
+              vista={vista}
+              onElegir={elegirVista}
+              pendientes={prioritarias.length}
+            />
+          )}
         </div>
 
         {cEmpleados.fase === 'error' && cEmpleados.error ? (
@@ -220,7 +252,7 @@ const EstadoRrhhPage = () => {
                 etiqueta="Pendientes"
                 valor={estado.pendientes}
                 detalle="datos por completar en total"
-                href={prioritarias.length > 0 ? '#resolver' : undefined}
+                href={prioritarias.length > 0 ? hrefResolver : undefined}
               />
               <StatCard
                 etiqueta="Frenan a alguien"
@@ -228,11 +260,15 @@ const EstadoRrhhPage = () => {
                 detalle={
                   estado.bloqueantes > 0 ? 'resolver primero' : 'nada bloqueado'
                 }
-                href={estado.bloqueantes > 0 ? '#resolver' : undefined}
+                href={estado.bloqueantes > 0 ? hrefResolver : undefined}
               />
             </div>
 
-            <VistasPendientes estado={estado} prioritarias={prioritarias} />
+            <VistasPendientes
+              vista={vista}
+              estado={estado}
+              prioritarias={prioritarias}
+            />
           </>
         )}
       </div>
