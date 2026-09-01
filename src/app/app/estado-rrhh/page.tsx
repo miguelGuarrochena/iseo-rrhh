@@ -13,8 +13,8 @@ import { Panel } from '@/components/app/Panel';
 import { StatCard } from '@/components/app/dashboard/StatCard';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
-import { BloqueFaltas, BloqueFaltasDeVarios } from '@/components/app/Faltas';
 import { TarjetaArea } from '@/components/app/estado/TarjetaArea';
+import { DetalleAreaDrawer } from '@/components/app/estado/DetalleAreaDrawer';
 import { useCarga } from '@/lib/useCarga';
 import { useModulos } from '@/lib/auth/useModulos';
 import {
@@ -41,7 +41,7 @@ import { Empleado } from '@/types/rrhh';
  * Está pensada para responder cuatro preguntas en ese orden: ¿está todo
  * bien?, ¿qué requiere atención?, ¿qué es urgente? y ¿qué puedo
  * solucionar ahora? Por eso lo primero es una sola frase, después lo
- * urgente, después las áreas, y el detalle queda plegado.
+ * urgente, después las áreas, y el detalle se abre aparte.
  */
 const EstadoRrhhPage = () => {
   const { rolEfectivo } = useAuth();
@@ -103,6 +103,9 @@ const EstadoRrhhPage = () => {
   );
 
   const prioritarias = useMemo(() => situacionesPrioritarias(estado), [estado]);
+
+  const areaAbierta =
+    estado.areas.find((a) => a.clave === abierta && a.pendientes > 0) ?? null;
 
   const cargando =
     cEmpleados.fase === 'cargando' || cEmpresa.fase === 'cargando';
@@ -306,41 +309,22 @@ const EstadoRrhhPage = () => {
                   <TarjetaArea
                     key={a.clave}
                     area={a}
+                    abierto={a.clave === abierta}
                     onVerDetalle={
-                      a.pendientes > 0
-                        ? () =>
-                            setAbierta((prev) =>
-                              prev === a.clave ? null : a.clave
-                            )
-                        : undefined
+                      a.pendientes > 0 ? () => setAbierta(a.clave) : undefined
                     }
                   />
                 ))}
               </div>
-
-              {/* El detalle se pliega: abrirlo todo de entrada convierte
-                  la pantalla en una pared de texto y esconde el resumen. */}
-              {estado.areas
-                .filter((a) => a.clave === abierta && a.pendientes > 0)
-                .map((a) => (
-                  <div key={a.clave} className="mt-5 flex flex-col gap-3">
-                    {a.faltasEmpresa.length > 0 && (
-                      <BloqueFaltas
-                        faltas={a.faltasEmpresa}
-                        titulo={`${a.etiqueta}: lo que falta configurar`}
-                      />
-                    )}
-                    {a.items.length > 0 && (
-                      <BloqueFaltasDeVarios
-                        items={a.items}
-                        titulo={`${a.etiqueta}: ${a.conPendientes} ${
-                          a.conPendientes === 1 ? 'persona' : 'personas'
-                        } con pendientes`}
-                      />
-                    )}
-                  </div>
-                ))}
             </Panel>
+
+            {/* El detalle va en un panel al costado y no debajo del
+                grid: con tres columnas, lo de abajo caía fuera de la
+                pantalla y apretar "Ver detalle" no parecía hacer nada. */}
+            <DetalleAreaDrawer
+              area={areaAbierta}
+              onCerrar={() => setAbierta(null)}
+            />
           </>
         )}
       </div>

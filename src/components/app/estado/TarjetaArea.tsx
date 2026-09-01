@@ -1,7 +1,12 @@
 'use client';
 
-import { IconAlertTriangle, IconCircleCheck } from '@tabler/icons-react';
+import {
+  IconAlertTriangle,
+  IconChevronRight,
+  IconCircleCheck,
+} from '@tabler/icons-react';
 import { AreaEstado } from '@/lib/estadoRrhh';
+import { tono } from '@/components/app/estado/tono';
 
 /**
  * Una fila del Estado de RRHH.
@@ -10,44 +15,28 @@ import { AreaEstado } from '@/lib/estadoRrhh';
  * ámbar es "hay algo pendiente", verde es "no falta nada". El porcentaje
  * está para comparar áreas entre sí, no para poner una nota: lo que se
  * acciona es el conteo de abajo, y por eso es un botón.
+ *
+ * `abierto` marca la tarjeta cuyo detalle se está mirando en el panel.
+ * Sin esa marca, al cerrarlo no se sabe de cuál de las cinco venía.
  */
-const tono = (area: AreaEstado) => {
-  if (area.bloquea) {
-    return {
-      barra: 'bg-red-500',
-      pista: 'bg-red-100',
-      texto: 'text-red-700',
-      punto: 'bg-red-500',
-    };
-  }
-  if (area.pendientes > 0) {
-    return {
-      barra: 'bg-amber-500',
-      pista: 'bg-amber-100',
-      texto: 'text-amber-700',
-      punto: 'bg-amber-500',
-    };
-  }
-  return {
-    barra: 'bg-emerald-500',
-    pista: 'bg-emerald-100',
-    texto: 'text-emerald-700',
-    punto: 'bg-emerald-500',
-  };
-};
-
 export const TarjetaArea = ({
   area,
+  abierto = false,
   onVerDetalle,
 }: {
   area: AreaEstado;
+  abierto?: boolean;
   onVerDetalle?: () => void;
 }) => {
   const c = tono(area);
   const pct = area.cumplimientoPct;
 
   return (
-    <div className="flex h-full min-w-0 flex-col rounded-2xl border border-line bg-surface p-4 sm:p-5">
+    <div
+      className={`flex h-full min-w-0 flex-col rounded-2xl border bg-surface p-4 transition-colors sm:p-5 ${
+        abierto ? 'border-brand-400 ring-2 ring-brand-200' : 'border-line'
+      }`}
+    >
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-sm font-bold text-ink">
@@ -116,9 +105,12 @@ export const TarjetaArea = ({
               <button
                 type="button"
                 onClick={onVerDetalle}
-                className="cursor-pointer rounded-lg text-[0.8125rem] font-bold text-brand-700 underline-offset-4 hover:underline"
+                aria-haspopup="dialog"
+                aria-expanded={abierto}
+                className="inline-flex cursor-pointer items-center gap-0.5 rounded-lg text-[0.8125rem] font-bold text-brand-700 underline-offset-4 hover:underline"
               >
                 Ver detalle
+                <IconChevronRight size={15} stroke={2.4} className="shrink-0" />
               </button>
             )}
           </>
