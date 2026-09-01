@@ -52,9 +52,9 @@ if (!window.requestAnimationFrame) {
 
 /**
  * WebCrypto y Blob.arrayBuffer. jsdom 20 no trae `crypto.subtle` ni
- * `Blob.arrayBuffer`. En Node 24 el global nativo a veces se cuela y los
- * tests pasan igual; en el CI (Node 20 + jsdom) `hashDeArchivo` devolvía
- * `null` y la constancia de firma parecía rota. Se pisa siempre con la
+ * `Blob.arrayBuffer`. En Node reciente el global nativo a veces se cuela
+ * y los tests pasan igual; en jsdom (CI) `hashDeArchivo` devolvía `null`
+ * y la constancia de firma parecía rota. Se pisa siempre con la
  * implementación de Node: es la misma API que el navegador.
  */
 try {
