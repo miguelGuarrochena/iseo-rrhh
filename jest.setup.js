@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { webcrypto } from 'crypto';
 
 /**
  * Polyfills de APIs del navegador que jsdom no implementa.
@@ -47,4 +48,34 @@ if (!window.IntersectionObserver) {
 if (!window.requestAnimationFrame) {
   window.requestAnimationFrame = (cb) => setTimeout(() => cb(Date.now()), 0);
   window.cancelAnimationFrame = (id) => clearTimeout(id);
+}
+
+/**
+ * WebCrypto y Blob.arrayBuffer. jsdom 20 no trae `crypto.subtle` ni
+ * `Blob.arrayBuffer`. En Node 24 el global nativo a veces se cuela y los
+ * tests pasan igual; en el CI (Node 20 + jsdom) `hashDeArchivo` devolvía
+ * `null` y la constancia de firma parecía rota. Se pisa siempre con la
+ * implementación de Node: es la misma API que el navegador.
+ */
+try {
+  Object.defineProperty(globalThis, 'crypto', {
+    value: webcrypto,
+    configurable: true,
+    writable: true,
+  });
+} catch {
+  // Node 19+ a veces deja `crypto` como getter no configurable.
+  if (typeof globalThis.crypto?.subtle?.digest !== 'function') {
+    Object.assign(globalThis.crypto, { subtle: webcrypto.subtle });
+  }
+}
+if (typeof Blob !== 'undefined') {
+  Blob.prototype.arrayBuffer = function arrayBuffer() {
+    return new Promise((resolve, reject) => {
+      const lector = new FileReader();
+      lector.onload = () => resolve(lector.result);
+      lector.onerror = () => reject(lector.error);
+      lector.readAsArrayBuffer(this);
+    });
+  };
 }

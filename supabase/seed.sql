@@ -58,12 +58,15 @@ begin
        and not (c.relname = any (v_restringidas))
   loop
     execute format(
+      'grant select, insert, update, delete on %s to anon', v_tabla);
+    execute format(
       'grant select, insert, update, delete on %s to authenticated', v_tabla);
     execute format(
       'grant select, insert, update, delete on %s to service_role', v_tabla);
   end loop;
 end $$;
 
+grant usage, select on all sequences in schema public to anon;
 grant usage, select on all sequences in schema public to authenticated;
 grant usage, select on all sequences in schema public to service_role;
 
@@ -89,10 +92,24 @@ begin
     'authenticated', 'public.fichajes_descriptor_usado', 'SELECT'),
     'los descriptores usados son sólo del RPC DEFINER';
 
+  -- PII: anon no tiene SELECT de tabla sobre empleados (mig 66).
   assert not has_table_privilege('anon', 'public.empleados', 'SELECT'),
-    'anon no lee datos de negocio';
-  assert not has_table_privilege('anon', 'public.fichajes', 'SELECT'),
-    'anon no lee datos de negocio';
+    'anon no tiene SELECT de tabla sobre empleados';
+
+  -- El resto de tablas de negocio: en el hosteado, `anon` SÍ tiene
+  -- privilegio de tabla; RLS es lo que impide leer filas. Exigir la
+  -- *falta* de GRANT acá hacía fallar `supabase start` en CI (el rol ya
+  -- viene con el GRANT default de la imagen) y no se corría ningún test
+  -- SQL. Los tests que hacen `set role anon` y esperan 0 filas dependen
+  -- de que el GRANT exista: si no, pasan por "permission denied".
+  assert (select c.relrowsecurity
+            from pg_class c
+           where c.oid = 'public.fichajes'::regclass),
+    'fichajes tiene que tener RLS: es lo que impide que anon lea marcas';
+  assert (select c.relrowsecurity
+            from pg_class c
+           where c.oid = 'public.ausencias'::regclass),
+    'ausencias tiene que tener RLS: es lo que impide que anon lea ausencias';
 
   -- Y lo que sí tiene que poder: si esto falla, la app local está muerta.
   assert has_table_privilege('authenticated', 'public.fichajes', 'SELECT'),

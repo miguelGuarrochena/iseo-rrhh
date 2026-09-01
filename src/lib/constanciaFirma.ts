@@ -47,9 +47,14 @@ export const hashDeArchivo = async (
   datos: ArrayBuffer | Blob
 ): Promise<string | null> => {
   try {
-    if (typeof crypto === 'undefined' || !crypto.subtle) return null;
+    // `globalThis.crypto` es el Web Crypto del entorno (navegador, Node 19+,
+    // Edge). El identificador suelto `crypto` en Jest bajo Node 20 apunta
+    // al módulo `node:crypto`, que no tiene `.subtle` —el test pasaba en
+    // Node 24 (donde el módulo sí lo expone) y devolvía `null` en el CI.
+    const sutil = globalThis.crypto?.subtle;
+    if (!sutil) return null;
     const buffer = datos instanceof Blob ? await datos.arrayBuffer() : datos;
-    return aHex(await crypto.subtle.digest('SHA-256', buffer));
+    return aHex(await sutil.digest('SHA-256', buffer));
   } catch {
     return null;
   }

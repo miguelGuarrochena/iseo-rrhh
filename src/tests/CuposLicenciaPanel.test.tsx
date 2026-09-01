@@ -99,7 +99,9 @@ describe('F-11: volver a "sin límite"', () => {
 
   it('vaciar el campo borra el cupo', async () => {
     await abrir();
-    expect(campo(/mudanza/i)).toHaveValue(0);
+    // El botón aparece antes de que `useCarga` copie los cupos al form:
+    // sin esperar el 0, este caso ve el vacío inicial y no prueba F-11.
+    await waitFor(() => expect(campo(/mudanza/i)).toHaveValue(0));
     await userEvent.clear(campo(/mudanza/i));
     await userEvent.click(boton());
     // `null` es como el servicio expresa "sin límite": borra la fila.

@@ -17,27 +17,20 @@ import {
  */
 
 /**
- * jsdom no trae `crypto.subtle` ni `Blob.arrayBuffer()`; el navegador sí.
- * Se completan acá para poder probar el hash de verdad en vez de probar
- * el camino degradado. El caso "no se pudo calcular" se cubre aparte.
+ * El polyfill de WebCrypto / Blob.arrayBuffer vive en `jest.setup.js`.
+ * Si el entorno no los tiene, estos casos no miden el hash: miden el
+ * fallback a `null`, y un `null` se confunde con "sin constancia".
  */
 beforeAll(() => {
-  const { webcrypto } = jest.requireActual<typeof import('crypto')>('crypto');
-  if (!globalThis.crypto?.subtle) {
-    Object.defineProperty(globalThis, 'crypto', {
-      value: webcrypto,
-      configurable: true,
-    });
+  if (typeof globalThis.crypto?.subtle?.digest !== 'function') {
+    throw new Error(
+      'Este entorno no tiene WebCrypto; no se puede probar el hash de la constancia.'
+    );
   }
-  if (!Blob.prototype.arrayBuffer) {
-    Blob.prototype.arrayBuffer = function arrayBuffer() {
-      return new Promise((resolve, reject) => {
-        const lector = new FileReader();
-        lector.onload = () => resolve(lector.result as ArrayBuffer);
-        lector.onerror = () => reject(lector.error);
-        lector.readAsArrayBuffer(this);
-      });
-    };
+  if (typeof Blob.prototype.arrayBuffer !== 'function') {
+    throw new Error(
+      'Este entorno no tiene Blob.arrayBuffer(); no se puede probar el hash de un archivo.'
+    );
   }
 });
 
