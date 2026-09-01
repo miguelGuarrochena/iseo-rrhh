@@ -14,7 +14,6 @@ import { StatCard } from '@/components/app/dashboard/StatCard';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import {
-  SelectorVistaEstado,
   VistasPendientes,
   type VistaEstado,
 } from '@/components/app/estado/VistasPendientes';
@@ -40,9 +39,8 @@ import { Empleado } from '@/types/rrhh';
  * Está pensada para responder cuatro preguntas en ese orden: ¿está todo
  * bien?, ¿qué requiere atención?, ¿cómo está cada área? y ¿qué puedo
  * solucionar ahora? Por eso lo primero es una sola frase, después los
- * números, y el cuerpo es una vista u otra: el mapa por área (la
- * entrada, porque esta pantalla se llama Estado) o la lista para ir a
- * resolver. El selector vive junto al título, como en Fichaje. El
+ * números, y el cuerpo es el mapa por área. La lista para ir a resolver
+ * se pide desde ese mismo bloque y se vuelve igual de explícito. El
  * detalle de un área se abre aparte.
  */
 const EstadoRrhhPage = () => {
@@ -170,24 +168,15 @@ const EstadoRrhhPage = () => {
   return (
     <RequireEmpresa>
       <div className="flex flex-col gap-6 sm:gap-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
-              Estado de RRHH
-            </h1>
-            <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-              Qué tan completa está la gestión de tu equipo y qué conviene
-              resolver primero. Todo lo que ves acá sale de los datos que ya
-              están cargados: no hay nada que completar en esta pantalla.
-            </p>
-          </div>
-          {cEmpleados.fase !== 'error' && !cargando && estado.evaluados > 0 && (
-            <SelectorVistaEstado
-              vista={vista}
-              onElegir={elegirVista}
-              pendientes={prioritarias.length}
-            />
-          )}
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-[1.75rem]">
+            Estado de RRHH
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
+            Qué tan completa está la gestión de tu equipo y qué conviene
+            resolver primero. Todo lo que ves acá sale de los datos que ya están
+            cargados: no hay nada que completar en esta pantalla.
+          </p>
         </div>
 
         {cEmpleados.fase === 'error' && cEmpleados.error ? (
@@ -266,6 +255,7 @@ const EstadoRrhhPage = () => {
 
             <VistasPendientes
               vista={vista}
+              onElegir={elegirVista}
               estado={estado}
               prioritarias={prioritarias}
             />

@@ -2,13 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  Icon,
-  IconArrowNarrowRight,
-  IconLayoutGrid,
-  IconList,
-} from '@tabler/icons-react';
+import { IconArrowLeft, IconArrowNarrowRight } from '@tabler/icons-react';
 import { Panel } from '@/components/app/Panel';
+import { Boton } from '@/components/app/ui/Boton';
 import { TarjetaArea } from '@/components/app/estado/TarjetaArea';
 import { DetalleAreaDrawer } from '@/components/app/estado/DetalleAreaDrawer';
 import { ClaveArea, EstadoRrhh, SituacionAgrupada } from '@/lib/estadoRrhh';
@@ -16,91 +12,27 @@ import { ClaveArea, EstadoRrhh, SituacionAgrupada } from '@/lib/estadoRrhh';
 export type VistaEstado = 'area' | 'resolver';
 
 /**
- * Navegación entre las dos miradas del Estado de RRHH.
+ * El cuerpo del Estado de RRHH: el mapa por área, y adentro el camino
+ * a la lista de acciones.
  *
- * Va junto al título de la pantalla, no adentro del contenido: es "dónde
- * estoy", no un bloque más. Por área es la entrada —esta pantalla se
- * llama Estado—. Qué resolver es la otra parada, con el número a la
- * vista para que no haya que adivinar si hay algo. El selector no se
- * esconde cuando la lista está vacía: la pantalla no puede cambiar de
- * forma según el humor de los legajos.
- */
-export const SelectorVistaEstado = ({
-  vista,
-  onElegir,
-  pendientes,
-}: {
-  vista: VistaEstado;
-  onElegir: (vista: VistaEstado) => void;
-  pendientes: number;
-}) => (
-  <div
-    role="group"
-    aria-label="Vista del estado de RRHH"
-    className="flex w-full items-stretch gap-1 rounded-xl border border-line bg-paper p-1 sm:w-auto"
-  >
-    <TabVista
-      activa={vista === 'area'}
-      onClick={() => onElegir('area')}
-      icono={IconLayoutGrid}
-      etiqueta="Por área"
-    />
-    <TabVista
-      activa={vista === 'resolver'}
-      onClick={() => onElegir('resolver')}
-      icono={IconList}
-      etiqueta="Qué resolver"
-      cuenta={pendientes}
-    />
-  </div>
-);
-
-const TabVista = ({
-  activa,
-  onClick,
-  icono: Icono,
-  etiqueta,
-  cuenta,
-}: {
-  activa: boolean;
-  onClick: () => void;
-  icono: Icon;
-  etiqueta: string;
-  cuenta?: number;
-}) => (
-  <button
-    type="button"
-    aria-pressed={activa}
-    onClick={onClick}
-    className={`inline-flex min-h-10 flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 text-[0.8125rem] font-semibold transition-colors sm:flex-none ${
-      activa
-        ? 'bg-surface text-brand-700 shadow-soft'
-        : 'bg-transparent text-ink-soft hover:text-ink'
-    }`}
-  >
-    <Icono size={16} stroke={2.2} className="shrink-0" />
-    {etiqueta}
-    {cuenta !== undefined && cuenta > 0 && (
-      <span className="rounded-full bg-brand-100 px-1.5 py-0.5 text-[0.65rem] font-bold tabular-nums text-brand-800">
-        {cuenta}
-      </span>
-    )}
-  </button>
-);
-
-/**
- * El cuerpo según la vista elegida.
+ * Las pestañas junto al título quedaban fuera de la mirada: quien entra
+ * lee el cartel, los números y el bloque "Por área". El botón vive en
+ * ese bloque, donde ya se está. No va en cada tarjeta —"Qué resolver"
+ * agrupa por tipo de falta, no por área; el detalle de un área ya abre
+ * el panel de al lado—.
  *
- * No son dos secciones apiladas ni dos columnas peleando: es una u
- * otra, como el historial de fichadas. El mapa es el estado; la lista
- * es el índice hacia las pantallas donde se arregla cada falta.
+ * Tampoco es un popup: la lista manda a otras pantallas, y un modal que
+ * se cierra al salir era un paso de más. El bloque cambia de contenido
+ * y el mismo lugar del botón pasa a ser "Volver a las áreas".
  */
 export const VistasPendientes = ({
   vista,
+  onElegir,
   estado,
   prioritarias,
 }: {
   vista: VistaEstado;
+  onElegir: (vista: VistaEstado) => void;
   estado: EstadoRrhh;
   prioritarias: SituacionAgrupada[];
 }) => {
@@ -118,6 +50,16 @@ export const VistasPendientes = ({
         <Panel
           titulo="Qué resolver primero"
           descripcion="Ordenado por lo que frena y por cuánta gente afecta. Cada línea lleva a la pantalla donde se arregla."
+          acciones={
+            <Boton
+              variante="secundario"
+              tamano="sm"
+              onClick={() => onElegir('area')}
+            >
+              <IconArrowLeft size={16} />
+              Volver a las áreas
+            </Boton>
+          }
         >
           {prioritarias.length > 0 ? (
             <ListaPrioritarias prioritarias={prioritarias} />
@@ -132,6 +74,16 @@ export const VistasPendientes = ({
         <Panel
           titulo="Por área"
           descripcion="El porcentaje es el de los legajos activos sin pendientes en esa área. Sólo se muestran las áreas que tu empresa usa."
+          acciones={
+            prioritarias.length > 0 ? (
+              <Boton tamano="sm" onClick={() => onElegir('resolver')}>
+                Qué resolver
+                <span className="rounded-full bg-white/90 px-1.5 py-0.5 text-[0.65rem] font-bold tabular-nums text-brand-800">
+                  {prioritarias.length}
+                </span>
+              </Boton>
+            ) : undefined
+          }
         >
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {estado.areas.map((a) => (
