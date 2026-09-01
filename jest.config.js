@@ -20,8 +20,14 @@ const customJestConfig = {
      * En jsdom, `exceljs` resuelve `uuid` a su build ESM y Jest no lo
      * puede parsear. `uuid` publica un CJS al lado; se apunta ahí. Sin
      * esto no se puede probar nada que lea o escriba planillas.
+     *
+     * La ruta es del build CJS de Node. En uuid 8 estaba en `dist/`; en
+     * 11 pasó a `dist/cjs/` (hay además `cjs-browser`, que usa la
+     * criptografía del navegador). Si un día vuelve a mudarse, el
+     * síntoma es un "Cannot find module" en todos los tests de planillas
+     * a la vez.
      */
-    '^uuid$': '<rootDir>/node_modules/uuid/dist/index.js',
+    '^uuid$': '<rootDir>/node_modules/uuid/dist/cjs/index.js',
     // Dependencia opcional de supabase-js (buckets analíticos): no la usamos.
     '^iceberg-js$': '<rootDir>/src/tests/mocks/moduloVacio.js',
     // En jsdom las animaciones no aportan nada y la librería real sólo

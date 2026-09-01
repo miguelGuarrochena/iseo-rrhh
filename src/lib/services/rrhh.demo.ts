@@ -22,6 +22,7 @@ import {
   Empleado,
   Empresa,
   EmpresaResumen,
+  LIMITE_EMPRESAS_INICIO,
   ErrorApp,
   EventoAgenda,
   Feriado,
@@ -187,6 +188,26 @@ export const getEmpresas = async (): Promise<EmpresaResumen[]> =>
       empleadosActivos: empleadosActivosDe(empresa.id),
     }))
   );
+
+/**
+ * Equivalente en memoria de `getEmpresasInicio`: las más nuevas, con
+ * tope. El recorte acá no es un `slice` sobre una consulta grande —los
+ * mocks ya están en el proceso—; en Supabase el tope va en el SQL.
+ */
+export const getEmpresasInicio = async (): Promise<EmpresaResumen[]> => {
+  const recientes = [...empresasMock]
+    .sort((a, b) => {
+      const porFecha = b.creadaEn.localeCompare(a.creadaEn);
+      return porFecha !== 0 ? porFecha : b.id.localeCompare(a.id);
+    })
+    .slice(0, LIMITE_EMPRESAS_INICIO);
+  return simular(
+    recientes.map((empresa) => ({
+      empresa,
+      empleadosActivos: empleadosActivosDe(empresa.id),
+    }))
+  );
+};
 
 export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
   const nueva: Empresa = {

@@ -29,7 +29,7 @@
     "d3-org-chart": "^3.1.1",
     "exceljs": "^4.4.0",
     "framer-motion": "^10.16.16",
-    "next": "^14.2.35",
+    "next": "^15.5.25",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.1.200",
     "react": "^18.2.0",
@@ -40,8 +40,9 @@
   "devDependencies": {
     "@playwright/test": "^1.61.1",
     "@tensorflow/tfjs-backend-wasm": "^4.22.0",
+    "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.1.5",
-    "@testing-library/react": "^14.1.2",
+    "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.5.1",
     "@types/jest": "^29.5.11",
     "@types/node": "^20.10.6",
@@ -52,13 +53,13 @@
     "autoprefixer": "^10.4.16",
     "baseline-browser-mapping": "^2.10.42",
     "eslint": "^8.56.0",
-    "eslint-config-next": "^14.0.4",
+    "eslint-config-next": "^15.5.25",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-prettier": "^5.1.2",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "pg": "^8.13.1",
-    "postcss": "^8.4.32",
+    "postcss": "^8.5.26",
     "postcss-preset-mantine": "^1.12.0",
     "postcss-simple-vars": "^7.0.1",
     "prettier": "^3.1.1",
@@ -69,5 +70,13 @@
   "engines": {
     "node": "22.x",
     "npm": ">=9.0.0"
+  },
+  "//overrides": [
+    "postcss: next lo fija en 8.4.31 exacto, y ahí viven 4 advisories —más el nanoid vulnerable, que entra como dependencia suya—. Next no suelta ese pin ni en 15.5.x, así que se fuerza por override a la misma versión que ya usa el build local ($postcss = la devDependency de arriba). Es un minor sobre 8.4.31: misma API, y el build de producción lo ejercita entero vía Tailwind y postcss-preset-mantine. Si algún día next actualiza su pin, esto se puede borrar.",
+    "uuid: exceljs 4.4.0 lo pide en ^8, que es donde vive GHSA-w5hq-g745-h8pq. exceljs lo usa en un solo lugar (`const {v4} = require('uuid')`, en cf-rule-ext-xform.js): esa es la API moderna y sigue existiendo en v11. El fix que propone npm es *bajar* exceljs a 3.4.0, que es peor que la vulnerabilidad. Ojo: v11 mudó el build CJS de dist/ a dist/cjs/, y jest.config.js apunta ahí."
+  ],
+  "overrides": {
+    "postcss": "$postcss",
+    "uuid": "^11.1.1"
   }
 }

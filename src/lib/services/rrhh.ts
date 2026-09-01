@@ -46,6 +46,10 @@ export const getUsuariosDemo = demo.getUsuariosDemo;
 // ---------- Empresa ----------
 export const getEmpresa = elegir(real.getEmpresa, demo.getEmpresa);
 export const getEmpresas = elegir(real.getEmpresas, demo.getEmpresas);
+export const getEmpresasInicio = elegir(
+  real.getEmpresasInicio,
+  demo.getEmpresasInicio
+);
 export const crearEmpresa = elegir(real.crearEmpresa, demo.crearEmpresa);
 export const cambiarEstadoEmpresa = elegir(
   real.cambiarEstadoEmpresa,

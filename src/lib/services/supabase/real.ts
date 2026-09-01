@@ -24,6 +24,7 @@ import {
   Empleado,
   Empresa,
   EmpresaResumen,
+  LIMITE_EMPRESAS_INICIO,
   ErrorApp,
   EstadoComunicacion,
   Feriado,
@@ -320,6 +321,30 @@ export const getEmpresas = async (): Promise<EmpresaResumen[]> => {
     empresa: aEmpresa(f),
     empleadosActivos: conteo.get(f.id) ?? 0,
   }));
+};
+
+/**
+ * Las N empresas más nuevas, para el inicio del superadmin.
+ *
+ * El límite va en la consulta (`order` + `limit`): no se trae el
+ * catálogo entero para recortarlo después. El plantel se cuenta sólo
+ * de esas filas, con `count`/`head`, para no bajar todos los empleados.
+ */
+export const getEmpresasInicio = async (): Promise<EmpresaResumen[]> => {
+  const { data, error } = await sb()
+    .from('empresas')
+    .select('*')
+    .order('creada_en', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(LIMITE_EMPRESAS_INICIO);
+  if (error) throw new Error(error.message);
+  const filas = data ?? [];
+  return Promise.all(
+    filas.map(async (f) => ({
+      empresa: aEmpresa(f),
+      empleadosActivos: await getEmpleadosDeEmpresaCount(f.id),
+    }))
+  );
 };
 
 export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {

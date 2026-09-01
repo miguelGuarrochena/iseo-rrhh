@@ -225,6 +225,12 @@ export interface EmpresaResumen {
   empleadosActivos: number;
 }
 
+/**
+ * Tope del preview en el inicio del superadmin. El catálogo con
+ * búsqueda, filtros y paginación está en `/empresas`.
+ */
+export const LIMITE_EMPRESAS_INICIO = 8;
+
 /** Configuración general de la plataforma (superadmin) */
 export interface ConfigPlataforma {
   /** valores por defecto al crear una empresa nueva */

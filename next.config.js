@@ -1,7 +1,17 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
+  /*
+   * Next 15 deduce solo la raíz del workspace y, si encuentra más de un
+   * lockfile, elige la del ancestro común. En una máquina con un
+   * `package-lock.json` suelto en el home terminaba tomando el home como
+   * raíz y avisando por consola en cada build. Fijarla acá la vuelve
+   * siempre la del repo, que es la única correcta, y evita que el
+   * trazado de archivos salga a mirar afuera del proyecto.
+   */
+  outputFileTracingRoot: path.join(__dirname),
   experimental: {
     optimizePackageImports: ['@mantine/core', '@mantine/hooks'],
   },

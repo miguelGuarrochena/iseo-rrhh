@@ -28,7 +28,7 @@ import {
   getEmpleado,
   getEmpleados,
   getEmpleadosConCuenta,
-  getEmpresas,
+  getEmpresasInicio,
   getEventosProximos,
   getFichajesDeHoy,
   getJornadas,
@@ -106,7 +106,7 @@ const DashboardPage = () => {
   });
   const metricas = cMetricas.datos ?? null;
 
-  const cEmpresas = useCarga(() => getEmpresas(), [], {
+  const cEmpresas = useCarga(() => getEmpresasInicio(), [], {
     activo: esSuperadmin,
     contexto: 'inicio/empresas',
     inicial: [] as EmpresaResumen[],
@@ -359,7 +359,8 @@ const DashboardPage = () => {
         <ListaCard
           titulo="Tus clientes"
           vacio="Sin empresas cargadas."
-          accion={{ etiqueta: 'Ver empresas', href: '/empresas' }}
+          accion={{ etiqueta: 'Ver todas', href: '/empresas' }}
+          tieneItems={empresas.length > 0}
         >
           {empresas.map(({ empresa, empleadosActivos }) => (
             <ListaItem

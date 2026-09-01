@@ -71,6 +71,21 @@ const abrir = async (inicial?: Empleado) => {
   return onGuardar;
 };
 
+/**
+ * Para los casos que sólo miran lo que se ve al montar.
+ *
+ * Al montarse, el formulario pide la lista de supervisores (`useCarga` +
+ * `getEmpleados`). Esa promesa resuelve *después* del cuerpo síncrono
+ * del test, así que el `setState` que trae cae fuera de `act(...)` y
+ * React avisa —y el test termina mirando un componente que todavía se
+ * estaba acomodando—. Esperar al botón deja la carga cerrada antes de
+ * cualquier assert.
+ */
+const montar = async (ui: React.ReactElement) => {
+  render(ui);
+  await screen.findByRole('button', { name: /guardar/i });
+};
+
 const guardar = () =>
   userEvent.click(screen.getByRole('button', { name: /^guardar$/i }));
 
@@ -135,34 +150,34 @@ describe('control horario en el formulario del legajo', () => {
 
   afterEach(() => modulosMock.mockReturnValue({}));
 
-  it('con Fichaje encendido pide el modo de fichaje', () => {
+  it('con Fichaje encendido pide el modo de fichaje', async () => {
     modulosMock.mockReturnValue({ fichaje: true });
-    render(<FormEmpleado {...props} />);
+    await montar(<FormEmpleado {...props} />);
     expect(screen.getByText('Fichaje')).toBeInTheDocument();
     // `CampoSelect` no asocia el label por `htmlFor`, así que se busca
     // el texto: lo que importa es que el campo esté a la vista.
     expect(screen.getByText('Modo de fichaje')).toBeInTheDocument();
   });
 
-  it('con Fichaje apagado no pregunta nada de fichaje', () => {
+  it('con Fichaje apagado no pregunta nada de fichaje', async () => {
     // Es el pedido del cliente: en una empresa administrativa, ver
     // campos de control horario da la impresión de que la app viene a
     // controlar horarios.
     modulosMock.mockReturnValue({ fichaje: false });
-    render(<FormEmpleado {...props} />);
+    await montar(<FormEmpleado {...props} />);
     expect(screen.queryByText('Modo de fichaje')).not.toBeInTheDocument();
     expect(screen.queryByText('Fichaje')).not.toBeInTheDocument();
   });
 
-  it('ofrece marcar a quien no registra asistencia', () => {
+  it('ofrece marcar a quien no registra asistencia', async () => {
     modulosMock.mockReturnValue({ fichaje: true });
-    render(<FormEmpleado {...props} />);
+    await montar(<FormEmpleado {...props} />);
     expect(screen.getByText('No registra asistencia')).toBeInTheDocument();
   });
 
-  it('con Fichaje apagado no ofrece la marca: no hay asistencia que registrar', () => {
+  it('con Fichaje apagado no ofrece la marca: no hay asistencia que registrar', async () => {
     modulosMock.mockReturnValue({ fichaje: false });
-    render(<FormEmpleado {...props} />);
+    await montar(<FormEmpleado {...props} />);
     expect(
       screen.queryByText('No registra asistencia')
     ).not.toBeInTheDocument();
@@ -182,9 +197,9 @@ describe('control horario en el formulario del legajo', () => {
     );
   });
 
-  it('un legajo ya marcado abre con la marca puesta', () => {
+  it('un legajo ya marcado abre con la marca puesta', async () => {
     modulosMock.mockReturnValue({ fichaje: true });
-    render(
+    await montar(
       <FormEmpleado
         {...props}
         inicial={{ ...enBlanco, sinFichaje: true } as Empleado}
@@ -196,12 +211,12 @@ describe('control horario en el formulario del legajo', () => {
     expect(screen.queryByText('Modo de fichaje')).not.toBeInTheDocument();
   });
 
-  it('pero el acceso a la app se sigue pudiendo definir', () => {
+  it('pero el acceso a la app se sigue pudiendo definir', async () => {
     // `sinUsuario` no es de fichaje: decide si la persona tiene cuenta.
     // Esconderlo junto con lo demás sería perder una decisión que la
     // empresa igual necesita tomar.
     modulosMock.mockReturnValue({ fichaje: false });
-    render(<FormEmpleado {...props} />);
+    await montar(<FormEmpleado {...props} />);
     expect(screen.getByText('Acceso a la app')).toBeInTheDocument();
     expect(
       screen.getByText(/no le vamos a dar cuenta en la app/i)
