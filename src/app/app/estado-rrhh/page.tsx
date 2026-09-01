@@ -33,11 +33,11 @@ import { Empleado } from '@/types/rrhh';
  * números; esta pantalla sólo los dibuja.
  *
  * Está pensada para responder cuatro preguntas en ese orden: ¿está todo
- * bien?, ¿qué requiere atención?, ¿qué es urgente? y ¿qué puedo
+ * bien?, ¿qué requiere atención?, ¿cómo está cada área? y ¿qué puedo
  * solucionar ahora? Por eso lo primero es una sola frase, después los
- * números, y lo que falta se mira en un selector: la lista de acciones
- * o el mapa por área. Apilar las dos escondía el mapa debajo del
- * pliegue. El detalle de un área se abre aparte.
+ * números, después el mapa por área. Los atajos para ir a resolver
+ * viven al lado, no encima: cada uno sale de esta pantalla hacia
+ * donde se arregla. El detalle de un área se abre aparte.
  */
 const EstadoRrhhPage = () => {
   const { rolEfectivo } = useAuth();
@@ -220,6 +220,7 @@ const EstadoRrhhPage = () => {
                 etiqueta="Pendientes"
                 valor={estado.pendientes}
                 detalle="datos por completar en total"
+                href={prioritarias.length > 0 ? '#resolver' : undefined}
               />
               <StatCard
                 etiqueta="Frenan a alguien"
@@ -227,6 +228,7 @@ const EstadoRrhhPage = () => {
                 detalle={
                   estado.bloqueantes > 0 ? 'resolver primero' : 'nada bloqueado'
                 }
+                href={estado.bloqueantes > 0 ? '#resolver' : undefined}
               />
             </div>
 

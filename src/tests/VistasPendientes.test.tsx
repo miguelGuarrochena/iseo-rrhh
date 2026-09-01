@@ -1,6 +1,5 @@
 import React from 'react';
-import { act, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen } from '@testing-library/react';
 import { MantineProvider } from '@mantine/core';
 import { VistasPendientes } from '@/components/app/estado/VistasPendientes';
 import type {
@@ -13,9 +12,9 @@ import type {
  * Cómo se organizan las dos miradas del Estado de RRHH.
  *
  * Lo que se cuida acá no es qué falta —eso lo arma `estadoRrhh.ts`—
- * sino que las dos vistas convivan sin que una esconda a la otra:
- * "Qué resolver" y "Por área" tienen que estar las dos a un click,
- * y si no hay nada que resolver el selector no aparece.
+ * sino que el mapa por área esté siempre a la vista y que los atajos
+ * para ir a resolver no lo reemplacen. Si no hay nada que resolver,
+ * el índice no aparece y el mapa sigue en el mismo lugar.
  */
 
 const area = (over: Partial<AreaEstado> = {}): AreaEstado => ({
@@ -74,21 +73,7 @@ const dibujar = (
   );
 
 describe('VistasPendientes', () => {
-  it('con pendientes muestra las dos vistas en el selector, arranca en la lista', () => {
-    dibujar();
-    expect(
-      screen.getByRole('button', { name: /qué resolver/i })
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /por área/i })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
-    expect(screen.getByText('Sin cuenta')).toBeInTheDocument();
-    expect(screen.queryByText('Quién puede entrar.')).not.toBeInTheDocument();
-  });
-
-  it('cambiar a Por área muestra las tarjetas y esconde la lista', async () => {
-    const user = userEvent.setup();
+  it('con pendientes muestra el mapa y los atajos a la vez', () => {
     dibujar({
       estado: estado([
         area(),
@@ -104,23 +89,24 @@ describe('VistasPendientes', () => {
       ]),
     });
 
-    await act(async () => {
-      await user.click(screen.getByRole('button', { name: /por área/i }));
-    });
-
-    expect(await screen.findByText('Accesos')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /por área/i })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    expect(
+      screen.getByRole('heading', { name: 'Por área' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Qué resolver primero' })
+    ).toBeInTheDocument();
+    expect(screen.getByText('Accesos')).toBeInTheDocument();
     expect(screen.getByText('Liquidación y pagos')).toBeInTheDocument();
-    expect(screen.queryByText('Sin cuenta')).not.toBeInTheDocument();
+    expect(screen.getByText('Sin cuenta')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /invitalo desde colaboradores/i })
+    ).toHaveAttribute('href', '/colaboradores');
   });
 
-  it('si no hay nada que resolver, no arma el selector y va directo al mapa', () => {
+  it('si no hay nada que resolver, el mapa queda y el índice no aparece', () => {
     dibujar({ prioritarias: [] });
     expect(
-      screen.queryByRole('button', { name: /qué resolver/i })
+      screen.queryByRole('heading', { name: 'Qué resolver primero' })
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole('heading', { name: 'Por área' })
