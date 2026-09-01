@@ -247,7 +247,9 @@ const ModulosEmpresaPage = () => {
                     <p className="mt-1 text-xs leading-relaxed text-ink-soft/80">
                       <span className="font-semibold">Si la apagás:</span>{' '}
                       {rompe.map(etiquetaDe).join(' y ')}{' '}
-                      {rompe.length === 1 ? 'queda incompleta' : 'quedan incompletas'}.
+                      {rompe.length === 1
+                        ? 'queda incompleta.'
+                        : 'quedan incompletas.'}
                     </p>
                   )}
                 </div>
@@ -371,8 +373,8 @@ const ModulosEmpresaPage = () => {
           </span>
         </label>
         <p className="mt-3 text-xs leading-relaxed text-ink-soft">
-          Es el mismo control que ve RRHH en su Configuración: si lo cambian
-          de su lado, acá se ve cambiado. No se cobra aparte.
+          Es el mismo control que ve RRHH en su Configuración: si lo cambian de
+          su lado, acá se ve cambiado. No se cobra aparte.
         </p>
       </Panel>
 
