@@ -74,8 +74,8 @@ export const DetalleAreaDrawer = ({
             </p>
             {area.cumplimientoPct !== undefined && (
               <p className={`text-sm font-semibold ${c.texto}`}>
-                {area.cumplimientoPct}% de los legajos del área no tiene ningún
-                pendiente
+                El {area.cumplimientoPct}% de los legajos de esta área está al
+                día
               </p>
             )}
           </div>

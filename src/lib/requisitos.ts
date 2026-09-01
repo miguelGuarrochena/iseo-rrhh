@@ -254,7 +254,7 @@ const REGLAS: Regla[] = [
     severidad: 'avisa',
     titulo: 'Sin supervisor',
     detalle:
-      'No cuelga de nadie en el organigrama y sus pedidos de ausencia no le llegan a ningún supervisor: los tiene que resolver RRHH.',
+      'No reporta a nadie en el organigrama, así que sus pedidos de ausencia no le llegan a ningún supervisor: los tiene que resolver RRHH.',
     comoSeArregla: 'Asignale un supervisor en la ficha.',
     ruta: fichaDe,
     falta: (e) => !e.supervisorId,

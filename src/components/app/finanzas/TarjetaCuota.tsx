@@ -43,7 +43,7 @@ const CHIP: Record<EstadoCuota, { etiqueta: string; clase: string }> = {
     clase: 'bg-emerald-100 text-emerald-800',
   },
   parcial: {
-    etiqueta: 'Pago a medias',
+    etiqueta: 'Pago parcial',
     clase: 'border border-line bg-surface text-ink',
   },
   impaga: {

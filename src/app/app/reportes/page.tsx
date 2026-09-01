@@ -178,7 +178,7 @@ const ReportesPage = () => {
             Reportes
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            La foto general de tus clientes.
+            Una vista general de tus clientes.
           </p>
         </div>
 

@@ -133,7 +133,7 @@ const EstadoRrhhPage = () => {
           ? 'A 1 persona le falta algo'
           : `A ${estado.personasConPendientes} personas les falta algo`,
       texto:
-        'Nada está roto: se puede seguir trabajando. Son datos que conviene completar para que la app haga lo que promete.',
+        'Se puede seguir trabajando. Conviene completar estos datos para que todo funcione como corresponde.',
       clase: 'border-brand-200 bg-paper',
       icono: 'bg-brand-100 text-brand-700',
       Icono: IconProgressCheck,
@@ -144,7 +144,7 @@ const EstadoRrhhPage = () => {
           ? 'Hay 1 situación que frena a alguien'
           : `Hay ${estado.bloqueantes} situaciones que frenan a alguien`,
       texto:
-        'Esto no es una mejora pendiente: hay gente que no puede hacer lo que tendría que poder. Resolvelo antes que el resto.',
+        'Hay gente que no puede hacer lo que tendría que poder. Resolvelo antes que el resto.',
       clase: 'border-red-200 bg-red-50',
       icono: 'bg-red-100 text-red-700',
       Icono: IconAlertTriangle,
@@ -243,7 +243,7 @@ const EstadoRrhhPage = () => {
             {prioritarias.length > 0 && (
               <Panel
                 titulo="Qué resolver primero"
-                descripcion="Ordenado por lo que frena y por a cuánta gente afecta. Cada línea lleva a la pantalla donde se arregla."
+                descripcion="Ordenado por lo que frena y por cuánta gente afecta. Cada línea lleva a la pantalla donde se arregla."
               >
                 <ul className="flex list-none flex-col gap-2.5">
                   {prioritarias.map((s) => (
@@ -302,7 +302,7 @@ const EstadoRrhhPage = () => {
             {/* ¿Qué requiere atención, por área? */}
             <Panel
               titulo="Por área"
-              descripcion="El porcentaje son los legajos activos sin ningún pendiente en esa área. Sólo se muestran las áreas que tu empresa usa."
+              descripcion="El porcentaje es el de los legajos activos sin pendientes en esa área. Sólo se muestran las áreas que tu empresa usa."
             >
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {estado.areas.map((a) => (

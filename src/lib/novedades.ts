@@ -394,7 +394,7 @@ export const armarNovedades = (datos: DatosNovedades): NovedadesPeriodo => {
       clave: 'ausencias',
       etiqueta: 'Licencias y ausencias',
       descripcion:
-        'Aprobadas que tocan el período, con los días que caen dentro del mes y si se pagan o no.',
+        'Licencias y ausencias aprobadas de este período, con los días que caen dentro del mes y si se pagan o no.',
       items: ausencias,
       total: sumar(ausencias),
       unidad: 'dias',
@@ -437,7 +437,7 @@ export const armarNovedades = (datos: DatosNovedades): NovedadesPeriodo => {
     {
       clave: 'adelantos',
       etiqueta: 'Adelantos',
-      descripcion: 'Aprobados para descontar en este período.',
+      descripcion: 'Adelantos aprobados para descontar en este período.',
       items: adelantos,
       total: sumar(adelantos),
       unidad: 'pesos',
@@ -460,7 +460,7 @@ export const armarNovedades = (datos: DatosNovedades): NovedadesPeriodo => {
     {
       clave: 'sueldos',
       etiqueta: 'Cambios de sueldo',
-      descripcion: `Brutos que cambiaron contra ${formatearPeriodo(anterior).toLowerCase()}.`,
+      descripcion: `Sueldos brutos que cambiaron respecto de ${formatearPeriodo(anterior).toLowerCase()}.`,
       items: sueldos,
       total: sumar(sueldos),
       unidad: 'pesos',

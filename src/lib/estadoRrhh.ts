@@ -97,7 +97,7 @@ export const AREAS: AreaInfo[] = [
   {
     clave: 'empresa',
     etiqueta: 'Datos de la empresa',
-    descripcion: 'La configuración de la que cuelga el resto.',
+    descripcion: 'La configuración de la que depende el resto.',
     ambitos: [],
     modulos: [],
   },

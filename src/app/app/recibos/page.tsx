@@ -443,7 +443,7 @@ const RecibosPage = () => {
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             {soloPropios
               ? 'Consultá y firmá tus recibos con validez digital.'
-              : 'Estado de firmas del equipo.'}
+              : 'Cargá los recibos y seguí las firmas del equipo.'}
           </p>
         </div>
         {rolEfectivo === 'admin_rrhh' && (

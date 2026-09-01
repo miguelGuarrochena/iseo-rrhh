@@ -247,7 +247,7 @@ const ModulosEmpresaPage = () => {
                     <p className="mt-1 text-xs leading-relaxed text-ink-soft/80">
                       <span className="font-semibold">Si la apagás:</span>{' '}
                       {rompe.map(etiquetaDe).join(' y ')}{' '}
-                      {rompe.length === 1 ? 'queda' : 'quedan'} a medias.
+                      {rompe.length === 1 ? 'queda incompleta' : 'quedan incompletas'}.
                     </p>
                   )}
                 </div>
@@ -341,7 +341,7 @@ const ModulosEmpresaPage = () => {
         </div>
 
         <p className="mt-4 text-xs leading-relaxed text-ink-soft">
-          Sólo vos podés cambiar esto: el cliente no ve el interruptor y la base
+          Sólo vos podés cambiar esto: el cliente no ve este control y la base
           rechaza el cambio si lo intenta por otro lado.
         </p>
       </Panel>
@@ -371,7 +371,7 @@ const ModulosEmpresaPage = () => {
           </span>
         </label>
         <p className="mt-3 text-xs leading-relaxed text-ink-soft">
-          Es el mismo interruptor que ve RRHH en su Configuración: si lo cambian
+          Es el mismo control que ve RRHH en su Configuración: si lo cambian
           de su lado, acá se ve cambiado. No se cobra aparte.
         </p>
       </Panel>

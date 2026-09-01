@@ -171,9 +171,9 @@ export const MODULOS_OPCIONALES: ModuloInfo[] = [
     clave: 'fichaje',
     etiqueta: 'Fichaje',
     descripcion:
-      'Registro de entrada y salida por celular, tablet con reconocimiento facial o carga manual. Es el interruptor del control horario: apagarlo saca de toda la app las horas, las horas extras, las llegadas tarde y el enrolamiento de rostro.',
+      'Registro de entrada y salida por celular, tablet con reconocimiento facial o carga manual. Si lo apagás, desaparecen de toda la app las horas, las horas extras, las llegadas tarde y el enrolamiento de rostro.',
     cuandoApagarla:
-      'Si la empresa no controla horario: administrativas, equipos por objetivos, todos remotos o gente que factura por su cuenta. En esos casos conviene apagarlo desde el principio — ver columnas de horas en cero da la impresión de que la app viene a controlar horarios.',
+      'Si la empresa no controla horario: administrativas, equipos por objetivos, todos remotos o gente que factura por su cuenta. Conviene apagarlo desde el principio: si no, aparecen columnas de horas en cero y parece que la app vino a controlar horarios.',
   },
   {
     clave: 'turnos',
@@ -189,7 +189,7 @@ export const MODULOS_OPCIONALES: ModuloInfo[] = [
     descripcion:
       'Pedidos de vacaciones y licencias, con aprobación, saldo por antigüedad y calendario del equipo.',
     cuandoApagarla:
-      'Casi nunca. Es de las que más se usan aun en empresas chicas.',
+      'Casi nunca. Es de las que más se usan aún en empresas chicas.',
   },
   {
     clave: 'recibos',
@@ -218,9 +218,9 @@ export const MODULOS_OPCIONALES: ModuloInfo[] = [
   {
     clave: 'organigrama',
     etiqueta: 'Organigrama',
-    descripcion: 'Vista del "reporta a" de cada colaborador.',
+    descripcion: 'Quién reporta a quién.',
     cuandoApagarla:
-      'Si no hay una estructura de supervisión armada: queda un dibujo plano que no aporta.',
+      'Si no hay una estructura de supervisión: el organigrama no aporta mucho.',
   },
   {
     clave: 'convenio',

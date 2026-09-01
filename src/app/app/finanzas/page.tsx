@@ -195,7 +195,7 @@ const FinanzasPage = () => {
             Finanzas
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            Cuánto te pagan las empresas, y en qué se te va la plata.
+            Lo que te pagan las empresas y en qué se gasta.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">

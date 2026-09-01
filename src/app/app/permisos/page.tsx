@@ -313,7 +313,7 @@ const PermisosPage = () => {
             Permisos
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
-            Quién puede entrar a la plataforma, con qué rol y como quién.
+            Quién puede entrar, con qué rol y a qué colaborador está vinculado.
           </p>
         </div>
         <Boton variante="negro" onClick={open}>
