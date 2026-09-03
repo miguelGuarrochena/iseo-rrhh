@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enviarEmail } from '@/lib/email/resend';
+import { emailDeEmpleado } from '@/lib/api/emailVigente';
 import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 
 /**
@@ -51,22 +52,6 @@ const plantilla = (titulo: string, cuerpo: string, ruta: string) => `
     <p style="font-size:12px;color:#9a98a6;margin:24px 0 0">Recibís este aviso porque tenés una cuenta en ISEO RH.</p>
   </div>
 `;
-
-type Admin = ReturnType<typeof supabaseAdmin>;
-
-/** Email del usuario dueño de un legajo (si tiene cuenta). */
-const emailDeEmpleado = async (
-  admin: Admin,
-  empleadoId: string
-): Promise<string[]> => {
-  const { data } = await admin
-    .from('usuarios')
-    .select('email')
-    .eq('empleado_id', empleadoId)
-    .maybeSingle();
-  const email = data?.email as string | undefined;
-  return email ? [email] : [];
-};
 
 export const POST = async (req: Request) => {
   const token = req.headers.get('authorization')?.replace('Bearer ', '');

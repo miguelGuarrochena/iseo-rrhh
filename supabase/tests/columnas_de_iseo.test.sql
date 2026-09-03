@@ -1,5 +1,5 @@
 -- ============================================================
--- Migración 101: corte por columna en `empresas`.
+-- Migraciones 101 y 111: corte por columna (y por clave) en `empresas`.
 --
 --   docker exec -i supabase_db_iseo-rrhh psql -U postgres -d postgres \
 --     -v ON_ERROR_STOP=1 -f supabase/tests/columnas_de_iseo.test.sql
@@ -11,6 +11,11 @@
 -- Este archivo reemplaza a `servicios_contratados.test.sql`: la
 -- migración 101 absorbió el trigger de `servicios`, así que los dos
 -- casos viven acá y no en dos lugares que pueden divergir.
+--
+-- La migración 111 sumó un corte más fino: `config` sigue siendo del
+-- cliente, pero la clave `config.modulos` —las secciones activas, o sea
+-- el alcance contratado— es de ISEO. Los casos están abajo, junto a los
+-- de las columnas comerciales.
 -- ============================================================
 
 \set ON_ERROR_STOP on
@@ -118,10 +123,16 @@ declare
     'contacto_email = ''b@b.com''',
     'contacto_telefono = ''11-2222''',
     'logo_url = ''https://x/logo.png''',
-    -- `config` incluye horarios, cargas patronales, vacaciones, resumen
-    -- semanal y los módulos que la empresa decide apagar.
+    -- `config` incluye horarios, cargas patronales, vacaciones y resumen
+    -- semanal. Todo eso sigue siendo del cliente.
     'config = config || ''{"horaEntrada":"09:00"}''::jsonb',
-    'config = config || ''{"modulos":{"organigrama":false}}''::jsonb'
+    'config = config || ''{"toleranciaLlegadaTardeMin":15}''::jsonb',
+    'config = config || ''{"resumenSemanal":false}''::jsonb',
+    -- Reescribir `config` entero sin tocar `modulos` tiene que pasar:
+    -- es literalmente lo que hace `actualizarConfigEmpresa`.
+    'config = ''{"horaEntrada":"08:30","horaSalida":"17:30",
+                 "toleranciaLlegadaTardeMin":5,"diasAvisoVencimiento":45,
+                 "metodosFichaje":["celular"]}''::jsonb'
   ];
   c text;
 begin
@@ -148,7 +159,18 @@ declare
     'servicios = ''{"asesoria": true}''::jsonb',
     -- Apaga la retención de aportes de ley en el neto que se muestra.
     'regimen = ''simplificado''',
-    'creada_en = now() - interval ''5 years'''
+    'creada_en = now() - interval ''5 years''',
+    /*
+     * Migración 111: las secciones activas son el alcance contratado.
+     * La pantalla de Configuración las muestra de sólo lectura, pero la
+     * policy `empresas_update_admin` es de fila: sin el corte por clave,
+     * un PATCH a PostgREST con la clave publishable alcanzaba para
+     * prenderse una sección que ISEO había apagado.
+     */
+    'config = config || ''{"modulos":{"reportes":true}}''::jsonb',
+    'config = config || ''{"modulos":{"organigrama":false}}''::jsonb',
+    -- Ni de canto: reescribir `config` entero metiendo módulos adentro.
+    'config = ''{"horaEntrada":"08:00","modulos":{"recibos":true}}''::jsonb'
   ];
   c text;
 begin
@@ -173,6 +195,89 @@ begin
       and servicios = '{}'::jsonb
   ) then
     raise exception 'FAIL: algo comercial cambió pese al rechazo';
+  end if;
+end $$;
+
+-- =====================================================================
+-- Migración 111: las secciones activas quedan como ISEO las dejó
+--
+-- El escenario real: ISEO apaga Reportes y Organigrama porque no están
+-- en lo contratado, y el admin del cliente intenta prendérselos por
+-- fuera de la app.
+-- =====================================================================
+select pg_temp.as_service();
+
+update empresas
+   set config = config || '{"modulos":{"reportes":false,"organigrama":false}}'::jsonb
+ where id = '55555555-5555-5555-5555-555555555551';
+
+select pg_temp.as_user('55555555-5555-5555-5555-555555555552');
+
+do $$
+begin
+  -- Prender una sección apagada: rechazado.
+  if pg_temp.entra(
+    'update empresas set config = config || ''{"modulos":{"reportes":true}}''::jsonb
+      where id = ''55555555-5555-5555-5555-555555555551'''
+  ) then
+    raise exception 'FAIL: el admin no debería poder prenderse una sección';
+  end if;
+
+  -- Borrar la clave entera para caer al default "todo encendido": lo
+  -- mismo por otro camino, y también rechazado.
+  if pg_temp.entra(
+    'update empresas set config = config - ''modulos''
+      where id = ''55555555-5555-5555-5555-555555555551'''
+  ) then
+    raise exception 'FAIL: borrar `modulos` es prenderlas todas';
+  end if;
+
+  -- Y quedaron apagadas.
+  if not exists (
+    select 1 from empresas
+    where id = '55555555-5555-5555-5555-555555555551'
+      and (config -> 'modulos' ->> 'reportes')::boolean is false
+      and (config -> 'modulos' ->> 'organigrama')::boolean is false
+  ) then
+    raise exception 'FAIL: las secciones cambiaron pese al rechazo';
+  end if;
+end $$;
+
+-- El resto de la config sigue siendo del cliente: guardar horarios con
+-- los módulos tal cual entra, que es lo que hace Configuración.
+do $$
+begin
+  if not pg_temp.entra(
+    'update empresas set config = config || ''{"horaEntrada":"07:00"}''::jsonb
+      where id = ''55555555-5555-5555-5555-555555555551'''
+  ) then
+    raise exception 'FAIL: el admin debería poder guardar el horario';
+  end if;
+  if not exists (
+    select 1 from empresas
+    where id = '55555555-5555-5555-5555-555555555551'
+      and config ->> 'horaEntrada' = '07:00'
+      and (config -> 'modulos' ->> 'reportes')::boolean is false
+  ) then
+    raise exception 'FAIL: el horario no se guardó, o se perdieron los módulos';
+  end if;
+end $$;
+
+-- Clave ausente y objeto vacío son el mismo estado (todo encendido): un
+-- guardado que en realidad no cambia nada no se puede rechazar.
+select pg_temp.as_service();
+update empresas set config = config - 'modulos'
+ where id = '55555555-5555-5555-5555-555555555551';
+
+select pg_temp.as_user('55555555-5555-5555-5555-555555555552');
+
+do $$
+begin
+  if not pg_temp.entra(
+    'update empresas set config = config || ''{"modulos":{}}''::jsonb
+      where id = ''55555555-5555-5555-5555-555555555551'''
+  ) then
+    raise exception 'FAIL: `{}` y la clave ausente son el mismo estado';
   end if;
 end $$;
 
@@ -251,6 +356,20 @@ begin
   update empresas
      set servicios = '{"asesoria": false}'::jsonb
    where id = '55555555-5555-5555-5555-555555555551';
+
+  -- Las secciones activas sí las mueve: es su pantalla (Empresas →
+  -- Módulos), y es lo que el admin del cliente no puede hacer.
+  update empresas
+     set config = config || '{"modulos":{"reportes":false}}'::jsonb
+   where id = '55555555-5555-5555-5555-555555555551';
+
+  if not exists (
+    select 1 from empresas
+    where id = '55555555-5555-5555-5555-555555555551'
+      and (config -> 'modulos' ->> 'reportes')::boolean is false
+  ) then
+    raise exception 'FAIL: el superadmin debería poder apagar una sección';
+  end if;
 end $$;
 
 -- =====================================================================
@@ -305,7 +424,7 @@ begin
   ) then
     raise exception 'FAIL: sin JWT el trigger no debería frenar';
   end if;
-  raise notice 'OK: columnas_de_iseo (admin, supervisor, superadmin, tenant, service)';
+  raise notice 'OK: columnas_de_iseo (admin, supervisor, superadmin, tenant, service, config.modulos)';
 end $$;
 
 rollback;

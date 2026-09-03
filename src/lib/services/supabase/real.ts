@@ -71,6 +71,7 @@ import type {
   NuevoEvento,
   NuevoUsuario,
 } from '@/lib/services/rrhh.demo';
+import type { CuentaConsultadaDeEmpleado } from '@/lib/api/cambioDeEmail';
 import { mensajeDeErrorDb } from '@/lib/erroresDb';
 import { registrarErrorApp } from '@/lib/erroresApp';
 import {
@@ -566,13 +567,31 @@ export const actualizarEmpresa = async (
   return empresaActualizada;
 };
 
+/**
+ * Lo que la empresa administra de sí misma: horarios, tolerancia, cargas,
+ * vacaciones, alertas y resumen semanal.
+ *
+ * `modulos` viaja adentro del mismo JSONB pero NO es del cliente: define
+ * qué secciones tiene contratadas y sólo lo toca ISEO desde Empresas →
+ * Módulos. Se reescribe con lo que hay guardado en vez de con lo que trae
+ * el formulario: la autoridad la pone el trigger `columnas_de_iseo`
+ * (migración 111), y sin esto un estado de React que perdiera la clave
+ * haría fallar el guardado entero con un error que no se entiende.
+ */
 export const actualizarConfigEmpresa = async (
   config: Empresa['config']
 ): Promise<Empresa> => {
+  const id = empresaId();
+  const { data: actual } = await sb()
+    .from('empresas')
+    .select('config')
+    .eq('id', id)
+    .single();
+  const modulos = (actual?.config as Empresa['config'] | undefined)?.modulos;
   const { data, error } = await sb()
     .from('empresas')
-    .update({ config })
-    .eq('id', empresaId())
+    .update({ config: { ...config, modulos } })
+    .eq('id', id)
     .select()
     .single();
   invalidarEmpresa();
@@ -1267,6 +1286,66 @@ export const quitarAcceso = (email: string): Promise<void> =>
  */
 export const completarAlta = (email: string): Promise<void> =>
   accionDeCuenta('completar', email);
+
+/**
+ * En qué anda la cuenta de un colaborador, para poder avisar en la ficha qué
+ * va a pasar si se le cambia el email antes de que el admin guarde.
+ *
+ * Va por API porque el dato vive en `auth.users`, que el navegador no lee.
+ */
+export const getEstadoDeCuentaDeEmpleado = async (
+  empleadoId: string
+): Promise<CuentaConsultadaDeEmpleado> => {
+  const token = await tokenDeSesion();
+  const res = await fetch(
+    `/api/cuentas?empresa=${empresaId()}&empleado=${encodeURIComponent(empleadoId)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const cuerpo = (await res.json()) as CuentaConsultadaDeEmpleado & {
+    error?: string;
+  };
+  if (!res.ok) {
+    throw new Error(cuerpo.error ?? 'No pudimos leer el estado de la cuenta.');
+  }
+  return {
+    estado: cuerpo.estado,
+    emailDeLaCuenta: cuerpo.emailDeLaCuenta ?? null,
+    emailDeLaFicha: cuerpo.emailDeLaFicha ?? '',
+  };
+};
+
+/**
+ * Cambia el email de un colaborador en todos lados a la vez.
+ *
+ * Editar la ficha escribía sólo `empleados.email`; la invitación y los avisos
+ * se resuelven contra `auth.users` / `usuarios`, así que seguían yendo al
+ * anterior. El servidor decide qué hacer según el estado —actualizar la
+ * identidad si la cuenta ya está activa, o invalidar la invitación pendiente
+ * y mandar una nueva— y nunca borra una cuenta que ya se usó.
+ */
+export const cambiarEmailDeEmpleado = async (
+  empleadoId: string,
+  email: string
+): Promise<void> => {
+  const token = await tokenDeSesion();
+  const res = await fetch('/api/cuentas', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      accion: 'cambiar_email',
+      empleadoId,
+      email,
+      empresaId: empresaId(),
+    }),
+  });
+  if (!res.ok) {
+    const { error } = (await res.json()) as { error?: string };
+    throw new Error(error ?? 'No pudimos cambiar el email.');
+  }
+};
 
 export const invitarUsuario = async (datos: NuevoUsuario): Promise<Usuario> => {
   const token = await tokenDeSesion();

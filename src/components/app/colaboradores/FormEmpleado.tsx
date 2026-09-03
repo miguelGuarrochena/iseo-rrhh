@@ -5,6 +5,7 @@ import { interpretarError } from '@/lib/errores';
 import { campoDeErrorDb } from '@/lib/erroresDb';
 import { avisoError } from '@/lib/avisos';
 import {
+  IconAlertTriangle,
   IconCamera,
   IconMapPin,
   IconPlus,
@@ -40,6 +41,10 @@ import {
   NivelEstudios,
 } from '@/types/rrhh';
 import { useCarga } from '@/lib/useCarga';
+import {
+  MENSAJES_CAMBIO_EMAIL,
+  type CuentaConsultadaDeEmpleado,
+} from '@/lib/api/cambioDeEmail';
 
 const vinculosFamiliar: Record<Familiar['vinculo'], string> = {
   conyuge: 'Cónyuge',
@@ -93,7 +98,49 @@ interface FormEmpleadoProps {
   textoGuardar: string;
   onGuardar: (datos: DatosEmpleado) => Promise<void>;
   onCancelar: () => void;
+  /**
+   * En qué anda la cuenta de este legajo. Sólo en edición, y sólo cuando ya
+   * se pudo consultar: sin esto el campo Email no puede decir si es un dato
+   * de contacto o la llave con la que esa persona entra a la app.
+   */
+  cuenta?: CuentaConsultadaDeEmpleado;
 }
+
+/**
+ * Qué le pasa al email de acceso si se guarda con este valor.
+ *
+ * Se muestra sólo cuando cambió respecto de lo que hay hoy: repetirlo
+ * mientras nadie tocó nada convierte el aviso en ruido de fondo y deja de
+ * leerse justo cuando importa.
+ */
+const avisoDeCambioDeEmail = (
+  cuenta: CuentaConsultadaDeEmpleado | undefined,
+  emailEscrito: string | undefined
+): string | undefined => {
+  if (!cuenta) return undefined;
+  const escrito = (emailEscrito ?? '').trim().toLowerCase();
+  const vigente = (
+    cuenta.emailDeLaCuenta ??
+    cuenta.emailDeLaFicha ??
+    ''
+  ).toLowerCase();
+  if (!escrito || escrito === vigente) return undefined;
+  return MENSAJES_CAMBIO_EMAIL[cuenta.estado];
+};
+
+/**
+ * Con qué email entra hoy esa persona. Es lo que evita el malentendido de
+ * fondo: que el campo parezca un dato de contacto cuando además es la
+ * identidad con la que inicia sesión.
+ */
+const ayudaDeEmail = (
+  cuenta: CuentaConsultadaDeEmpleado | undefined
+): string | undefined => {
+  if (!cuenta || !cuenta.emailDeLaCuenta) return undefined;
+  return cuenta.estado === 'cuenta_activa'
+    ? `Hoy entra a la app con ${cuenta.emailDeLaCuenta}. No se crea una cuenta nueva: se actualiza la que ya tiene.`
+    : `Le mandamos la invitación a ${cuenta.emailDeLaCuenta} y todavía no la usó.`;
+};
 
 const desdeEmpleado = (e: Empleado): DatosEmpleado => ({
   nombre: e.nombre,
@@ -139,6 +186,7 @@ export const FormEmpleado = ({
   textoGuardar,
   onGuardar,
   onCancelar,
+  cuenta,
 }: FormEmpleadoProps) => {
   const modulos = useModulos();
   const conFichaje = moduloActivo('fichaje', modulos);
@@ -172,6 +220,10 @@ export const FormEmpleado = ({
     { contexto: 'alta/supervisores', inicial: [] as Empleado[] }
   );
   const supervisores = cSupervisores.datos;
+
+  const cuentaConAcceso = Boolean(cuenta?.emailDeLaCuenta);
+  const ayudaDelEmail = ayudaDeEmail(cuenta);
+  const avisoDelEmail = avisoDeCambioDeEmail(cuenta, datos.email);
 
   const set = (campo: keyof DatosEmpleado) => (valor: string) =>
     setDatos((prev) => ({ ...prev, [campo]: valor || undefined }));
@@ -481,14 +533,23 @@ export const FormEmpleado = ({
             placeholder="11-5555-0000"
             error={errores.telefono}
           />
-          <Campo
-            etiqueta="Email"
-            type="email"
-            value={datos.email ?? ''}
-            onChange={(e) => set('email')(e.target.value)}
-            placeholder="nombre@email.com"
-            error={errores.email}
-          />
+          <div className="flex flex-col gap-2">
+            <Campo
+              etiqueta={cuentaConAcceso ? 'Email de acceso' : 'Email'}
+              type="email"
+              value={datos.email ?? ''}
+              onChange={(e) => set('email')(e.target.value)}
+              placeholder="nombre@email.com"
+              error={errores.email}
+              ayuda={ayudaDelEmail}
+            />
+            {avisoDelEmail && (
+              <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-900">
+                <IconAlertTriangle size={14} className="mt-0.5 shrink-0" />
+                <span>{avisoDelEmail}</span>
+              </p>
+            )}
+          </div>
         </div>
       </Panel>
 

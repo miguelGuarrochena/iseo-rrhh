@@ -268,6 +268,14 @@ export const reenviarInvitacion = elegir(
 );
 export const quitarAcceso = elegir(real.quitarAcceso, demo.quitarAcceso);
 export const completarAlta = elegir(real.completarAlta, demo.completarAlta);
+export const getEstadoDeCuentaDeEmpleado = elegir(
+  real.getEstadoDeCuentaDeEmpleado,
+  demo.getEstadoDeCuentaDeEmpleado
+);
+export const cambiarEmailDeEmpleado = elegir(
+  real.cambiarEmailDeEmpleado,
+  demo.cambiarEmailDeEmpleado
+);
 
 // ---------- Ausencias ----------
 export const getAusencias = elegir(real.getAusencias, demo.getAusencias);

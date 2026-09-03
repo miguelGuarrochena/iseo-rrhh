@@ -223,3 +223,131 @@ describe('control horario en el formulario del legajo', () => {
     ).toBeInTheDocument();
   });
 });
+
+/**
+ * El campo Email era, para el admin, un dato de contacto más. En realidad
+ * es —o no es— la llave con la que esa persona entra a la app, y qué pasa
+ * al cambiarlo depende de en qué anda su cuenta. Sin decirlo, el caso que
+ * se repetía era el peor: cambiar el email creyendo que se corregía un
+ * dato y que la invitación siguiera saliendo a la dirección anterior.
+ */
+describe('el campo Email dice qué va a pasar según el estado de la cuenta', () => {
+  const props = {
+    inicial: enBlanco,
+    textoGuardar: 'Guardar',
+    onGuardar: jest.fn(),
+    onCancelar: jest.fn(),
+  };
+
+  const escribirEmail = async (valor: string) => {
+    const campo = screen.getByRole('textbox', { name: /^email/i });
+    await userEvent.clear(campo);
+    await userEvent.type(campo, valor);
+  };
+
+  it('sin cuenta: avisa que sólo se actualiza el contacto', async () => {
+    await montar(
+      <FormEmpleado
+        {...props}
+        cuenta={{
+          estado: 'sin_cuenta',
+          emailDeLaCuenta: null,
+          emailDeLaFicha: 'viejo@ejemplo.com',
+        }}
+      />
+    );
+    await escribirEmail('nuevo@empresa.com');
+
+    expect(
+      screen.getByText('Se actualizará el email de contacto.')
+    ).toBeInTheDocument();
+  });
+
+  it('invitación pendiente: avisa que la anterior se invalida', async () => {
+    await montar(
+      <FormEmpleado
+        {...props}
+        cuenta={{
+          estado: 'invitacion_pendiente',
+          emailDeLaCuenta: 'test@example.com',
+          emailDeLaFicha: 'test@example.com',
+        }}
+      />
+    );
+    await escribirEmail('nuevo@empresa.com');
+
+    expect(
+      screen.getByText(
+        'La invitación anterior será invalidada y se enviará una nueva al nuevo email.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('cuenta activa: avisa que se actualiza la que ya existe', async () => {
+    await montar(
+      <FormEmpleado
+        {...props}
+        cuenta={{
+          estado: 'cuenta_activa',
+          emailDeLaCuenta: 'test@example.com',
+          emailDeLaFicha: 'test@example.com',
+        }}
+      />
+    );
+    await escribirEmail('nuevo@empresa.com');
+
+    expect(
+      screen.getByText(
+        'Se actualizará el email de acceso de la cuenta existente. La cuenta y sus datos históricos se conservarán.'
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('con cuenta activa nunca sugiere que se crea una cuenta nueva', async () => {
+    await montar(
+      <FormEmpleado
+        {...props}
+        cuenta={{
+          estado: 'cuenta_activa',
+          emailDeLaCuenta: 'test@example.com',
+          emailDeLaFicha: 'test@example.com',
+        }}
+      />
+    );
+
+    // El campo se llama distinto y dice con qué entra hoy, antes incluso
+    // de que el admin toque nada.
+    expect(screen.getByText('Email de acceso')).toBeInTheDocument();
+    expect(
+      screen.getByText(/No se crea una cuenta nueva/i)
+    ).toBeInTheDocument();
+  });
+
+  it('mientras el email no cambie no hay aviso que distraiga', async () => {
+    await montar(
+      <FormEmpleado
+        {...props}
+        inicial={{ ...enBlanco, email: 'test@example.com' } as Empleado}
+        cuenta={{
+          estado: 'cuenta_activa',
+          emailDeLaCuenta: 'test@example.com',
+          emailDeLaFicha: 'test@example.com',
+        }}
+      />
+    );
+
+    expect(
+      screen.queryByText(/Se actualizará el email de acceso/)
+    ).not.toBeInTheDocument();
+  });
+
+  it('sin poder consultar la cuenta, el campo se comporta como antes', async () => {
+    await montar(<FormEmpleado {...props} />);
+    await escribirEmail('nuevo@empresa.com');
+
+    expect(screen.getByText('Email')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/Se actualizará el email/)
+    ).not.toBeInTheDocument();
+  });
+});

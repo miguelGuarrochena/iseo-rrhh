@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { SupabaseClient, User } from '@supabase/supabase-js';
 import {
+  aplicarCambioDeEmail,
+  estadoDeCuentaDeEmpleado,
+  type EstadoDeCuentaDeEmpleado,
+  type PuertoCambioDeEmail,
+} from '@/lib/api/cambioDeEmail';
+import {
   cuentaSinPerfilEsDeLaEmpresa,
   datosParaCompletarAlta,
   datosParaReenviarInvitacion,
+  esRolInvitable,
   normalizarEmail,
+  type RolInvitable,
 } from '@/lib/api/invitacionConfianza';
 import { dentroDelLimite } from '@/lib/api/limiteDeUso';
 import { crearPerfilDeInvitado } from '@/lib/api/perfilInvitado';
@@ -120,6 +128,95 @@ const auditar = async (
   });
 };
 
+/** Lo que hace falta saber de un legajo antes de tocarle el email. */
+interface CuentaDeUnLegajo {
+  empleadoId: string;
+  emailDeLaFicha: string;
+  estado: EstadoDeCuentaDeEmpleado;
+  usuarioId: string | null;
+  emailDeLaCuenta: string | null;
+  /** Rol y nombre con los que se rehace la invitación, si hace falta. */
+  rol: RolInvitable;
+  nombreCompleto: string;
+}
+
+/**
+ * Resuelve en qué anda la cuenta de un colaborador.
+ *
+ * Con perfil alcanza con ir por su id a Auth. Sin perfil la cuenta puede
+ * existir igual (quedó a medias): ahí el puente es la invitación, que sí
+ * guarda el legajo. En los dos casos se evita barrer `auth.users` entero.
+ */
+const cuentaDelLegajo = async (
+  ctx: Contexto,
+  empleadoId: string
+): Promise<CuentaDeUnLegajo | NextResponse> => {
+  const { data: empleado } = await ctx.admin
+    .from('empleados')
+    .select('id, email, empresa_id, nombre, apellido')
+    .eq('id', empleadoId)
+    .maybeSingle();
+  if (!empleado || empleado.empresa_id !== ctx.empresaId) {
+    return NextResponse.json(
+      { error: 'El colaborador no pertenece a esta empresa.' },
+      { status: 403 }
+    );
+  }
+
+  const nombreDeLaFicha =
+    `${empleado.nombre ?? ''} ${empleado.apellido ?? ''}`.trim();
+
+  const { data: perfil } = await ctx.admin
+    .from('usuarios')
+    .select('id, email, rol, nombre_completo')
+    .eq('empleado_id', empleadoId)
+    .limit(1)
+    .maybeSingle();
+
+  let authUserId: string | null = (perfil?.id as string | undefined) ?? null;
+  let rol = (perfil?.rol as string | undefined) ?? 'empleado';
+  let nombreCompleto =
+    (perfil?.nombre_completo as string | undefined) || nombreDeLaFicha;
+
+  // Sin perfil, la invitación es lo único que ata una cuenta a este legajo.
+  if (!authUserId) {
+    const { data: invitacion } = await ctx.admin
+      .from('invitaciones')
+      .select('rol, nombre_completo, auth_user_id')
+      .eq('empresa_id', ctx.empresaId)
+      .eq('empleado_id', empleadoId)
+      .limit(1)
+      .maybeSingle();
+    if (invitacion?.auth_user_id) {
+      authUserId = invitacion.auth_user_id as string;
+      rol = (invitacion.rol as string) || rol;
+      nombreCompleto = (invitacion.nombre_completo as string) || nombreCompleto;
+    }
+  }
+
+  let cuenta: User | null = null;
+  if (authUserId) {
+    const { data } = await ctx.admin.auth.admin.getUserById(authUserId);
+    cuenta = data?.user ?? null;
+  }
+
+  return {
+    empleadoId,
+    emailDeLaFicha: (empleado.email as string) ?? '',
+    // La cuenta pudo haberse borrado por fuera: sin fila en Auth no hay
+    // invitación viva, por más que quede el rastro en `usuarios`.
+    estado: estadoDeCuentaDeEmpleado({
+      tienePerfil: Boolean(perfil),
+      authUserId: cuenta ? cuenta.id : null,
+      ultimoAcceso: cuenta?.last_sign_in_at ?? null,
+    }),
+    usuarioId: cuenta?.id ?? null,
+    emailDeLaCuenta: cuenta?.email ?? null,
+    rol: esRolInvitable(rol) ? rol : 'empleado',
+    nombreCompleto: nombreCompleto || (empleado.email as string) || '',
+  };
+};
+
 /** Estado de cada cuenta de la empresa, incluidas las que quedaron a medias. */
 export const GET = async (req: Request) => {
   const ctx = await contextoDe(
@@ -127,6 +224,20 @@ export const GET = async (req: Request) => {
     new URL(req.url).searchParams.get('empresa')
   );
   if (ctx instanceof NextResponse) return ctx;
+
+  // `?empleado=` pide sólo el estado de ese legajo: lo consulta el formulario
+  // de la ficha para avisar qué va a pasar si se cambia el email. Barrer todo
+  // Auth para eso sería carísimo y no aportaría nada.
+  const empleadoPedido = new URL(req.url).searchParams.get('empleado');
+  if (empleadoPedido) {
+    const legajo = await cuentaDelLegajo(ctx, empleadoPedido);
+    if (legajo instanceof NextResponse) return legajo;
+    return NextResponse.json({
+      estado: legajo.estado,
+      emailDeLaCuenta: legajo.emailDeLaCuenta,
+      emailDeLaFicha: legajo.emailDeLaFicha,
+    });
+  }
 
   const { data: perfiles, error: errorPerfiles } = await ctx.admin
     .from('usuarios')
@@ -216,7 +327,140 @@ interface CuerpoAccion {
   accion?: unknown;
   email?: unknown;
   empresaId?: unknown;
+  /** Sólo en `cambiar_email`: el legajo cuyo email se mueve. */
+  empleadoId?: unknown;
 }
+
+/**
+ * Mueve el email de un colaborador a donde haga falta, según su estado.
+ *
+ * Es el único camino por el que la app cambia un email: editar la ficha sola
+ * dejaba `auth.users`, `usuarios` e `invitaciones` con el valor viejo, y ahí
+ * seguían yendo la invitación y todos los avisos por mail.
+ *
+ * La decisión y el orden de las escrituras —incluido volver atrás si algo
+ * falla a mitad— están en `aplicarCambioDeEmail`, que se prueba sin base.
+ * Acá sólo se le da acceso a Supabase.
+ */
+const cambiarEmail = async (
+  ctx: Contexto,
+  empleadoId: string,
+  emailNuevo: string,
+  origen: string
+) => {
+  const legajo = await cuentaDelLegajo(ctx, empleadoId);
+  if (legajo instanceof NextResponse) return legajo;
+
+  const puerto: PuertoCambioDeEmail = {
+    duenoDelEmail: async (email) => {
+      // `listUsers` no filtra por email, así que se barre igual que en el
+      // resto de la ruta. Es el único punto que lo necesita: sirve para
+      // avisar antes de romper nada que ese email ya está tomado.
+      const cuentas = await traerCuentasDeAuth(ctx.admin);
+      const duena = cuentas.find(
+        (u) => u.email && normalizarEmail(u.email) === normalizarEmail(email)
+      );
+      return duena?.id ?? null;
+    },
+    moverEmailDeAuth: async (usuarioId, email) => {
+      // `email_confirm` evita mandar el mail de "confirmá tu nueva
+      // dirección": el cambio lo hace RRHH, no la persona, y si quedara
+      // pendiente de confirmación no podría entrar con ninguno de los dos.
+      const { error } = await ctx.admin.auth.admin.updateUserById(usuarioId, {
+        email,
+        email_confirm: true,
+      });
+      return error ? error.message : null;
+    },
+    moverEmailDePerfil: async (usuarioId, email) => {
+      const { error } = await ctx.admin
+        .from('usuarios')
+        .update({ email })
+        .eq('id', usuarioId);
+      return error ? error.message : null;
+    },
+    moverEmailDeFicha: async (id, email) => {
+      const { error } = await ctx.admin
+        .from('empleados')
+        .update({ email })
+        .eq('id', id);
+      return error ? error.message : null;
+    },
+    borrarCuenta: async (usuarioId) => {
+      const { error } = await ctx.admin.auth.admin.deleteUser(usuarioId);
+      return error ? error.message : null;
+    },
+    borrarInvitacion: (email) =>
+      borrarInvitacion(ctx.admin, ctx.empresaId, email),
+    invitar: async (email) => {
+      const { data, error } = await ctx.admin.auth.admin.inviteUserByEmail(
+        email,
+        {
+          redirectTo: `${origen}/crear-contrasena`,
+          data: {
+            nombre_completo: legajo.nombreCompleto,
+            rol: legajo.rol,
+            empresa_id: ctx.empresaId,
+            empleado_id: empleadoId,
+          },
+        }
+      );
+      if (error) return { error: error.message };
+      if (!data?.user) return { error: 'No pudimos crear la cuenta invitada.' };
+      return { usuarioId: data.user.id };
+    },
+    crearPerfil: (usuarioId, email) =>
+      crearPerfilDeInvitado(ctx.admin, usuarioId, {
+        email,
+        nombreCompleto: legajo.nombreCompleto,
+        rol: legajo.rol,
+        empresaId: ctx.empresaId,
+        empleadoId,
+      }),
+    registrarInvitacion: (email, usuarioId) =>
+      registrarInvitacion(ctx.admin, {
+        email,
+        empresaId: ctx.empresaId,
+        rol: legajo.rol,
+        nombreCompleto: legajo.nombreCompleto,
+        empleadoId,
+        authUserId: usuarioId,
+        creadaPor: ctx.actorId,
+        perfilCreado: true,
+      }),
+  };
+
+  const resultado = await aplicarCambioDeEmail(puerto, {
+    empleadoId,
+    emailNuevo,
+    emailDeLaFicha: legajo.emailDeLaFicha,
+    estado: legajo.estado,
+    usuarioId: legajo.usuarioId,
+    emailDeLaCuenta: legajo.emailDeLaCuenta,
+  });
+
+  if (!resultado.ok) {
+    logError('No se pudo cambiar el email del colaborador', resultado.error, {
+      ruta: '/api/cuentas',
+    });
+    return NextResponse.json(
+      { error: resultado.error },
+      { status: resultado.status }
+    );
+  }
+
+  if (!resultado.datos.sinCambios) {
+    // Es un cambio de identidad: queda quién lo hizo y desde qué dirección.
+    await auditar(ctx, 'cambiar_email', {
+      empleadoId,
+      anterior: legajo.emailDeLaCuenta ?? legajo.emailDeLaFicha,
+      nuevo: resultado.datos.email,
+      estado: resultado.datos.estado,
+    });
+  }
+
+  return NextResponse.json({ ok: true, ...resultado.datos });
+};
 
 /**
  * Rehace la invitación de alguien que todavía no entró.
@@ -509,7 +753,12 @@ export const POST = async (req: Request) => {
   const accion = cuerpo.accion;
   const email =
     typeof cuerpo.email === 'string' ? normalizarEmail(cuerpo.email) : '';
-  const ACCIONES = ['reenviar', 'quitar', 'completar'] as const;
+  const ACCIONES = [
+    'reenviar',
+    'quitar',
+    'completar',
+    'cambiar_email',
+  ] as const;
   if (
     typeof accion !== 'string' ||
     !(ACCIONES as readonly string[]).includes(accion) ||
@@ -518,13 +767,27 @@ export const POST = async (req: Request) => {
     return NextResponse.json({ error: 'Pedido incompleto.' }, { status: 400 });
   }
 
-  // Las dos acciones mandan mail o borran cuentas: se acotan igual que las
-  // invitaciones para que una sesión robada no las use en masa.
+  // Todas mandan mail o borran cuentas: se acotan igual que las invitaciones
+  // para que una sesión robada no las use en masa.
   if (!dentroDelLimite(`cuentas:${ctx.actorId}`, 20)) {
     return NextResponse.json(
       { error: 'Demasiadas acciones seguidas. Esperá un minuto.' },
       { status: 429 }
     );
+  }
+
+  // Va antes del barrido de Auth: acá el email del cuerpo es el DESTINO, no
+  // la cuenta a buscar. El legajo se resuelve por id.
+  if (accion === 'cambiar_email') {
+    const empleadoId =
+      typeof cuerpo.empleadoId === 'string' ? cuerpo.empleadoId : '';
+    if (!empleadoId) {
+      return NextResponse.json(
+        { error: 'Falta el colaborador.' },
+        { status: 400 }
+      );
+    }
+    return cambiarEmail(ctx, empleadoId, email, new URL(req.url).origin);
   }
 
   let cuentas: User[];

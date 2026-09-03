@@ -88,6 +88,7 @@ import type {
   NuevoParametroLegal,
   ParametroLegal,
 } from '@/lib/parametrosLegales';
+import type { CuentaConsultadaDeEmpleado } from '@/lib/api/cambioDeEmail';
 import { ALGORITMO_HASH } from '@/lib/constanciaFirma';
 import type { DatosReporte } from '@/lib/reporteMensual';
 import { distanciaMetros } from '@/lib/facial/ubicacion';
@@ -667,6 +668,50 @@ export const quitarAcceso = async (email: string): Promise<void> => {
   if (i >= 0) usuariosMock.splice(i, 1);
   invitadasEnLaSesion.delete(email);
   sacarDeLasAMedias(email);
+  return simular(undefined);
+};
+
+/**
+ * En demo no hay Auth ni invitaciones reales: el estado sale de los mismos
+ * mocks con los que se dibuja Permisos, para que la ficha muestre el aviso
+ * correcto al cambiar un email.
+ */
+export const getEstadoDeCuentaDeEmpleado = async (
+  empleadoId: string
+): Promise<CuentaConsultadaDeEmpleado> => {
+  const empleado = empleadosMock.find((e) => e.id === empleadoId);
+  const cuenta = usuariosMock.find((u) => u.empleadoId === empleadoId);
+  return simular({
+    estado: !cuenta
+      ? ('sin_cuenta' as const)
+      : invitadasEnLaSesion.has(cuenta.email)
+        ? ('invitacion_pendiente' as const)
+        : ('cuenta_activa' as const),
+    emailDeLaCuenta: cuenta?.email ?? null,
+    emailDeLaFicha: empleado?.email ?? '',
+  });
+};
+
+/**
+ * Mismo contrato que la versión real: el email queda igual en la ficha y en
+ * la cuenta. Sin Auth de por medio, alcanza con moverlo en los dos mocks.
+ */
+export const cambiarEmailDeEmpleado = async (
+  empleadoId: string,
+  email: string
+): Promise<void> => {
+  const nuevo = email.trim().toLowerCase();
+  const empleado = empleadosMock.find((e) => e.id === empleadoId);
+  if (empleado) empleado.email = nuevo;
+  const cuenta = usuariosMock.find((u) => u.empleadoId === empleadoId);
+  if (cuenta) {
+    // Invitación pendiente: la anterior se invalida y se manda una nueva.
+    if (invitadasEnLaSesion.has(cuenta.email)) {
+      invitadasEnLaSesion.delete(cuenta.email);
+      invitadasEnLaSesion.add(nuevo);
+    }
+    cuenta.email = nuevo;
+  }
   return simular(undefined);
 };
 

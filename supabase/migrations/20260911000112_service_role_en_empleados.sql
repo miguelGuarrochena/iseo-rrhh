@@ -1,0 +1,50 @@
+-- ============================================================
+-- Migration 112: devolverle a `service_role` el acceso a `empleados`.
+--
+-- Qué pasaba
+-- ----------
+-- Las migraciones 66 y 69 reconstruyeron la superficie de permisos de
+-- `public.empleados` para que el navegador no pudiera leer `cbu` ni la
+-- biometría: revocan el SELECT de tabla y vuelven a otorgar sólo las
+-- columnas no sensibles. Las dos re-asientan `anon` y `authenticated`, y
+-- ninguna menciona `service_role`, así que la clave de servidor se quedó
+-- sin `select/insert/update/delete` sobre esa tabla:
+--
+--   empleados     service_role=Dxtm/postgres     (sólo truncate/refs/trigger)
+--   invitaciones  service_role=arwdDxtm/postgres (completo)
+--   usuarios      service_role=arwdDxtm/postgres (completo)
+--
+-- Nunca fue la intención: lo que 66 y 69 protegen es al cliente
+-- (`authenticated`), que es quien corre en el navegador. `service_role`
+-- sólo existe del lado del servidor —`supabaseAdmin()` lleva
+-- `server-only`, así que no puede entrar en un bundle— y en todas las
+-- demás tablas del proyecto conserva el acceso completo.
+--
+-- Qué rompía
+-- ----------
+-- Los grants se aplican aunque el rol tenga BYPASSRLS, así que toda
+-- lectura o escritura de `empleados` desde una ruta de API fallaba con
+-- "permission denied for table empleados". Como el código trata la fila
+-- ausente como "no es de esta empresa", el síntoma era un mensaje que
+-- apuntaba al lugar equivocado:
+--
+--   POST /api/invitaciones  (con empleadoId)
+--     → "El colaborador no pertenece a esta empresa."
+--
+-- Verificado contra el stack local con las 111 migraciones aplicadas:
+-- invitar vinculando un legajo fallaba siempre, y con él el control de
+-- identidad que compara el email de la invitación con el de la ficha.
+--
+-- Qué NO cambia
+-- -------------
+-- Los grants por columna de `authenticated` quedan intactos: el
+-- navegador sigue sin poder leer `cbu`, `descriptor_facial` ni
+-- `consentimiento_biometrico` fuera de la vista `empleados_lectura`. La
+-- redacción de PII de la migración 66 sigue en pie tal cual.
+--
+-- Idempotente. No toca datos: sólo restituye permisos.
+-- ============================================================
+
+grant select, insert, update, delete on table public.empleados to service_role;
+
+notify pgrst, 'reload schema';

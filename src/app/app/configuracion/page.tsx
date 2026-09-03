@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { IconCamera, IconCheck } from '@tabler/icons-react';
+import { IconCamera, IconCheck, IconLayoutGrid } from '@tabler/icons-react';
 import { useAuth } from '@/lib/auth/AuthProvider';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import { Panel } from '@/components/app/Panel';
@@ -67,6 +67,10 @@ const ConfiguracionPage = () => {
   const carga = useCarga(() => getEmpresa(), [], {
     contexto: 'configuracion/empresa',
   });
+
+  // La empresa que se está configurando. Para el superadmin es la que
+  // está visitando; para el admin del cliente, la suya.
+  const idEmpresaVista = empresaVista?.id ?? usuario?.empresaId ?? null;
 
   // Es un formulario: lo cargado pasa a estado local para poder editarlo.
   useEffect(() => {
@@ -577,6 +581,26 @@ const ConfiguracionPage = () => {
               );
             })}
           </div>
+
+          {/*
+            Adentro de una empresa el superadmin opera con `rolEfectivo`
+            de admin_rrhh, así que el ítem "Empresas" desaparece del menú
+            y desde acá no había ningún camino hasta los interruptores
+            reales: había que salir de la empresa y volver a buscarla.
+            El atajo es de navegación y nada más —quien decide sigue
+            siendo el guard de la pantalla de Módulos y el trigger
+            `columnas_de_iseo`—, y se muestra por el rol crudo, para que
+            el admin del cliente no lo vea nunca.
+          */}
+          {usuario.rol === 'superadmin' && idEmpresaVista && (
+            <Link
+              href={`/empresas/${idEmpresaVista}/modulos`}
+              className="presionable mt-4 inline-flex items-center gap-2 rounded-xl border border-line bg-surface px-4 py-2 text-sm font-semibold text-ink no-underline hover:border-brand-300"
+            >
+              <IconLayoutGrid size={16} className="text-ink-soft" />
+              Prender o apagar secciones
+            </Link>
+          )}
         </Panel>
 
         <CuposLicenciaPanel />

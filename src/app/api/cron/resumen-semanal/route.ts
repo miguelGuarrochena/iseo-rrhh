@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase/admin';
 import { enviarEmail } from '@/lib/email/resend';
+import { emailsDeAdmins } from '@/lib/api/emailVigente';
 import { desdeIncidencias } from '@/lib/fichadas';
 import {
   formatearFechaCivil,
@@ -136,15 +137,10 @@ const procesar = async (req: Request) => {
     const modulos = cfg.modulos ?? {};
     const activo = (clave: string) => modulos[clave] !== false;
 
-    const { data: admins } = await admin
-      .from('usuarios')
-      .select('email')
-      .eq('empresa_id', empresa.id)
-      .eq('rol', 'admin_rrhh');
-
-    const destinos = (admins ?? [])
-      .map((u) => u.email as string)
-      .filter(Boolean);
+    // Contra Auth y no contra el espejo de `usuarios`: si alguna fila
+    // quedó desincronizada de antes del cambio de email, el resumen tiene
+    // que llegar igual a donde esa persona entra.
+    const destinos = await emailsDeAdmins(admin, empresa.id as string);
     if (destinos.length === 0) continue;
 
     const [ausencias, recibos, comunicaciones, incompletas, alertas] =
