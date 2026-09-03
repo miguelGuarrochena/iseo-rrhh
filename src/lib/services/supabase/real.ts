@@ -71,7 +71,10 @@ import type {
   NuevoEvento,
   NuevoUsuario,
 } from '@/lib/services/rrhh.demo';
-import type { CuentaConsultadaDeEmpleado } from '@/lib/api/cambioDeEmail';
+import {
+  ErrorDeCambioDeEmail,
+  type CuentaConsultadaDeEmpleado,
+} from '@/lib/api/cambioDeEmail';
 import { mensajeDeErrorDb } from '@/lib/erroresDb';
 import { registrarErrorApp } from '@/lib/erroresApp';
 import {
@@ -1342,8 +1345,14 @@ export const cambiarEmailDeEmpleado = async (
     }),
   });
   if (!res.ok) {
-    const { error } = (await res.json()) as { error?: string };
-    throw new Error(error ?? 'No pudimos cambiar el email.');
+    const cuerpo = (await res.json()) as {
+      error?: string;
+      requiereReinvitar?: boolean;
+    };
+    throw new ErrorDeCambioDeEmail(
+      cuerpo.error ?? 'No pudimos cambiar el email.',
+      cuerpo.requiereReinvitar === true
+    );
   }
 };
 

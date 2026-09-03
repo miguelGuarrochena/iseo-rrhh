@@ -22,6 +22,18 @@ export const esRolInvitable = (valor: unknown): valor is RolInvitable =>
 export const normalizarEmail = (email: string): string =>
   email.trim().toLowerCase();
 
+/**
+ * Qué se le dice a quien intenta invitar a un legajo que ya tiene cuenta.
+ *
+ * Antes mandaba a "desvincular esa cuenta desde Permisos", que era el
+ * único camino cuando el email de la cuenta no se podía mover. Desde que
+ * existe el cambio de email eso pasó a ser el camino destructivo —borra la
+ * cuenta y con ella el vínculo con sus recibos y firmas— mientras que el
+ * correcto es editar la ficha, que actualiza la cuenta y conserva todo.
+ */
+export const mensajeLegajoConCuenta = (emailDeLaCuenta: string): string =>
+  `Ese colaborador ya tiene cuenta (${emailDeLaCuenta}). Para cambiarle el email, editá su ficha: la cuenta se actualiza sola y conserva todo. Desde Permisos podés reenviarle la invitación o quitarle el acceso.`;
+
 /** Fila confiable emitida por el servidor al invitar. */
 export interface InvitacionConfiable {
   email: string;

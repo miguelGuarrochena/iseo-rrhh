@@ -443,6 +443,34 @@ describe('errores: nada de estados parcialmente actualizados', () => {
       expect(resultado.error).toContain('(rate limit exceeded)');
   });
 
+  it('pendiente: el fallo de envío se marca como "falta reinvitar"', async () => {
+    // La pantalla lo necesita para no decir "no se guardó nada" cuando en
+    // realidad el email quedó guardado y la invitación anterior anulada:
+    // ahí lo que falta es una acción del admin, no un reintento.
+    const base = baseConInvitacionPendiente();
+    const resultado = await cambiar(base, { invitar: 'smtp caído' });
+
+    expect(resultado.ok).toBe(false);
+    if (!resultado.ok) expect(resultado.requiereReinvitar).toBe(true);
+  });
+
+  it('los demás fallos NO piden reinvitar', async () => {
+    // Cada rama falla en distintos puntos: el perfil sólo se toca con una
+    // cuenta activa, y borrar/crear sólo con una invitación pendiente.
+    const casos: [() => Base, Fallas][] = [
+      [baseConCuentaActiva, { perfil: 'timeout' }],
+      [baseConCuentaActiva, { ficha: 'not null' }],
+      [baseConInvitacionPendiente, { borrarCuenta: 'auth caído' }],
+      [baseConInvitacionPendiente, { crearPerfil: 'constraint' }],
+      [baseConInvitacionPendiente, { ficha: 'not null' }],
+    ];
+    for (const [armar, fallas] of casos) {
+      const resultado = await cambiar(armar(), fallas);
+      expect(resultado.ok).toBe(false);
+      if (!resultado.ok) expect(resultado.requiereReinvitar).toBeUndefined();
+    }
+  });
+
   it('pendiente: si no se puede borrar la cuenta vieja, no se toca nada', async () => {
     const base = baseConInvitacionPendiente();
     const resultado = await cambiar(base, { borrarCuenta: 'auth caído' });

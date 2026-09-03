@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useRef, useState } from 'react';
+import Link from 'next/link';
 import { interpretarError } from '@/lib/errores';
 import { campoDeErrorDb } from '@/lib/erroresDb';
 import { avisoError } from '@/lib/avisos';
@@ -104,6 +105,13 @@ interface FormEmpleadoProps {
    * de contacto o la llave con la que esa persona entra a la app.
    */
   cuenta?: CuentaConsultadaDeEmpleado;
+  /**
+   * Motivo por el que el email no se puede tocar ahora. Se usa cuando no
+   * se pudo averiguar si la persona tiene cuenta: cambiarlo a ciegas
+   * podría anular una invitación sin avisar, así que se bloquea el campo
+   * y se explica. El resto del legajo se sigue editando normal.
+   */
+  bloqueoDeEmail?: string;
 }
 
 /**
@@ -112,11 +120,17 @@ interface FormEmpleadoProps {
  * Se muestra sólo cuando cambió respecto de lo que hay hoy: repetirlo
  * mientras nadie tocó nada convierte el aviso en ruido de fondo y deja de
  * leerse justo cuando importa.
+ *
+ * El tono no es decorativo. Con cuenta —activa o invitada— guardar tiene
+ * consecuencias sobre el acceso de una persona y el ámbar corresponde. Sin
+ * cuenta se está editando un dato de contacto y nada más: pintar eso de
+ * advertencia gasta el color de alerta en un no-evento y lo devalúa para
+ * cuando de verdad hace falta.
  */
 const avisoDeCambioDeEmail = (
   cuenta: CuentaConsultadaDeEmpleado | undefined,
   emailEscrito: string | undefined
-): string | undefined => {
+): { texto: string; tono: 'aviso' | 'neutro' } | undefined => {
   if (!cuenta) return undefined;
   const escrito = (emailEscrito ?? '').trim().toLowerCase();
   const vigente = (
@@ -125,7 +139,10 @@ const avisoDeCambioDeEmail = (
     ''
   ).toLowerCase();
   if (!escrito || escrito === vigente) return undefined;
-  return MENSAJES_CAMBIO_EMAIL[cuenta.estado];
+  return {
+    texto: MENSAJES_CAMBIO_EMAIL[cuenta.estado],
+    tono: cuenta.estado === 'sin_cuenta' ? 'neutro' : 'aviso',
+  };
 };
 
 /**
@@ -187,6 +204,7 @@ export const FormEmpleado = ({
   onGuardar,
   onCancelar,
   cuenta,
+  bloqueoDeEmail,
 }: FormEmpleadoProps) => {
   const modulos = useModulos();
   const conFichaje = moduloActivo('fichaje', modulos);
@@ -222,8 +240,10 @@ export const FormEmpleado = ({
   const supervisores = cSupervisores.datos;
 
   const cuentaConAcceso = Boolean(cuenta?.emailDeLaCuenta);
-  const ayudaDelEmail = ayudaDeEmail(cuenta);
-  const avisoDelEmail = avisoDeCambioDeEmail(cuenta, datos.email);
+  const ayudaDelEmail = bloqueoDeEmail ?? ayudaDeEmail(cuenta);
+  const avisoDelEmail = bloqueoDeEmail
+    ? undefined
+    : avisoDeCambioDeEmail(cuenta, datos.email);
 
   const set = (campo: keyof DatosEmpleado) => (valor: string) =>
     setDatos((prev) => ({ ...prev, [campo]: valor || undefined }));
@@ -533,6 +553,13 @@ export const FormEmpleado = ({
             placeholder="11-5555-0000"
             error={errores.telefono}
           />
+          {/*
+            La ayuda no va en el slot de `Campo`: ahí se muestra error O
+            ayuda, nunca las dos, así que un email mal tipeado escondía
+            justo la línea que dice con cuál entra hoy esa persona —el
+            contexto desaparecía en el momento en que se estaba
+            corrigiendo—. Acá va como línea propia y sobrevive al error.
+          */}
           <div className="flex flex-col gap-2">
             <Campo
               etiqueta={cuentaConAcceso ? 'Email de acceso' : 'Email'}
@@ -541,14 +568,24 @@ export const FormEmpleado = ({
               onChange={(e) => set('email')(e.target.value)}
               placeholder="nombre@email.com"
               error={errores.email}
-              ayuda={ayudaDelEmail}
+              disabled={Boolean(bloqueoDeEmail)}
             />
-            {avisoDelEmail && (
-              <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-900">
-                <IconAlertTriangle size={14} className="mt-0.5 shrink-0" />
-                <span>{avisoDelEmail}</span>
+            {ayudaDelEmail && (
+              <p className="text-xs leading-relaxed text-ink-soft">
+                {ayudaDelEmail}
               </p>
             )}
+            {avisoDelEmail &&
+              (avisoDelEmail.tono === 'aviso' ? (
+                <p className="flex items-start gap-2 rounded-xl bg-amber-50 px-3.5 py-2.5 text-xs leading-relaxed text-amber-900">
+                  <IconAlertTriangle size={14} className="mt-0.5 shrink-0" />
+                  <span>{avisoDelEmail.texto}</span>
+                </p>
+              ) : (
+                <p className="rounded-xl bg-paper px-3.5 py-2.5 text-xs leading-relaxed text-ink-soft">
+                  {avisoDelEmail.texto}
+                </p>
+              ))}
           </div>
         </div>
       </Panel>
@@ -797,12 +834,19 @@ export const FormEmpleado = ({
             tablet sin tener acceso a la app. Se ofrece siempre porque
             también sirve en una empresa en blanco (personal sin mail, o
             que no usa celular). */}
-        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl bg-paper p-4">
+        <label
+          className={`mt-4 flex items-start gap-3 rounded-xl bg-paper p-4 ${
+            cuentaConAcceso ? 'opacity-60' : 'cursor-pointer'
+          }`}
+        >
           <input
             type="checkbox"
             checked={datos.sinUsuario ?? false}
             onChange={(e) => setBool('sinUsuario')(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-brand-600"
+            disabled={cuentaConAcceso}
+            className={`mt-0.5 h-4 w-4 shrink-0 accent-brand-600 ${
+              cuentaConAcceso ? '' : 'cursor-pointer'
+            }`}
           />
           <span>
             <span className="text-sm font-semibold text-ink">
@@ -818,6 +862,28 @@ export const FormEmpleado = ({
             </span>
           </span>
         </label>
+        {/*
+          Marcarla no revoca nada: sólo silencia los avisos de "sin cuenta".
+          Sobre alguien que ya entra, el legajo terminaba declarando que no
+          tiene acceso mientras la persona seguía entrando todos los días.
+          El acceso se saca en Permisos; acá sólo se dice dónde.
+        */}
+        {cuentaConAcceso && cuenta && (
+          <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+            {cuenta.estado === 'cuenta_activa'
+              ? `Ya tiene cuenta y entra con ${cuenta.emailDeLaCuenta}. Para que deje de tener acceso, quitáselo desde `
+              : `Tiene una invitación pendiente enviada a ${cuenta.emailDeLaCuenta}. Anulala desde `}
+            <Link
+              href="/permisos"
+              className="font-bold text-brand-700 no-underline hover:underline"
+            >
+              Permisos
+            </Link>
+            {cuenta.estado === 'cuenta_activa'
+              ? '; después vas a poder marcar esta opción.'
+              : ' si no va a tener cuenta; después vas a poder marcar esta opción.'}
+          </p>
+        )}
 
         {conFichaje && !datos.sinFichaje && datos.modoFichaje === 'celular' && (
           <div className="mt-4 rounded-xl bg-paper p-4">

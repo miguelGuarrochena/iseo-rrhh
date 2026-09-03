@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import Link from 'next/link';
 import { Modal } from '@mantine/core';
 import {
   IconAlertTriangle,
@@ -76,14 +77,23 @@ export const GestionCuentaModal = ({
 
   /**
    * Los legajos que ya tienen otra cuenta quedan afuera: dos cuentas sobre
-   * el mismo legajo ven —y firman— el mismo recibo de sueldo. El vínculo
-   * actual se ofrece siempre, aunque la persona esté dada de baja, para
-   * que el desplegable no aparezca vacío en una cuenta ya vinculada.
+   * el mismo legajo ven —y firman— el mismo recibo de sueldo.
+   *
+   * Los marcados "No le vamos a dar cuenta en la app" también: vincularles
+   * una cuenta existente deja el legajo diciendo que esa persona no tiene
+   * acceso mientras entra todos los días. Es el mismo callejón que cierra
+   * el desplegable de invitación, por el otro camino.
+   *
+   * El vínculo actual se ofrece siempre —aunque la persona esté dada de
+   * baja o marcada así— para que el desplegable no aparezca vacío en una
+   * cuenta ya vinculada y se pueda ver, y deshacer, lo que hay hoy.
    */
   const opciones = () => {
     if (!usuario) return [];
     const libres = empleados.filter(
-      (e) => !empleadosConCuenta.has(e.id) || e.id === usuario.empleadoId
+      (e) =>
+        e.id === usuario.empleadoId ||
+        (!empleadosConCuenta.has(e.id) && !e.sinUsuario)
     );
     const conocido = libres.some((e) => e.id === usuario.empleadoId);
     return [
@@ -195,6 +205,26 @@ export const GestionCuentaModal = ({
                 {usuario.nombreCompleto}
               </p>
               <p className="text-xs text-ink-soft">{usuario.email}</p>
+              {/*
+                Acá no se cambia el email, y sin decirlo esta pantalla es
+                un callejón sin salida: quien piensa que las cuentas se
+                administran en Permisos abre "Gestionar", no lo encuentra
+                y termina quitando el acceso para volver a invitar, que es
+                el camino destructivo. Se señala dónde está, sin duplicar
+                el control.
+              */}
+              {usuario.empleadoId && (
+                <p className="mt-2 text-xs leading-relaxed text-ink-soft">
+                  El email de acceso se cambia desde la{' '}
+                  <Link
+                    href={`/colaboradores/${usuario.empleadoId}/editar`}
+                    className="font-bold text-brand-700 no-underline hover:underline"
+                  >
+                    ficha del colaborador
+                  </Link>
+                  . Al cambiarlo ahí, esta cuenta se actualiza sola.
+                </p>
+              )}
             </div>
 
             {cuenta && (
@@ -233,7 +263,7 @@ export const GestionCuentaModal = ({
                 etiqueta="Colaborador vinculado"
                 value={empleadoId}
                 onChange={setEmpleadoId}
-                ayuda="Sin vínculo el legajo figura “sin cuenta”: esa persona entra a la app pero no ve sus recibos ni su ficha."
+                ayuda="Sin vínculo el legajo figura “sin cuenta”: esa persona entra a la app pero no ve sus recibos ni su ficha. Los marcados “No le vamos a dar cuenta en la app” no figuran acá: para vincularlos, destildá esa opción en su ficha."
                 opciones={opciones()}
                 error={error}
               />

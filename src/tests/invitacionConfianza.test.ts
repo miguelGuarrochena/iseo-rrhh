@@ -2,6 +2,7 @@ import {
   cuentaSinPerfilEsDeLaEmpresa,
   datosParaCompletarAlta,
   datosParaReenviarInvitacion,
+  mensajeLegajoConCuenta,
   type InvitacionConfiable,
 } from '@/lib/api/invitacionConfianza';
 
@@ -195,5 +196,36 @@ describe('datosParaReenviarInvitacion', () => {
       emailFallback: 'atacante@evil.com',
     });
     expect(r.ok).toBe(false);
+  });
+});
+
+/**
+ * El mensaje que ve quien intenta invitar a un legajo que ya tiene cuenta.
+ *
+ * Mandaba a "desvincular esa cuenta desde Permisos", que era el único
+ * camino cuando el email de la cuenta no se podía mover. Desde que existe
+ * el cambio de email eso pasó a ser el camino destructivo —borra la cuenta
+ * y con ella el vínculo con sus recibos y firmas— y el correcto es editar
+ * la ficha.
+ */
+describe('mensajeLegajoConCuenta', () => {
+  const mensaje = mensajeLegajoConCuenta('test@example.com');
+
+  it('dice cuál es la cuenta que ya existe', () => {
+    expect(mensaje).toContain('test@example.com');
+  });
+
+  it('manda a editar la ficha, no a desvincular', () => {
+    expect(mensaje).toMatch(/editá su ficha/i);
+    expect(mensaje).not.toMatch(/desvincul/i);
+  });
+
+  it('aclara que no se pierde nada', () => {
+    expect(mensaje).toMatch(/conserva todo/i);
+  });
+
+  it('sigue nombrando lo que Permisos sí resuelve', () => {
+    expect(mensaje).toMatch(/reenviarle la invitación/i);
+    expect(mensaje).toMatch(/quitarle el acceso/i);
   });
 });

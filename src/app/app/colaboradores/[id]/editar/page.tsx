@@ -14,6 +14,8 @@ import {
   getEmpleado,
   getEstadoDeCuentaDeEmpleado,
 } from '@/lib/services/rrhh';
+import { ErrorDeCambioDeEmail } from '@/lib/api/cambioDeEmail';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 import { useCarga } from '@/lib/useCarga';
@@ -31,13 +33,13 @@ const EditarColaboradorPage = () => {
   /**
    * En qué anda la cuenta de este legajo. Es lo que le permite al formulario
    * decir si el email es un dato de contacto o la llave con la que esa
-   * persona entra. Si no se puede consultar, el campo se comporta como antes
-   * en vez de trabar la edición del resto de la ficha.
+   * persona entra, y a esta pantalla saber qué confirmar antes de guardar.
    */
   const cargaCuenta = useCarga(() => getEstadoDeCuentaDeEmpleado(id), [id], {
     activo: Boolean(id),
     contexto: 'colaborador/editar/cuenta',
   });
+  const { confirmar, dialogo: dialogoConfirmar } = useConfirmacion();
 
   if (!usuario || rolEfectivo !== 'admin_rrhh') {
     return (
@@ -59,6 +61,19 @@ const EditarColaboradorPage = () => {
   const emailNuevo = (empleadoDatos: DatosEmpleado) =>
     (empleadoDatos.email ?? '').trim().toLowerCase();
 
+  /**
+   * Sin saber en qué anda la cuenta, cambiar el email es a ciegas: podría
+   * estar anulando una invitación pendiente sin decírselo a nadie. Se
+   * bloquea sólo ese campo; el resto de la ficha se sigue editando.
+   */
+  const bloqueoDeEmail =
+    cargaCuenta.fase === 'error'
+      ? 'No pudimos verificar si esta persona tiene cuenta, así que el email no se puede cambiar ahora. Guardá el resto y reintentá en un momento.'
+      : undefined;
+
+  const nombre = `${empleado.nombre} ${empleado.apellido}`;
+  const emailAnterior = (empleado.email ?? '').trim();
+
   const guardar = async (datos: DatosEmpleado) => {
     /*
      * El email va por su propio camino y NO en el update de la ficha.
@@ -71,8 +86,50 @@ const EditarColaboradorPage = () => {
      * pendiente— y deja los cuatro lugares iguales.
      */
     const email = emailNuevo(datos);
-    const cambioElEmail = email !== (empleado.email ?? '').trim().toLowerCase();
+    const cambioElEmail = email !== emailAnterior.toLowerCase();
 
+    /*
+     * Cambiar el email de alguien que ya tiene cuenta no es guardar un dato:
+     * o anula una invitación viva y manda otra, o mueve la identidad con la
+     * que esa persona entra. Y el aviso del campo queda cuatro paneles más
+     * arriba del botón, así que para cuando se guarda ya no se ve. Se
+     * pregunta acá, igual que en Permisos para estas mismas operaciones.
+     */
+    if (cambioElEmail && cuenta && cuenta.estado !== 'sin_cuenta') {
+      const pendiente = cuenta.estado === 'invitacion_pendiente';
+      const ok = await confirmar({
+        titulo: pendiente
+          ? 'Se va a anular la invitación anterior'
+          : 'Se va a cambiar el email con el que entra a la app',
+        detalle: pendiente ? (
+          <>
+            <span className="font-semibold text-ink">{nombre}</span> todavía no
+            usó la invitación que le mandamos a {cuenta.emailDeLaCuenta}. Al
+            guardar, ese link deja de servir y le llega una invitación nueva a{' '}
+            <span className="font-semibold text-ink">{email}</span>. Su legajo y
+            todo lo cargado quedan igual.
+          </>
+        ) : (
+          <>
+            Desde que guardes,{' '}
+            <span className="font-semibold text-ink">{nombre}</span> entra con{' '}
+            <span className="font-semibold text-ink">{email}</span> en lugar de{' '}
+            {cuenta.emailDeLaCuenta}. Conserva su contraseña, su legajo, sus
+            recibos y sus firmas: no se crea una cuenta nueva.
+            <br />
+            <br />
+            Avisale del cambio, porque con el email anterior no va a poder
+            entrar.
+          </>
+        ),
+        confirmar: pendiente
+          ? 'Guardar y reinvitar'
+          : 'Cambiar el email de acceso',
+      });
+      if (!ok) return;
+    }
+
+    // 1) El legajo. Si esto falla, no se guardó nada.
     try {
       await actualizarEmpleado(empleado.id, {
         ...datos,
@@ -87,9 +144,6 @@ const EditarColaboradorPage = () => {
         art: datos.art ?? '',
         fotoUrl: datos.fotoUrl,
       });
-      // Va después del resto del legajo: si el cambio de identidad falla, lo
-      // demás quedó guardado y el email sigue siendo el que funciona.
-      if (cambioElEmail) await cambiarEmailDeEmpleado(empleado.id, email);
     } catch (err) {
       avisoError(
         'No pudimos guardar los cambios',
@@ -98,14 +152,48 @@ const EditarColaboradorPage = () => {
       return;
     }
 
-    avisoExito(
-      'Cambios guardados',
-      cambioElEmail && cuenta?.estado === 'invitacion_pendiente'
-        ? `Invalidamos la invitación anterior y le mandamos una nueva a ${email}.`
-        : cambioElEmail && cuenta?.estado === 'cuenta_activa'
-          ? `Desde ahora entra a la app con ${email}.`
-          : undefined
-    );
+    /*
+     * 2) El email, por su propio camino. Va después a propósito: si el
+     * cambio de identidad falla, el resto del legajo ya quedó guardado y el
+     * email sigue siendo el que funciona. Decir acá "no pudimos guardar los
+     * cambios" sería falso y llevaría a reintentar todo al pedo.
+     */
+    if (cambioElEmail) {
+      try {
+        await cambiarEmailDeEmpleado(empleado.id, email);
+      } catch (err) {
+        if (err instanceof ErrorDeCambioDeEmail && err.requiereReinvitar) {
+          // El cambio se hizo: lo que falta es una acción del admin.
+          avisoError(
+            'Anulamos la invitación anterior, pero el mail nuevo no salió',
+            `Guardamos ${email} en la ficha y el legajo quedó sin cuenta. Invitalo de nuevo desde Permisos cuando quieras.`
+          );
+          router.push(`/colaboradores/${empleado.id}`);
+          return;
+        }
+        avisoError(
+          'Guardamos el legajo, pero no el email',
+          `El resto de los cambios quedaron guardados. El email sigue siendo ${
+            emailAnterior || '(vacío)'
+          }.${err instanceof Error ? ` ${err.message}` : ''}`
+        );
+        return;
+      }
+    }
+
+    if (cambioElEmail && cuenta?.estado === 'invitacion_pendiente') {
+      avisoExito(
+        'Invitación reenviada al email nuevo',
+        `Anulamos la anterior y le mandamos una a ${email}. El link viejo ya no sirve.`
+      );
+    } else if (cambioElEmail && cuenta?.estado === 'cuenta_activa') {
+      avisoExito(
+        'Email de acceso actualizado',
+        `${nombre} entra a la app con ${email}. Es la misma cuenta de siempre.`
+      );
+    } else {
+      avisoExito('Cambios guardados');
+    }
     router.push(`/colaboradores/${empleado.id}`);
   };
 
@@ -133,7 +221,9 @@ const EditarColaboradorPage = () => {
         onGuardar={guardar}
         onCancelar={() => router.push(`/colaboradores/${empleado.id}`)}
         cuenta={cuenta}
+        bloqueoDeEmail={bloqueoDeEmail}
       />
+      {dialogoConfirmar}
     </div>
   );
 };

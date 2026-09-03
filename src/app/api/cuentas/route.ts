@@ -443,8 +443,14 @@ const cambiarEmail = async (
     logError('No se pudo cambiar el email del colaborador', resultado.error, {
       ruta: '/api/cuentas',
     });
+    // `requiereReinvitar` viaja para que la pantalla no diga "no se guardó
+    // nada" cuando en realidad el email quedó guardado y la invitación
+    // anterior anulada: ahí lo que falta es una acción del admin.
     return NextResponse.json(
-      { error: resultado.error },
+      {
+        error: resultado.error,
+        ...(resultado.requiereReinvitar ? { requiereReinvitar: true } : {}),
+      },
       { status: resultado.status }
     );
   }

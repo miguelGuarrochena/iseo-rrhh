@@ -73,6 +73,26 @@ export interface CuentaConsultadaDeEmpleado {
   emailDeLaFicha: string;
 }
 
+/**
+ * Cómo se lee el estado de la cuenta en la ficha del colaborador.
+ *
+ * Nombra siempre la dirección: "invitación pendiente" sin decir a dónde se
+ * mandó es justamente lo que obligaba a ir hasta Permisos a averiguarlo.
+ * Vive acá, con el resto de los textos del cambio de email, para que la
+ * ficha y los tests digan lo mismo.
+ */
+export const textoDeEstadoDeCuenta = (
+  cuenta: CuentaConsultadaDeEmpleado
+): string => {
+  if (cuenta.estado === 'cuenta_activa') {
+    return `Activa · entra con ${cuenta.emailDeLaCuenta}`;
+  }
+  if (cuenta.estado === 'invitacion_pendiente') {
+    return `Invitación pendiente · enviada a ${cuenta.emailDeLaCuenta}`;
+  }
+  return 'Sin cuenta';
+};
+
 const FORMATO_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export const emailConFormatoValido = (email: string): boolean =>
@@ -127,7 +147,35 @@ export interface CambioAplicado {
 
 export type ResultadoCambioDeEmail =
   | { ok: true; datos: CambioAplicado }
-  | { ok: false; status: 400 | 409 | 500; error: string };
+  | {
+      ok: false;
+      status: 400 | 409 | 500;
+      error: string;
+      /**
+       * El cambio se aplicó a medias **a propósito**: la invitación
+       * anterior quedó anulada y el email nuevo guardado, pero el mail no
+       * salió, así que el legajo quedó sin cuenta y falta invitarlo de
+       * nuevo. Es un fallo con trabajo hecho, y la pantalla tiene que
+       * decirlo distinto de "no se guardó nada".
+       */
+      requiereReinvitar?: true;
+    };
+
+/**
+ * Error del cambio de email que conserva el matiz del escenario de
+ * arriba. Sin esto, la pantalla no puede distinguir "falló y no cambió
+ * nada" de "falló pero el email ya quedó guardado y hay que reinvitar",
+ * y termina diciendo lo contrario de lo que pasó.
+ */
+export class ErrorDeCambioDeEmail extends Error {
+  readonly requiereReinvitar: boolean;
+
+  constructor(mensaje: string, requiereReinvitar = false) {
+    super(mensaje);
+    this.name = 'ErrorDeCambioDeEmail';
+    this.requiereReinvitar = requiereReinvitar;
+  }
+}
 
 /**
  * Aplica el cambio según el estado, y deja el sistema consistente si algo
@@ -337,6 +385,7 @@ const rehacerInvitacion = async (
       ok: false,
       status: 500,
       error: `Invalidamos la invitación anterior y guardamos el email nuevo, pero el mail no salió${detalle(invitado.error)}. Invitá a ${email} de nuevo desde Permisos.`,
+      requiereReinvitar: true,
     };
   }
 

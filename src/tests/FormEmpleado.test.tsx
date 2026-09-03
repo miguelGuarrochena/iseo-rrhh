@@ -351,3 +351,185 @@ describe('el campo Email dice qué va a pasar según el estado de la cuenta', ()
     ).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Dos detalles del campo Email que se comían información útil.
+ *
+ * `Campo` muestra error O ayuda, nunca las dos, así que un email mal
+ * tipeado escondía la línea que dice con cuál entra hoy esa persona: el
+ * contexto desaparecía justo mientras se lo estaba corrigiendo.
+ *
+ * Y el aviso de "sin cuenta" se pintaba de ámbar con triángulo de
+ * advertencia para decir que se actualiza un dato de contacto. Gastar el
+ * color de alerta en un no-evento lo devalúa para cuando importa.
+ */
+describe('la información del email no se pisa ni se sobreactúa', () => {
+  const props = {
+    inicial: enBlanco,
+    textoGuardar: 'Guardar',
+    onGuardar: jest.fn(),
+    onCancelar: jest.fn(),
+  };
+
+  const cuentaActiva = {
+    estado: 'cuenta_activa' as const,
+    emailDeLaCuenta: 'test@example.com',
+    emailDeLaFicha: 'test@example.com',
+  };
+
+  const escribirEmail = async (valor: string) => {
+    const campo = screen.getByRole('textbox', { name: /^email/i });
+    await userEvent.clear(campo);
+    await userEvent.type(campo, valor);
+  };
+
+  it('con el email inválido sigue diciendo con cuál entra hoy', async () => {
+    await montar(<FormEmpleado {...props} cuenta={cuentaActiva} />);
+    await escribirEmail('esto-no-es-un-email');
+    await userEvent.click(screen.getByRole('button', { name: /^guardar$/i }));
+
+    // El error aparece…
+    expect(
+      (await screen.findAllByText(/El email no tiene un formato válido/i))
+        .length
+    ).toBeGreaterThan(0);
+    // …y la ayuda de contexto sigue estando.
+    expect(
+      screen.getByText(/Hoy entra a la app con test@example.com/i)
+    ).toBeInTheDocument();
+  });
+
+  it('sin cuenta el aviso es informativo, no una advertencia', async () => {
+    await montar(
+      <FormEmpleado
+        {...props}
+        cuenta={{
+          estado: 'sin_cuenta',
+          emailDeLaCuenta: null,
+          emailDeLaFicha: 'viejo@ejemplo.com',
+        }}
+      />
+    );
+    await escribirEmail('nuevo@empresa.com');
+
+    const aviso = screen.getByText('Se actualizará el email de contacto.');
+    expect(aviso).toBeInTheDocument();
+    // Sin el amarillo de alerta: no hay ningún riesgo que señalar.
+    expect(aviso.className).not.toMatch(/amber/);
+  });
+
+  it('con cuenta activa el aviso sí conserva el tono de alerta', async () => {
+    await montar(<FormEmpleado {...props} cuenta={cuentaActiva} />);
+    await escribirEmail('nuevo@empresa.com');
+
+    // El texto vive dentro de un <span>; el color lo pone el <p> de afuera.
+    const aviso = screen.getByText(
+      /Se actualizará el email de acceso de la cuenta existente/
+    );
+    expect(aviso.closest('p')?.className).toMatch(/amber/);
+  });
+});
+
+/**
+ * "No le vamos a dar cuenta en la app" es una decisión, no un estado, y
+ * marcarla no revoca nada: su único efecto en todo el código es silenciar
+ * los avisos de "sin cuenta" (`requisitos.ts`).
+ *
+ * Sobre alguien que ya entra, eso dejaba el legajo declarando que no tiene
+ * acceso mientras la persona seguía entrando todos los días —y desde que
+ * la ficha muestra el estado, las dos cosas se contradicen en la misma
+ * pantalla—. El acceso se saca en Permisos; acá sólo se dice dónde.
+ */
+describe('la decisión de no dar cuenta no puede contradecir al estado', () => {
+  const props = {
+    inicial: enBlanco,
+    textoGuardar: 'Guardar',
+    onGuardar: jest.fn(),
+    onCancelar: jest.fn(),
+  };
+
+  const casilla = () =>
+    screen.getByRole('checkbox', { name: /no le vamos a dar cuenta/i });
+
+  it('con cuenta activa queda deshabilitada y dice por qué', async () => {
+    await montar(
+      <FormEmpleado
+        {...props}
+        cuenta={{
+          estado: 'cuenta_activa',
+          emailDeLaCuenta: 'ana@empresa.com',
+          emailDeLaFicha: 'ana@empresa.com',
+        }}
+      />
+    );
+
+    expect(casilla()).toBeDisabled();
+    expect(
+      screen.getByText(/Ya tiene cuenta y entra con ana@empresa.com/i)
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /permisos/i })).toHaveAttribute(
+      'href',
+      '/permisos'
+    );
+  });
+
+  it('con invitación pendiente también, con su propio motivo', async () => {
+    await montar(
+      <FormEmpleado
+        {...props}
+        cuenta={{
+          estado: 'invitacion_pendiente',
+          emailDeLaCuenta: 'ana@empresa.com',
+          emailDeLaFicha: 'ana@empresa.com',
+        }}
+      />
+    );
+
+    expect(casilla()).toBeDisabled();
+    expect(
+      screen.getByText(/invitación pendiente enviada a ana@empresa.com/i)
+    ).toBeInTheDocument();
+  });
+
+  it('sin cuenta se puede marcar: es su caso de uso', async () => {
+    const onGuardar = jest.fn().mockResolvedValue(undefined);
+    await montar(
+      <FormEmpleado
+        {...props}
+        onGuardar={onGuardar}
+        cuenta={{
+          estado: 'sin_cuenta',
+          emailDeLaCuenta: null,
+          emailDeLaFicha: 'ana@empresa.com',
+        }}
+      />
+    );
+
+    expect(casilla()).toBeEnabled();
+    expect(screen.queryByText(/Ya tiene cuenta/i)).not.toBeInTheDocument();
+
+    await userEvent.click(casilla());
+    await userEvent.click(screen.getByRole('button', { name: /^guardar$/i }));
+    await waitFor(() =>
+      expect(onGuardar).toHaveBeenCalledWith(
+        expect.objectContaining({ sinUsuario: true })
+      )
+    );
+  });
+
+  it('en el alta se puede marcar: todavía no puede haber cuenta', async () => {
+    // La pantalla de alta no pasa `cuenta` porque no hay ninguna.
+    await montar(<FormEmpleado {...props} inicial={undefined} />);
+
+    expect(casilla()).toBeEnabled();
+  });
+
+  it('si no se pudo leer el estado no se traba: marcarla es reversible', async () => {
+    // A diferencia del email —que borra un usuario de Auth y no se puede
+    // deshacer—, esta casilla sólo silencia avisos y se destilda con un
+    // click. Trabarla por un fallo de red costaría más de lo que evita.
+    await montar(<FormEmpleado {...props} />);
+
+    expect(casilla()).toBeEnabled();
+  });
+});

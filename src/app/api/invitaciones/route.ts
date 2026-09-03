@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import {
   esRolInvitable,
+  mensajeLegajoConCuenta,
   normalizarEmail,
   type RolInvitable,
 } from '@/lib/api/invitacionConfianza';
@@ -115,7 +116,7 @@ export const POST = async (req: Request) => {
     if (cuentaPrevia) {
       return NextResponse.json(
         {
-          error: `Ese colaborador ya tiene cuenta (${cuentaPrevia.email}). Si querés cambiarla, desvinculá esa cuenta desde Permisos.`,
+          error: mensajeLegajoConCuenta(cuentaPrevia.email as string),
         },
         { status: 400 }
       );

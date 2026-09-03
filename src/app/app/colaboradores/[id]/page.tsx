@@ -44,6 +44,7 @@ import {
   darDeBajaEmpleado,
   getDocumentosDeEmpleado,
   getEmpleadosConCuenta,
+  getEstadoDeCuentaDeEmpleado,
   quitarDocumento,
   toggleChecklistItem,
 } from '@/lib/services/rrhh';
@@ -85,6 +86,7 @@ import {
   DocumentoLegajo,
   Remuneracion,
 } from '@/types/rrhh';
+import { textoDeEstadoDeCuenta } from '@/lib/api/cambioDeEmail';
 import { faltasDeEmpleado } from '@/lib/requisitos';
 import { BloqueFaltas } from '@/components/app/Faltas';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
@@ -194,6 +196,16 @@ const FichaColaboradorPage = () => {
     activo: rolEfectivo === 'admin_rrhh',
     contexto: 'ficha/cuentas',
     inicial: [] as string[],
+  });
+
+  /**
+   * En qué anda la cuenta de esta persona, para que el dato quede a la
+   * vista y no dependa de haber visto pasar un toast al guardar. Sólo se
+   * pide para RRHH: la API de cuentas no se la sirve a nadie más.
+   */
+  const cEstadoCuenta = useCarga(() => getEstadoDeCuentaDeEmpleado(id), [id], {
+    activo: rolEfectivo === 'admin_rrhh' && Boolean(id),
+    contexto: 'ficha/estado-cuenta',
   });
   const faltas = useMemo(
     () =>
@@ -564,6 +576,15 @@ const FichaColaboradorPage = () => {
             <Dato etiqueta="CUIL" valor={empleado.cuil} />
             <Dato etiqueta="Teléfono" valor={empleado.telefono} />
             <Dato etiqueta="Email" valor={empleado.email} />
+            {/* Si tiene acceso y con qué dirección entra. Va acá, pegado
+                al email, porque es la pregunta que sigue: hasta ahora
+                sólo se sabía por un aviso que duraba unos segundos. */}
+            {cEstadoCuenta.fase === 'ok' && cEstadoCuenta.datos && (
+              <Dato
+                etiqueta="Cuenta"
+                valor={textoDeEstadoDeCuenta(cEstadoCuenta.datos)}
+              />
+            )}
             <Dato etiqueta="Domicilio" valor={empleado.domicilio} />
             <Dato
               etiqueta="Contacto de emergencia"

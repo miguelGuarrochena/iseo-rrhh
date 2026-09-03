@@ -534,13 +534,19 @@ const PermisosPage = () => {
             etiqueta="Vincular a colaborador"
             value={empleadoId}
             onChange={setEmpleadoId}
-            ayuda="Sin esto la persona entra a la app pero no ve sus recibos ni su ficha. Se puede cambiar después desde “Gestionar”."
+            ayuda="Sin esto la persona entra a la app pero no ve sus recibos ni su ficha. Se puede cambiar después desde “Gestionar”. Los marcados “No le vamos a dar cuenta en la app” no figuran acá: para invitarlos, destildá esa opción en su ficha."
             opciones={[
               { valor: '', etiqueta: 'Sin vincular' },
               // Los que ya tienen cuenta no se ofrecen: un legajo admite
               // una sola, y la invitación fallaría igual.
+              //
+              // Los marcados "No le vamos a dar cuenta en la app" tampoco:
+              // es una decisión tomada en su ficha, y ofrecerlos acá deja
+              // invitarlos en dos clics sin que nada avise que contradice
+              // lo que dice el legajo. Para darle acceso hay que destildar
+              // esa opción primero, que es donde está escrita la decisión.
               ...empleados
-                .filter((e) => !empleadosConCuenta.has(e.id))
+                .filter((e) => !empleadosConCuenta.has(e.id) && !e.sinUsuario)
                 .map((e) => ({
                   valor: e.id,
                   etiqueta: `${e.apellido}, ${e.nombre} — ${e.puesto}`,
