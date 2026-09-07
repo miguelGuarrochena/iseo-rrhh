@@ -46,6 +46,15 @@ interface Posicion {
   offset: number;
 }
 
+/** Dos medidas equivalentes: el panel no necesita moverse. */
+const mismaPos = (a: Posicion | null, b: Posicion) =>
+  a !== null &&
+  a.izquierda === b.izquierda &&
+  a.ancho === b.ancho &&
+  a.alto === b.alto &&
+  a.arriba === b.arriba &&
+  a.offset === b.offset;
+
 /**
  * Dropdown propio (no nativo): botón + panel de opciones con el
  * lenguaje visual de la app. Cierra con click afuera o Esc.
@@ -99,13 +108,18 @@ export const Selector = ({
     const haciaArriba =
       espacioAbajo < ALTO_MINIMO && espacioArriba > espacioAbajo;
     const disponible = haciaArriba ? espacioArriba : espacioAbajo;
-    setPos({
+    const siguiente: Posicion = {
       izquierda: caja.left,
       ancho: caja.width,
       alto: Math.max(ALTO_MINIMO, Math.min(ALTO_MAXIMO, disponible)),
       arriba: haciaArriba,
       offset: haciaArriba ? window.innerHeight - caja.top + 6 : caja.bottom + 6,
-    });
+    };
+    // Se compara por valor: si el botón no se movió, se conserva el
+    // objeto anterior. Devolver uno nuevo idéntico re-renderizaba la
+    // lista entera en cada evento de scroll y, peor, hacía creer al
+    // efecto de abajo que el panel se había reubicado.
+    setPos((previa) => (mismaPos(previa, siguiente) ? previa : siguiente));
   }, []);
 
   useLayoutEffect(() => {
@@ -114,18 +128,33 @@ export const Selector = ({
       return;
     }
     medir();
+    // El scroll del propio panel no mueve al botón: no hay nada que
+    // recalcular. Escucharlo igual costaba un `setPos` por frame del
+    // gesto, y con el dedo eso terminaba peleándose con el scroll de la
+    // lista (ver el efecto de `scrollIntoView`).
+    const alScrollear = (e: Event) => {
+      // `target` es `window`/`document` cuando scrollea la página, y no
+      // son `Node`: hay que preguntarlo antes de usar `contains`.
+      const destino = e.target;
+      if (destino instanceof Node && lista.current?.contains(destino)) return;
+      medir();
+    };
     window.addEventListener('resize', medir);
     // `true` = fase de captura, para enterarse también del scroll de los
     // contenedores internos (el cuerpo de un Modal), no solo del de la
     // ventana. Sin esto el panel quedaría flotando donde estaba.
-    window.addEventListener('scroll', medir, true);
+    window.addEventListener('scroll', alScrollear, true);
     return () => {
       window.removeEventListener('resize', medir);
-      window.removeEventListener('scroll', medir, true);
+      window.removeEventListener('scroll', alScrollear, true);
     };
   }, [abierto, medir]);
 
-  useEffect(() => {
+  // `useLayoutEffect` para que caiga en el mismo commit que `medir`: así
+  // el panel se monta ya sabiendo cuál es la resaltada y la lleva a la
+  // vista de una sola vez. Como `useEffect` el panel aparecía primero
+  // arrastrado al tope y recién después saltaba a la elegida.
+  useLayoutEffect(() => {
     if (abierto) {
       setResaltada(
         Math.max(
@@ -136,11 +165,33 @@ export const Selector = ({
     }
   }, [abierto, opciones, valor]);
 
-  // Al moverse con las flechas, la opción resaltada tiene que entrar en
-  // el panel: si no, se navega a ciegas por una lista larga.
+  /**
+   * Al abrir, y al moverse con las flechas, la opción resaltada tiene que
+   * entrar en el panel: si no, se navega a ciegas por una lista larga.
+   *
+   * Sólo cuando `resaltada` cambia de verdad. Antes alcanzaba con que se
+   * recalculara la posición del panel para volver a llamar a
+   * `scrollIntoView`, y como eso pasa en cada evento de scroll, con el
+   * dedo la lista rebotaba de vuelta a la opción elegida: si la elegida
+   * era una de las primeras (o ninguna, que resalta la primera), no se
+   * podía bajar más allá de la primera pantalla. En desktop no se notaba
+   * porque el `mouseenter` de la rueda va resaltando opciones visibles y
+   * `block: 'nearest'` no tiene nada que hacer.
+   */
+  const yaLlevadaALaVista = useRef(-1);
   useEffect(() => {
-    if (!abierto) return;
-    lista.current?.children[resaltada]?.scrollIntoView({ block: 'nearest' });
+    if (!abierto) {
+      yaLlevadaALaVista.current = -1;
+      return;
+    }
+    if (yaLlevadaALaVista.current === resaltada) return;
+    // En el primer render con `abierto` el panel todavía no está montado
+    // (falta medir): se deja sin marcar para llevarla a la vista apenas
+    // exista.
+    const opcion = lista.current?.children[resaltada];
+    if (!opcion) return;
+    yaLlevadaALaVista.current = resaltada;
+    opcion.scrollIntoView({ block: 'nearest' });
   }, [abierto, resaltada, pos]);
 
   const elegir = (v: string) => {
