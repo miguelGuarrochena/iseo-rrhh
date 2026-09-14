@@ -41,6 +41,8 @@ import {
   Notificacion,
   NuevaEmpresa,
   NuevaRemuneracion,
+  DatosObjetivoVenta,
+  ObjetivoVentaMes,
   NuevoConvenio,
   OpcionesFichaje,
   TipoFichaje,
@@ -96,7 +98,12 @@ import type {
   FilaLiquidacion,
   MapeoDeEmpresa,
 } from '@/lib/importarLiquidacion';
-import { ALGORITMO_HASH, hashDeArchivo } from '@/lib/constanciaFirma';
+import {
+  ALGORITMO_HASH,
+  hashDeArchivo,
+  verificarConstancia,
+  type ResultadoVerificacion,
+} from '@/lib/constanciaFirma';
 import type { DatosReporte } from '@/lib/reporteMensual';
 import {
   diasLicenciaAprobadosEnAnio,
@@ -152,6 +159,7 @@ import {
   aMovimiento,
   aNotaInterna,
   aNotificacion,
+  aObjetivoVenta,
   aRecibo,
   aRemuneracion,
   aTerminal,
@@ -372,6 +380,8 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
         horaEntrada: cfg.horaEntradaDefault,
         horaSalida: cfg.horaSalidaDefault,
         diasAvisoVencimiento: cfg.diasAvisoDefault,
+        // Add-on comercial: ISEO lo prende desde Empresa → Módulos.
+        modulos: { 'objetivos-ventas': false },
       },
     })
     .select()
@@ -3536,6 +3546,24 @@ export const hashDelRecibo = async (
   }
 };
 
+/**
+ * Compara el PDF que está hoy en storage con el hash guardado al firmar.
+ * Si no hay hash (firmas viejas) o no se pudo bajar el archivo, lo dice
+ * sin inventar un "coincide".
+ */
+export const verificarConstanciaRecibo = async (
+  recibo: ReciboSueldo
+): Promise<ResultadoVerificacion> => {
+  try {
+    const url = await abrirRecibo(recibo);
+    const res = await fetch(url);
+    if (!res.ok) return { estado: 'no_verificable' };
+    return await verificarConstancia(await res.blob(), recibo.hashFirmado);
+  } catch {
+    return { estado: 'no_verificable' };
+  }
+};
+
 /** Avisa al empleado que su recibo ya está disponible para firmar. */
 const avisarReciboDisponible = async (
   empleadoId: string,
@@ -5448,4 +5476,45 @@ export const getDatosReporte = async (
     remuneraciones,
     jornadas,
   };
+};
+
+// ---------- Objetivos de ventas ----------
+
+export const getObjetivoVenta = async (
+  periodo: string
+): Promise<ObjetivoVentaMes | null> => {
+  const { data, error } = await sb()
+    .from('objetivos_venta_mes')
+    .select('*')
+    .eq('empresa_id', empresaId())
+    .eq('periodo', periodo)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? aObjetivoVenta(data) : null;
+};
+
+export const guardarObjetivoVenta = async (
+  datos: DatosObjetivoVenta
+): Promise<ObjetivoVentaMes> => {
+  const fila = {
+    empresa_id: empresaId(),
+    periodo: datos.periodo,
+    monto_objetivo: datos.montoObjetivo,
+    monto_alcanzado: datos.montoAlcanzado,
+    bono_monto: datos.bonoMonto ?? null,
+    notas: datos.notas?.trim() ? datos.notas.trim() : null,
+    actualizado_en: new Date().toISOString(),
+  };
+  const { data, error } = await sb()
+    .from('objetivos_venta_mes')
+    .upsert(fila, { onConflict: 'empresa_id,periodo' })
+    .select()
+    .single();
+  const guardado = aObjetivoVenta(oFalla(data, error));
+  await registrarAuditoria('editar', 'objetivo_venta', guardado.id, {
+    periodo: guardado.periodo,
+    montoObjetivo: guardado.montoObjetivo,
+    montoAlcanzado: guardado.montoAlcanzado,
+  });
+  return guardado;
 };

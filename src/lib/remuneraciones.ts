@@ -507,6 +507,12 @@ export interface ResumenMasa {
   porEmpleado: FilaMasa[];
 }
 
+/** Recortes a un mes concreto. Evita mezclar sueldos de períodos distintos. */
+export const remuneracionesDelPeriodo = (
+  remuneraciones: Remuneracion[],
+  periodo: string
+): Remuneracion[] => remuneraciones.filter((r) => r.periodo === periodo);
+
 /**
  * Resume la masa salarial tomando la última remuneración de cada empleado.
  * `cargasPatronalesPct` permite usar el % que cada empresa configuró
@@ -551,9 +557,37 @@ export const resumirMasa = (
   };
 };
 
+/**
+ * Igual que `resumirMasa`, pero sólo con las filas de `periodo`.
+ * El SAC u otros tipos del mismo mes no entran: la masa del mes es el
+ * sueldo mensual.
+ */
+export const resumirMasaDelPeriodo = (
+  remuneraciones: Remuneracion[],
+  periodo: string,
+  cargasPatronalesPct: number = CARGAS_PATRONALES
+): ResumenMasa =>
+  resumirMasa(
+    remuneracionesDelPeriodo(remuneraciones, periodo),
+    cargasPatronalesPct
+  );
+
 /** "YYYY-06" o "YYYY-12": el período en que se liquida el SAC de ese semestre. */
 export const periodoDeSemestre = (anio: number, sem: 1 | 2): string =>
   sem === 1 ? `${anio}-06` : `${anio}-12`;
+
+/**
+ * Los seis meses del semestre, incluido el de liquidación del SAC.
+ * El modal de aguinaldo los pide juntos: con un solo mes no hay mejor
+ * bruto ni forma de ver si el SAC ya está cargado.
+ */
+export const periodosDelSemestre = (anio: number, sem: 1 | 2): string[] => {
+  const inicio = sem === 1 ? 1 : 7;
+  return Array.from(
+    { length: 6 },
+    (_, i) => `${anio}-${String(inicio + i).padStart(2, '0')}`
+  );
+};
 
 /**
  * Modalidades de contratación bajo relación de dependencia: cobran SAC.

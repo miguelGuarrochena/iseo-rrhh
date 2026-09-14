@@ -482,6 +482,10 @@ export const getRecibosArchivadosTodos = elegir(
   demo.getRecibosArchivadosTodos
 );
 export const hashDelRecibo = elegir(real.hashDelRecibo, demo.hashDelRecibo);
+export const verificarConstanciaRecibo = elegir(
+  real.verificarConstanciaRecibo,
+  demo.verificarConstanciaRecibo
+);
 export const firmarRecibo = elegir(real.firmarRecibo, demo.firmarRecibo);
 export const cargarRecibo = elegir(real.cargarRecibo, demo.cargarRecibo);
 export const firmarReciboEmpleador = elegir(
@@ -666,4 +670,13 @@ export const eliminarDocumentoFirma = elegir(
 export const getPendientesResumen = elegir(
   real.getPendientesResumen,
   demo.getPendientesResumen
+);
+
+export const getObjetivoVenta = elegir(
+  real.getObjetivoVenta,
+  demo.getObjetivoVenta
+);
+export const guardarObjetivoVenta = elegir(
+  real.guardarObjetivoVenta,
+  demo.guardarObjetivoVenta
 );

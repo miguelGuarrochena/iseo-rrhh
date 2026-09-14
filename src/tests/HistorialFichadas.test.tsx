@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MantineProvider } from '@mantine/core';
 import { HistorialFichadas } from '@/components/app/fichaje/HistorialFichadas';
 import { descargarResumenFichadas } from '@/lib/exportarFichadas';
-import { getJornadas } from '@/lib/services/rrhh';
+import { getFichajesPagina, getJornadas } from '@/lib/services/rrhh';
 import { Empleado } from '@/types/rrhh';
 
 // Veinte personas: más que una página, que es la situación que importa.
@@ -101,5 +101,37 @@ describe('HistorialFichadas: resumen paginado', () => {
       .calls[0][0];
     expect(resumen.filas).toHaveLength(20);
     expect(resumen.filas[19].empleado.apellido).toBe('Apellido19');
+  });
+});
+
+describe('HistorialFichadas: filtro por colaborador', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    Element.prototype.scrollIntoView = jest.fn();
+  });
+
+  it('pide al servidor sólo el id del colaborador elegido', async () => {
+    render(
+      <MantineProvider>
+        <HistorialFichadas />
+      </MantineProvider>
+    );
+    await userEvent.click(screen.getByRole('button', { name: /filtros/i }));
+    const selector = await screen.findByRole('button', {
+      name: /todos los colaboradores/i,
+    });
+    await userEvent.click(selector);
+    await userEvent.click(
+      await screen.findByRole('option', { name: /Apellido03, Nombre/ })
+    );
+    await userEvent.click(screen.getByRole('button', { name: /confirmar/i }));
+
+    await waitFor(() => {
+      const pedidos = (getFichajesPagina as jest.Mock).mock.calls.filter((c) =>
+        Array.isArray(c[2]?.empleadoIds)
+      );
+      expect(pedidos.length).toBeGreaterThan(0);
+      expect(pedidos[pedidos.length - 1][2].empleadoIds).toEqual(['ple-3']);
+    });
   });
 });

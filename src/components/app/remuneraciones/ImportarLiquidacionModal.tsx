@@ -281,8 +281,10 @@ export const ImportarLiquidacionModal = ({
       ) : paso === 'archivo' ? (
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed text-ink-soft">
-            Subí la planilla que te manda el estudio contable. Vas a poder
-            revisar todo antes de que se guarde nada.
+            Subí la planilla Excel o CSV que te manda el estudio contable (una
+            fila por colaborador). Vas a poder mapear columnas y revisar todo
+            antes de que se guarde nada. No hace falta cargar los sueldos a
+            mano.
           </p>
 
           <CampoMes

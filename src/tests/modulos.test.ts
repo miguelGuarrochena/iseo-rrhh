@@ -1,5 +1,6 @@
 import {
   dependenDe,
+  DEPENDENCIAS_SECCION,
   moduloActivo,
   MODULOS_OPCIONALES,
   navItems,
@@ -129,5 +130,18 @@ describe('dependenDe', () => {
   it('una sección de la que no cuelga nada no rompe nada', () => {
     expect(dependenDe('convenio')).toEqual([]);
     expect(dependenDe('agenda')).toEqual([]);
+  });
+
+  it('objetivos de ventas no depende de ningún otro módulo', () => {
+    expect(DEPENDENCIAS_SECCION['objetivos-ventas']).toBeUndefined();
+    expect(dependenDe('objetivos-ventas')).toEqual([]);
+    expect(
+      navItemsPorRol('admin_rrhh', { 'objetivos-ventas': false }).some(
+        (i) => i.href === '/objetivos-ventas'
+      )
+    ).toBe(false);
+    expect(
+      navItemsPorRol('admin_rrhh').some((i) => i.href === '/objetivos-ventas')
+    ).toBe(true);
   });
 });

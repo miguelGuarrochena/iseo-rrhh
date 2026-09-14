@@ -54,6 +54,8 @@ import {
   ReciboSueldo,
   TipoRecibo,
   Remuneracion,
+  ObjetivoVentaMes,
+  DatosObjetivoVenta,
   ResumenControl,
   SaldoVacaciones,
   VacacionesPendientes,
@@ -89,7 +91,10 @@ import type {
   ParametroLegal,
 } from '@/lib/parametrosLegales';
 import type { CuentaConsultadaDeEmpleado } from '@/lib/api/cambioDeEmail';
-import { ALGORITMO_HASH } from '@/lib/constanciaFirma';
+import {
+  ALGORITMO_HASH,
+  type ResultadoVerificacion,
+} from '@/lib/constanciaFirma';
 import type { DatosReporte } from '@/lib/reporteMensual';
 import { distanciaMetros } from '@/lib/facial/ubicacion';
 
@@ -229,6 +234,7 @@ export const crearEmpresa = async (datos: NuevaEmpresa): Promise<Empresa> => {
       horaEntrada: '08:00',
       horaSalida: '17:00',
       diasAvisoVencimiento: 30,
+      modulos: { 'objetivos-ventas': false },
     },
     // Día de negocio: `toISOString().slice(0, 10)` es la fecha de UTC.
     creadaEn: hoyISO(),
@@ -1960,6 +1966,13 @@ export const firmarRecibo = async (
 /** En demo el PDF es un mock: no hay bytes reales que hashear. */
 export const hashDelRecibo = async (): Promise<string | null> => null;
 
+export const verificarConstanciaRecibo = async (
+  recibo: ReciboSueldo
+): Promise<ResultadoVerificacion> =>
+  recibo.hashFirmado
+    ? { estado: 'coincide', hash: recibo.hashFirmado }
+    : { estado: 'sin_constancia' };
+
 // ---------- Agenda ----------
 
 export interface NuevoEvento {
@@ -3071,4 +3084,45 @@ export const getDatosReporte = async (
     // cierre: una sola definición de "hora extra aprobada" también acá.
     jornadas: datos.jornadas,
   });
+};
+
+const objetivosVentaMock: ObjetivoVentaMes[] = [];
+
+export const getObjetivoVenta = async (
+  periodo: string
+): Promise<ObjetivoVentaMes | null> =>
+  simular(
+    objetivosVentaMock.find(
+      (o) => o.empresaId === empresaDemo() && o.periodo === periodo
+    ) ?? null
+  );
+
+export const guardarObjetivoVenta = async (
+  datos: DatosObjetivoVenta
+): Promise<ObjetivoVentaMes> => {
+  const existente = objetivosVentaMock.find(
+    (o) => o.empresaId === empresaDemo() && o.periodo === datos.periodo
+  );
+  if (existente) {
+    Object.assign(existente, {
+      montoObjetivo: datos.montoObjetivo,
+      montoAlcanzado: datos.montoAlcanzado,
+      bonoMonto: datos.bonoMonto,
+      notas: datos.notas,
+      actualizadoEn: new Date().toISOString(),
+    });
+    return simular(existente);
+  }
+  const nuevo: ObjetivoVentaMes = {
+    id: `obj-${Date.now()}`,
+    empresaId: empresaDemo(),
+    periodo: datos.periodo,
+    montoObjetivo: datos.montoObjetivo,
+    montoAlcanzado: datos.montoAlcanzado,
+    bonoMonto: datos.bonoMonto,
+    notas: datos.notas,
+    actualizadoEn: new Date().toISOString(),
+  };
+  objetivosVentaMock.push(nuevo);
+  return simular(nuevo);
 };

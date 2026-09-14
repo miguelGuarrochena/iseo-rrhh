@@ -38,8 +38,16 @@ import {
   getRecibosArchivadosTodos,
   getEmpleadosConCuenta,
   getRecibosTodos,
+  verificarConstanciaRecibo,
 } from '@/lib/services/rrhh';
 import { CargaMasivaModal } from '@/components/app/recibos/CargaMasivaModal';
+import {
+  AvisoFirmaSinSello,
+  FirmaBadge,
+  ResultadoConstancia,
+} from '@/components/app/recibos/EstadoFirma';
+import { puedeFirmarTrasVer, vistosTrasAbrir } from '@/lib/firmaReciboUi';
+import { ResultadoVerificacion } from '@/lib/constanciaFirma';
 import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { Empleado, ReciboSueldo, TipoRecibo } from '@/types/rrhh';
 import { tipoReciboLabels } from '@/lib/etiquetas';
@@ -53,17 +61,6 @@ import { RequireModulo } from '@/components/app/RequireModulo';
 import { RequireEmpresa } from '@/components/app/RequireEmpresa';
 
 const POR_PAGINA = 8;
-
-const FirmaBadge = ({ recibo }: { recibo: ReciboSueldo }) =>
-  recibo.estadoFirma === 'firmado' ? (
-    <span className="shrink-0 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800">
-      Firmado {recibo.firmadoEn ? `· ${formatearFecha(recibo.firmadoEn)}` : ''}
-    </span>
-  ) : (
-    <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
-      Pendiente de firma
-    </span>
-  );
 
 const RecibosPage = () => {
   const { usuario, rolEfectivo } = useAuth();
@@ -92,6 +89,12 @@ const RecibosPage = () => {
     setVersionesDe(r);
   };
   const [aFirmar, setAFirmar] = useState<ReciboSueldo | null>(null);
+  const [vistos, setVistos] = useState<Record<string, boolean>>({});
+  const [verificandoId, setVerificandoId] = useState<string | null>(null);
+  const [verificacion, setVerificacion] = useState<{
+    reciboId: string;
+    resultado: ResultadoVerificacion;
+  } | null>(null);
   const [firmando, setFirmando] = useState(false);
   const [modalAbierto, { open, close }] = useDisclosure(false);
   const [cargaAbierta, { open: abrirCarga, close: cerrarCarga }] =
@@ -190,10 +193,12 @@ const RecibosPage = () => {
     open();
   };
 
-  const verRecibo = (recibo: ReciboSueldo) =>
-    abrirArchivo(() => abrirRecibo(recibo), {
+  const verRecibo = async (recibo: ReciboSueldo) => {
+    const abrio = await abrirArchivo(() => abrirRecibo(recibo), {
       titulo: 'No pudimos abrir el recibo',
     });
+    setVistos((prev) => vistosTrasAbrir(prev, recibo.id, abrio));
+  };
 
   /**
    * Descarga el PDF con un nombre que se entiende sin abrirlo. El pedido
@@ -304,6 +309,13 @@ const RecibosPage = () => {
 
   const confirmarFirma = async () => {
     if (!aFirmar) return;
+    if (!puedeFirmarTrasVer(Boolean(vistos[aFirmar.id]))) {
+      avisoError(
+        'Abrí el recibo antes de firmar',
+        'Tenés que ver el PDF para dejar constancia de qué documento estás firmando.'
+      );
+      return;
+    }
     setFirmando(true);
     try {
       /*
@@ -328,6 +340,20 @@ const RecibosPage = () => {
     close();
     setAFirmar(null);
     cargar();
+  };
+
+  const verificarRecibo = async (recibo: ReciboSueldo) => {
+    setVerificandoId(recibo.id);
+    try {
+      const resultado = await verificarConstanciaRecibo(recibo);
+      setVerificacion({ reciboId: recibo.id, resultado });
+    } catch {
+      setVerificacion({
+        reciboId: recibo.id,
+        resultado: { estado: 'no_verificable' },
+      });
+    }
+    setVerificandoId(null);
   };
 
   const publicarRecibo = async (r: ReciboSueldo) => {
@@ -442,8 +468,8 @@ const RecibosPage = () => {
           </h1>
           <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
             {soloPropios
-              ? 'Consultá y firmá tus recibos con validez digital.'
-              : 'Cargá los recibos y seguí las firmas del equipo.'}
+              ? 'Consultá y firmá tus recibos. La firma es una constancia digital en el sistema; el PDF no lleva sello visual.'
+              : 'Cargá los recibos y seguí las constancias de recepción del equipo. Firmado no significa que el PDF tenga un sello.'}
           </p>
         </div>
         {rolEfectivo === 'admin_rrhh' && (
@@ -554,6 +580,8 @@ const RecibosPage = () => {
       {/* La pregunta que se hace RRHH mirando esta lista es "por qué no
           firman". Si la respuesta es que a esa gente le falta algo para
           poder verlo, tiene que estar acá y no enterrada en cada fila. */}
+      <AvisoFirmaSinSello />
+
       <BloqueFaltasDeVarios
         items={faltantes}
         titulo={
@@ -593,7 +621,12 @@ const RecibosPage = () => {
                     {!soloPropios && (
                       <ChipsFaltas faltas={faltasDe(r.empleadoId)} />
                     )}
-                    <FirmaBadge recibo={r} />
+                    <FirmaBadge
+                      recibo={r}
+                      fecha={
+                        r.firmadoEn ? formatearFecha(r.firmadoEn) : undefined
+                      }
+                    />
                     {botonVersiones(r)}
                     <Boton
                       variante="secundario"
@@ -604,7 +637,16 @@ const RecibosPage = () => {
                       Ver
                     </Boton>
                     {soloPropios && r.estadoFirma === 'pendiente' && (
-                      <Boton tamano="sm" onClick={() => abrirFirma(r)}>
+                      <Boton
+                        tamano="sm"
+                        onClick={() => abrirFirma(r)}
+                        disabled={!puedeFirmarTrasVer(Boolean(vistos[r.id]))}
+                        title={
+                          puedeFirmarTrasVer(Boolean(vistos[r.id]))
+                            ? undefined
+                            : 'Primero abrí el recibo con Ver'
+                        }
+                      >
                         <IconSignature />
                         Firmar
                       </Boton>
@@ -664,10 +706,15 @@ const RecibosPage = () => {
                   ? formatearPeriodo(r.periodo)
                   : `${nombreEmpleado(r.empleadoId)} — ${formatearPeriodo(r.periodo)}`
               }
-              secundario={`${tipoReciboLabels[r.tipo]} · firmado`}
+              secundario={`${tipoReciboLabels[r.tipo]} · constancia digital`}
               extremo={
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                  <FirmaBadge recibo={r} />
+                  <FirmaBadge
+                    recibo={r}
+                    fecha={
+                      r.firmadoEn ? formatearFecha(r.firmadoEn) : undefined
+                    }
+                  />
                   {botonVersiones(r)}
                   <Boton
                     variante="secundario"
@@ -677,6 +724,21 @@ const RecibosPage = () => {
                     <IconEye />
                     Ver
                   </Boton>
+                  {!soloPropios && r.estadoFirma === 'firmado' && (
+                    <Boton
+                      variante="secundario"
+                      tamano="sm"
+                      onClick={() => void verificarRecibo(r)}
+                      disabled={verificandoId === r.id}
+                    >
+                      {verificandoId === r.id ? 'Verificando…' : 'Verificar'}
+                    </Boton>
+                  )}
+                  {verificacion?.reciboId === r.id && (
+                    <div className="w-full sm:w-auto sm:min-w-[16rem]">
+                      <ResultadoConstancia resultado={verificacion.resultado} />
+                    </div>
+                  )}
                   <BotonIcono
                     tamano="sm"
                     etiqueta={`Descargar el recibo de ${formatearPeriodo(r.periodo)}`}
@@ -792,13 +854,27 @@ const RecibosPage = () => {
       >
         <div className="flex flex-col gap-4">
           <p className="text-sm leading-relaxed text-ink-soft">
-            Estás por firmar digitalmente tu recibo de{' '}
+            Estás por dejar constancia digital de recepción de tu recibo de{' '}
             <strong className="text-ink">
               {aFirmar ? formatearPeriodo(aFirmar.periodo) : ''}
             </strong>
-            . La firma deja constancia de recepción con fecha y hora, con el
-            mismo valor que la firma del recibo en papel.
+            . Queda registrado quién y cuándo. El PDF no se modifica ni lleva
+            sello visual.
           </p>
+          <AvisoFirmaSinSello />
+          {aFirmar && !vistos[aFirmar.id] ? (
+            <Boton
+              variante="secundario"
+              onClick={() => void verRecibo(aFirmar)}
+            >
+              <IconEye />
+              Ver el recibo
+            </Boton>
+          ) : (
+            <p className="rounded-xl bg-emerald-50 px-4 py-3 text-xs text-emerald-900">
+              Ya abriste el PDF en esta sesión.
+            </p>
+          )}
           <p className="rounded-xl bg-paper px-4 py-3 text-xs text-ink-soft">
             Declaro haber recibido el recibo de sueldo correspondiente al
             período indicado.
@@ -806,7 +882,10 @@ const RecibosPage = () => {
           <div className="flex gap-2">
             <Boton
               onClick={() => void confirmarFirma()}
-              disabled={firmando}
+              disabled={
+                firmando ||
+                !puedeFirmarTrasVer(Boolean(aFirmar && vistos[aFirmar.id]))
+              }
               className="flex-1"
             >
               {firmando ? 'Firmando…' : 'Firmar recibo'}

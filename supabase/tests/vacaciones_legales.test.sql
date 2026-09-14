@@ -303,6 +303,29 @@ begin
     'bbbb0000-0000-0000-0000-000000000fa1', 2026,
     v_config || '{"vacacionesEscala":{"hasta5":20}}'::jsonb) = 20,
     'hábiles: la escala acordada por la empresa se respeta';
+
+  assert dias_vacaciones_corresponden(
+    'bbbb0000-0000-0000-0000-000000000fa1', 2026,
+    v_config || '{"vacacionesDiasAdicionales":3}'::jsonb) = 13,
+    'hábiles: +3 de convenio se suman al tramo';
+end $$;
+
+do $$
+declare v_config jsonb;
+begin
+  v_config := (select config from empresas where id = 'bbbb0000-0000-0000-0000-0000000000a1');
+
+  assert dias_vacaciones_corresponden(
+    'bbbb0000-0000-0000-0000-0000000000e1', 2026, v_config) = 14,
+    'corridos: 5 años exactos siguen siendo 14 sin extra';
+  assert dias_vacaciones_corresponden(
+    'bbbb0000-0000-0000-0000-0000000000e1', 2026,
+    v_config || '{"vacacionesDiasAdicionales":3}'::jsonb) = 17,
+    'corridos: +3 de convenio se suman al tramo legal';
+  assert dias_vacaciones_corresponden(
+    'bbbb0000-0000-0000-0000-0000000000e1', 2026,
+    v_config || '{"vacacionesDiasAdicionales":0}'::jsonb) = 14,
+    'corridos: 0 adicionales no cambia el cupo';
 end $$;
 
 -- La firma vieja de tres argumentos no puede seguir viva: sería la regla

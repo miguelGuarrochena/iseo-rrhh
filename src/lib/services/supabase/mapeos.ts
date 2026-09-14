@@ -20,6 +20,7 @@ import {
   Notificacion,
   ReciboSueldo,
   Remuneracion,
+  ObjetivoVentaMes,
   Terminal,
   Turno,
   Usuario,
@@ -217,6 +218,17 @@ export const aRecibo = (f: Fila): ReciboSueldo => ({
     : undefined,
   hashFirmado: f.hash_firmado ?? undefined,
   hashAlgoritmo: f.hash_algoritmo ?? undefined,
+});
+
+export const aObjetivoVenta = (f: Fila): ObjetivoVentaMes => ({
+  id: f.id,
+  empresaId: f.empresa_id,
+  periodo: f.periodo,
+  montoObjetivo: Number(f.monto_objetivo),
+  montoAlcanzado: Number(f.monto_alcanzado),
+  bonoMonto: f.bono_monto != null ? Number(f.bono_monto) : undefined,
+  notas: f.notas ?? undefined,
+  actualizadoEn: String(f.actualizado_en),
 });
 
 export const aDescuentoRecurrente = (f: Fila): DescuentoRecurrente => ({

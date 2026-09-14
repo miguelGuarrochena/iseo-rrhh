@@ -2,6 +2,8 @@ import {
   aDiasCorridos,
   calcularVacacionesDiasHabiles,
   calcularVacacionesLegalesCorridas,
+  diasAdicionalesDe,
+  diasVacacionesCorresponden,
   diasVacacionesGozadosEn,
   ESCALA_LCT,
   erroresDeEscala,
@@ -301,5 +303,62 @@ describe('escala configurable de vacaciones', () => {
       );
       expect(errores.hasta5).toBeDefined();
     });
+  });
+});
+
+describe('días adicionales de vacaciones por convenio', () => {
+  it('sin configurar, o en 0, no suma nada', () => {
+    expect(diasAdicionalesDe(undefined)).toBe(0);
+    expect(diasAdicionalesDe({})).toBe(0);
+    expect(diasAdicionalesDe({ vacacionesDiasAdicionales: 0 })).toBe(0);
+  });
+
+  it('un negativo o no numérico no recorta el cupo legal', () => {
+    expect(diasAdicionalesDe({ vacacionesDiasAdicionales: -3 })).toBe(0);
+    expect(diasAdicionalesDe({ vacacionesDiasAdicionales: Number.NaN })).toBe(
+      0
+    );
+  });
+
+  it('en corridos suma 3 sobre el tramo legal', () => {
+    const base = calcularVacacionesLegalesCorridas({
+      fechaIngreso: '2023-02-15',
+      fechaBaja: undefined,
+      anio: 2026,
+    });
+    expect(base).toBe(14);
+    expect(
+      diasVacacionesCorresponden({
+        fechaIngreso: '2023-02-15',
+        fechaBaja: undefined,
+        anio: 2026,
+        config: { vacacionesDiasAdicionales: 3 },
+      })
+    ).toBe(17);
+  });
+
+  it('en hábiles también suma sobre la escala', () => {
+    expect(
+      diasVacacionesCorresponden({
+        fechaIngreso: '2023-01-01',
+        fechaBaja: undefined,
+        anio: 2026,
+        config: {
+          vacacionesDiasHabiles: true,
+          vacacionesDiasAdicionales: 3,
+        },
+      })
+    ).toBe(13);
+  });
+
+  it('quien ingresa después del año no recibe el extra', () => {
+    expect(
+      diasVacacionesCorresponden({
+        fechaIngreso: '2027-01-10',
+        fechaBaja: undefined,
+        anio: 2026,
+        config: { vacacionesDiasAdicionales: 3 },
+      })
+    ).toBe(0);
   });
 });

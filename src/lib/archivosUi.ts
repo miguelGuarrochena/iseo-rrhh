@@ -37,11 +37,14 @@ const mensajeDe = (err: unknown): string | undefined =>
 /**
  * Pide la URL firmada y abre el archivo en otra pestaña.
  * Si algo falla, cierra la pestaña y avisa. Nunca queda mudo.
+ *
+ * Devuelve si se llegó a abrir: quien llama no puede asumir que un
+ * `await` que no tira es una apertura real (el toast ya se mostró acá).
  */
 export const abrirArchivo = async (
   obtenerUrl: () => Promise<string | null>,
   opciones?: { titulo?: string; vacio?: string }
-): Promise<void> => {
+): Promise<boolean> => {
   const titulo = opciones?.titulo ?? 'No pudimos abrir el archivo';
   const pestana = pestanaEnBlanco();
   try {
@@ -49,13 +52,15 @@ export const abrirArchivo = async (
     if (!url) {
       pestana?.close();
       avisoError(titulo, opciones?.vacio ?? 'El archivo ya no está guardado.');
-      return;
+      return false;
     }
     if (pestana) pestana.location.href = url;
     else window.open(url, '_blank', 'noopener,noreferrer');
+    return true;
   } catch (err) {
     pestana?.close();
     avisoError(titulo, mensajeDe(err));
+    return false;
   }
 };
 

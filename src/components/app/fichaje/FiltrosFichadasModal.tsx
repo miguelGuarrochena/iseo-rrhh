@@ -3,22 +3,29 @@
 import { useEffect, useState } from 'react';
 import { Modal } from '@mantine/core';
 import { Boton } from '@/components/app/ui/Boton';
-import { Campo, CampoSelect } from '@/components/app/ui/Campo';
+import { CampoSelect } from '@/components/app/ui/Campo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 
 export interface FiltrosFichadas {
   desde: string;
   hasta: string;
-  /** Busca en nombre, apellido, legajo y DNI. */
-  nombre: string;
+  /** Id del colaborador, o vacío = todos. */
+  empleadoId: string;
   sector: string;
   soloIncompletos: boolean;
+}
+
+export interface ColaboradorFiltro {
+  id: string;
+  nombre: string;
+  apellido: string;
 }
 
 interface Props {
   abierto: boolean;
   valores: FiltrosFichadas;
   sectores: string[];
+  colaboradores?: ColaboradorFiltro[];
   /**
    * Historial de una sola persona (el empleado mirando el suyo): buscar
    * por colaborador o por sector no filtraría nada.
@@ -35,13 +42,14 @@ interface Props {
  * "Restablecer" a la izquierda de los botones.
  *
  * Los cambios se guardan en un borrador y recién se aplican al
- * confirmar. Aplicarlos en vivo dispararía una consulta por cada tecla
- * del campo de nombre.
+ * confirmar. El colaborador se elige en un selector, igual que en
+ * Ausencias: un campo de texto no dejaba desplegar ni elegir nombres.
  */
 export const FiltrosFichadasModal = ({
   abierto,
   valores,
   sectores,
+  colaboradores = [],
   sinColaborador = false,
   onCerrar,
   onAplicar,
@@ -101,12 +109,24 @@ export const FiltrosFichadasModal = ({
 
         {!sinColaborador && (
           <>
-            <Campo
+            <CampoSelect
               etiqueta="Colaborador"
-              value={borrador.nombre}
-              onChange={(e) => set('nombre', e.target.value)}
-              placeholder="Nombre, apellido, legajo o DNI"
-              ayuda="Busca por coincidencia parcial."
+              value={borrador.empleadoId}
+              onChange={(v) => set('empleadoId', v)}
+              opciones={[
+                { valor: '', etiqueta: 'Todos los colaboradores' },
+                ...[...colaboradores]
+                  .sort((a, b) =>
+                    `${a.apellido} ${a.nombre}`.localeCompare(
+                      `${b.apellido} ${b.nombre}`,
+                      'es'
+                    )
+                  )
+                  .map((e) => ({
+                    valor: e.id,
+                    etiqueta: `${e.apellido}, ${e.nombre}`,
+                  })),
+              ]}
             />
 
             <CampoSelect

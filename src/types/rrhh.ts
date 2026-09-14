@@ -87,6 +87,15 @@ export interface ConfigEmpresa {
     masDe20: number;
   }>;
   /**
+   * Días extra de vacaciones que el convenio (o un acuerdo de empresa)
+   * suma sobre lo que ya corresponde por antigüedad.
+   *
+   * Cero o ausente = sólo el régimen legal o la escala de hábiles.
+   * No son días arrastrados de años anteriores: esos van en
+   * `vacaciones_pendientes`.
+   */
+  vacacionesDiasAdicionales?: number;
+  /**
    * Secciones que la empresa decide no usar. La clave es el `modulo` del
    * NavItem y sólo se guarda cuando está apagada: lo que no figura acá
    * queda encendido, así las empresas que ya existen no cambian.
@@ -474,6 +483,29 @@ export interface Remuneracion {
    * importes, no esto.
    */
   detalle?: Record<string, number>;
+}
+
+/** Objetivo comercial de un mes, a nivel empresa. */
+export interface ObjetivoVentaMes {
+  id: string;
+  empresaId: string;
+  /** formato YYYY-MM */
+  periodo: string;
+  montoObjetivo: number;
+  montoAlcanzado: number;
+  /** Bono asociado si se alcanza el objetivo. Ausente = sin bono. */
+  bonoMonto?: number;
+  notas?: string;
+  actualizadoEn: string;
+}
+
+/** Datos para crear o actualizar el objetivo del mes. */
+export interface DatosObjetivoVenta {
+  periodo: string;
+  montoObjetivo: number;
+  montoAlcanzado: number;
+  bonoMonto?: number;
+  notas?: string;
 }
 
 /** Datos para cargar/actualizar la remuneración de un período. */

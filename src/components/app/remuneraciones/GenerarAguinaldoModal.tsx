@@ -5,12 +5,18 @@ import { Modal } from '@mantine/core';
 import { IconGift } from '@tabler/icons-react';
 import { Boton } from '@/components/app/ui/Boton';
 import { Campo, CampoSelect } from '@/components/app/ui/Campo';
-import { cargarRemuneracion } from '@/lib/services/rrhh';
+import { BloqueError } from '@/components/app/EstadoCarga';
+import { useCarga } from '@/lib/useCarga';
+import {
+  cargarRemuneracion,
+  getRemuneracionesDePeriodos,
+} from '@/lib/services/rrhh';
 import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   analizarSalario,
   MODALIDADES_CON_AGUINALDO,
   periodoDeSemestre,
+  periodosDelSemestre,
   yaTieneSacDelSemestre,
 } from '@/lib/remuneraciones';
 import { formatearPesos } from '@/lib/formato';
@@ -20,7 +26,6 @@ import { anioEmpresa, mesEmpresa } from '@/lib/fechas';
 interface GenerarAguinaldoModalProps {
   abierto: boolean;
   empleados: Empleado[];
-  remuneraciones: Remuneracion[];
   onCerrar: () => void;
   onGenerado: () => void;
 }
@@ -55,11 +60,14 @@ const finDeSemestre = (anio: number, sem: 1 | 2): string =>
  * puede tildar o destildar a cada colaborador y ajustar el monto antes de
  * confirmar. El monto sugerido ya viene prorrateado si alguien ingresó a
  * mitad de semestre.
+ *
+ * Pide los seis meses del semestre: la pantalla de remuneraciones mira
+ * un mes solo, y con eso no alcanza para el mejor bruto ni para saber
+ * si el SAC ya está cargado.
  */
 export const GenerarAguinaldoModal = ({
   abierto,
   empleados,
-  remuneraciones,
   onCerrar,
   onGenerado,
 }: GenerarAguinaldoModalProps) => {
@@ -68,8 +76,19 @@ export const GenerarAguinaldoModal = ({
   const [filas, setFilas] = useState<FilaAguinaldo[]>([]);
   const [generando, setGenerando] = useState(false);
 
+  const cargaRems = useCarga(
+    () => getRemuneracionesDePeriodos(periodosDelSemestre(anio, sem)),
+    [anio, sem],
+    {
+      activo: abierto,
+      contexto: 'remuneraciones/aguinaldo',
+      inicial: [] as Remuneracion[],
+    }
+  );
+  const remuneraciones = cargaRems.datos;
+
   useEffect(() => {
-    if (!abierto) return;
+    if (!abierto || cargaRems.fase !== 'ok') return;
     const hasta = finDeSemestre(anio, sem);
     setFilas(
       empleados
@@ -101,7 +120,7 @@ export const GenerarAguinaldoModal = ({
         })
         .sort((a, b) => a.empleado.apellido.localeCompare(b.empleado.apellido))
     );
-  }, [abierto, anio, sem, empleados, remuneraciones]);
+  }, [abierto, anio, sem, empleados, remuneraciones, cargaRems.fase]);
 
   const total = useMemo(
     () =>
@@ -206,8 +225,19 @@ export const GenerarAguinaldoModal = ({
           />
         </div>
 
+        {cargaRems.fase === 'error' && cargaRems.error && (
+          <BloqueError
+            error={cargaRems.error}
+            onReintentar={cargaRems.recargar}
+          />
+        )}
+
         <div className="max-h-80 overflow-y-auto rounded-xl border border-line">
-          {filas.length === 0 ? (
+          {cargaRems.fase === 'cargando' ? (
+            <p className="px-4 py-6 text-center text-sm text-ink-soft">
+              Cargando sueldos del semestre…
+            </p>
+          ) : filas.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-ink-soft">
               No hay colaboradores activos.
             </p>
@@ -279,7 +309,9 @@ export const GenerarAguinaldoModal = ({
           <Boton
             className="flex-1"
             onClick={() => void generar()}
-            disabled={generando || seleccionados === 0}
+            disabled={
+              generando || seleccionados === 0 || cargaRems.fase !== 'ok'
+            }
           >
             <IconGift size={16} />
             {generando ? 'Generando…' : `Generar para ${seleccionados}`}

@@ -441,17 +441,34 @@ export const diasVacacionesCorresponden = (
   datos: DatosVacacionesLegales & {
     config?: Pick<
       Empresa['config'],
-      'vacacionesDiasHabiles' | 'vacacionesEscala'
+      'vacacionesDiasHabiles' | 'vacacionesEscala' | 'vacacionesDiasAdicionales'
     > | null;
   }
-): number =>
-  unidadVacacionesDe(datos.config) === 'habiles'
-    ? calcularVacacionesDiasHabiles(
-        datos.fechaIngreso,
-        datos.anio,
-        escalaDe(datos.config)
-      )
-    : calcularVacacionesLegalesCorridas(datos);
+): number => {
+  const cierre = `${datos.anio}-12-31`;
+  if (!datos.fechaIngreso || datos.fechaIngreso > cierre) return 0;
+  const base =
+    unidadVacacionesDe(datos.config) === 'habiles'
+      ? calcularVacacionesDiasHabiles(
+          datos.fechaIngreso,
+          datos.anio,
+          escalaDe(datos.config)
+        )
+      : calcularVacacionesLegalesCorridas(datos);
+  return base + diasAdicionalesDe(datos.config);
+};
+
+/**
+ * Extra de convenio a nivel empresa. Cero si no hay, si es negativo o
+ * si no es un número. Se trunca: medio día no existe en este cupo.
+ */
+export const diasAdicionalesDe = (
+  config?: Pick<Empresa['config'], 'vacacionesDiasAdicionales'> | null
+): number => {
+  const n = config?.vacacionesDiasAdicionales;
+  if (n == null || !Number.isFinite(n) || n <= 0) return 0;
+  return Math.trunc(n);
+};
 
 /**
  * Días de vacaciones ya gozados en un año concreto.

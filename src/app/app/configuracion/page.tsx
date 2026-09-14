@@ -511,6 +511,26 @@ const ConfiguracionPage = () => {
             </span>
           </label>
 
+          <div className="mt-5 border-t border-line pt-5">
+            <Campo
+              etiqueta="Días adicionales de vacaciones por convenio"
+              type="number"
+              min={0}
+              step={1}
+              value={String(config.vacacionesDiasAdicionales ?? 0)}
+              onChange={(e) =>
+                setConfig({
+                  ...config,
+                  vacacionesDiasAdicionales: Math.max(
+                    0,
+                    Math.trunc(Number(e.target.value) || 0)
+                  ),
+                })
+              }
+              ayuda="Se suman a los días que corresponden por antigüedad, para toda la empresa. No son días arrastrados de años anteriores: esos se cargan en el legajo."
+            />
+          </div>
+
           {/*
             Los días sólo se eligen en hábiles. En corridos rige la escala
             de la LCT y no hay nada que acordar; mostrar campos editables

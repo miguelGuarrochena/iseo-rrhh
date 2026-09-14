@@ -22,6 +22,7 @@ import {
   IconSettings,
   IconShieldCheck,
   IconSitemap,
+  IconTarget,
   IconUsers,
 } from '@tabler/icons-react';
 import { Rol } from '@/types/rrhh';
@@ -116,7 +117,8 @@ export type ModuloOpcional =
   | 'convenio'
   | 'agenda'
   | 'comunicaciones'
-  | 'reportes';
+  | 'reportes'
+  | 'objetivos-ventas';
 
 /**
  * Qué sección necesita a cuál. Se usa para avisar antes de apagar algo
@@ -253,6 +255,14 @@ export const MODULOS_OPCIONALES: ModuloInfo[] = [
       'Indicadores de ausentismo, llegadas tarde y horas extras, con exportación a CSV.',
     cuandoApagarla:
       'Si nadie mira indicadores todavía. Se puede prender más adelante sin perder nada.',
+  },
+  {
+    clave: 'objetivos-ventas',
+    etiqueta: 'Objetivos de ventas',
+    descripcion:
+      'Objetivo mensual de ventas, progreso y bono asociado si se alcanza. El progreso se carga a mano; no liquida el bono.',
+    cuandoApagarla:
+      'Si la empresa no trabaja con metas comerciales o el seguimiento vive en otra herramienta. Arranca apagado: ISEO lo prende cuando está contratado.',
   },
 ];
 
@@ -406,6 +416,13 @@ export const navItems: NavItem[] = [
     icono: IconChartBar,
     roles: GESTION,
     modulo: 'reportes',
+  },
+  {
+    etiqueta: 'Objetivos de ventas',
+    href: '/objetivos-ventas',
+    icono: IconTarget,
+    roles: OPERATIVOS,
+    modulo: 'objetivos-ventas',
   },
   {
     /*

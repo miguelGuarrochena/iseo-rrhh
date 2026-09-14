@@ -100,7 +100,7 @@ export const HistorialFichadas = ({
     !propio && (rolEfectivo === 'admin_rrhh' || rolEfectivo === 'superadmin');
   const [filtros, setFiltros] = useState<FiltrosFichadas>({
     ...rangoPorDefecto(),
-    nombre: '',
+    empleadoId: '',
     sector: '',
     soloIncompletos: false,
   });
@@ -181,17 +181,14 @@ export const HistorialFichadas = ({
     [empleados]
   );
 
-  /** Los empleados que pasan el filtro de nombre y sector. */
+  /** Los empleados que pasan el filtro de colaborador y sector. */
   const empleadosFiltrados = useMemo(() => {
-    const busqueda = filtros.nombre.trim().toLowerCase();
     return empleados.filter((e) => {
+      if (filtros.empleadoId && e.id !== filtros.empleadoId) return false;
       if (filtros.sector && e.sector !== filtros.sector) return false;
-      if (!busqueda) return true;
-      return `${e.nombre} ${e.apellido} ${e.numeroLegajo ?? ''} ${e.dni}`
-        .toLowerCase()
-        .includes(busqueda);
+      return true;
     });
-  }, [empleados, filtros.nombre, filtros.sector]);
+  }, [empleados, filtros.empleadoId, filtros.sector]);
 
   /**
    * Ids a pedirle al servidor. `undefined` = sin filtro (no mandar el
@@ -295,7 +292,7 @@ export const HistorialFichadas = ({
   // Al cambiar cualquier filtro se vuelve a la primera página: quedarse
   // en la página 7 de un resultado que ahora tiene 2 muestra un vacío
   // que parece un error.
-  const clavePagina = `${vista}|${filtros.desde}|${filtros.hasta}|${filtros.nombre}|${filtros.sector}|${filtros.soloIncompletos}`;
+  const clavePagina = `${vista}|${filtros.desde}|${filtros.hasta}|${filtros.empleadoId}|${filtros.sector}|${filtros.soloIncompletos}`;
   const [claveAnterior, setClaveAnterior] = useState(clavePagina);
   if (claveAnterior !== clavePagina) {
     setClaveAnterior(clavePagina);
@@ -339,13 +336,19 @@ export const HistorialFichadas = ({
 
   const descripcionFiltros = useMemo(() => {
     const lista: string[] = [];
-    if (filtros.nombre.trim())
-      lista.push(`Colaborador contiene: "${filtros.nombre.trim()}"`);
+    if (filtros.empleadoId) {
+      const e = empleadoDe.get(filtros.empleadoId);
+      lista.push(
+        e
+          ? `Colaborador: ${e.apellido}, ${e.nombre}`
+          : 'Colaborador seleccionado'
+      );
+    }
     if (filtros.sector) lista.push(`Sector: ${filtros.sector}`);
     if (filtros.soloIncompletos)
       lista.push('Solo jornadas incompletas (falta entrada o salida)');
     return lista;
-  }, [filtros]);
+  }, [filtros, empleadoDe]);
 
   /**
    * El Excel del contador lleva el período entero, no la página.
@@ -813,6 +816,7 @@ export const HistorialFichadas = ({
         abierto={modalAbierto}
         valores={filtros}
         sectores={sectores}
+        colaboradores={empleados}
         sinColaborador={propio}
         onCerrar={() => setModalAbierto(false)}
         onAplicar={(v) => {
@@ -822,7 +826,7 @@ export const HistorialFichadas = ({
         onRestablecer={() =>
           setFiltros({
             ...rangoPorDefecto(),
-            nombre: '',
+            empleadoId: '',
             sector: '',
             soloIncompletos: false,
           })

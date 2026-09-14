@@ -32,20 +32,21 @@ import {
   getEmpleados,
   getEmpresa,
   getRemuneraciones,
-  getRemuneracionesTodas,
+  getRemuneracionesDePeriodos,
 } from '@/lib/services/rrhh';
 import { Empleado, Remuneracion } from '@/types/rrhh';
 import {
   analizarSalario,
   CARGAS_PATRONALES,
-  resumirMasa,
+  resumirMasaDelPeriodo,
   errorDeTopeImponible,
 } from '@/lib/remuneraciones';
 import { formatearPesos, formatearPorcentaje } from '@/lib/formato';
-import { formatearPeriodo } from '@/lib/fechas';
+import { formatearPeriodo, mesEmpresa } from '@/lib/fechas';
 import { descargarCSV } from '@/lib/csv';
 import { Boton } from '@/components/app/ui/Boton';
 import { BotonIcono } from '@/components/app/ui/BotonIcono';
+import { CampoMes } from '@/components/app/ui/CampoMes';
 import { Paginacion, usePaginacion } from '@/components/app/ui/Paginacion';
 import { BloqueError } from '@/components/app/EstadoCarga';
 import { useCarga } from '@/lib/useCarga';
@@ -365,6 +366,7 @@ const VistaAdmin = () => {
   const [cargasPct, setCargasPct] = useState(CARGAS_PATRONALES);
   const [aguinaldoAbierto, setAguinaldoAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  const [periodo, setPeriodo] = useState(mesEmpresa());
   const [orden, setOrden] = useState<{ col: ColumnaMasa; dir: 'asc' | 'desc' }>(
     {
       col: 'bruto',
@@ -372,10 +374,14 @@ const VistaAdmin = () => {
     }
   );
 
-  const cRems = useCarga(() => getRemuneracionesTodas(), [], {
-    contexto: 'remuneraciones',
-    inicial: [] as Remuneracion[],
-  });
+  const cRems = useCarga(
+    () => getRemuneracionesDePeriodos([periodo]),
+    [periodo],
+    {
+      contexto: 'remuneraciones',
+      inicial: [] as Remuneracion[],
+    }
+  );
   const rems = cRems.datos;
 
   const cEmpleados = useCarga(() => getEmpleados(), [], {
@@ -413,8 +419,8 @@ const VistaAdmin = () => {
   }, [cRems, cEmpleados, cEmpresa]);
 
   const resumen = useMemo(
-    () => resumirMasa(rems, cargasPct),
-    [rems, cargasPct]
+    () => resumirMasaDelPeriodo(rems, periodo, cargasPct),
+    [rems, periodo, cargasPct]
   );
 
   // Quién no tiene ninguna remuneración cargada. Se saca de `rems`, que
@@ -564,11 +570,19 @@ const VistaAdmin = () => {
 
   return (
     <div className="flex flex-col gap-6 sm:gap-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <CampoMes
+          etiqueta="Mes"
+          value={periodo}
+          onChange={setPeriodo}
+          ayuda="Sólo entran las remuneraciones de este período."
+        />
+      </div>
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <StatCard
-          etiqueta="Masa salarial"
+          etiqueta="Masa salarial del mes"
           valor={formatearPesos(resumen.masaSalarialBruta)}
-          detalle="bruto mensual"
+          detalle={`bruto de ${formatearPeriodo(periodo)}`}
           icono={IconReportMoney}
         />
         <StatCard
@@ -578,7 +592,7 @@ const VistaAdmin = () => {
           icono={IconBuildingBank}
         />
         <StatCard
-          etiqueta="Costo total mensual"
+          etiqueta="Costo total del mes"
           valor={formatearPesos(resumen.costoTotal)}
           detalle="bruto + cargas"
           icono={IconCoin}
@@ -586,7 +600,7 @@ const VistaAdmin = () => {
         <StatCard
           etiqueta="Costo por empleado"
           valor={formatearPesos(resumen.costoPromedio)}
-          detalle={`${resumen.cantidad} con sueldo cargado`}
+          detalle={`${resumen.cantidad} con sueldo en ${formatearPeriodo(periodo)}`}
           icono={IconUsers}
         />
       </div>
@@ -601,7 +615,7 @@ const VistaAdmin = () => {
 
       <Panel
         titulo="Remuneración por colaborador"
-        descripcion="Último período cargado de cada uno. Tocá la fila para ir a la ficha o el lápiz para editar el período."
+        descripcion={`Sueldos de ${formatearPeriodo(periodo)}. Tocá la fila para ir a la ficha o el lápiz para editar el período.`}
         acciones={
           <>
             <Boton
@@ -643,8 +657,8 @@ const VistaAdmin = () => {
         ) : resumen.porEmpleado.length === 0 ? (
           <div className="flex flex-col items-start gap-4 rounded-2xl bg-paper px-5 py-6">
             <p className="text-sm text-ink-soft">
-              Todavía no hay sueldos cargados. Cargá la primera remuneración y
-              acá vas a ver la masa salarial y el detalle por colaborador.
+              No hay remuneraciones en {formatearPeriodo(periodo)}. Importá la
+              planilla Excel o CSV del estudio contable, o cargá el mes a mano.
             </p>
             <Boton onClick={abrirNueva}>
               <IconPlus />
@@ -661,7 +675,7 @@ const VistaAdmin = () => {
               <input
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar por nombre o período…"
+                placeholder="Buscar por nombre…"
                 className="campo-app campo-app-con-icono"
               />
             </div>
@@ -881,7 +895,6 @@ const VistaAdmin = () => {
       <GenerarAguinaldoModal
         abierto={aguinaldoAbierto}
         empleados={empleados}
-        remuneraciones={rems}
         onCerrar={() => setAguinaldoAbierto(false)}
         onGenerado={cargar}
       />
@@ -903,7 +916,7 @@ const RemuneracionesPage = () => {
         </h1>
         <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-ink-soft">
           {esAdmin
-            ? 'Masa salarial, costos y sueldos del equipo.'
+            ? 'Masa salarial y costos del mes elegido. Podés importar la planilla del estudio para no cargar empleado por empleado.'
             : 'Tu evolución salarial y aguinaldo estimado.'}
         </p>
       </div>
