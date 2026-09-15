@@ -219,3 +219,67 @@ describe('Colaboradores → Dados de baja → Reactivar', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('el filtro de sectores nombra a quien no tiene sector', () => {
+  const renderCon = async (empleados: Empleado[]) => {
+    mock(getEmpleadosTodos).mockResolvedValue(empleados);
+    mock(getEmpleadosConCuenta).mockResolvedValue([]);
+    mock(getEmpleadosConSueldo).mockResolvedValue([]);
+    mock(getSolicitudesDeLegajo).mockResolvedValue([]);
+    render(
+      <MantineProvider>
+        <ColaboradoresPage />
+      </MantineProvider>
+    );
+  };
+
+  it('si hay gente sin sector, la opción se llama “Sin sector” y no queda en blanco', async () => {
+    await renderCon([
+      { ...activo, sector: 'General' },
+      { ...activo, id: 'ple-sin', apellido: 'SinSector', sector: '' },
+    ]);
+
+    await screen.findByText('Ana Ruiz');
+    expect(screen.getByText(/sin sector/i)).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole('button', { name: /todos los sectores/i })
+    );
+    const lista = await screen.findByRole('listbox');
+    const opciones = within(lista)
+      .getAllByRole('option')
+      .map((o) => o.textContent?.trim());
+    expect(opciones).toEqual(['Todos los sectores', 'General', 'Sin sector']);
+  });
+
+  it('elegir “Sin sector” deja sólo a quien no lo tiene', async () => {
+    await renderCon([
+      { ...activo, sector: 'General' },
+      { ...activo, id: 'ple-sin', apellido: 'SinSector', sector: '' },
+    ]);
+
+    await screen.findByText('Ana Ruiz');
+    await userEvent.click(
+      screen.getByRole('button', { name: /todos los sectores/i })
+    );
+    await userEvent.click(
+      await screen.findByRole('option', { name: /^sin sector$/i })
+    );
+
+    expect(await screen.findByText('Ana SinSector')).toBeInTheDocument();
+    expect(screen.queryByText('Ana Ruiz')).not.toBeInTheDocument();
+  });
+
+  it('si todos tienen sector, esa opción no aparece', async () => {
+    await renderCon([{ ...activo, sector: 'General' }]);
+
+    await screen.findByText('Ana Ruiz');
+    await userEvent.click(
+      screen.getByRole('button', { name: /todos los sectores/i })
+    );
+    const lista = await screen.findByRole('listbox');
+    const opciones = within(lista)
+      .getAllByRole('option')
+      .map((o) => o.textContent?.trim());
+    expect(opciones).toEqual(['Todos los sectores', 'General']);
+  });
+});

@@ -40,6 +40,12 @@ import { ChipsFaltas } from '@/components/app/Faltas';
 
 const POR_PAGINA = 6;
 
+/** Valor del filtro: no es un sector real, para no chocar con “Todos”. */
+const SIN_SECTOR = '__sin_sector__';
+
+const etiquetaDePuesto = (puesto: string) => puesto.trim() || 'A definir';
+const etiquetaDeSector = (sector: string) => sector.trim() || 'Sin sector';
+
 const modalidades: Record<ModalidadContratacion, string> = {
   indeterminado: 'Tiempo indeterminado',
   plazo_fijo: 'Plazo fijo',
@@ -112,9 +118,15 @@ const ColaboradoresPage = () => {
   };
 
   const sectores = useMemo(
-    () => Array.from(new Set(empleados.map((e) => e.sector))).sort(),
+    () =>
+      Array.from(
+        new Set(
+          empleados.map((e) => e.sector.trim()).filter((s) => s.length > 0)
+        )
+      ).sort((a, b) => a.localeCompare(b, 'es')),
     [empleados]
   );
+  const haySinSector = empleados.some((e) => !e.sector.trim());
 
   // Qué le falta a cada uno. Se calcula una vez para toda la lista: si
   // se hiciera dentro del map, cada render recorrería el catálogo por
@@ -167,7 +179,11 @@ const ColaboradoresPage = () => {
     return empleados.filter((e) => {
       if (estado === 'activo' && !e.activo) return false;
       if (estado === 'baja' && e.activo) return false;
-      if (sector && e.sector !== sector) return false;
+      if (sector === SIN_SECTOR) {
+        if (e.sector.trim()) return false;
+      } else if (sector && e.sector.trim() !== sector) {
+        return false;
+      }
       if (modalidad && e.modalidadContratacion !== modalidad) return false;
       if (legajo) {
         const completo = e.checklistAlta.every((c) => c.completo);
@@ -286,6 +302,9 @@ const ColaboradoresPage = () => {
             opciones={[
               { valor: '', etiqueta: 'Todos los sectores' },
               ...sectores.map((s) => ({ valor: s, etiqueta: s })),
+              ...(haySinSector
+                ? [{ valor: SIN_SECTOR, etiqueta: 'Sin sector' }]
+                : []),
             ]}
           />
           <Boton
@@ -376,7 +395,7 @@ const ColaboradoresPage = () => {
                 icono={IconUser}
                 avatarUrl={e.fotoUrl}
                 principal={`${e.nombre} ${e.apellido}`}
-                secundario={`${e.puesto} · ${e.sector}`}
+                secundario={`${etiquetaDePuesto(e.puesto)} · ${etiquetaDeSector(e.sector)}`}
                 href={`/colaboradores/${e.id}`}
                 extremo={
                   !e.activo ? (
