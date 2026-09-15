@@ -1,19 +1,24 @@
 import {
   aprobarExtrasDeJornada,
   completarAlta,
+  crearEmpleado,
   darDeBajaEmpleado,
   enrolarRostro,
   getAusenciasPendientes,
   getDescriptoresFaciales,
   getEmpleados,
+  getEmpleadosTodos,
   getSaldoVacaciones,
   getEstadoDeCuentas,
   getTurnosDeEmpleado,
   invitarUsuario,
   loginConEmail,
   quitarAcceso,
+  reactivarEmpleado,
   vincularUsuarioAEmpleado,
 } from '@/lib/services/rrhh';
+import { useAuthStore } from '@/lib/auth/store';
+import { usuariosMock } from '@/lib/mocks/usuarios';
 
 describe('servicios (mocks)', () => {
   it('loginConEmail encuentra usuarios demo sin distinguir mayúsculas', async () => {
@@ -211,5 +216,110 @@ describe('servicios (mocks)', () => {
     expect(marcado.horaEntrada).toBe(turnoExistente.horaEntrada);
     expect(marcado.horaSalida).toBe(turnoExistente.horaSalida);
     expect(marcado.extrasAprobadas).toBe(true);
+  });
+});
+
+const altaDePrueba = (dni: string) =>
+  crearEmpleado({
+    nombre: 'Dueño',
+    apellido: 'Poster',
+    dni,
+    puesto: 'Socio',
+    sector: 'Dirección',
+    fechaIngreso: '2024-01-15',
+    modalidadContratacion: 'indeterminado',
+  });
+
+describe('reactivar un colaborador dado de baja', () => {
+  afterEach(() => {
+    useAuthStore.setState({ usuario: null });
+  });
+
+  it('un admin puede reactivar el mismo legajo, sin duplicar DNI ni biometría', async () => {
+    const creado = await altaDePrueba('99887701');
+    const descriptor = [0.11, 0.22, 0.33];
+    await enrolarRostro(creado.id, descriptor, {
+      aceptado: true,
+      texto: 'Autoriza el uso de su rostro.',
+    });
+
+    const usuario = {
+      id: `usr-${creado.id}`,
+      email: 'dueno.poster@test.com',
+      rol: 'admin_rrhh' as const,
+      empresaId: 'emp-1',
+      empleadoId: creado.id,
+      nombreCompleto: 'Dueño Poster',
+    };
+    usuariosMock.push(usuario);
+    try {
+      await darDeBajaEmpleado(creado.id, 'Alta de prueba', '2026-09-01');
+      const reactivado = await reactivarEmpleado(creado.id);
+
+      expect(reactivado?.id).toBe(creado.id);
+      expect(reactivado?.dni).toBe(creado.dni);
+      expect(reactivado?.activo).toBe(true);
+      expect(reactivado?.fechaBaja).toBeUndefined();
+      expect(reactivado?.motivoBaja).toBeUndefined();
+      expect(reactivado?.descriptorFacial).toBeUndefined();
+      expect(reactivado?.descriptorVersion).toBeUndefined();
+      expect(reactivado?.consentimientoBiometrico).toBeUndefined();
+
+      const activos = await getEmpleados();
+      const todos = await getEmpleadosTodos();
+      expect(activos.filter((e) => e.id === creado.id)).toHaveLength(1);
+      expect(todos.filter((e) => e.id === creado.id)).toHaveLength(1);
+      expect(todos.filter((e) => e.dni === creado.dni)).toHaveLength(1);
+      expect(todos.find((e) => e.id === creado.id)?.activo).toBe(true);
+      expect(
+        todos.find((e) => e.id === creado.id && !e.activo)
+      ).toBeUndefined();
+
+      const descriptores = await getDescriptoresFaciales();
+      expect(descriptores.some((d) => d.empleadoId === creado.id)).toBe(false);
+
+      const vinculado = usuariosMock.find((u) => u.id === usuario.id);
+      expect(vinculado?.empleadoId).toBe(creado.id);
+      expect(vinculado?.rol).toBe('admin_rrhh');
+    } finally {
+      const i = usuariosMock.findIndex((u) => u.id === usuario.id);
+      if (i >= 0) usuariosMock.splice(i, 1);
+    }
+  });
+
+  it('no reactiva a quien ya está activo', async () => {
+    const creado = await altaDePrueba('99887702');
+    await expect(reactivarEmpleado(creado.id)).rejects.toThrow(
+      /ya está activo/i
+    );
+    expect(creado.activo).toBe(true);
+  });
+
+  it('un supervisor no puede reactivar', async () => {
+    const creado = await altaDePrueba('99887703');
+    await darDeBajaEmpleado(creado.id, 'Prueba', '2026-09-01');
+    useAuthStore.setState({
+      usuario: usuariosMock.find((u) => u.rol === 'supervisor') ?? null,
+    });
+    await expect(reactivarEmpleado(creado.id)).rejects.toThrow(/permiso/i);
+    const todos = await getEmpleadosTodos();
+    const sigue = todos.find((e) => e.id === creado.id);
+    expect(sigue?.activo).toBe(false);
+    expect(sigue?.fechaBaja).toBe('2026-09-01');
+    expect(sigue?.motivoBaja).toBe('Prueba');
+  });
+
+  it('un empleado no puede reactivar', async () => {
+    const creado = await altaDePrueba('99887704');
+    await darDeBajaEmpleado(creado.id, 'Prueba', '2026-09-02');
+    useAuthStore.setState({
+      usuario: usuariosMock.find((u) => u.rol === 'empleado') ?? null,
+    });
+    await expect(reactivarEmpleado(creado.id)).rejects.toThrow(/permiso/i);
+    const todos = await getEmpleadosTodos();
+    const sigue = todos.find((e) => e.id === creado.id);
+    expect(sigue?.activo).toBe(false);
+    expect(sigue?.dni).toBe(creado.dni);
+    expect(sigue?.fechaBaja).toBe('2026-09-02');
   });
 });

@@ -17,6 +17,7 @@ import {
   IconPlaneDeparture,
   IconUpload,
   IconUser,
+  IconUserCheck,
   IconUserOff,
   IconX,
 } from '@tabler/icons-react';
@@ -34,6 +35,7 @@ import { Campo } from '@/components/app/ui/Campo';
 import { CampoArchivo } from '@/components/app/ui/CampoArchivo';
 import { CampoFecha } from '@/components/app/ui/CampoFecha';
 import { Breadcrumbs } from '@/components/app/ui/Breadcrumbs';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { anioEmpresa, formatearFechaCivil, hoyISO } from '@/lib/fechas';
 import { CampoSelect } from '@/components/app/ui/Campo';
 import { aOpciones } from '@/components/app/ui/Selector';
@@ -46,6 +48,7 @@ import {
   getEmpleadosConCuenta,
   getEstadoDeCuentaDeEmpleado,
   quitarDocumento,
+  reactivarEmpleado,
   toggleChecklistItem,
 } from '@/lib/services/rrhh';
 import { StatCard } from '@/components/app/dashboard/StatCard';
@@ -111,6 +114,8 @@ const FichaColaboradorPage = () => {
   const { id } = useParams<{ id: string }>();
   const { usuario, rolEfectivo } = useAuth();
   const router = useRouter();
+  const { confirmar, dialogo } = useConfirmacion();
+  const [reactivando, setReactivando] = useState(false);
 
   const cEmpleado = useCarga(() => getEmpleado(id), [id], {
     activo: Boolean(id),
@@ -431,6 +436,35 @@ const FichaColaboradorPage = () => {
     recargarDocs();
   };
 
+  const reactivar = async () => {
+    if (!empleado) return;
+    const ok = await confirmar({
+      titulo: '¿Reactivar este colaborador?',
+      detalle:
+        'Volverá a aparecer entre los colaboradores activos. Si utilizaba biometría, deberá registrarla nuevamente.',
+      confirmar: 'Reactivar',
+    });
+    if (!ok) return;
+    setReactivando(true);
+    try {
+      const actualizado = await reactivarEmpleado(empleado.id);
+      if (!actualizado) {
+        throw new Error('No pudimos reactivar al colaborador.');
+      }
+      avisoExito(
+        'Colaborador reactivado',
+        `${empleado.nombre} ${empleado.apellido} volvió a la lista de activos.`
+      );
+      setEmpleado(actualizado);
+    } catch (err) {
+      avisoError(
+        'No pudimos reactivar al colaborador',
+        err instanceof Error ? err.message : undefined
+      );
+    }
+    setReactivando(false);
+  };
+
   const confirmarBaja = async () => {
     if (!motivoBaja.trim()) {
       setErrorBaja('Indicá el motivo de la baja.');
@@ -507,6 +541,17 @@ const FichaColaboradorPage = () => {
               Dar de baja
             </Boton>
           </div>
+        )}
+        {rolEfectivo === 'admin_rrhh' && !empleado.activo && (
+          <Boton
+            type="button"
+            variante="secundario"
+            disabled={reactivando}
+            onClick={() => void reactivar()}
+          >
+            <IconUserCheck size={16} />
+            {reactivando ? 'Reactivando…' : 'Reactivar'}
+          </Boton>
         )}
       </div>
 
@@ -978,6 +1023,7 @@ const FichaColaboradorPage = () => {
           </div>
         </div>
       </Modal>
+      {dialogo}
     </div>
   );
 };

@@ -175,6 +175,15 @@ jobs:
             psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
             < supabase/tests/vacaciones_legales.test.sql
 
+      # Reactivar un colaborador dado de baja: mismo UPDATE inverso que
+      # la baja, cortado por RLS. Supervisor/empleado no pueden; el DNI
+      # y la cuenta se conservan; la biometría no vuelve.
+      - name: Reactivar colaborador dado de baja
+        run: |
+          docker exec -i "$(docker ps -qf name=supabase_db)" \
+            psql -U postgres -d postgres -v ON_ERROR_STOP=1 -q \
+            < supabase/tests/reactivar_empleado.test.sql
+
       # Race de fichaje (FIC-004): dos RPC concurrentes del mismo
       # empleado deben alternar ingreso/egreso, nunca duplicar el tipo.
       - name: Concurrencia de fichaje

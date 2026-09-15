@@ -485,9 +485,34 @@ export const darDeBajaEmpleado = async (
     // La finalidad por la que se recolectó el rostro termina con la baja
     // (Ley 25.326). Mismo criterio que en la implementación real.
     empleado.descriptorFacial = undefined;
+    empleado.descriptorVersion = undefined;
     empleado.consentimientoBiometrico = undefined;
   }
   return simular(empleado ?? null);
+};
+
+/**
+ * Revierte una baja lógica. Mismo contrato que la implementación real:
+ * el legajo no se duplica, la biometría no vuelve y hace falta ser
+ * admin (en demo se mira el rol de la sesión; en producción lo corta
+ * RLS).
+ */
+export const reactivarEmpleado = async (
+  empleadoId: string
+): Promise<Empleado | null> => {
+  const rol = useAuthStore.getState().usuario?.rol;
+  if (rol && rol !== 'admin_rrhh' && rol !== 'superadmin') {
+    throw new Error('No tenés permiso para reactivar colaboradores.');
+  }
+  const empleado = empleadosMock.find((e) => e.id === empleadoId);
+  if (!empleado) return null;
+  if (empleado.activo) {
+    throw new Error('Ese colaborador ya está activo.');
+  }
+  empleado.activo = true;
+  empleado.motivoBaja = undefined;
+  empleado.fechaBaja = undefined;
+  return simular(empleado);
 };
 
 export const toggleChecklistItem = async (

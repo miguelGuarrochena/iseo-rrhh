@@ -118,6 +118,52 @@ describe('el enrolamiento guarda plantilla y nada más', () => {
   });
 });
 
+describe('reactivar no reconstruye la biometría borrada en la baja', () => {
+  const real = sinComentarios(leerModulo('src/lib/services/supabase/real.ts'));
+
+  const cuerpoDeReactivar = (): string => {
+    const desde = real.indexOf('export const reactivarEmpleado');
+    expect(desde).toBeGreaterThan(-1);
+    const hasta = real.indexOf('export const toggleChecklistItem');
+    return real.slice(desde, hasta);
+  };
+
+  it('sólo limpia fecha y motivo de baja y vuelve a activo', () => {
+    const cuerpo = cuerpoDeReactivar();
+    expect(cuerpo).toMatch(/activo:\s*true/);
+    expect(cuerpo).toMatch(/fecha_baja:\s*null/);
+    expect(cuerpo).toMatch(/motivo_baja:\s*null/);
+  });
+
+  it('no escribe descriptor ni consentimiento', () => {
+    const cuerpo = cuerpoDeReactivar();
+    expect(cuerpo).not.toMatch(/descriptor_facial:/);
+    expect(cuerpo).not.toMatch(/descriptor_version:/);
+    expect(cuerpo).not.toMatch(/consentimiento_biometrico:/);
+  });
+
+  it('no inserta un legajo ni toca la tabla de cuentas', () => {
+    const cuerpo = cuerpoDeReactivar();
+    expect(cuerpo).not.toMatch(/\.insert\s*\(/);
+    expect(cuerpo).not.toMatch(/crearEmpleado/);
+    expect(cuerpo).not.toMatch(/from\('usuarios'\)/);
+  });
+});
+
+describe('editar el legajo no puede disfrazar una reactivación', () => {
+  it('actualizarEmpleado no mapea activo ni los campos de baja', () => {
+    const real = sinComentarios(
+      leerModulo('src/lib/services/supabase/real.ts')
+    );
+    const desde = real.indexOf('export const actualizarEmpleado');
+    const hasta = real.indexOf('export const darDeBajaEmpleado');
+    const cuerpo = real.slice(desde, hasta);
+    expect(cuerpo).not.toMatch(/activo:\s*'activo'/);
+    expect(cuerpo).not.toMatch(/fechaBaja:\s*'fecha_baja'/);
+    expect(cuerpo).not.toMatch(/motivoBaja:\s*'motivo_baja'/);
+  });
+});
+
 describe('el fichaje no guarda ninguna fotografía', () => {
   const real = sinComentarios(leerModulo('src/lib/services/supabase/real.ts'));
 

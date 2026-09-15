@@ -951,6 +951,7 @@ export const darDeBajaEmpleado = async (
       motivo_baja: motivo,
       fecha_baja: fecha,
       descriptor_facial: null,
+      descriptor_version: null,
       consentimiento_biometrico: null,
     })
     .eq('id', id)
@@ -962,6 +963,57 @@ export const darDeBajaEmpleado = async (
     fecha,
     biometriaBorrada: true,
   });
+  return getEmpleado(id);
+};
+
+/**
+ * Revierte una baja lógica: el mismo legajo vuelve a activo.
+ *
+ * No es un alta nueva. Se conservan id, DNI, historial y el vínculo con
+ * la cuenta, si sigue existiendo. Se vacían sólo los campos de la baja
+ * (`fecha_baja`, `motivo_baja`). La biometría no se toca: la baja la
+ * borra a propósito (Ley 25.326) y reconstruirla acá sería inventar un
+ * consentimiento que ya no existe.
+ *
+ * Misma forma que `darDeBajaEmpleado`: UPDATE sobre `empleados`,
+ * protegido por `empleados_gestion_update` (admin_rrhh / superadmin).
+ * No hay RPC aparte porque la baja tampoco lo usa; el permiso lo pone
+ * RLS, no el cliente.
+ */
+export const reactivarEmpleado = async (
+  id: string
+): Promise<Empleado | null> => {
+  const actual = await getEmpleado(id);
+  if (!actual) return null;
+  if (actual.activo) {
+    throw new Error('Ese colaborador ya está activo.');
+  }
+  // Un solo UPDATE: activo y los dos campos de baja cambian juntos o
+  // no cambia nada. No hay un estado intermedio "activo con fecha de
+  // baja" ni al revés, ni se toca el DNI, el id ni la cuenta.
+  const { data, error } = await sb()
+    .from('empleados')
+    .update({
+      activo: true,
+      motivo_baja: null,
+      fecha_baja: null,
+    })
+    .eq('id', id)
+    .eq('activo', false)
+    .select(EMPLEADO_SELECT_TABLA)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) {
+    // 0 filas: o RLS lo bloqueó, o alguien lo reactivó entre el SELECT
+    // y el UPDATE. Distinguirlos evita decir "no tenés permiso" cuando
+    // en realidad ya está activo.
+    const despues = await getEmpleado(id);
+    if (despues?.activo) {
+      throw new Error('Ese colaborador ya está activo.');
+    }
+    throw new Error('No tenés permiso para reactivar colaboradores.');
+  }
+  await registrarAuditoria('reactivar', 'empleado', id);
   return getEmpleado(id);
 };
 

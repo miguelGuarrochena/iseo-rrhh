@@ -14,17 +14,20 @@ import { useAuth } from '@/lib/auth/AuthProvider';
 import { ImportarEmpleadosModal } from '@/components/app/colaboradores/ImportarEmpleadosModal';
 import { ListaCard, ListaItem } from '@/components/app/dashboard/ListaCard';
 import { Boton } from '@/components/app/ui/Boton';
+import { useConfirmacion } from '@/components/app/ui/useConfirmacion';
 import { aOpciones, Selector } from '@/components/app/ui/Selector';
 import {
   Paginacion,
   paginar,
   totalPaginasDe,
 } from '@/components/app/ui/Paginacion';
+import { avisoError, avisoExito } from '@/lib/avisos';
 import {
   getEmpleadosConCuenta,
   getEmpleadosTodos,
   getEmpleadosConSueldo,
   getSolicitudesDeLegajo,
+  reactivarEmpleado,
 } from '@/lib/services/rrhh';
 import { PedidosDeCambio } from '@/components/app/legajo/PedidosDeCambio';
 import { SolicitudDatoLegajo } from '@/lib/autoservicioLegajo';
@@ -56,6 +59,8 @@ const ColaboradoresPage = () => {
   const [pagina, setPagina] = useState(1);
   const [importarAbierto, { open: abrirImportar, close: cerrarImportar }] =
     useDisclosure(false);
+  const { confirmar, dialogo } = useConfirmacion();
+  const [reactivandoId, setReactivandoId] = useState<string | null>(null);
 
   const carga = useCarga(() => getEmpleadosTodos(), [], {
     contexto: 'colaboradores',
@@ -77,6 +82,34 @@ const ColaboradoresPage = () => {
   });
   const empleados = carga.datos;
   const cargarEmpleados = carga.recargar;
+
+  const reactivar = async (e: Empleado) => {
+    const ok = await confirmar({
+      titulo: '¿Reactivar este colaborador?',
+      detalle:
+        'Volverá a aparecer entre los colaboradores activos. Si utilizaba biometría, deberá registrarla nuevamente.',
+      confirmar: 'Reactivar',
+    });
+    if (!ok) return;
+    setReactivandoId(e.id);
+    try {
+      const actualizado = await reactivarEmpleado(e.id);
+      if (!actualizado) {
+        throw new Error('No pudimos reactivar al colaborador.');
+      }
+      avisoExito(
+        'Colaborador reactivado',
+        `${e.nombre} ${e.apellido} volvió a la lista de activos.`
+      );
+      carga.actualizar(empleados.map((x) => (x.id === e.id ? actualizado : x)));
+    } catch (err) {
+      avisoError(
+        'No pudimos reactivar al colaborador',
+        err instanceof Error ? err.message : undefined
+      );
+    }
+    setReactivandoId(null);
+  };
 
   const sectores = useMemo(
     () => Array.from(new Set(empleados.map((e) => e.sector))).sort(),
@@ -347,9 +380,22 @@ const ColaboradoresPage = () => {
                 href={`/colaboradores/${e.id}`}
                 extremo={
                   !e.activo ? (
-                    <span className="shrink-0 rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
-                      Baja
-                    </span>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                      <span className="rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-700">
+                        Baja
+                      </span>
+                      {rolEfectivo === 'admin_rrhh' && (
+                        <Boton
+                          type="button"
+                          tamano="sm"
+                          variante="secundario"
+                          disabled={reactivandoId === e.id}
+                          onClick={() => void reactivar(e)}
+                        >
+                          Reactivar
+                        </Boton>
+                      )}
+                    </div>
                   ) : (
                     // Dos cosas distintas: los documentos que faltan
                     // subir y los datos que faltan cargar. Un legajo
@@ -385,6 +431,7 @@ const ColaboradoresPage = () => {
         onCerrar={cerrarImportar}
         onImportado={cargarEmpleados}
       />
+      {dialogo}
     </div>
   );
 };

@@ -216,6 +216,10 @@ export const darDeBajaEmpleado = elegir(
   real.darDeBajaEmpleado,
   demo.darDeBajaEmpleado
 );
+export const reactivarEmpleado = elegir(
+  real.reactivarEmpleado,
+  demo.reactivarEmpleado
+);
 export const toggleChecklistItem = elegir(
   real.toggleChecklistItem,
   demo.toggleChecklistItem
